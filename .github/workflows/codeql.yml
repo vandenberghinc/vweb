@@ -78,7 +78,8 @@ jobs:
       - name: Building files
         run: |
           mkdir -p ${{ github.workspace }}/build
-          g++ -std=c++2a dev/codeql/main.cpp -o ${{ github.workspace }}/build/binary -lz -lssl -lcrypt -lcrypto
+          git clone https://github.com/vandenberghinc/vlib.git ./vlib
+          g++ -std=c++2a dev/codeql/main.cpp -o ${{ github.workspace }}/build/binary -Ivlib/include/ -lz -lssl -lcrypt -lcrypto
 
       # Analyze.
       - name: Perform CodeQL Analysis
