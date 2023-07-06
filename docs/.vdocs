@@ -1,0 +1,56 @@
+{
+
+	// General info.
+	"name": "VWeb",
+	"description": "Create REST APIs or easily build websites in a SwiftUI like manner.",
+	"language": "c++20",
+	"os": [
+		"macos",
+		"linux",
+	],
+	
+	// Meta.
+	"author": "Daan van den Bergh",
+    "meta_title": "VWeb Documentation",
+    "meta_description": "Create REST APIs or easily build websites in a SwiftUI like manner.",
+    
+    // Paths.
+	"output": "$SOURCE/docs/index.html",
+    "readme": "$SOURCE/README.md",
+	
+	// Icon.
+	"icon": "https://raw.githubusercontent.com/vandenberghinc/public-storage/master/vandenberghinc/icon/triangle.png",
+	"favicon": "/favicon.ico",
+	
+	// URL.
+	// The URL is only used for the markdown table.
+    "url": "https://vandenberghinc.github.io/vweb",
+    
+    // Sources to include.
+	"sources":[
+		"$SOURCE/include/vweb/vweb.h",
+	],
+	
+	// Copyright.
+	"copyright": [
+		2023,
+		2023,
+	],
+	
+	// Chapters order.
+	"chapters": [
+	],
+	
+	// Custom blocks.
+	"blocks": [
+		{
+			"name": "Installation",
+			"include": "$SOURCE/docs/files/installation.md",
+		},
+		{
+			"name": "Getting Started",
+			"include": "$SOURCE/docs/files/getting_started.md",
+		},
+	]
+	
+}

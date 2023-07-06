@@ -1,0 +1,93 @@
+/*
+Author: Daan van den Bergh
+Copyright: © 2022 Daan van den Bergh.
+*/
+
+/* Box sizing on all elements. */
+* {
+	box-sizing: border-box;
+	-webkit-box-sizing: border-box;
+	-mos-box-sizing: border-box;
+	-ms-box-sizing: border-box;
+}
+
+/* Animation: Slide Right */
+@keyframes SlideRight {
+	0% {
+		transform: translateX(-100%);
+	}
+}
+SlideRight {
+	animation-duration: 1s;
+	animation-name: SlideRight;
+}
+
+/* Animation: Slide Left */
+@keyframes SlideLeft {
+	100% {
+		transform: translateX(-100%);
+	}
+}
+SlideLeft {
+	animation-duration: 1s;
+	animation-name: SlideLeft;
+}
+
+/* RingLoader */
+.RingLoader div {
+    box-sizing: border-box;
+    display: block;
+    position: absolute;
+    width: 64px;
+    height: 64px;
+    margin: 8px;
+    border: 8px solid black;
+    border-radius: 50%;
+    animation: RingLoader 1.2s cubic-bezier(0.5, 0, 0.5, 1) infinite;
+    border-color: black transparent transparent transparent;
+}
+.RingLoader div:nth-child(1) {
+    animation-delay: -0.45s;
+}
+.RingLoader div:nth-child(2) {
+    animation-delay: -0.3s;
+}
+.RingLoader div:nth-child(3) {
+    animation-delay: -0.15s;
+}
+@keyframes RingLoader {
+    0% {
+        transform: rotate(0deg);
+    }
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+/* Syntax highlighting */
+.token_comment {
+	color: #818C97;
+}
+.token_url {
+	color: #818C97;
+}
+.token_char, .token_string, .token_numeric {
+	/* color: #D6C986; */
+	/* color: #D3D968; */
+	/* color: #E2C930; */
+	color: #D6C986;
+}
+.token_bool {
+	color: #EE8378;
+	font-weight: bold;
+}
+.token_keyword {
+	color: #EE8378;
+	font-weight: bold;
+}
+.token_type_def { /* also for funcs */
+	color: #C78BF0;
+}
+.token_type { /* also for funcs */
+	color: #5795F3;
+}

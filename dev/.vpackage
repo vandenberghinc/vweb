@@ -1,0 +1,118 @@
+{
+    "name": "vweb",
+    "source": "$SOURCE",
+    "version": "1.1.3",
+    "author": {
+        "name": "Daan van den Bergh",
+        "email": "vandenberghinc@gmail.com"
+    },
+    "git": {
+        "main": "origin git@github.com:vandenberghinc/$NAME.git"
+    },
+    "ssh": {
+        "vinc": "/vserver/storages/vinc/$NAME/",
+        "vinc.wan": "/vserver/storages/vinc/$NAME/",
+        "dev.vinc": "/Volumes/persistance/private/vinc/$NAME/",
+        "dev.vinc.wan": "/Volumes/persistance/private/vinc/$NAME/",
+        "paperspace": "vinc/$NAME/",
+        "vandenberghinc.com": "vinc/$NAME/"
+    },
+    "build": {
+        "release": {
+            "compiler": "/usr/bin/clang++",
+            "input": "$SOURCE/build.cpp",
+            "output": "$SOURCE/bin/build",
+            "std": "c++2b",
+            "include_paths": [
+                "/opt/vinc/include/",
+                "/opt/homebrew/opt/openssl@3.1/include/"
+            ],
+            "library_paths": [
+                "/opt/homebrew/opt/openssl@3.1/lib/"
+            ],
+            "linked_libraries": {
+                "macos": [
+                    "-lssl",
+                    "-lcrypto",
+                    "-lz"
+                ],
+                "linux": [
+                    "-lssl",
+                    "-lcrypto",
+                    "-lz",
+                    "-lcrypt",
+                    "-ldl"
+                ]
+            },
+            "other_flags": [
+                "-O3",
+                "-fomit-frame-pointer",
+                "-Wno-unknown-escape-sequence"
+            ]
+        },
+        "debug": {
+            "compiler": "clang++",
+            "input": "$SOURCE/build.cpp",
+            "output": "$SOURCE/bin/build",
+            "std": "c++2b",
+            "include_paths": [
+                "/opt/vinc/include/",
+                "/opt/homebrew/opt/openssl@3.1/include/"
+            ],
+            "library_paths": [
+                "/opt/homebrew/opt/openssl@3.1/lib/"
+            ],
+            "linked_libraries": {
+                "macos": [
+                    "-lssl",
+                    "-lcrypto",
+                    "-lz"
+                ],
+                "linux": [
+                    "-lssl",
+                    "-lcrypto",
+                    "-lz",
+                    "-lcrypt",
+                    "-ldl"
+                ]
+            },
+            "other_flags": [
+                "-g",
+                "-rdynamic",
+                "-fsanitize=undefined",
+                "-Wno-unknown-escape-sequence"
+            ]
+        }
+    },
+    "install": {
+        "prefix": "/opt/vinc/",
+        "compiler": "/usr/bin/clang++",
+        "std": "c++2b",
+        "include_paths": [
+            "/opt/vinc/include/",
+            "/opt/homebrew/opt/openssl@3.1/include/"
+        ],
+        "library_paths": [
+            "/opt/homebrew/opt/openssl@3.1/lib/"
+        ],
+        "linked_libraries": {
+            "macos": [
+                "-lssl",
+                "-lcrypto",
+                "-lz"
+            ],
+            "linux": [
+                "-lssl",
+                "-lcrypto",
+                "-lz",
+                "-lcrypt",
+                "-ldl"
+            ]
+        },
+        "other_flags": [
+            "-O3",
+            "-fomit-frame-pointer",
+            "-Wno-unknown-escape-sequence"
+        ]
+    }
+}
