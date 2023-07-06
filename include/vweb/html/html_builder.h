@@ -731,7 +731,7 @@ public:
     
     // Build html for a mail from view.
     // No javascript is allowed so some things may act different.
-    template <typename View>static
+    template <typename View> static
     String    build_mail(const View& view) {
         HTMLBuilder html;
         

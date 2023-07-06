@@ -611,7 +611,6 @@ public:
     // Constructors.
     
     // Default constructor.
-    constexpr
     Server() {}
     
     // Constructor from config.
@@ -631,7 +630,6 @@ public:
      *          ...
      *      };
      } */
-    constexpr
     Server(const server::Config& config) :
     m_config(config),
     m_smtp(config.smtp),
@@ -1839,7 +1837,6 @@ public:
     
     // Create token headers.
     //  - Should be called when generating a token.
-    constexpr
     void    create_token_cookie(Headers& headers, const String& token) {
         headers["Cache-Control"] = "max-age=0, no-cache, no-store, must-revalidate, proxy-revalidate";
         headers["Access-Control-Allow-Credentials"] = "true";
@@ -1881,7 +1878,6 @@ public:
     
     // Create user headers.
     //  - Should be called when a user has just signed in or signed up.
-    constexpr
     void    create_detailed_user_cookie(Headers& headers, const Len& uid) {
         User user = get_user(uid);
         headers.append("Set-Cookie", tostr("UserName=", user.username, "; Path=/; SameSite=None; Secure;"));

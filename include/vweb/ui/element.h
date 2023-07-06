@@ -30,6 +30,7 @@ namespace alignment {
         trailing = 3,
         justify = 4,
     };
+	constexpr
     String tostr(const Int& alignment) {
         switch (alignment.value()) {
             case leading:
@@ -52,6 +53,7 @@ namespace animations {
         in = 1,
         out = 2,
     };
+	constexpr
     String tostr(const Int& animation) {
         switch (animation.value()) {
             case in:
