@@ -672,7 +672,7 @@
 		// Wrapper functino for a click sidebar title event.
 		function click_sidebar_title(bid) {
 			select_sidebar_title_hover(bid, false);
-			select_title_content(bid);
+			select_content(bid);
 			select_sidebar_title(bid, false);
 			unfold_sidebar_title_children(bid);
 		}
@@ -681,7 +681,7 @@
 		function click_sidebar_subtitle(bid, parent_bid) {
 			select_sidebar_title_hover(bid, false);
 			select_sidebar_title(bid, false);
-			select_title_content(parent_bid);
+			select_content(parent_bid);
 			toggle_sidebar(false);
 		}
 		
@@ -691,9 +691,9 @@
 			select_sidebar_title(bid, false);
 			let parent_bid = subtitle_parents[bid];
 			if (parent_bid == null) {
-				select_title_content(bid);
+				select_content(bid);
 			} else {
-				select_title_content(parent_bid);
+				select_content(parent_bid);
 			}
 			scroll_into_content(bid);
 			scroll_into_sidebar(bid);
@@ -715,9 +715,9 @@
 			}
 		}
         
-        // Select title content.
+        // Select content.
         // Hides all content except for the that of the provided title id.
-        function select_title_content(id) {
+        function select_content(id) {
             id = clean_subtitle_id(id);
             
             // Already visible.
@@ -748,6 +748,44 @@
             selected_content = id;
             
         }
+		
+		// Select content by href.
+		// - The href should not include the first #.
+		function select_content_by_href(href) {
+			
+			// Toggle sidebar.
+			toggle_chapter_dropdown(chapter_parents[href]);
+			select_sidebar_title(href, false);
+			
+			// Is title.
+			if (subtitle_parents[href] == null) {
+				
+				// Select content and unfold sidebar title.
+				select_content(href);
+				unfold_sidebar_title_children(href);
+				
+			// Is subtitle.
+			} else {
+				
+				// Select content and unfold sidebar title.
+				select_content(subtitle_parents[href]);
+				unfold_sidebar_title_children(subtitle_parents[href]);
+				
+				// Scroll into content child.
+				let e = get_element("content_child." + href);
+				if (e != null) {
+					e.scrollIntoView();
+				}
+				
+			}
+			
+			// Scroll into sidebar title.
+			let e = get_element("sidebar." + href);
+			if (e != null) {
+				e.scrollIntoView();
+			}
+			
+		}
 		
 		// Content scroll handler.
 		let scroll_timeout;
@@ -946,51 +984,18 @@
 			
 			// Select title.
 			select_sidebar_title(titles[0], true, false);
-			select_title_content(content_ids[0]);
+			select_content(content_ids[0]);
 			
 			// Set scroll event.
-			var content = get_element("content_parent");
+			let content = get_element("content_parent");
 			content.onscroll = (event) => {
 				scroll_handler(content);
 			};
 			
 			// Select content from href.
-			let href = window.location.href.split("#");
+			const href = window.location.href.split("#");
 			if (href.length >= 2 && titles_and_subtitles.includes(href[1])) {
-				href = href[1];
-				
-				// Toggle sidebar.
-				toggle_chapter_dropdown(chapter_parents[href]);
-				select_sidebar_title(href, false);
-				
-				// Is title.
-				if (subtitle_parents[href] == null) {
-					
-					// Select content and unfold sidebar title.
-					select_title_content(href);
-					unfold_sidebar_title_children(href);
-					
-				// Is subtitle.
-				} else {
-					
-					// Select content and unfold sidebar title.
-					select_title_content(subtitle_parents[href]);
-					unfold_sidebar_title_children(subtitle_parents[href]);
-					
-					// Scroll into content child.
-					let e = get_element("content_child." + href);
-					if (e != null) {
-						e.scrollIntoView();
-					}
-					
-				}
-				
-				// Scroll into sidebar title.
-				let e = get_element("sidebar." + href);
-				if (e != null) {
-					e.scrollIntoView();
-				}
-				
+				select_content_by_href(href[1]);
 			}
 			
 			// Show reset search button when text is already filled.
@@ -1006,6 +1011,16 @@
 				e.setAttribute("onclick", "window.location = '" + prev + "';");
 			}
 			
+		});
+		
+		// Back button event.
+		window.addEventListener('popstate', function(event) {
+			if (event.state === null) {
+				const href = window.location.href.split("#");
+				if (href.length >= 2 && titles_and_subtitles.includes(href[1])) {
+					select_content_by_href(href[1]);
+				}
+			}
 		});
 		
 	</script>
@@ -1714,8 +1729,7 @@ $ vweb --start</pre>
 <div style='display: flex; width: 100%; margin-top: 20px; margin-bottom: 20px;'>
 	<div style='float: left; margin-right: 10px;'><span class='purple_tag' style='padding-top: 5px; padding-bottom: 5px'>Member	</span></div>
 </div>
-<pre class='codeblock' style='; margin-top: 0px; padding: 10px; padding-left: 20px; padding-right: 20px; margin-top: 10px; margin-bottom: 10px;'><span class='token_keyword'>constexpr</span> 
-<span class='token_type'>vweb</span>::<span class='token_type_def'>Server</span>(<span class='token_keyword'>const</span> <span class='token_type'>server</span>::<span class='token_type'>Config</span>& config); 
+<pre class='codeblock' style='; margin-top: 0px; padding: 10px; padding-left: 20px; padding-right: 20px; margin-top: 10px; margin-bottom: 10px;'><span class='token_type'>vweb</span>::<span class='token_type_def'>Server</span>(<span class='token_keyword'>const</span> <span class='token_type'>server</span>::<span class='token_type'>Config</span>& config); 
 </pre>
 <h1 class='subtitle'>Parameters</h1>
 <div class='divider'></div>
