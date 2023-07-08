@@ -12,7 +12,7 @@
 #define VWEB_SESSION_H
 
 // Log to console when log level equals minimum.
-// - Keep as macro so the "tostr" and "String" objects ...
+// - Keep as macro so the "to_str" and "String" objects ...
 //   wont get constructed if the log level is hidden.
 vlib::Mutex log_mutex;
 #define SESLOG(min_log_level, text) \
@@ -47,6 +47,7 @@ using   TLS =    vlib::tls::Server<
 
 // ---------------------------------------------------------
 // Session.
+// @TODO sent permanently moved to http requests with redirect to https.
 
 template <typename Server, typename Connection>
 struct Session : public vlib::Thread<Session<Server, Connection>> {
@@ -78,7 +79,6 @@ public:
 	Server*             m_server = nullptr;
 	Bool*               m_busy = nullptr;
 	Connection*			m_conn = nullptr;
-	String              m_http_buffer; // buffer for http requests.
 	
 	// ---------------------------------------------------------
 	// Constructors.
@@ -124,7 +124,7 @@ public:
 #endif
 				this->sleep();
 #if VWEB_CATCH_EXCEPTIONS == true
-			} catch(vlib::Exception& e) {
+			} catch(const vlib::Exception& e) {
 				SESLOG(0, "Encountered an error while sleeping.");
 				e.dump();
 				continue;
@@ -132,20 +132,20 @@ public:
 #endif
 			
 			// Handle.
-			SESLOG(3, tostr("Handle file descriptor ", m_conn->fd, "."));
+			SESLOG(3, to_str("Handle file descriptor ", m_conn->fd, "."));
 #if VWEB_CATCH_EXCEPTIONS == true
 			try {
 #endif
 				handle_client();
 #if VWEB_CATCH_EXCEPTIONS == true
-			} catch(vlib::Exception& e) {
+			} catch(const vlib::Exception& e) {
 				SESLOG(0, "Encountered an error while handling the client.");
 				e.dump();
 			}
 #endif
 			
 			// Reset.
-			SESLOG(4, "Reset.");
+			SESLOG(0, "Resetting.");
 			reset();
 			
 		}
@@ -154,6 +154,7 @@ public:
 	
 	// Close the connection.
 	void    close() {
+		SESLOG(0, to_str(m_conn->info.ip, ": ", "Closing connected peer."));
 		m_conn->connected = false;
 		if (m_conn->ctx == NULL) {
 			TCP::close(m_conn->fd);
@@ -169,15 +170,14 @@ public:
 		m_conn->not_serving = true;
 		m_conn->expiration = Date::get_seconds() + m_server->m_config.keep_alive.value();
 		*m_busy = false;
-		m_http_buffer.reset();
 	}
 	
 	// Receive wrapper.
 	auto    recv(Request& request, const Int& timeout) {
 		if (m_conn->ctx == NULL) {
-			return TCP::recv(request, m_http_buffer, m_conn->fd, timeout);
+			request = TCP::recv<Request>(m_conn->fd, timeout);
 		} else {
-			return TLS::recv(request, m_conn->ctx, timeout);
+			request = TLS::recv<Request>(m_conn->ctx, timeout);
 		}
 	}
 	
@@ -216,26 +216,26 @@ public:
 			Request request;
 			
 			// Receive request.
-			SESLOG(4, tostr(m_conn->info.ip, ": ", "Receiving."));
+			SESLOG(4, to_str(m_conn->info.ip, ": ", "Receiving."));
 			try {
 				recv(request, timeout);
 			} catch (vlib::TimeoutError& e) {
-				SESLOG(3, tostr(m_conn->info.ip, ": ", "Operation timed out."));
+				SESLOG(3, to_str(m_conn->info.ip, ": ", "Operation timed out."));
 				return ;
 			} catch (vlib::SocketClosedError& e) {
 				this->close();
-				SESLOG(3, tostr(m_conn->info.ip, ": ", "Peer has been closed."));
+				SESLOG(3, to_str(m_conn->info.ip, ": ", "Peer has been closed."));
 				return ;
 			} catch (vlib::BrokenPipeError& e) {
 				this->close();
-				SESLOG(3, tostr(m_conn->info.ip, ": ", "Broken pipe."));
+				SESLOG(3, to_str(m_conn->info.ip, ": ", "Broken pipe."));
 				return ;
 			}
-			SESLOG(4, tostr(m_conn->info.ip, ": ", "Received."));
+			SESLOG(4, to_str(m_conn->info.ip, ": ", "Received."));
 			
 			// Undefined request.
 			if (request.method() == vlib::http::method::undefined) {
-				SESLOG(2, tostr(m_conn->info.ip, ": ", "Bad request: undefined method."));
+				SESLOG(2, to_str(m_conn->info.ip, ": ", "Bad request: undefined method."));
 				response = m_server->m_400;
 				close = true;
 			}
@@ -254,65 +254,64 @@ public:
 			// Iterate endpoints.
 			if (response.is_undefined()) {
 				for (auto& endpoint: m_server->m_endpoints) {
-					if (
-						endpoint.m_method == request.method() &&
+					if (endpoint.m_method == request.method() &&
 						endpoint.m_endpoint == req_endpoint &&
 						(
 						 request.content_type() == vlib::http::content_type::undefined ||
 						 endpoint.m_content_type == request.content_type()
 						 )
-						) {
-							
-							SESLOG(4, tostr(
-											m_conn->info.ip, ": Processing ",
-											vlib::http::method::tostr(request.method()), ' ',
-											req_endpoint, ".")
-								   );
-							
-							// Check rate limit.
-							SESLOG(4, tostr(m_conn->info.ip, ": ", "Verifying rate limit."));
-							if (!endpoint.verify_rate_limit(m_conn->numeric_ip)) {
-								SESLOG(2, tostr(m_conn->info.ip, ": ", "Rate limit exceeded."));
-								response = m_server->m_429;
-								close = true;
-								break;
-							}
-							
-							// Retrieve the auth key when present and the beloning uid.
-							// Always do this to set the user cookie even when the endpoint.
-							// Does not require authentication.
-							retrieve_auth_key(auth_key, uid, response, request);
+					) {
+						
+						SESLOG(4, to_str(
+							m_conn->info.ip, ": Processing ",
+							vlib::http::method::to_str(request.method()), ' ',
+							req_endpoint, ".")
+						);
+						
+						// Check rate limit.
+						SESLOG(4, to_str(m_conn->info.ip, ": ", "Verifying rate limit."));
+						if (!endpoint.verify_rate_limit(m_conn->numeric_ip)) {
+							SESLOG(2, to_str(m_conn->info.ip, ": ", "Rate limit exceeded."));
+							response = m_server->m_429;
+							close = true;
+							break;
+						}
+						
+						// Retrieve the auth key when present and the beloning uid.
+						// Always do this to set the user cookie even when the endpoint.
+						// Does not require authentication.
+						retrieve_auth_key(auth_key, uid, response, request);
+						if (response.is_defined()) {
+							close = true;
+							break;
+						}
+						
+						// Do authentication for an autheticated endpoint.
+						if (endpoint.m_auth & Endpoint::authenticated && !authenticated) {
+							SESLOG(4, to_str(m_conn->info.ip, ": ", "Doing authentication."));
+							authenticated = do_authentication(uid, response, request, auth_key);
 							if (response.is_defined()) {
 								close = true;
 								break;
 							}
-							
-							// Do authentication for an autheticated endpoint.
-							if (endpoint.m_auth & Endpoint::authenticated && !authenticated) {
-								SESLOG(4, tostr(m_conn->info.ip, ": ", "Doing authentication."));
-								authenticated = do_authentication(uid, response, request, auth_key);
-								if (response.is_defined()) {
-									close = true;
-									break;
-								}
-							}
-							
-							// HTML endpoint.
-							if (endpoint.m_type == 0) {
-								SESLOG(4, tostr(m_conn->info.ip, ": ", "View endpoint."));
-								Headers headers = endpoint.m_headers;
-								if (request.content_type() != vlib::http::content_type::undefined) {
-									m_server->create_user_cookie(headers, uid);
-								}
-								response.reconstruct(vlib::http::version::v1_1, 200, headers, endpoint.m_data);
-							}
-							
-							// Rest API endpoint.
-							else {
-								handle_restapi_endpoint(response, request, endpoint, uid);
-							}
-							break;
 						}
+						
+						// HTML endpoint.
+						if (endpoint.m_type == 0) {
+							SESLOG(4, to_str(m_conn->info.ip, ": ", "View endpoint."));
+							Headers headers = endpoint.m_headers;
+							if (request.content_type() != vlib::http::content_type::undefined) {
+								m_server->create_user_cookie(headers, uid);
+							}
+							response.reconstruct(vlib::http::version::v1_1, 200, headers, endpoint.m_data);
+						}
+						
+						// Rest API endpoint.
+						else {
+							handle_restapi_endpoint(response, request, endpoint, uid);
+						}
+						break;
+					}
 				}
 			}
 			
@@ -324,14 +323,14 @@ public:
 			
 			// Log.
 			if (m_server->m_config.log_level > 0) {
-				SESLOG(1, tostr(
-								m_conn->info.ip, ": ",
-								vlib::http::method::tostr(request.method()), ' ',
-								req_endpoint,
-								": ", response.status_desc(), "."
-								));
+				SESLOG(1, to_str(
+					m_conn->info.ip, ": ",
+					vlib::http::method::to_str(request.method()), ' ',
+					req_endpoint,
+					": ", response.status_desc(), "."
+				));
 			}
-			SESLOG(3, tostr(m_conn->info.ip, ": ", "Response time ", Date::get_mseconds() - start_time, "ms."));
+			SESLOG(3, to_str(m_conn->info.ip, ": ", "Response time ", Date::get_mseconds() - start_time, "ms."));
 			
 			// Set default headers.
 			m_server->set_header_defaults(response.headers());
@@ -341,18 +340,17 @@ public:
 			if (
 				(header_index = response.headers().find("Connection", 10)) != NPos::npos &&
 				response.headers().value(header_index).eq("close", 5)
-				) {
-					close = true;
-				}
+			) {
+				close = true;
+			}
 			
 			// Send response.
-			SESLOG(4, tostr(m_conn->info.ip, ": ", "Send response."));
+			SESLOG(4, to_str(m_conn->info.ip, ": ", "Send response."));
 			send(response, m_timeout);
 			++requests;
 			
 			// Check connection close.
 			if (close) {
-				SESLOG(4, tostr(m_conn->info.ip, ": ", "Close."));
 				this->close();
 			}
 			
@@ -373,11 +371,11 @@ public:
 	// - When the "response" parameter is defined after this function.
 	//   It means a errors response has been defined and it should be sent to the client.
 	void	retrieve_auth_key(
-							  String& 		auth_key,
-							  Len&			uid,
-							  Response&		response,
-							  const Request& 	request
-							  ) {
+		String& 		auth_key,
+		Len&			uid,
+		Response&		response,
+		const Request& 	request
+	) {
 		
 		// Vars.
 		ullong index;
@@ -393,14 +391,14 @@ public:
 			// Get authorization scheme & key.
 			index = authorization.find(' ');
 			if (index == NPos::npos) {
-				SESLOG(2, tostr(m_conn->info.ip, ": ", "Invalid authorization header format."));
+				SESLOG(2, to_str(m_conn->info.ip, ": ", "Invalid authorization header format."));
 				response = m_server->m_401_invalid_format;
 				return ;
 			}
 			
 			// Check scheme.
 			if (!authorization.eq(authorization.data(), index, "Bearer", 6)) {
-				SESLOG(2, tostr(m_conn->info.ip, ": ", "Authorization type is not bearer."));
+				SESLOG(2, to_str(m_conn->info.ip, ": ", "Authorization type is not bearer."));
 				response = m_server->m_401_invalid_scheme;
 				return ;
 			}
@@ -452,7 +450,7 @@ public:
 		if (auth_key.is_defined()) {
 			ullong index = auth_key.find(':');
 			if (index == NPos::npos) {
-				SESLOG(2, tostr(m_conn->info.ip, ": ", "Invalid authentication key format."));
+				SESLOG(2, to_str(m_conn->info.ip, ": ", "Invalid authentication key format."));
 				response = m_server->m_401_invalid_format;
 				return ;
 			}
@@ -466,22 +464,22 @@ public:
 	// - When the "response" parameter is defined after this function.
 	//   It means a errors response has been defined and it should be sent to the client.
 	Bool    do_authentication(
-							  Len& 		    uid, 		// the user id when the request is authenticated.
-							  Response& 		response, 	// the response object for errors.
-							  const Request& 	request, 	// the request object.
-							  const String& 	auth_key 	// the auth key from "retrieve_auth_key()".
+		Len& 		    uid, 		// the user id when the request is authenticated.
+		Response& 		response, 	// the response object for errors.
+		const Request& 	request, 	// the request object.
+		const String& 	auth_key 	// the auth key from "retrieve_auth_key()".
 	) {
 		
 		// Not authenticated.
 		if (auth_key.is_undefined()) {
-			SESLOG(2, tostr(m_conn->info.ip, ": ", "No authentication provided on an authenticated endpoint."));
+			SESLOG(2, to_str(m_conn->info.ip, ": ", "No authentication provided on an authenticated endpoint."));
 			response = m_server->m_401;
 			return false;
 		}
 		
 		// Check key.
 		if (auth_key.len() == 0) {
-			SESLOG(2, tostr(m_conn->info.ip, ": ", "Invalid authentication key format."));
+			SESLOG(2, to_str(m_conn->info.ip, ": ", "Invalid authentication key format."));
 			response = m_server->m_401_invalid_format;
 			return false;
 		}
@@ -489,7 +487,7 @@ public:
 		// The uid was not set by "retrieve_auth_key()".
 		// This means the auth key was defined but has an invalid format.
 		if (uid == NPos::npos) {
-			SESLOG(2, tostr(m_conn->info.ip, ": ", "Invalid authentication key format."));
+			SESLOG(2, to_str(m_conn->info.ip, ": ", "Invalid authentication key format."));
 			response = m_server->m_401_invalid_format;
 			return false;
 		}
@@ -497,7 +495,7 @@ public:
 		// Api key.
 		if (auth_key.first() == '0') {
 			if (!m_server->verify_api_key(auth_key)) {
-				SESLOG(2, tostr(m_conn->info.ip, ": ", "Incorrect API key."));
+				SESLOG(2, to_str(m_conn->info.ip, ": ", "Incorrect API key."));
 				response = m_server->m_401;
 				uid = NPos::npos;
 				return false;
@@ -508,7 +506,7 @@ public:
 		// Token.
 		else if (auth_key.first() == '1') {
 			if (!m_server->verify_token(auth_key)) {
-				SESLOG(2, tostr(m_conn->info.ip, ": ", "Incorrect token key."));
+				SESLOG(2, to_str(m_conn->info.ip, ": ", "Incorrect token key."));
 				response = m_server->m_401;
 				uid = NPos::npos;
 				return false;
@@ -518,7 +516,7 @@ public:
 		
 		// Invalid.
 		else {
-			SESLOG(2, tostr(m_conn->info.ip, ": ", "Invalid authentication key type."));
+			SESLOG(2, to_str(m_conn->info.ip, ": ", "Invalid authentication key type."));
 			response = m_server->m_401;
 			uid = NPos::npos;
 			return false;
@@ -527,14 +525,14 @@ public:
 	
 	// Serve a rest api endpoint.
 	void	handle_restapi_endpoint(
-									Response& 		response,
-									const Request& 	request,
-									const Endpoint& endpoint,
-									const Len& 		uid
-									) {
+		Response& 		response,
+		const Request& 	request,
+		const Endpoint& endpoint,
+		const Len& 		uid
+	) {
 		
 		// Get parameters.
-		SESLOG(4, tostr(m_conn->info.ip, ": ", "REST API endpoint."));
+		SESLOG(4, to_str(m_conn->info.ip, ": ", "REST API endpoint."));
 		Json params;
 		ullong pos;
 		
@@ -542,172 +540,88 @@ public:
 		if (
 			(pos = request.endpoint().find('?')) != NPos::npos &&
 			pos + 1 < request.endpoint().len()
-			) {
-				String query = vlib::url_decode(request.endpoint().slice(pos + 1));
-				
-				// No data.
-				if (query.len() == 0) {
-					SESLOG(2, tostr(m_conn->info.ip, ": ", "Bad request: no query data while \"?\" is provided."));
-					response = m_server->m_400;
-					return ;
-				}
-				
-				// By json.
-				if (query.first() == '{') {
-					params = Json::parse(query);
-				}
-				
-				// By query string.
-				else {
-					SESLOG(2, tostr(m_conn->info.ip, ": ", "Bad request: parsing a query string is not supported, send as json instead."));
-					response = m_server->m_400;
-					return ;
-				}
-				
-			}
-		
-		// Parameters by body.
-		else {
-#if VWEB_CATCH_EXCEPTIONS == true
-			try {
-#endif
-				params = Json::parse(request.body());
-#if VWEB_CATCH_EXCEPTIONS == true
-			} catch (vlib::Exception& e) {
-				SESLOG(2, tostr(m_conn->info.ip, ": ", "Bad request: failed to parse json body parameters."));
+		) {
+			String query = vlib::url_decode(request.endpoint().slice(pos + 1));
+			
+			// No data.
+			if (query.len() == 0) {
+				SESLOG(2, to_str(m_conn->info.ip, ": ", "Bad request: no query data while \"?\" is provided."));
 				response = m_server->m_400;
 				return ;
 			}
-#endif
+			
+			// By json.
+			if (query.first() == '{') {
+				params = Json::parse(query);
+			}
+			
+			// By query string.
+			else {
+				SESLOG(2, to_str(m_conn->info.ip, ": ", "Bad request: parsing a query string is not supported, send as json instead."));
+				response = m_server->m_400;
+				return ;
+			}
+			
+		}
+		
+		// Parameters by body.
+		else if (endpoint.m_type > 2 && endpoint.m_type < 7) {
+			#if VWEB_CATCH_EXCEPTIONS == true
+			try {
+			#endif
+				params = Json::parse(request.body());
+			#if VWEB_CATCH_EXCEPTIONS == true
+			} catch (vlib::Exception& e) {
+				SESLOG(2, to_str(m_conn->info.ip, ": ", "Bad request: failed to parse json body parameters."));
+				response = m_server->m_400;
+				return ;
+			}
+			#endif
 		}
 		
 		// Call endpoint.
-		switch (endpoint.m_type.value()) {
-				
-				// Type 1.
-			case 1:
-#if VWEB_CATCH_EXCEPTIONS == true
-				try {
-#endif
+		#if VWEB_CATCH_EXCEPTIONS == true
+		try {
+		#endif
+			
+			switch (endpoint.m_type.value()) {
+				case 1:
 					response = endpoint.m_restapi_func_1();
-#if VWEB_CATCH_EXCEPTIONS == true
-				} catch (vlib::Exception& e) {
-					if (m_server->m_config.log_level >= 1) {
-						e.dump();
-					}
-					response = m_server->response(
-												  vlib::http::status::internal_server_error,
-												  Headers{{"Connection", "close"}},
-												  Json{{"error", e.err()}}
-												  );
-				}
-#endif
-				return ;
-				
-				// Type 2.
-			case 2:
-#if VWEB_CATCH_EXCEPTIONS == true
-				try {
-#endif
+					return ;
+				case 2:
 					response = endpoint.m_restapi_func_2(*m_server, uid);
-#if VWEB_CATCH_EXCEPTIONS == true
-				} catch (vlib::Exception& e) {
-					if (m_server->m_config.log_level >= 1) {
-						e.dump();
-					}
-					response = m_server->response(
-												  vlib::http::status::internal_server_error,
-												  Headers{{"Connection", "close"}},
-												  Json{{"error", e.err()}}
-												  );
-				}
-#endif
-				return ;
-				
-				// Type 3.
-			case 3:
-#if VWEB_CATCH_EXCEPTIONS == true
-				try {
-#endif
+					return ;
+				case 3:
 					response = endpoint.m_restapi_func_3(*m_server, params);
-#if VWEB_CATCH_EXCEPTIONS == true
-				} catch (vlib::Exception& e) {
-					if (m_server->m_config.log_level >= 1) {
-						e.dump();
-					}
-					response = m_server->response(
-												  vlib::http::status::internal_server_error,
-												  Headers{{"Connection", "close"}},
-												  Json{{"error", e.err()}}
-												  );
-				}
-#endif
-				return ;
-				
-				// Type 4.
-			case 4:
-#if VWEB_CATCH_EXCEPTIONS == true
-				try {
-#endif
+					return ;
+				case 4:
 					response = endpoint.m_restapi_func_4(*m_server, uid, params);
-#if VWEB_CATCH_EXCEPTIONS == true
-				} catch (vlib::Exception& e) {
-					if (m_server->m_config.log_level >= 1) {
-						e.dump();
-					}
-					response = m_server->response(
-												  vlib::http::status::internal_server_error,
-												  Headers{{"Connection", "close"}},
-												  Json{{"error", e.err()}}
-												  );
-				}
-#endif
-				return ;
-				
-				// Type 5.
-			case 5:
-#if VWEB_CATCH_EXCEPTIONS == true
-				try {
-#endif
+					return ;
+				case 5:
 					response = endpoint.m_restapi_func_5(*m_server, uid, params, request.headers());
-#if VWEB_CATCH_EXCEPTIONS == true
-				} catch (vlib::Exception& e) {
-					if (m_server->m_config.log_level >= 1) {
-						e.dump();
-					}
-					response = m_server->response(
-												  vlib::http::status::internal_server_error,
-												  Headers{{"Connection", "close"}},
-												  Json{{"error", e.err()}}
-												  );
-				}
-#endif
-				return ;
-				
-				// Type 6.
-			case 6:
-#if VWEB_CATCH_EXCEPTIONS == true
-				try {
-#endif
+					return ;
+				case 6:
 					response = endpoint.m_restapi_func_6(*m_server, uid, params, request.headers(), m_conn->info);
-#if VWEB_CATCH_EXCEPTIONS == true
-				} catch (vlib::Exception& e) {
-					if (m_server->m_config.log_level >= 1) {
-						e.dump();
-					}
-					response = m_server->response(
-												  vlib::http::status::internal_server_error,
-												  Headers{{"Connection", "close"}},
-												  Json{{"error", e.err()}}
-												  );
-				}
-#endif
-				return ;
-				
-				// Invalid endpoint type.
-			default:
-				throw vlib::InvalidUsageError("Invalid endpoint type \"", endpoint.m_type, "\".");
+					return ;
+				case 7:
+					response = endpoint.m_restapi_func_7(*m_server, uid, request);
+					return ;
+				default:
+					throw vlib::InvalidUsageError("Invalid endpoint type \"", endpoint.m_type, "\".");
+			}
+			
+		#if VWEB_CATCH_EXCEPTIONS == true
+		} catch (vlib::Exception& e) {
+			if (m_server->m_config.log_level >= 1) {
+				e.dump();
+			}
+			response = m_server->response(
+										  vlib::http::status::internal_server_error,
+										  Headers{{"Connection", "close"}},
+										  Json{{"error", e.err()}}
+										  );
 		}
+		#endif
 	}
 };
 

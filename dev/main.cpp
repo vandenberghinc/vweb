@@ -1,9 +1,11 @@
 // Author: Daan van den Bergh
 // Copyright: © 2022 Daan van den Bergh.
 
+#include "../include/vweb/vweb.h"
+int main() {}
 
-#include "../demo/start.cpp"
-// #include "main/vweb.cpp"
+// #include "../files/hello_world/start.cpp"
+// #include "../main/vweb.cpp"
 
 // #include "/Volumes/persistance/private/vinc/vlib/include/vlib/types.h"
 // void* read_thread(void*) {

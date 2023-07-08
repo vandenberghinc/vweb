@@ -272,12 +272,12 @@ using name = name; \
 }
 
 // Template for variable conditions.
-#define VWEB_VARIABLE_CONDITION_TEMPLATE(type_name, type_str, condition_mode) \
-struct type_name : public Element { \
+#define VWEB_VARIABLE_CONDITION_TEMPLATE(name, type, condition_mode) \
+struct name : public Element { \
     \
     template <typename Child> requires (condition_mode == 1) constexpr \
-    type_name(const String& key, const JsonValue& value, const Child& child) : \
-    Element(type_str, "div")\
+	name(const String& key, const JsonValue& value, const Child& child) : \
+    Element(type, "div")\
     { \
         this->key(key); \
         this->value(value);\
@@ -286,28 +286,28 @@ struct type_name : public Element { \
     } \
     \
     template <typename Child> requires (condition_mode == 2) constexpr \
-    type_name(const JsonValue& value, const Child& child) : \
-    Element(type_str, "div")\
+	name(const JsonValue& value, const Child& child) : \
+    Element(type, "div")\
     { \
         this->value(value);\
         this->append_h(this->m_children, child); \
 		this->source_file(internal::get_source()); \
     } \
     template <typename Child, typename... Children> requires (condition_mode == 3) constexpr \
-    type_name(const Child& child, Children&&... children) : \
-    Element(type_str, "div")\
+	name(const Child& child, Children&&... children) : \
+    Element(type, "div")\
     { \
         this->append_h(this->m_children, child, children...); \
 		this->source_file(internal::get_source()); \
     } \
     \
     template <typename Type> requires (is_Element<Type>::value) constexpr \
-    type_name(Type&& obj) : \
+	name(Type&& obj) : \
     Element(obj) \
     {}\
 }; \
 namespace shortcuts { \
-using type_name = type_name; \
+using name = name; \
 }
 
 // Get Element template.
@@ -496,6 +496,7 @@ VWEB_TEXT_ELEMENT_TEMPLATE(CodeBlock, "CodeBlock", "pre", Json({
     {"font-family", "'Menlo', 'Consolas', monospace"},
     {"font-size", "13px"},
     {"font-weight", "500"},
+	{"line-height", "18px"},
     {"border-radius", "15px"},
     {"color", "#FFFFFF"},
     {"background", "#262F3D"},

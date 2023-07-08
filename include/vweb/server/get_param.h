@@ -46,7 +46,7 @@ Bool get_param_h(
             vlib::http::version::v1_1,
             vlib::http::status::bad_request,
             {{"Connection", "close"}},
-            Json {{"error", tostr("Define parameter \"", key, "\".")}}
+            Json {{"error", to_str("Define parameter \"", key, "\".")}}
         );
         return false;
     }
@@ -56,7 +56,7 @@ Bool get_param_h(
             vlib::http::version::v1_1,
             vlib::http::status::bad_request,
             {{"Connection", "close"}},
-            Json {{"error", tostr("Type for parameter \"", key, "\" should be \"", vlib::json::strtype(type), "\".")}}
+            Json {{"error", to_str("Type for parameter \"", key, "\" should be \"", vlib::json::strtype(type), "\".")}}
         );
         return false;
     }
@@ -204,7 +204,7 @@ Bool get_param(
             vlib::http::version::v1_1,
             vlib::http::status::bad_request,
             {{"Connection", "close"}},
-            Json {{"error", tostr("Define parameter \"", key, "\".")}}
+            Json {{"error", to_str("Define parameter \"", key, "\".")}}
         );
         return false;
     }

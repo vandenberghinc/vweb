@@ -39,6 +39,7 @@ struct EndpointTemplate {
     typedef vlib::http::Response (*RestAPIFunc4)(Server&, const Len&, const Json&);
     typedef vlib::http::Response (*RestAPIFunc5)(Server&, const Len&, const Json&, const Headers&);
     typedef vlib::http::Response (*RestAPIFunc6)(Server&, const Len&, const Json&, const Headers&, const vlib::Socket<>::Info&);
+	typedef vlib::http::Response (*RestAPIFunc7)(Server&, const Len&, const vlib::http::Request&);
     
     // ---------------------------------------------------------
     // Structs & enums.
@@ -98,6 +99,7 @@ struct EndpointTemplate {
     RestAPIFunc4        m_restapi_func_4;
     RestAPIFunc5        m_restapi_func_5;
     RestAPIFunc6        m_restapi_func_6;
+	RestAPIFunc7        m_restapi_func_7;
     Array<RateLimit>    m_rate_limits;
     vlib::Mutex         m_mutex;
     
@@ -272,16 +274,16 @@ struct EndpointTemplate {
      *          }
      *      };
      } */
-    template <typename Element> requires (ui::is_Element<Element>::value)constexpr
+    constexpr
     EndpointTemplate(
              const String& endpoint,
-             const Element& view
+             const ui::Element& view
     ) :
     m_method(vlib::http::method::get),
     m_endpoint(endpoint),
     m_content_type(vlib::http::content_type::html),
     m_headers({
-		// {"Content-Type", vlib::http::content_type::tostr(m_content_type.value())},
+		// {"Content-Type", vlib::http::content_type::to_str(m_content_type.value())},
 		{"Keep-Alive", "5"},
         
         // Compress.
@@ -333,11 +335,11 @@ struct EndpointTemplate {
      *      };
      *  @funcs: 3
      } */
-    template <typename Element> requires (ui::is_Element<Element>::value)constexpr
+    constexpr
     EndpointTemplate(
              const String& endpoint,
              const Options& options,
-             const Element& view
+             const ui::Element& view
     ) :
     m_method(vlib::http::method::get),
     m_endpoint(endpoint),
@@ -347,7 +349,7 @@ struct EndpointTemplate {
     m_rate_limit_duration(options.rate_limit_duration),
     m_type(0),
     m_headers({
-		// {"Content-Type", vlib::http::content_type::tostr(m_content_type.value())},
+		// {"Content-Type", vlib::http::content_type::to_str(m_content_type.value())},
 		{"Keep-Alive", "5"},
         
         // Compress.
@@ -367,12 +369,12 @@ struct EndpointTemplate {
         clean_url();
         fill_data(view);
     }
-    template <typename Element> requires (ui::is_Element<Element>::value)constexpr
+    constexpr
     EndpointTemplate(
                      const String& method,
                      const String& endpoint,
                      const Options& options,
-                     const Element& view
+                     const ui::Element& view
                      ) :
     m_method(vlib::http::method::fromstr(method)),
     m_endpoint(endpoint),
@@ -382,7 +384,7 @@ struct EndpointTemplate {
     m_rate_limit_duration(options.rate_limit_duration),
     m_type(0),
     m_headers({
-		// {"Content-Type", vlib::http::content_type::tostr(m_content_type.value())},
+		// {"Content-Type", vlib::http::content_type::to_str(m_content_type.value())},
 		{"Keep-Alive", "5"},
         
         // Compress.
@@ -402,13 +404,13 @@ struct EndpointTemplate {
         clean_url();
         fill_data(view);
     }
-    template <typename Element> requires (ui::is_Element<Element>::value)constexpr
+    constexpr
     EndpointTemplate(
         const String& method,
         const String& endpoint,
         const Options& options,
         const Headers& headers,
-        const Element& view
+        const ui::Element& view
     ) :
     m_method(vlib::http::method::fromstr(method)),
     m_endpoint(endpoint),
@@ -419,7 +421,7 @@ struct EndpointTemplate {
     m_type(0),
     m_headers(headers)
     {
-		// m_headers["Content-Type"] = vlib::http::content_type::tostr(m_content_type.value());
+		// m_headers["Content-Type"] = vlib::http::content_type::to_str(m_content_type.value());
         m_headers["Content-Encoding"] = "gzip";
         m_headers["Vary"] = "Accept-Encoding";
 		m_headers["Keep-Alive"] = "5";
@@ -461,6 +463,7 @@ struct EndpointTemplate {
      *          (Server& server, const Len& uid, const Json& params);
      *          (Server& server, const Len& uid, const Json& params, const Headers& headers);
      *          (Server& server, const Len& uid, const Json& params, const Headers& headers, const vlib::Socket<>::Connection& connection);```
+	 *          (Server& server, const Len& uid, const vlib::http::Request& request);```
      *  }
      *  @usage:
      *      ...
@@ -531,6 +534,7 @@ struct EndpointTemplate {
      *          (Server& server, const Len& uid, const Json& params);
      *          (Server& server, const Len& uid, const Json& params, const Headers& headers);
      *          (Server& server, const Len& uid, const Json& params, const Headers& headers, const vlib::Socket<>::Connection& connection);```
+	 *          (Server& server, const Len& uid, const vlib::http::Request& request);```
      *  }
      *  @usage:
      *      ...
@@ -746,6 +750,42 @@ struct EndpointTemplate {
     {
         clean_url();
     }
+	
+	// Constructor from function RestAPIFunc6 for rest api.
+	constexpr
+	EndpointTemplate(
+					 const String& method,
+					 const String& endpoint,
+					 const String& content_type,
+					 RestAPIFunc7&& func
+					 ) :
+	m_method(vlib::http::method::fromstr(method)),
+	m_endpoint(endpoint),
+	m_content_type(vlib::http::content_type::fromstr(content_type)),
+	m_type(7),
+	m_restapi_func_7(func)
+	{
+		clean_url();
+	}
+	constexpr
+	EndpointTemplate(
+					 const String& method,
+					 const String& endpoint,
+					 const String& content_type,
+					 const Options& options,
+					 RestAPIFunc7&& func
+					 ) :
+	m_method(vlib::http::method::fromstr(method)),
+	m_endpoint(endpoint),
+	m_content_type(vlib::http::content_type::fromstr(content_type)),
+	m_auth(options.auth),
+	m_rate_limit(options.rate_limit),
+	m_rate_limit_duration(options.rate_limit_duration),
+	m_type(7),
+	m_restapi_func_7(func)
+	{
+		clean_url();
+	}
     
     // ---------------------------------------------------------
     // Functions.
@@ -810,8 +850,8 @@ struct EndpointTemplate {
     }
     
     // Fill data.
-    template <typename Element> requires (ui::is_Element<Element>::value) constexpr
-    void    fill_data(const Element& view) {
+    constexpr
+    void    fill_data(const ui::Element& view) {
         m_data = HTMLBuilder::build(view);
         m_data = vlib::compress(m_data);
     }

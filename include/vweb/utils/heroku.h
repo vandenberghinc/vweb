@@ -74,7 +74,7 @@ public:
             path.sync(dest, { .del = true, .overwrite = true});
             Path::remove(dest.join(".git"));
             Path::remove(dest.join(".DS_Store"));
-            Path::remove(dest.join(tostr(full_name, ".xcodeproj")));
+            Path::remove(dest.join(to_str(full_name, ".xcodeproj")));
             
             // Add include path to compiler flags.
             if (dest.join("include").exists()) {
@@ -96,7 +96,7 @@ public:
         
         // Set remote.
         Proc proc {.timeout = 60 * 5 * 1000};
-        if (proc.execute(tostr("/opt/homebrew/bin/heroku git:remote -a ", m_app)) != 0) {
+        if (proc.execute(to_str("/opt/homebrew/bin/heroku git:remote -a ", m_app)) != 0) {
             throw HerokuError("Failed to set the heroku git remote of app \"", m_app, "\".");
         } else if (proc.exit_status() != 0) {
             throw HerokuError("Failed to set the heroku git remote of app \"", m_app, "\": \n", proc.err_or_out());
@@ -122,7 +122,7 @@ public:
             print(" * ", m_env.key(index), " = ", m_env.value(index));
         }
         env_str << " IP=\"*\" HEROKU=true ";
-        if (proc.execute(tostr("/opt/homebrew/bin/heroku config:set ", env_str)) != 0) {
+        if (proc.execute(to_str("/opt/homebrew/bin/heroku config:set ", env_str)) != 0) {
             throw HerokuError("Failed to deploy \"", m_app, "\".");
         } else if (proc.exit_status() != 0) {
             throw HerokuError("Failed to set the environment variables of app \"", m_app, "\": \n", proc.err_or_out());
@@ -130,7 +130,7 @@ public:
         
         // Push.
         proc.log = true;
-        if (proc.execute(tostr("cd ", m_source, " && git add -A && git commit -am \"Automatic deploy\" && git push heroku HEAD:master", (forced ? " -f" : ""))) != 0) {
+        if (proc.execute(to_str("cd ", m_source, " && git add -A && git commit -am \"Automatic deploy\" && git push heroku HEAD:master", (forced ? " -f" : ""))) != 0) {
             throw HerokuError("Failed to deploy \"", m_app, "\".");
         }
         

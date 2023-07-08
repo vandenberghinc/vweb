@@ -42,7 +42,7 @@ public:
     // Constructor with degree.
     template <typename... Args> constexpr
     Gradient(const Int& degree, Args&&... args) :
-    m_degree(tostr(degree, "deg"))
+    m_degree(to_str(degree, "deg"))
     {
         add_color(args...);
     }
@@ -65,7 +65,7 @@ public:
     auto&   add_color() { return *this; }
     template <typename... Args> constexpr
     auto&   add_color(const String& color, const Float& percentage, Args&&... args) {
-        m_colors.append(tostr(color, ' ', pad_numeric(percentage * 100, "%")));
+        m_colors.append(to_str(color, ' ', pad_numeric(percentage * 100, "%")));
         return add_color(args...);
     }
     // template <typename... Args> constexpr

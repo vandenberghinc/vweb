@@ -24,7 +24,7 @@ namespace ui {
 // Pad a numeric and add a string raw.
 VWEB_NUMERIC_TYPE constexpr
 String  pad_numeric(const Type& value, const String& padding) {
-    return tostr(value, padding);
+    return to_str(value, padding);
 }
 VWEB_STRING_TYPE constexpr
 auto& pad_numeric(const Type& value, const String&) {

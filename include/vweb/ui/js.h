@@ -37,7 +37,7 @@ public:
     // Constructor.
     template <typename... Args> constexpr
     JavaScript(Args&&... args) :
-    m_code(tostr(args...))
+    m_code(to_str(args...))
     {}
     
     // ---------------------------------------------------------
@@ -68,6 +68,7 @@ public:
     
 };
 
+
 // Is type.
 template <typename Type>
 struct is_JavaScript { SICEBOOL value = false; };
@@ -87,4 +88,3 @@ using JavaScript = vweb::ui::JavaScript;
 };         // End namespace ui.
 };         // End namespace vweb.
 #endif     // End header.
-

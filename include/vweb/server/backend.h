@@ -8,7 +8,7 @@
 #define VWEB_SERVER_BACKEND_H
 
 // Log to console when log level equals minimum.
-// - Keep as macro so the "tostr" and "String" objects ...
+// - Keep as macro so the "to_str" and "String" objects ...
 //   wont get constructed if the log level is hidden.
 #define BACKENDLOG(min_log_level, text) \
     log_mutex.lock(); \
@@ -112,7 +112,7 @@ public:
 		while (true) {
 			for (auto& index: m_sessions.indexes()) {
 				if (!m_sessions[index].is_busy()) {
-					BACKENDLOG(3, tostr("Session ", index, " is not busy."));
+					BACKENDLOG(3, to_str("Session ", index, " is not busy."));
 					*m_sessions[index].m_busy = true;
 					session_index = index;
 					break;
@@ -172,12 +172,12 @@ public:
 		// Listen.
 		sock.bind();
 		sock.listen();
-		BACKENDLOG(1, tostr("Running on ", sock.str(), '.'))
+		BACKENDLOG(1, to_str("Running http on ", sock.str(), '.'))
 		
 		// Add server socket to poll file descriptors.
-		struct pollfd pfd = {};
-		pfd.fd = sock.fd().value();
-		pfd.events = POLLIN;
+		// struct pollfd pfd = {};
+		// pfd.fd = sock.fd().value();
+		// pfd.events = POLLIN;
 		
 		// Loop.
 		while (true) {
@@ -188,29 +188,30 @@ public:
 #endif
 				
 				// Poll.
-				int ready = ::poll(&pfd, 1, 1000);
-				if (ready < 0) {
-					BACKENDLOG(0, tostr("[Server::accept_http] Poll Error: ", ::strerror(errno)));
-				} else if (ready == 0) {
-					continue;
-				}
-				
-				// Accept new clients.
-				if (pfd.revents & POLLIN) {
+				// int ready = ::poll(&pfd, 1, 1000);
+				// if (ready < 0) {
+				// 	BACKENDLOG(0, to_str("[Server::accept_http] Poll Error: ", ::strerror(errno)));
+				// } else if (ready == 0) {
+				// 	continue;
+				// }
+				//
+				// // Accept new clients.
+				// if (pfd.revents & POLLIN) {
 					Int conn_fd = -1;
 					
 					// Accept.
 					try {
 						conn_fd = sock.accept();
 					} catch(vlib::BrokenPipeError& e) {
-						BACKENDLOG(1, "Broken HTTP server pipe, restarting listening socket.");
+						BACKENDLOG(0, "Broken HTTP server pipe, restarting listening socket.");
 						sock.restart();
 						sock.bind();
 						sock.listen();
-						pfd.fd = sock.fd().value();
+						// pfd.fd = sock.fd().value();
 						continue;
 					} catch(vlib::AcceptError& e) {
 						e.dump();
+						continue;
 					}
 					
 					// Success.
@@ -232,12 +233,12 @@ public:
 						}
 						
 						// Check blacklist.
-						BACKENDLOG(1, tostr("Accepted HTTPS file descriptor ", conn_fd, "."));
+						BACKENDLOG(1, to_str("Accepted HTTPS file descriptor ", conn_fd, "."));
 						vlib::Socket<>::Info conn_info = TCP::info(conn_fd);
 						LLong conn_ip = conn_info.numeric_ip();
 						if (!blacklist.verify(conn_ip)) {
 							sock.close(conn_fd);
-							BACKENDLOG(1, tostr(conn_info.ip, ": ", "Blocking blacklisted ip."));
+							BACKENDLOG(1, to_str(conn_info.ip, ": ", "Blocking blacklisted ip."));
 						}
 						
 						// Add to connections.
@@ -253,17 +254,17 @@ public:
 							conn.expiration = Date::get_seconds() + m_server->m_config.keep_alive.value();
 						}
 					}
-				}
+				// }
 				
 				// Pipe error.
-				else if (pfd.revents & m_poll_err_event) {
-					BACKENDLOG(1, "Broken HTTPS server pipe, restarting listening socket.");
-					sock.restart();
-					sock.bind();
-					sock.listen();
-					pfd.fd = sock.fd().value();
-					continue;
-				}
+				// else if (pfd.revents & m_poll_err_event) {
+				// 	BACKENDLOG(0, "Broken HTTPS server pipe, restarting listening socket.");
+				// 	sock.restart();
+				// 	sock.bind();
+				// 	sock.listen();
+				// 	pfd.fd = sock.fd().value();
+				// 	continue;
+				// }
 				
 				// Catch exceptions.
 #if VWEB_CATCH_EXCEPTIONS == true
@@ -311,7 +312,7 @@ public:
 		// Listen.
 		sock.bind();
 		sock.listen();
-		BACKENDLOG(1, tostr("Running on ", sock.str(), '.'))
+		BACKENDLOG(1, to_str("Running https on ", sock.str(), '.'))
 		
 		// Add server socket to poll file descriptors.
 		struct pollfd pfd = {};
@@ -329,7 +330,7 @@ public:
 				// Poll.
 				int ready = ::poll(&pfd, 1, 1000);
 				if (ready < 0) {
-					BACKENDLOG(0, tostr("[Server::accept_https] Poll Error: ", ::strerror(errno)));
+					BACKENDLOG(0, to_str("[Server::accept_https] Poll Error: ", ::strerror(errno)));
 				} else if (ready == 0) {
 					continue;
 				}
@@ -342,7 +343,7 @@ public:
 					try {
 						ctx = sock.accept();
 					} catch(vlib::BrokenPipeError& e) {
-						BACKENDLOG(1, "Broken HTTPS server pipe, restarting listening socket.");
+						BACKENDLOG(0, "Broken HTTPS server pipe, restarting listening socket.");
 						sock.restart();
 						sock.bind();
 						sock.listen();
@@ -371,33 +372,38 @@ public:
 						}
 						
 						// Check blacklist.
-						Int conn_fd = SSL_get_fd(ctx);
-						BACKENDLOG(1, tostr("Accepted HTTPS file descriptor ", conn_fd, "."));
-						vlib::Socket<>::Info conn_info = TCP::info(conn_fd);
-						LLong conn_ip = conn_info.numeric_ip();
-						if (!blacklist.verify(conn_ip)) {
-							sock.close(ctx);
-							BACKENDLOG(1, tostr(conn_info.ip, ": ", "Blocking blacklisted ip."));
-						}
-						
-						// Add to connections.
-						else {
-							auto& conn = m_conns[index];
-							conn.fd = conn_fd;
-							conn.ctx = ctx;
-							conn.connected = true;
-							conn.not_serving = true;
-							conn.info = vlib::move(conn_info);
-							conn.numeric_ip = conn_ip;
-							conn.poll_index = 0;
-							conn.expiration = Date::get_seconds() + m_server->m_config.keep_alive.value();
+						try {
+							Int conn_fd = SSL_get_fd(ctx);
+							BACKENDLOG(1, to_str("Accepted HTTPS file descriptor ", conn_fd, "."));
+							vlib::Socket<>::Info conn_info = TCP::info(conn_fd);
+							LLong conn_ip = conn_info.numeric_ip();
+							if (!blacklist.verify(conn_ip)) {
+								sock.close(ctx);
+								BACKENDLOG(1, to_str(conn_info.ip, ": ", "Blocking blacklisted ip."));
+							}
+							
+							// Add to connections.
+							else {
+								auto& conn = m_conns[index];
+								conn.fd = conn_fd;
+								conn.ctx = ctx;
+								conn.connected = true;
+								conn.not_serving = true;
+								conn.info = vlib::move(conn_info);
+								conn.numeric_ip = conn_ip;
+								conn.poll_index = 0;
+								conn.expiration = Date::get_seconds() + m_server->m_config.keep_alive.value();
+							}
+						} catch(vlib::Exception& e) {
+							TLS::close(ctx);
+							e.dump();
 						}
 					}
 				}
 				
 				// Pipe error.
 				else if (pfd.revents & m_poll_err_event) {
-					BACKENDLOG(1, "Broken HTTPS server pipe, restarting listening socket.");
+					BACKENDLOG(0, "Broken HTTPS server pipe, restarting listening socket.");
 					sock.restart();
 					sock.bind();
 					sock.listen();
@@ -469,7 +475,7 @@ public:
 						conn_index = 0;
 						for (auto& conn: m_conns) {
 							if (conn.not_serving && conn.poll_index != 0 && pfds[conn.poll_index].revents & m_poll_err_event) {
-								BACKENDLOG(0, tostr("Closing connection ", conn_index, " by poll err EINTR."));
+								BACKENDLOG(0, to_str("Closing connection ", conn_index, " by poll err EINTR."));
 								close_connection(conn);
 							}
 							++conn_index;
@@ -478,7 +484,7 @@ public:
 					
 					// Real error.
 					else {
-						BACKENDLOG(0, tostr("Poll error [", ::strerror(errno), "]."));
+						BACKENDLOG(0, to_str("Poll error [", ::strerror(errno), "]."));
 					}
 					
 				// No file descriptors ready so skip to next loop.
@@ -500,7 +506,7 @@ public:
 						// Check ssl context and fd.
 						// Sometimes when a session wakes up the ssl context is deallocated.
 						if (conn.ctx == NULL && conn.fd == -1) {
-							BACKENDLOG(0, tostr("Closing connection ", conn_index, " by deallocated connection context."));
+							BACKENDLOG(0, to_str("Closing connection ", conn_index, " by deallocated connection context."));
 							close_connection(conn);
 							continue;
 						}
@@ -510,7 +516,7 @@ public:
 							
 							// Socket has been closed by peer.
 							if ((peek = TCP::peek(conn.fd)) == 0) {
-								BACKENDLOG(0, tostr("Closing connection ", conn_index, " by closed peer."));
+								BACKENDLOG(0, to_str("Closing connection ", conn_index, " by closed peer."));
 								close_connection(conn);
 								continue;
 							}
@@ -519,7 +525,7 @@ public:
 							else if (peek > 0) {
 								conn.not_serving = false;
 								ullong session_index = select_session();
-								BACKENDLOG(0, tostr("Waking thread ", session_index, "."));
+								BACKENDLOG(0, to_str("Waking thread ", session_index, "."));
 								m_sessions[session_index].m_conn = &conn;
 								m_sessions[session_index].wake();
 							}
@@ -528,7 +534,7 @@ public:
 						
 						// Socket closed or broken.
 						else if (pfd.revents & m_poll_err_event) {
-							BACKENDLOG(0, tostr("Closing connection ", conn_index, " by poll err."));
+							BACKENDLOG(0, to_str("Closing connection ", conn_index, " by poll err."));
 							close_connection(conn);
 							continue;
 						}
@@ -537,7 +543,7 @@ public:
 					
 					// Check expiration.
 					if (conn.not_serving && conn.expiration != 0 && seconds >= conn.expiration) {
-						BACKENDLOG(0, tostr("Closing connection ", conn_index, " by keep alive expiration."));
+						BACKENDLOG(0, to_str("Closing connection ", conn_index, " by keep alive expiration."));
 						close_connection(conn);
 						continue;
 					}
@@ -566,9 +572,11 @@ public:
 		}
 		
 		// Accept https connections.
-		pthread_t accept_https_tid = {};
-		if (pthread_create(&accept_https_tid, NULL, &accept_https_thread, (void*) &*this) != 0) {
-			throw vlib::StartError("Failed to start the HTTPS accept thread.");
+		if (m_use_https) {
+			pthread_t accept_https_tid = {};
+			if (pthread_create(&accept_https_tid, NULL, &accept_https_thread, (void*) &*this) != 0) {
+				throw vlib::StartError("Failed to start the HTTPS accept thread.");
+			}
 		}
 		
 		// Handle connections.

@@ -33,7 +33,7 @@ namespace vweb {
 constexpr
 String get_cookie(const String& cookie, const String& key) {
     ullong start, end;
-    String full_key = tostr(key, '=');
+    String full_key = to_str(key, '=');
     if ((start = cookie.find(full_key)) != NPos::npos) {
         if ((end = cookie.find(';', start)) != NPos::npos) {
             return String(cookie.data() + (start + full_key.len()), end - start);

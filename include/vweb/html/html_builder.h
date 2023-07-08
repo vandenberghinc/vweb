@@ -110,7 +110,7 @@ private:
             
             // Set id.
             if (id.is_undefined()) {
-                id = tostr("cpp_e_", ++m_generated_ids);
+                id = to_str("cpp_e_", ++m_generated_ids);
                 element["id"] = id; // to get the element by id for js.
                 attr["id"] = id; // to assign id to div.
             }
@@ -181,7 +181,7 @@ private:
             if (visible) {
                 
                 // Open.
-                const String e = tostr("elements['", id, "']");
+                const String e = to_str("elements['", id, "']");
                 data << "<script type='text/javascript'>" <<
                 "if (" << e << " == null) {" <<
                 e << " = vweb_get_element('" << id << "');" <<
@@ -466,7 +466,7 @@ private:
             // Invalid.
             
             else {
-                throw vlib::InvalidUsageError("vweb::HTML", tostr("Element type \"", child_type, "\" is not allowed inside an \"Event\" element."));
+                throw vlib::InvalidUsageError("vweb::HTML", to_str("Element type \"", child_type, "\" is not allowed inside an \"Event\" element."));
             }
             
             

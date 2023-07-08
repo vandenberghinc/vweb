@@ -1,0 +1,35 @@
+{
+    
+    // Website name.
+    "name": "vweb_demo",
+    
+    // Website description for the service daemon (optional).
+    "description": "VWeb Demo Daemon.",
+    
+    // Start arguments (optional).
+    "arguments": [],
+    
+    // Log and error paths (optional).
+    //  - Base directory should exist.
+    "logs": "/path/to/logs/logs",
+    "errors": "/path/to/logs/errors",
+    
+    // Build settings.
+    //  - Every value in the build json can be a direct value for all ...
+    //    operating systems, or another json with os specific values.
+    //    Currently only operating systems "linux" and "macos" are supported.
+    "build": {
+        "compiler": "/usr/bin/clang++",
+        "std": "c++2b",
+        "include_paths": ["/opt/vinc/include/", "/opt/homebrew/opt/openssl@3.1/include/"],
+        "library_paths": ["/opt/homebrew/opt/openssl@3.1/lib/"],
+        "linked_libraries": {
+            "macos": ["-lssl", "-lcrypto", "-lz"],
+            "linux": ["-lssl", "-lcrypto", "-lz", "-lcrypt", "-ldl"],
+        },
+        "other_flags": [
+            "-O3",
+        ],
+    },
+    
+}

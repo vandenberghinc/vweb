@@ -37,7 +37,7 @@ struct GoogleMap : public Element {
             {"frameborder", "0"},
             {"style", "border:0"},
             {"referrerpolicy", "no-referrer-when-downgrade"},
-            {"src", tostr("https://www.google.com/maps/embed/v1/", mode, "?key=", google_cloud_api_key, "&", vlib::url_encode(params))},
+            {"src", to_str("https://www.google.com/maps/embed/v1/", mode, "?key=", google_cloud_api_key, "&", vlib::url_encode(params))},
             {"allowfullscreen", ""},
         });
     }

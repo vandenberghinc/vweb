@@ -87,12 +87,12 @@ public:
             vlib::env::del("OS_ACTIVITY_DT_MODE"); // to ignore the apple warning "Failed to open macho file ... too many levels of symbolic links"
             
             // Compile.
-            String output = tostr("/tmp/vweb_build_", getuid(), "_", String::random(12));
+            String output = to_str("/tmp/vweb_build_", getuid(), "_", String::random(12));
             build_config["output"] = output;
             vlib::compile(build_config, source_dir, config_path);
             
             // Execute.
-            String cmd = output << " --file-watcher";
+            String cmd = output << " --no-file-watcher";
             Proc proc { .timeout = 60 * 5 * 1000, .async = true, .log = true };
             if (proc.execute(cmd) != 0) {
                 throw vlib::StartError("Encountered an error while running the webserver.");
@@ -100,14 +100,23 @@ public:
             child_pid = proc.pid();
             proc.join();
             if (proc.has_err()) {
+				::kill(child_pid, SIGKILL);
+				child_pid = -1;
                 throw vlib::StartError("Encountered an error while running the webserver: \n", proc.err().replace_end_r("\n"));
             } else if (proc.has_out()) {
+				::kill(child_pid, SIGKILL);
+				child_pid = -1;
                 throw vlib::StartError("Encountered an error while running the webserver: \n", proc.out().replace_end_r("\n"));
             } else if (proc.exit_status() != 0) {
+				::kill(child_pid, SIGKILL);
+				child_pid = -1;
                 throw vlib::StartError("Encountered an error while running the webserver [", proc.exit_status(), "].");
             }
             
         } catch (vlib::Exception& e) {
+			if (child_pid != -1) {
+				::kill(child_pid, SIGKILL);
+			}
             e.dump();
         }
         return NULL;
@@ -151,7 +160,7 @@ public:
                     print("[FileWatcher] Restarting webserver.");
                     data = current_data;
                     if (child_pid != -1) {
-                        ::kill(child_pid, SIGINT);
+                        ::kill(child_pid, SIGKILL);
                     }
                     thread.kill();
                     thread.start(start_server, m_source, m_config_path, m_build_config);

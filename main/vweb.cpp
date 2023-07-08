@@ -28,7 +28,7 @@ struct Config {
             if (!required) {
                 return null;
             }
-            cli->throw_error(tostr(
+            cli->throw_error(to_str(
                  "Configuration file \"", path,
                  "\" does not contain required key \"",
                  key, "\"."
@@ -36,7 +36,7 @@ struct Config {
         }
         auto& value = json.value(index);
         if (value.type() != type) {
-            cli->throw_error(tostr(
+            cli->throw_error(to_str(
                 "Configuration file \"",
                 path, "\": the type of key \"",
                 key, "\" should be \"",
@@ -87,8 +87,9 @@ int main(int argc, char** argv) {
         cli.add_docs(
                      vlib::null,
                      "vweb <mode> <options>" "\n"
+					 "  --create: </path/to/destination/>	Create a hello world vweb website at the specified destination path."
                      "  --start:                            Start the web server in demo mode." "\n"
-                     "  --service <source>:                 Control the service daemon." "\n"
+                     "  --service:                 			Control the service daemon." "\n"
                      "      --start:                        Start the service daemon." "\n"
                      "      --stop:                         Stop the service daemon." "\n"
                      "      --restart:                      Restart the service daemon." "\n"
@@ -124,9 +125,11 @@ int main(int argc, char** argv) {
             config.source = cli.get("--source");
             config.path = config.source.join(".vweb");
             if (!config.path.exists()) {
-                cli.throw_error(tostr("Configuration file \"", config.path, "\" does not exist."));
+                cli.throw_error(to_str("Configuration file \"", config.path, "\" does not exist."));
             }
         }
+		// config.source = "/Volumes/persistance/private/vinc/vweb/files/";
+		// config.path = "/Volumes/persistance/private/vinc/vweb/files/.vweb";
         if (config.path.exists()) {
             config.json = Json::load(config.path);
         }
@@ -151,7 +154,7 @@ int main(int argc, char** argv) {
             JsonValue& logs_path = config.get(info, "logs", vlib::json::types::string, false);
             JsonValue& err_path = config.get(info, "errors", vlib::json::types::string, false);
             JsonValue& j_arguments = config.get(info, "arguments", vlib::json::types::array, false);
-            Array<String> arguments = {"--service"};
+            Array<String> arguments = {"--no-file-watcher"};
             if (j_arguments.isa()) {
                 for (auto& i: j_arguments.asa()) {
                     arguments.append(i.str());
@@ -229,7 +232,7 @@ int main(int argc, char** argv) {
         }
         
         // Start in demo mode.
-        else if (DEBUG == 1 || cli.present("--start")) {
+        else if (cli.present("--start")) {
             vweb::utils::FileWatcher file_watcher (
                 config.source,
                 config.path,
@@ -238,6 +241,17 @@ int main(int argc, char** argv) {
             file_watcher.start();
         }
         
+		// Create.
+		else if (cli.present("--create")) {
+			Path dest = cli.get("--create");
+			if (dest.exists()) {
+				cli.throw_error(to_str("Destination path \"", dest, "\" already exists."));
+			}
+			Path src = Path(__FILE__).base_r(2).join_r("files/hello_world");
+			src.sync(dest);
+			print_marker("Successfully created a website at \"", dest, "\".");
+		}
+		
         // Generate a tls csr.
         else if (cli.present("--generate-csr")) {
             print_marker("Generating CSR.");
@@ -262,7 +276,7 @@ int main(int argc, char** argv) {
             }
             
             // Generate.
-            String cmd = tostr(
+            String cmd = to_str(
                 "openssl req -newkey ec:<(openssl genpkey -genparam -algorithm ec -pkeyopt ec_paramgen_curve:P-256) -keyout ",
                 csr_path.join("key.key"),
                 " -out ",
@@ -282,7 +296,7 @@ int main(int argc, char** argv) {
             } else if (proc.exit_status() != 0) {
                 String err = proc.err_or_out();
                 if (err.is_defined()) {
-                    cli.throw_error(tostr("Encoutered an error while generating the CSR: ", err));
+                    cli.throw_error(to_str("Encoutered an error while generating the CSR: ", err));
                 } else {
                     cli.throw_error("Encoutered an error while generating the CSR.");
                 }
@@ -339,7 +353,7 @@ int main(int argc, char** argv) {
                 auto get_value = [&](const String& key, const Int& type) -> JsonValue& {
                     ullong index;
                     if ((index = info.find(key)) == NPos::npos) {
-                        throw vlib::ConfigError(tostr(
+                        throw vlib::ConfigError(to_str(
                             "Configuration file \"", path,
                             "\" does not contain required key \"",
                             key, "\"."
@@ -347,7 +361,7 @@ int main(int argc, char** argv) {
                     }
                     auto& value = info.value(index);
                     if (value.type() != type) {
-                        throw vlib::ConfigError(tostr(
+                        throw vlib::ConfigError(to_str(
                             "Configuration file \"",
                             path, "\": the type of key \"",
                             key, "\" should be \"",
@@ -374,7 +388,7 @@ int main(int argc, char** argv) {
                 value = get_value("dependencies", vlib::json::types::array);
                 for (auto& i: value.asa()) {
                     if (!i.iss()) {
-                        throw vlib::ConfigError(tostr(
+                        throw vlib::ConfigError(to_str(
                             "Configuration file \"",
                             path, "\": the children type of array \"dependencies\" should be \"String\" not \"",
                             vlib::json::strtype(i.type()), "\"."

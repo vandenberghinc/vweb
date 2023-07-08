@@ -9,6 +9,7 @@
 #include "if.h"
 #include "element.h"
 #include "elements.h"
+#include "link.h"
 #include "redirect.h"
 #include "for_each.h"
 #include "variable.h"

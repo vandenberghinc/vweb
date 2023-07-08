@@ -8,7 +8,7 @@
 #define VWEB_SERVER_H
 
 // Log to console when log level equals minimum.
-// - Keep as macro so the "tostr" and "String" objects ...
+// - Keep as macro so the "to_str" and "String" objects ...
 //   wont get constructed if the log level is hidden.
 #define SERVLOG(min_log_level, text) \
 	log_mutex.lock(); \
@@ -343,7 +343,7 @@ private:
 			"GET",
 			"/rob ots.txt",
 			"text/plain",
-			tostr("User-agent: *\nDisallow: \n\nSitemap: https://", m_config.domain, "/sitemap.xml"),
+			to_str("User-agent: *\nDisallow: \n\nSitemap: https://", m_config.domain, "/sitemap.xml"),
 		});
 	}
 	
@@ -357,7 +357,7 @@ private:
 			if (endpoint.m_content_type == vlib::http::content_type::html && endpoint.m_endpoint != "robots.txt") {
 				sitemap <<
 				"<url>" << '\n' <<
-				"	<loc>https://" << tostr(m_config.domain, "/", endpoint.m_endpoint).replace_r("//", "/") << "</loc>" << '\n' <<
+				"	<loc>https://" << to_str(m_config.domain, "/", endpoint.m_endpoint).replace_r("//", "/") << "</loc>" << '\n' <<
 				"</url>" << '\n';
 			}
 		}
@@ -449,7 +449,7 @@ private:
     
     // Load system user data.
     User    sys_load_user(const Len& uid) const {
-        String data = sys_load_data(tostr(m_config.database, "/.sys/users/", uid));
+        String data = sys_load_data(to_str(m_config.database, "/.sys/users/", uid));
         User user;
         if (!data.eq("D", 1)) {
             user.uid = uid;
@@ -504,8 +504,8 @@ private:
     
     // Save system user data.
     void    sys_save_user(const Len& uid, const User& user) const {
-        Path path = tostr(m_config.database, "/.sys/users/", uid);
-        path.save(tostr(
+        Path path = to_str(m_config.database, "/.sys/users/", uid);
+        path.save(to_str(
                         user.first_name, '\n',
                         user.last_name, '\n',
                         user.username, '\n',
@@ -517,7 +517,7 @@ private:
     
     // Delete system user data.
     void    sys_delete_user(const Len& uid) const {
-        Path::save(tostr(m_config.database, "/.sys/users/", uid), "D");
+        Path::save(to_str(m_config.database, "/.sys/users/", uid), "D");
         String suid = uid.str();
         sys_save_uid_by_username(suid, "D");
         sys_save_uid_by_email(suid, "D");
@@ -525,7 +525,7 @@ private:
     
     // Load system user token.
     Token   sys_load_user_token(const Len& uid) const {
-        String data = sys_load_data(tostr(m_config.database, "/.sys/tokens/", uid));
+        String data = sys_load_data(to_str(m_config.database, "/.sys/tokens/", uid));
         if (!data.eq("D", 1)) {
             ullong index = 0, start_index = 0, delimiter_index = 0;
             for (auto& c: data) {
@@ -550,41 +550,41 @@ private:
     // Save system user token.
     void    sys_save_user_token(const Len& uid, const Token& token) const {
         if (token.expiration == 0) {
-            Path::save(tostr(m_config.database, "/.sys/tokens/", uid), "D");
+            Path::save(to_str(m_config.database, "/.sys/tokens/", uid), "D");
             return ;
         }
         String data;
         data.concats_r(token.expiration, ':', token.token, '\n');
-        data.save(tostr(m_config.database, "/.sys/tokens/", uid));
+        data.save(to_str(m_config.database, "/.sys/tokens/", uid));
     }
     
     // Delete system user token.
     void    sys_delete_user_token(const Len& uid) const {
-        Path::save(tostr(m_config.database, "/.sys/tokens/", uid), "D");
+        Path::save(to_str(m_config.database, "/.sys/tokens/", uid), "D");
     }
     
     // Save system uid by username.
     void    sys_save_uid_by_username(const String& uid, const String& username) const {
-        uid.save(tostr(m_config.database, "/.sys/usernames/", username));
+        uid.save(to_str(m_config.database, "/.sys/usernames/", username));
     }
     
     // Save system uid by email.
     void    sys_save_uid_by_email(const String& uid, const String& email) const {
-        uid.save(tostr(m_config.database, "/.sys/emails/", email));
+        uid.save(to_str(m_config.database, "/.sys/emails/", email));
     }
     
     // Save system 2fa by uid.
     void    sys_save_2fa_by_uid(const String& uid, const TwoFactorAuth& auth) const {
         Path::save(
-                   tostr(m_config.database, "/.sys/2fa/", uid),
-                   tostr(auth.code, '\n', auth.expiration)
+                   to_str(m_config.database, "/.sys/2fa/", uid),
+                   to_str(auth.code, '\n', auth.expiration)
                    );
     }
     
     // Load system 2fa by uid.
     TwoFactorAuth sys_load_2fa_by_uid(const String& uid) const {
         try {
-            String data = String::load(tostr(m_config.database, "/.sys/2fa/", uid));
+            String data = String::load(to_str(m_config.database, "/.sys/2fa/", uid));
             data.replace_end_r("\n");
             ullong pos;
             if ((pos = data.find('\n')) != NPos::npos) {
@@ -601,7 +601,7 @@ private:
     
     // Delete system 2fa by uid.
     void    sys_delete_2fa_by_uid(const String& uid) const {
-        Path::remove(tostr(m_config.database, "/.sys/2fa/", uid));
+        Path::remove(to_str(m_config.database, "/.sys/2fa/", uid));
     }
     
     // Public.
@@ -782,7 +782,7 @@ public:
      *      Bool exists = server.username_exists("someusername");
      } */
     Bool    username_exists(const String& username) {
-        return Path::exists(tostr(m_config.database, "/.sys/usernames/", username));
+        return Path::exists(to_str(m_config.database, "/.sys/usernames/", username));
     }
     
     // Check if an email exists.
@@ -799,7 +799,7 @@ public:
      *      Bool exists = server.email_exists("some\@email.com");
      } */
     Bool    email_exists(const String& email) {
-        return Path::exists(tostr(m_config.database, "/.sys/emails/", email));
+        return Path::exists(to_str(m_config.database, "/.sys/emails/", email));
     }
     
     // Check if a user account is activated.
@@ -816,7 +816,7 @@ public:
      *      Bool activated = server.is_activated(0);
      } */
     Bool    is_activated(const Len& uid) {
-        return !Path::exists(tostr(m_config.database, "/.sys/unactivated/", uid));
+        return !Path::exists(to_str(m_config.database, "/.sys/unactivated/", uid));
     }
     
     // Set the activated status of a user account is activated.
@@ -837,9 +837,9 @@ public:
      } */
     void    set_activated(const Len& uid, const Bool& activated) {
         if (activated) {
-            Path::remove(tostr(m_config.database, "/.sys/unactivated/", uid));
+            Path::remove(to_str(m_config.database, "/.sys/unactivated/", uid));
         } else {
-            Path::touch(tostr(m_config.database, "/.sys/unactivated/", uid));
+            Path::touch(to_str(m_config.database, "/.sys/unactivated/", uid));
         }
     }
     
@@ -907,7 +907,7 @@ public:
         String suid = uid.str();
         sys_save_uid_by_username(suid, username);
         sys_save_uid_by_email(suid, email);
-        Path::touch(tostr(m_config.database, "/.sys/unactivated/", suid));
+        Path::touch(to_str(m_config.database, "/.sys/unactivated/", suid));
         
         // Return uid.
         return uid;
@@ -1062,14 +1062,14 @@ public:
     // Load user data.
     // Json    load_user(const Len& uid) const {
     //     check_uid_within_range(uid);
-    //     return Json::parse(sys_load_data(tostr(m_config.database, "/users/", uid)));
+    //     return Json::parse(sys_load_data(to_str(m_config.database, "/users/", uid)));
     // }
     
     // Save user data.
     // Function "save_user()" is not thread safe.
     // void    save_user(const Len& uid, const Json& data) const {
     //     check_uid_within_range(uid);
-    //     data.save(tostr(m_config.database, "/users/", uid));
+    //     data.save(to_str(m_config.database, "/users/", uid));
     // }
     
     // Get uid by username.
@@ -1094,7 +1094,7 @@ public:
         if (username.is_undefined()) {
             return NPos::npos;
         }
-        Path path = tostr(m_config.database, "/.sys/usernames/", username);
+        Path path = to_str(m_config.database, "/.sys/usernames/", username);
         if (path.exists()) {
             String data = sys_load_data(path);
             if (data.eq("D", 1)) {
@@ -1127,7 +1127,7 @@ public:
         if (email.is_undefined()) {
             return NPos::npos;
         }
-        Path path = tostr(m_config.database, "/.sys/emails/", email);
+        Path path = to_str(m_config.database, "/.sys/emails/", email);
         if (path.exists()) {
             String data = sys_load_data(path);
             if (data.eq("D", 1)) {
@@ -1315,7 +1315,7 @@ public:
      } */
     String  generate_api_key(const Len& uid) {
         check_uid_within_range(uid);
-        String api_key = tostr('0', uid, ':', sys_generate_api_key());
+        String api_key = to_str('0', uid, ':', sys_generate_api_key());
         User user = sys_load_user(uid);
         user.api_key = SHA::hmac(m_hash_key, api_key);
         sys_save_user(uid, user);
@@ -1344,7 +1344,7 @@ public:
      } */
     String  generate_token(const Len& uid) const {
         check_uid_within_range(uid);
-        String token = tostr('1', uid, ':', sys_generate_api_key());
+        String token = to_str('1', uid, ':', sys_generate_api_key());
         sys_save_user_token(uid, Token {
             .expiration = Date::get_seconds() + 3600,
             .token = SHA::hmac(m_hash_key, token),
@@ -1840,7 +1840,7 @@ public:
     void    create_token_cookie(Headers& headers, const String& token) {
         headers["Cache-Control"] = "max-age=0, no-cache, no-store, must-revalidate, proxy-revalidate";
         headers["Access-Control-Allow-Credentials"] = "true";
-        headers.append("Set-Cookie", tostr(
+        headers.append("Set-Cookie", to_str(
             "T=", token,
             "; Max-Age=3600; Path=/; Expires=",
             (Date::now() + (3600 * 1000)).str("%a, %d %b %Y %H:%M:%S %z"),
@@ -1853,22 +1853,22 @@ public:
     constexpr
     void    create_user_cookie(Headers& headers, const Len& uid) {
         if (uid != NPos::npos && uid <= m_max_uid) {
-            headers.append("Set-Cookie", tostr(
+            headers.append("Set-Cookie", to_str(
                 CString("UserID=", 7),
                 uid,
                 CString("; Path=/; SameSite=None; Secure;", 32)
             ));
-            headers.append("Set-Cookie", tostr(
+            headers.append("Set-Cookie", to_str(
                 CString("UserActivated=", 14),
                 m_config.enable_2fa ? is_activated(uid) : Bool(true),
                 CString("; Path=/; SameSite=None; Secure;", 32)
             ));
         } else {
-            headers.append("Set-Cookie", tostr(
+            headers.append("Set-Cookie", to_str(
                 CString("UserID=-1", 9),
                 CString("; Path=/; SameSite=None; Secure;", 32)
             ));
-            headers.append("Set-Cookie", tostr(
+            headers.append("Set-Cookie", to_str(
                 CString("UserActivated=", 14),
                 m_config.enable_2fa ? false : true,
                 CString("; Path=/; SameSite=None; Secure;", 32)
@@ -1880,10 +1880,10 @@ public:
     //  - Should be called when a user has just signed in or signed up.
     void    create_detailed_user_cookie(Headers& headers, const Len& uid) {
         User user = get_user(uid);
-        headers.append("Set-Cookie", tostr("UserName=", user.username, "; Path=/; SameSite=None; Secure;"));
-        headers.append("Set-Cookie", tostr("UserFirstName=", user.first_name,"; Path=/; SameSite=None; Secure;"));
-        headers.append("Set-Cookie", tostr("UserLastName=", user.last_name, "; Path=/; SameSite=None; Secure;"));
-        headers.append("Set-Cookie", tostr("UserEmail=", user.email, "; Path=/; SameSite=None; Secure;"));
+        headers.append("Set-Cookie", to_str("UserName=", user.username, "; Path=/; SameSite=None; Secure;"));
+        headers.append("Set-Cookie", to_str("UserFirstName=", user.first_name,"; Path=/; SameSite=None; Secure;"));
+        headers.append("Set-Cookie", to_str("UserLastName=", user.last_name, "; Path=/; SameSite=None; Secure;"));
+        headers.append("Set-Cookie", to_str("UserEmail=", user.email, "; Path=/; SameSite=None; Secure;"));
     }
     
     // Reset all default cookies.

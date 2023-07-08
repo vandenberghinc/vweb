@@ -31,7 +31,7 @@ namespace alignment {
         justify = 4,
     };
 	constexpr
-    String tostr(const Int& alignment) {
+    String to_str(const Int& alignment) {
         switch (alignment.value()) {
             case leading:
                 return String("leading", 7);
@@ -54,7 +54,7 @@ namespace animations {
         out = 2,
     };
 	constexpr
-    String tostr(const Int& animation) {
+    String to_str(const Int& animation) {
         switch (animation.value()) {
             case in:
                 return String("in", 2);
@@ -333,13 +333,13 @@ public:
     ) {
         if (m_type == "Image" || m_type == "GoogleMap") {
             if (!overwrite && m_container_style.contains(key)) {
-                m_container_style[key].ass() += tostr(joiner, ' ', value);
+                m_container_style[key].ass() += to_str(joiner, ' ', value);
             } else {
                 m_container_style[key]= value;
             }
         } else {
             if (!overwrite && m_style.contains(key)) {
-                m_style[key].ass() += tostr(joiner, ' ', value);
+                m_style[key].ass() += to_str(joiner, ' ', value);
             } else {
                 m_style[key]= value;
             }
@@ -355,7 +355,7 @@ public:
         char joiner = ' '
     ) {
         if (!overwrite && m_style.contains(key)) {
-            m_style[key].ass() += tostr(joiner, ' ', value);
+            m_style[key].ass() += to_str(joiner, ' ', value);
         } else {
             m_style[key]= value;
         }
@@ -530,7 +530,7 @@ public:
         const Int& vertical,
         const String& color
     ) {
-        style("text-shadow", tostr(horizontal, "px ", vertical, "px ", color), false, ',');
+        style("text-shadow", to_str(horizontal, "px ", vertical, "px ", color), false, ',');
         return *this;
     }
     constexpr
@@ -540,14 +540,14 @@ public:
         const Int& blur,
         const String& color
     ) {
-        style("text-shadow", tostr(horizontal, "px ", vertical, "px ", blur, "px ", color), false, ',');
+        style("text-shadow", to_str(horizontal, "px ", vertical, "px ", blur, "px ", color), false, ',');
         return *this;
     }
     
     // Font size.
     constexpr
     auto&   font_size(const Int& value) {
-        m_style["font-size"] = tostr(value, "px");
+        m_style["font-size"] = to_str(value, "px");
         return *this;
     }
     constexpr
@@ -559,7 +559,7 @@ public:
     // Line height.
     constexpr
     auto&   line_height(const Int& value) {
-        m_style["line-height"] = tostr(value, "px");
+        m_style["line-height"] = to_str(value, "px");
         return *this;
     }
     constexpr
@@ -584,18 +584,85 @@ public:
         m_style["background"] = value;
         return *this;
     }
+	
+	// Border color.
+	constexpr
+	auto&   border_color(const String& value) {
+		auto_style("border-color", value);
+		return *this;
+	}
+	constexpr
+	auto&   border_color(const LinearGradient& value) {
+		auto_style("border-image", to_str(value.style(), " 1"));
+		return *this;
+	}
+	constexpr
+	auto&   border_color(const RadialGradient& value) {
+		auto_style("border-image", to_str(value.style(), " 1"));
+		return *this;
+	}
+	
+	// Border style.
+	constexpr
+	auto&   border_style(const String& value) {
+		auto_style("border-style", value);
+		return *this;
+	}
+	
+	// Border width.
+	VWEB_NUMERIC_STRING_F_TYPE constexpr
+	auto&   border_width(const Type& value) {
+		auto_style("border-width", pad_numeric(value, "px"));
+		return *this;
+	}
+	
+	// Border radius.
+	VWEB_NUMERIC_STRING_F_TYPE constexpr
+	auto&   border_radius(const Type& value) {
+		auto_style("border-radius", pad_numeric(value, "px"));
+		return *this;
+	}
+	
     
     // Border.
     VWEB_NUMERIC_TYPE constexpr
     auto&   border(const Type& value, const String& style, const String& color) {
-        auto_style("border", tostr(value, "px ", style, ' ', color));
+        auto_style("border", to_str(value, "px ", style, ' ', color));
         return *this;
     }
+	VWEB_NUMERIC_TYPE constexpr
+	auto&   border(const Type& value, const String& style, const LinearGradient& color) {
+		border_width(value);
+		border_style(style);
+		border_color(color);
+		return *this;
+	}
+	VWEB_NUMERIC_TYPE constexpr
+	auto&   border(const Type& value, const String& style, const RadialGradient& color) {
+		border_width(value);
+		border_style(style);
+		border_color(color);
+		return *this;
+	}
     VWEB_NUMERIC_TYPE constexpr
     auto&   border(const Type& value, const String& color) {
-        auto_style("border", tostr(value, "px solid ", color));
+        auto_style("border", to_str(value, "px solid ", color));
         return *this;
     }
+	VWEB_NUMERIC_TYPE constexpr
+	auto&   border(const Type& value, const LinearGradient& color) {
+		border_width(value);
+		border_style("solid");
+		border_color(color);
+		return *this;
+	}
+	VWEB_NUMERIC_TYPE constexpr
+	auto&   border(const Type& value, const RadialGradient& color) {
+		border_width(value);
+		border_style("solid");
+		border_color(color);
+		return *this;
+	}
     constexpr
     auto&   border(const String& value) {
         auto_style("border", value);
@@ -605,12 +672,12 @@ public:
     // Border top.
     VWEB_NUMERIC_TYPE constexpr
     auto&   border_top(const Type& value, const String& style, const String& color) {
-        auto_style("border-top", tostr(value, "px ", style, ' ', color));
+        auto_style("border-top", to_str(value, "px ", style, ' ', color));
         return *this;
     }
     VWEB_NUMERIC_TYPE constexpr
     auto&   border_top(const Type& value, const String& color) {
-        auto_style("border-top", tostr(value, "px solid ", color));
+        auto_style("border-top", to_str(value, "px solid ", color));
         return *this;
     }
     constexpr
@@ -622,12 +689,12 @@ public:
     // Border right.
     VWEB_NUMERIC_TYPE constexpr
     auto&   border_right(const Type& value, const String& style, const String& color) {
-        auto_style("border-right", tostr(value, "px ", style, ' ', color));
+        auto_style("border-right", to_str(value, "px ", style, ' ', color));
         return *this;
     }
     VWEB_NUMERIC_TYPE constexpr
     auto&   border_right(const Type& value, const String& color) {
-        auto_style("border-right", tostr(value, "px solid ", color));
+        auto_style("border-right", to_str(value, "px solid ", color));
         return *this;
     }
     constexpr
@@ -639,12 +706,12 @@ public:
     // Border bottom.
     VWEB_NUMERIC_TYPE constexpr
     auto&   border_bottom(const Type& value, const String& style, const String& color) {
-        auto_style("border-bottom", tostr(value, "px ", style, ' ', color));
+        auto_style("border-bottom", to_str(value, "px ", style, ' ', color));
         return *this;
     }
     VWEB_NUMERIC_TYPE constexpr
     auto&   border_bottom(const Type& value, const String& color) {
-        auto_style("border-bottom", tostr(value, "px solid ", color));
+        auto_style("border-bottom", to_str(value, "px solid ", color));
         return *this;
     }
     constexpr
@@ -656,45 +723,17 @@ public:
     // Border left.
     VWEB_NUMERIC_TYPE constexpr
     auto&   border_left(const Type& value, const String& style, const String& color) {
-        auto_style("border-left", tostr(value, "px ", style, ' ', color));
+        auto_style("border-left", to_str(value, "px ", style, ' ', color));
         return *this;
     }
     VWEB_NUMERIC_TYPE constexpr
     auto&   border_left(const Type& value, const String& color) {
-        auto_style("border-left", tostr(value, "px solid ", color));
+        auto_style("border-left", to_str(value, "px solid ", color));
         return *this;
     }
     constexpr
     auto&   border_left(const String& value) {
         auto_style("border-left", value);
-        return *this;
-    }
-    
-    // Border color.
-    constexpr
-    auto&   border_color(const String& value) {
-        auto_style("border-color", value);
-        return *this;
-    }
-    
-    // Border style.
-    constexpr
-    auto&   border_style(const String& value) {
-        auto_style("border-style", value);
-        return *this;
-    }
-    
-    // Border width.
-    VWEB_NUMERIC_STRING_F_TYPE constexpr
-    auto&   border_width(const Type& value) {
-        auto_style("border-width", pad_numeric(value, "px"));
-        return *this;
-    }
-    
-    // Border radius.
-    VWEB_NUMERIC_STRING_F_TYPE constexpr
-    auto&   border_radius(const Type& value) {
-        auto_style("border-radius", pad_numeric(value, "px"));
         return *this;
     }
     
@@ -705,7 +744,7 @@ public:
         const Int& vertical,
         const String& color
     ) {
-        auto_style("box-shadow", tostr(horizontal, "px ", vertical, "px ", color), false, ',');
+        auto_style("box-shadow", to_str(horizontal, "px ", vertical, "px ", color), false, ',');
         return *this;
     }
     constexpr
@@ -715,7 +754,7 @@ public:
         const Int& blur,
         const String& color
     ) {
-        auto_style("box-shadow", tostr(horizontal, "px ", vertical, "px ", blur, "px ", color), false, ',');
+        auto_style("box-shadow", to_str(horizontal, "px ", vertical, "px ", blur, "px ", color), false, ',');
         return *this;
     }
     constexpr
@@ -732,7 +771,7 @@ public:
         const Int& vertical,
         const String& color
     ) {
-        style("filter", tostr("drop-shadow(", horizontal, "px ", vertical, "px ", color, ")"), false, ' ');
+        style("filter", to_str("drop-shadow(", horizontal, "px ", vertical, "px ", color, ")"), false, ' ');
         return *this;
     }
     constexpr
@@ -742,7 +781,7 @@ public:
         const Int& blur,
         const String& color
     ) {
-        style("filter", tostr("drop-shadow(", horizontal, "px ", vertical, "px ", blur, "px ", color, ")"), false, ' ');
+        style("filter", to_str("drop-shadow(", horizontal, "px ", vertical, "px ", blur, "px ", color, ")"), false, ' ');
         return *this;
     }
     
@@ -750,14 +789,14 @@ public:
     VWEB_NUMERIC_TYPE constexpr
     auto&   blur(const Type& value) {
         if (m_style.contains("filter")) {
-            m_style["filter"].ass() += tostr(" blur(", value, "px", ")");
+            m_style["filter"].ass() += to_str(" blur(", value, "px", ")");
         } else {
-            m_style["filter"] = tostr("blur(", value, "px", ")");
+            m_style["filter"] = to_str("blur(", value, "px", ")");
         }
         if (m_type == "Image") {
-            m_style["margin"] = tostr("-", value * 2, "px");
-            m_style["width"] = tostr("110%");
-            m_style["height"] = tostr("110%");
+            m_style["margin"] = to_str("-", value * 2, "px");
+            m_style["width"] = to_str("110%");
+            m_style["height"] = to_str("110%");
             m_container_style["overflow"] = "hidden";
         }
         return *this;
@@ -766,15 +805,15 @@ public:
     // Background blur.
     VWEB_NUMERIC_TYPE constexpr
     auto&   background_blur(const Type& value) {
-        style("backdrop-filter", tostr("blur(", value, "px", ")"), false, ' ');
-        style("-webkit-backdrop-filter", tostr("blur(", value, "px", ")"), false, ' ');
+        style("backdrop-filter", to_str("blur(", value, "px", ")"), false, ' ');
+        style("-webkit-backdrop-filter", to_str("blur(", value, "px", ")"), false, ' ');
         return *this;
     }
     
     // Greyscale.
     constexpr
     auto&   greyscale(const Float& value = 1.0) {
-        auto_style("filter", tostr("grayscale(", value * 100, ")"), false, ' ');
+        auto_style("filter", to_str("grayscale(", value * 100, ")"), false, ' ');
         return *this;
     }
     
@@ -782,13 +821,13 @@ public:
 	// Does not work if no background is assigned.
     VWEB_NUMERIC_TYPE constexpr
     auto&   opacity(const Type& value) {
-        style("filter", tostr("opacity(", value, "%", ")"), false, ' ');
+        style("filter", to_str("opacity(", value, "%", ")"), false, ' ');
         return *this;
     }
     VWEB_NUMERIC_TYPE constexpr
     auto&   background_opacity(const Type& value) {
-        style("backdrop-filter", tostr("opacity(", value, "%", ")"), false, ' ');
-        style("-webkit-backdrop-filter", tostr("opacity(", value, "%", ")"), false, ' ');
+        style("backdrop-filter", to_str("opacity(", value, "%", ")"), false, ' ');
+        style("-webkit-backdrop-filter", to_str("opacity(", value, "%", ")"), false, ' ');
         return *this;
     }
     
@@ -796,33 +835,33 @@ public:
 	// Does not work if no background is assigned.
     VWEB_NUMERIC_STRING_F_TYPE constexpr
     auto&   brightness(const Type& value) {
-        style("filter", tostr("brightness(", pad_numeric(value, "%"), ")"), false, ' ');
+        style("filter", to_str("brightness(", pad_numeric(value, "%"), ")"), false, ' ');
         return *this;
     }
     
     // Fade out.
     VWEB_NUMERIC_TYPE constexpr
     auto&   fade_out_top(const Type& size = 5) {
-        auto_style("mask-image", tostr("linear-gradient(0deg, #000 ", 100.0 - size, "%, transparent)"), false, ',');
-        auto_style("-webkit-mask-image", tostr("linear-gradient(0deg, #000 ", 100.0 - size, "%, transparent)"), false, ',');
+        auto_style("mask-image", to_str("linear-gradient(0deg, #000 ", 100.0 - size, "%, transparent)"), false, ',');
+        auto_style("-webkit-mask-image", to_str("linear-gradient(0deg, #000 ", 100.0 - size, "%, transparent)"), false, ',');
         return *this;
     }
     VWEB_NUMERIC_TYPE constexpr
     auto&   fade_out_right(const Type& size = 5) {
-        auto_style("mask-image", tostr("linear-gradient(90deg, #000 ", 100.0 - size, "%, transparent)"), false, ',');
-        auto_style("-webkit-mask-image", tostr("linear-gradient(90deg, #000 ", 100.0 - size, "%, transparent)"), false, ',');
+        auto_style("mask-image", to_str("linear-gradient(90deg, #000 ", 100.0 - size, "%, transparent)"), false, ',');
+        auto_style("-webkit-mask-image", to_str("linear-gradient(90deg, #000 ", 100.0 - size, "%, transparent)"), false, ',');
         return *this;
     }
     VWEB_NUMERIC_TYPE constexpr
     auto&   fade_out_bottom(const Type& size = 5) {
-        auto_style("mask-image", tostr("linear-gradient(180deg, #000 ", 100.0 - size, "%, transparent)"), false, ',');
-        auto_style("-webkit-mask-image", tostr("linear-gradient(180deg, #000 ", 100.0 - size, "%, transparent)"), false, ',');
+        auto_style("mask-image", to_str("linear-gradient(180deg, #000 ", 100.0 - size, "%, transparent)"), false, ',');
+        auto_style("-webkit-mask-image", to_str("linear-gradient(180deg, #000 ", 100.0 - size, "%, transparent)"), false, ',');
         return *this;
     }
     VWEB_NUMERIC_TYPE constexpr
     auto&   fade_out_left(const Type& size = 5) {
-        auto_style("mask-image", tostr("linear-gradient(270deg, #000 ", 100.0 - size, "%, transparent)"), false, ',');
-        auto_style("-webkit-mask-image", tostr("linear-gradient(270deg, #000 ", 100.0 - size, "%, transparent)"), false, ',');
+        auto_style("mask-image", to_str("linear-gradient(270deg, #000 ", 100.0 - size, "%, transparent)"), false, ',');
+        auto_style("-webkit-mask-image", to_str("linear-gradient(270deg, #000 ", 100.0 - size, "%, transparent)"), false, ',');
         return *this;
     }
     
@@ -989,7 +1028,7 @@ public:
     }
     VWEB_NUMERIC_STRING_F_TYPE constexpr
     auto&   padding(const Type& top, const Type& right, const Type& bottom, const Type& left) {
-        auto_style("padding", tostr(pad_numeric(top, "px"), " ", pad_numeric(right, "px"), " ", pad_numeric(bottom, "px"), " ", pad_numeric(left, "px")));
+        auto_style("padding", to_str(pad_numeric(top, "px"), " ", pad_numeric(right, "px"), " ", pad_numeric(bottom, "px"), " ", pad_numeric(left, "px")));
         return *this;
     }
     VWEB_NUMERIC_STRING_F_TYPE constexpr
@@ -1121,7 +1160,7 @@ public:
     }
 	constexpr
 	auto&   align(const Int& position) {
-		return align(alignment::tostr(position));
+		return align(alignment::to_str(position));
 	}
     constexpr
     auto&   leading() {
@@ -1217,7 +1256,7 @@ public:
     }
 	constexpr
 	auto&   vertical_align(const Int& position) {
-		return vertical_align(alignment::tostr(position));
+		return vertical_align(alignment::to_str(position));
 	}
     constexpr
     auto&   vertical_leading() {
@@ -1265,18 +1304,41 @@ public:
     
     // Background image.
     constexpr
-    auto&   background_image(const String& value) {
-        auto_style("background-image", tostr("url(", value, ")"));
-        auto_style("background-repeat", "no-repeat");
-        auto_style("background-size", "cover");
-        auto_style("background-position", "center");
+    auto&   background_image(const String& value, const String& repeat = "no-repeat", const String& size = "cover", const String& position = "center") {
+        auto_style("background-image", to_str("url(", value, ")"));
+        auto_style("background-repeat", repeat);
+        auto_style("background-size", size);
+        auto_style("background-position", position);
         return *this;
     }
+	constexpr
+	auto&   background_image(const LinearGradient& value, const String& repeat = "no-repeat", const String& size = "cover", const String& position = "center") {
+		auto_style("background-image", value.style());
+		auto_style("background-repeat", repeat);
+		auto_style("background-size", size);
+		auto_style("background-position", position);
+		return *this;
+	}
+	constexpr
+	auto&   background_image(const RadialGradient& value, const String& repeat = "no-repeat", const String& size = "cover", const String& position = "center") {
+		auto_style("background-image", value.style());
+		auto_style("background-repeat", repeat);
+		auto_style("background-size", size);
+		auto_style("background-position", position);
+		return *this;
+	}
+	
+	// Background clip.
+	constexpr
+	auto&   background_clip(const String& value) {
+		auto_style("background-clip", value);
+		return *this;
+	}
     
     // Scale.
     constexpr
     auto&   scale(const Float& value) {
-        auto_style("transform", tostr("scale(", value, ")"), false, ' ');
+        auto_style("transform", to_str("scale(", value, ")"), false, ' ');
         return *this;
     }
     
@@ -1331,7 +1393,7 @@ public:
         return *this;
     }
     auto&   animate(const Int& mode, const String& animation, const Float& duration = 1) {
-        animate(animations::tostr(mode), animation, duration);
+        animate(animations::to_str(mode), animation, duration);
         return *this;
     }
     
