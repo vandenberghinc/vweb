@@ -1,0 +1,27 @@
+/*
+ * Author: Daan van den Bergh
+ * Copyright: © 2022 - 2023 Daan van den Bergh.
+ */
+
+// ---------------------------------------------------------
+// Static elements module.
+
+class elements {
+	
+	// Get by id.
+	// Can only be used for vweb elements.
+	// Not for elements that are not created by the vweb api.
+	static get(id) {
+		for (let i = 0; i < VWEB_ALL_ELEMENTS.length; i++) {
+			const item = VWEB_ALL_ELEMENTS[i];
+			if (item.element.id == id) {
+				return item;
+			}
+		}
+		return null;
+	}
+	static get_by_id(id) {
+		return elements.get(id)
+	}
+	
+};

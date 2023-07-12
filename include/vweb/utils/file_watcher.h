@@ -54,6 +54,15 @@ public:
             ++pos;
         }
     }
+	
+	// Parse js includes.
+	void parse_js_includes(const Path& source) {
+		for (auto& path: source.paths(true)) {
+			if (path.extension() == "js") {
+				m_paths.append(path);
+			}
+		}
+	}
 
 // Public.
 public:
@@ -92,9 +101,8 @@ public:
             vlib::compile(build_config, source_dir, config_path);
             
             // Execute.
-            String cmd = output << " --no-file-watcher";
             Proc proc { .timeout = 60 * 5 * 1000, .async = true, .log = true };
-            if (proc.execute(cmd) != 0) {
+            if (proc.execute(output.c_str(), "--no-file-watcher", NULL) != 0) {
                 throw vlib::StartError("Encountered an error while running the webserver.");
             }
             child_pid = proc.pid();
@@ -130,6 +138,9 @@ public:
         
         // Parse includes.
         parse_includes(m_source.join("start.cpp"));
+		
+		// Parse js includes.
+		parse_js_includes(m_source);
         
         // Load all files.
         for (auto& path: m_paths) {

@@ -426,29 +426,42 @@ public:
             js.append('$');
         }
         
-        // Assign value to key.
-        if (m_key.is_defined() && m_value.is_defined()) {
-            String value = m_value.json();
-            js.concats_r("vweb_get_element('", m_id, "').", m_key, " = ", process_value(m_value.json()), "; ");
-        }
-        
         // Get key.
         // Do not add a semicolon since it is used in request bodies.
-        else if (m_key.is_defined()) {
+        if (m_key.is_defined() && m_value.is_undefined()) {
             js.concats_r("vweb_get_element('", m_id, "').", m_key);
         }
         
-        // Set styling by javascript.
+		// Edit element.
         else {
-            js.concats_r("e = vweb_get_element('", m_id, "'); ");
+			
+			// Get.
+			js.concats_r("e = vweb_get_element('", m_id, "'); ");
+			
+			// Assign value to key.
+			if (m_key.is_defined() && m_value.is_defined()) {
+				String value = m_value.json();
+				js.concats_r("e.", m_key, " = ", process_value(m_value.json()), "; ");
+			}
+			
+			// Set styling by javascript.
             for (auto& index: m_style.indexes()) {
                 js.concats_r("e.style['", m_style.key(index), "'] = ", process_value(m_style.value(index).json()), "; ");
             }
+			
+			// Add children.
+			HTMLBuilder html_builder;
+			for (auto& child: m_children) {
+				js << "e.innerHTML += `" << html_builder.build_element(child.asj(), true, {}, false).replace_r("`", "&#96;") << "`;";
+			}
+			
         }
         
         // Replace.
-        js.replace_r("'", "&quot;");
-        js.replace_r("\"", "&quot;");
+		// Is already replaced by the HTML builder and causes issues when using a Request outside an event, since that creates a script tag with direct code and then &quot; does not work.
+		// Not supported.
+        // js.replace_r("'", "&quot;");
+        // js.replace_r("\"", "&quot;");
         
         // Handler.
         if (pad) {
@@ -1425,9 +1438,10 @@ public:
     // Utility functions.
     
     template <typename Child, typename... Children> constexpr
-    void    append(const Child& child, Children&&... children) {
+    auto&    append(const Child& child, Children&&... children) {
         m_children.append(child.json());
         append_h(m_children, children...);
+		return *this;
     }
     
     // Move.
@@ -1453,6 +1467,7 @@ public:
                 {"style", m_style},
                 {"attr", m_attr},
                 {"js", js(false)},
+				{"children", m_children},
             };
         }
             

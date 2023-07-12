@@ -201,8 +201,11 @@ public:
 					
 					// Accept.
 					try {
+						print("ACCEPTING");
 						conn_fd = sock.accept();
+						print("ACCEPTED");
 					} catch(vlib::BrokenPipeError& e) {
+						print("ACCEPT ERR #1");
 						BACKENDLOG(0, "Broken HTTP server pipe, restarting listening socket.");
 						sock.restart();
 						sock.bind();
@@ -210,7 +213,11 @@ public:
 						// pfd.fd = sock.fd().value();
 						continue;
 					} catch(vlib::AcceptError& e) {
+						print("ACCEPT ERR #2");
 						e.dump();
+						continue;
+					} catch(vlib::TimeoutError& e) {
+						print("ACCEPT ERR #3");
 						continue;
 					}
 					
@@ -233,7 +240,7 @@ public:
 						}
 						
 						// Check blacklist.
-						BACKENDLOG(1, to_str("Accepted HTTPS file descriptor ", conn_fd, "."));
+						BACKENDLOG(1, to_str("Accepted HTTP file descriptor ", conn_fd, "."));
 						vlib::Socket<>::Info conn_info = TCP::info(conn_fd);
 						LLong conn_ip = conn_info.numeric_ip();
 						if (!blacklist.verify(conn_ip)) {
@@ -258,7 +265,7 @@ public:
 				
 				// Pipe error.
 				// else if (pfd.revents & m_poll_err_event) {
-				// 	BACKENDLOG(0, "Broken HTTPS server pipe, restarting listening socket.");
+				// 	BACKENDLOG(0, "Broken HTTP server pipe, restarting listening socket.");
 				// 	sock.restart();
 				// 	sock.bind();
 				// 	sock.listen();
@@ -458,9 +465,9 @@ public:
 					}
 					
 					// Reset poll index.
-					// else {
-					// 	conn.poll_index = 0;
-					// }
+					else {
+						conn.poll_index = 0;
+					}
 				}
 				
 				// Poll.

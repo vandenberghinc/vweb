@@ -78,6 +78,20 @@ public:
         String  email;      // the users email.
         String  password;   // hashed password.
         String  api_key;    // hashed api key.
+		
+		// Get as json.
+		constexpr
+		Json	json() const {
+			return Json {
+				{"uid", uid},
+				{"first_name", first_name},
+				{"last_name", last_name},
+				{"username", username},
+				{"email", email},
+				{"password", password},
+				{"api_key", api_key},
+			};
+		}
     };
     
     // 2FA struct.
@@ -287,88 +301,11 @@ public:
          .move()
     );
     
-    
 // Private.
 private:
     
     // ---------------------------------------------------------
-    // Private functions.
-	
-    // Create static endpoints.
-    void    create_static_endpoints(const Path& path) {
-		
-		// Load static files.
-        for (auto& child: path.paths()) {
-            if (child.is_dir()) {
-                create_static_endpoints(child);
-            } else if (child.is_file()) {
-                m_endpoints.append(Endpoint(
-					"GET",
-					child.abs().slice(m_config.statics.len()),
-					"UNDEFINED",
-					{
-						.rate_limit = 100,
-						.rate_limit_duration = 60,
-					},
-					child.load()
-				));
-            }
-        }
-		
-		// Add vweb static files.
-		Path html_base = Path(__FILE__).base(2);
-		Array<vlib::Pack<String, String, Path>> packs = {
-			{"text/css", "/vweb/css.css", html_base.join("html/css.css")},
-			{"application/javascript", "/vweb/pre_js.js", html_base.join("html/pre_js.js")},
-			{"application/javascript", "/vweb/post_js.js", html_base.join("html/post_js.js")},
-		};
-		for (auto& [content_type, endpoint, full_path]: packs) {
-			m_endpoints.append(Endpoint {
-				"GET",
-				endpoint,
-				content_type,
-				{
-					.rate_limit = 100,
-					.rate_limit_duration = 60,
-				},
-				full_path.load(),
-			});
-		}
-    }
-    
-	// Create a robots.txt.
-	void	create_robots_txt() {
-		// Robots txt.
-		m_endpoints.append(Endpoint {
-			"GET",
-			"/rob ots.txt",
-			"text/plain",
-			to_str("User-agent: *\nDisallow: \n\nSitemap: https://", m_config.domain, "/sitemap.xml"),
-		});
-	}
-	
-	// Create a sitemap.
-	void	create_sitemap() {
-		String sitemap;
-		sitemap <<
-		"<?xml version=\"1.0\" encoding=\"UTF-8\"?>" << '\n' <<
-		"<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">" << '\n';
-		for (auto& endpoint: m_endpoints) {
-			if (endpoint.m_content_type == vlib::http::content_type::html && endpoint.m_endpoint != "robots.txt") {
-				sitemap <<
-				"<url>" << '\n' <<
-				"	<loc>https://" << to_str(m_config.domain, "/", endpoint.m_endpoint).replace_r("//", "/") << "</loc>" << '\n' <<
-				"</url>" << '\n';
-			}
-		}
-		sitemap << "</urlset>" << '\n';
-		m_endpoints.append(Endpoint {
-			"GET",
-			"/sitemap.xml",
-			"application/xml",
-			sitemap,
-		});
-	}
+    // Utils.
 	
     // Iterate a directories file paths.
     // With a handler for the file name.
@@ -563,15 +500,21 @@ private:
         Path::save(to_str(m_config.database, "/.sys/tokens/", uid), "D");
     }
     
-    // Save system uid by username.
+    // Save / delete system uid by username.
     void    sys_save_uid_by_username(const String& uid, const String& username) const {
         uid.save(to_str(m_config.database, "/.sys/usernames/", username));
     }
+	void    sys_delete_uid_by_username(const String& uid, const String& username) const {
+		Path::remove(to_str(m_config.database, "/.sys/usernames/", username));
+	}
     
-    // Save system uid by email.
+    // Save / delete system uid by email.
     void    sys_save_uid_by_email(const String& uid, const String& email) const {
         uid.save(to_str(m_config.database, "/.sys/emails/", email));
     }
+	void    sys_delete_uid_by_email(const String& uid, const String& email) const {
+		Path::remove(to_str(m_config.database, "/.sys/emails/", email));
+	}
     
     // Save system 2fa by uid.
     void    sys_save_2fa_by_uid(const String& uid, const TwoFactorAuth& auth) const {
@@ -604,6 +547,996 @@ private:
         Path::remove(to_str(m_config.database, "/.sys/2fa/", uid));
     }
     
+	// ---------------------------------------------------------
+	// Default endpoints.
+	
+	// Create default endpoints.
+	void    create_default_endpoints() {
+		
+		// ---------------------------------------------------------
+		// Static files.
+		
+		// Add vweb static files.
+		Path include_base = Path(__FILE__).base(2);
+		Array<vlib::Pack<String, String, Path>> packs = {
+			{"text/css", "/vweb/css.css", include_base.join("html/css.css")},
+			{"application/javascript", "/vweb/vweb.js", include_base.join("js/vweb.js")},
+			
+			// Deprecated.
+			{"application/javascript", "/vweb/pre_js.js", include_base.join("html/pre_js.js")},
+			{"application/javascript", "/vweb/post_js.js", include_base.join("html/post_js.js")},
+		};
+		for (auto& [content_type, endpoint, full_path]: packs) {
+			m_endpoints.append(Endpoint {
+				"GET",
+				endpoint,
+				content_type,
+				{
+					.rate_limit = 100,
+					.rate_limit_duration = 60,
+				},
+				full_path.load(),
+			});
+		}
+		
+		// ---------------------------------------------------------
+		// Default auth endpoints.
+		
+		// Send 2fa.
+		m_endpoints.append({
+			"GET",
+			"/backend/auth/2fa",
+			"application/json",
+			{
+				.rate_limit = 10,
+				.rate_limit_duration = 60,
+			},
+			[](
+			   Server& server,
+			   const Len&,
+			   const Json& params,
+			   const Headers& headers,
+			   const vlib::Socket<>::Info& connection
+			) {
+				return server.send_2fa_req(params, headers, connection.ip);
+			}
+		});
+		
+		// Sign in.
+		m_endpoints.append({
+			"POST",
+			"/backend/auth/signin",
+			"application/json",
+			{
+				.rate_limit = 10,
+				.rate_limit_duration = 60,
+			},
+			[](
+			   Server& server,
+			   const Len&,
+			   const Json& params,
+			   const Headers& headers,
+			   const vlib::Socket<>::Info& connection
+			) {
+				return server.sign_in_req(params, headers, connection.ip);
+			}
+		});
+		
+		// Sign out.
+		m_endpoints.append({
+			"POST",
+			"/backend/auth/signout",
+			"application/json",
+			{
+				.rate_limit = 10,
+				.rate_limit_duration = 60,
+			},
+			[](Server& server, const Len& uid) {
+				return server.sign_out_req(uid);
+			}
+		});
+		
+		// Sign up.
+		m_endpoints.append({
+			"POST",
+			"/backend/auth/signup",
+			"application/json",
+			{
+				.rate_limit = 10,
+				.rate_limit_duration = 60,
+			},
+			[](
+			   Server& server,
+			   const Len&,
+			   const Json& params,
+			   const Headers& headers,
+			   const vlib::Socket<>::Info& connection
+			) {
+				return server.sign_up_req(params, headers, connection.ip);
+			}
+		});
+		
+		// Activate account.
+		m_endpoints.append({
+			"POST",
+			"/backend/auth/activate",
+			"application/json",
+			{
+				.rate_limit = 10,
+				.rate_limit_duration = 60,
+			},
+			[](Server& server, const Len& uid, const Json& params, const Headers& headers) {
+				return server.activate_user_req(uid, params, headers);
+			}
+
+		});
+		
+		// Forgot password.
+		m_endpoints.append({
+			"POST",
+			"/backend/auth/forgot_password",
+			"application/json",
+			{
+				.rate_limit = 10,
+				.rate_limit_duration = 60,
+			},
+			[](Server& server, const Json& params) {
+				return server.forgot_password_req(params);
+			}
+
+		});
+		
+		// ---------------------------------------------------------
+		// Default user endpoints.
+		
+		// Get user.
+		m_endpoints.append({
+			"GET",
+			"/backend/user",
+			"application/json",
+			{
+				.auth = Endpoint::authenticated,
+				.rate_limit = 10,
+				.rate_limit_duration = 60,
+			},
+			[](Server& server, const Len& uid) {
+				return server.response(
+					vlib::http::status::success,
+					server.get_user(uid).json()
+				);
+			}
+		});
+		
+		// Set user.
+		m_endpoints.append({
+			"POST",
+			"/backend/user",
+			"application/json",
+			{
+				.auth = Endpoint::authenticated,
+				.rate_limit = 10,
+				.rate_limit_duration = 60,
+			},
+			[](Server& server, const Len& uid, const Json& params) {
+				server.set_user(uid, params);
+				Headers headers;
+				create_detailed_user_cookie(headers, uid);
+				return server.response(
+					vlib::http::status::success,
+					headers,
+					Json{{"message", "Successfully updated your account."}}
+				);
+			}
+		});
+		
+		// Change password.
+		m_endpoints.append({
+			"POST",
+			"/backend/user/change_password",
+			"application/json",
+			{
+				.auth = Endpoint::authenticated,
+				.rate_limit = 10,
+				.rate_limit_duration = 60,
+			},
+			[](Server& server, const Len& uid, const Json& params) {
+				return server.change_password_req(uid, params);
+			}
+		});
+		
+		// Generate api key.
+		m_endpoints.append({
+			"POST",
+			"/backend/user/api_key",
+			"application/json",
+			{
+				.auth = Endpoint::authenticated,
+				.rate_limit = 10,
+				.rate_limit_duration = 60,
+			},
+			[](Server& server, const Len& uid) {
+				return server.response(
+					vlib::http::status::success,
+					Json{
+						{"message", "Successfully generated an API key."},
+						{"api_key", server.generate_api_key(uid)},
+					}
+				);
+			}
+		});
+		
+		// Revoke api key.
+		m_endpoints.append({
+			"DELETE",
+			"/backend/user/api_key",
+			"application/json",
+			{
+				.auth = Endpoint::authenticated,
+				.rate_limit = 10,
+				.rate_limit_duration = 60,
+			},
+			[](Server& server, const Len& uid) {
+				server.revoke_api_key(uid);
+				return server.response(
+					vlib::http::status::success,
+					Json{{"message", "Successfully revoked your API key."}}
+				);
+			}
+		});
+		
+		// Load data.
+		m_endpoints.append({
+			"GET",
+			"/backend/user/data",
+			"application/json",
+			{
+				.auth = Endpoint::authenticated,
+				.rate_limit = 10,
+				.rate_limit_duration = 60,
+			},
+			[](Server& server, const Len& uid, const Json& params) {
+				vlib::http::Response response;
+				String *path;
+				if (!vweb::get_param(response, params, path, "path", 4)) {
+					return response;
+				}
+				return Server::response(
+					vlib::http::status::success,
+					server.load_user_data(uid, *path)
+				);
+			}
+		});
+		
+		// Save data.
+		m_endpoints.append({
+			"POST",
+			"/backend/user/data",
+			"application/json",
+			{
+				.auth = Endpoint::authenticated,
+				.rate_limit = 10,
+				.rate_limit_duration = 60,
+			},
+			[](Server& server, const Len& uid, const Json& params) {
+				vlib::http::Response response;
+				String *path;
+				Json *data;
+				if (
+					!vweb::get_param(response, params, path, "path", 4) ||
+					!vweb::get_param(response, params, data, "data", 4)
+				) {
+					return response;
+				}
+				server.save_user_data(uid, *path, *data);
+				return Server::response(
+					vlib::http::status::success,
+					Json{{"message", "Successfully saved."}}
+				);
+			}
+		});
+		
+	}
+	
+	// Create static endpoints.
+	void    create_static_endpoints(const Path& path) {
+		
+		// Load static files.
+		for (auto& child: path.paths()) {
+			if (child.is_dir()) {
+				create_static_endpoints(child);
+			} else if (child.is_file()) {
+				String content_type = "UNDEFINED";
+				String& extension = child.extension();
+				if (extension == "js") {
+					content_type = "text/javascript";
+				}
+				m_endpoints.append(Endpoint(
+					"GET",
+					child.abs().slice(m_config.statics.len()),
+					content_type,
+					{
+						.rate_limit = 100,
+						.rate_limit_duration = 60,
+					},
+					child.load()
+				));
+			}
+		}
+		
+	}
+	
+	// Create a robots.txt.
+	void	create_robots_txt() {
+		// Robots txt.
+		m_endpoints.append(Endpoint {
+			"GET",
+			"/rob ots.txt",
+			"text/plain",
+			to_str("User-agent: *\nDisallow: \n\nSitemap: https://", m_config.domain, "/sitemap.xml"),
+		});
+	}
+	
+	// Create a sitemap.
+	void	create_sitemap() {
+		String sitemap;
+		sitemap <<
+		"<?xml version=\"1.0\" encoding=\"UTF-8\"?>" << '\n' <<
+		"<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">" << '\n';
+		for (auto& endpoint: m_endpoints) {
+			if (
+				endpoint.m_content_type == vlib::http::content_type::html &&
+				endpoint.m_endpoint != "robots.txt" &&
+				endpoint.m_auth & Endpoint::Auth::none
+			) {
+				sitemap <<
+				"<url>" << '\n' <<
+				"	<loc>https://" << to_str(m_config.domain, "/", endpoint.m_endpoint).replace_r("//", "/") << "</loc>" << '\n' <<
+				"</url>" << '\n';
+			}
+		}
+		sitemap << "</urlset>" << '\n';
+		m_endpoints.append(Endpoint {
+			"GET",
+			"/sitemap.xml",
+			"application/xml",
+			sitemap,
+		});
+	}
+	
+	// ---------------------------------------------------------
+	// Default request functions.
+	
+	// Sign a user in and return a response.
+	/*  @docs {
+	 *  @title: Direct Sign In Response
+	 *  @description:
+	 *      Signs a user in without authenticating and returns the correct response.
+	 *  @warning:
+	 *      This function should be used with caution since it creates an authentication token without any authentication checks.
+	 *  @parameter: {
+	 *      @name: uid
+	 *      @description: The user id to sign in.
+	 *  }
+	 *  @return: Returns a response object.
+	 *  @usage:
+	 *      ...
+	 *      return server.sign_in_req(0);
+	 } */
+	Response sign_in_req(const Len& uid) {
+		try {
+			
+			// Generate token.
+			String token = generate_token(uid);
+			
+			// Create headers.
+			Headers headers;
+			create_token_cookie(headers, token);
+			create_user_cookie(headers, uid);
+			create_detailed_user_cookie(headers, uid);
+			
+			// Response.
+			return Server::response(
+									vlib::http::status::success,
+									headers,
+									{{"message", "Successfully signed in."}}
+									);
+			
+		} catch (vlib::Exception& e) {
+			return Server::response(
+				vlib::http::status::internal_server_error,
+				Json{{"error", e.err()}}
+			);
+		}
+		
+	}
+	
+	// Sign a user in and return a response.
+	// Required params: [username, password].
+	/*  @docs {
+	 *  @title: Sign In Response
+	 *  @description:
+	 *      Signs a user in and returns the correct response.
+	 *
+	 *      Requires a 2FA code. When no code is provided but the credentials were okay, the cookie 2FAUserID will be assigned.
+	 *  @parameter: {
+	 *      @name: params
+	 *      @description:
+	 *          The request parameters.
+	 *
+	 *          The required parameter fields are [`email` or `username`, `password`, `2fa`].
+	 *
+	 *          Field `2fa` is used for the 2FA code.
+	 *  }
+	 *  @return: Returns a response object.
+	 *  @usage:
+	 *		return Endpoint {
+	 *			"POST",
+	 *			"/backend/signin",
+	 *			"application/json",
+	 *			{
+	 *				.rate_limit = 10,
+	 *				.rate_limit_duration = 60,
+	 *			},
+	 *			[](
+	 *				Server& server,
+	 *				const Len&,
+	 *				const Json& params,
+	 *				const Headers& headers,
+	 *				const vlib::Socket<>::Info& connection
+	 *			) {
+	 *				return server.sign_in_req(params, headers, connection.ip);
+	 *			}
+	 *		};
+	 } */
+	Response sign_in_req(const Json& params, const Headers& headers = {}, const String& ip = null) {
+		try {
+				
+			// Vars.
+			vlib::http::Response response;
+			String *email = nullptr, *username = nullptr, *password = nullptr, *code = nullptr;
+			Len uid;
+			
+			// Get params.
+			if (
+				(
+				 !vweb::get_param(response, params, username, "username", 8) &&
+				 !vweb::get_param(response, params, email, "email", 5)
+				 ) ||
+				!vweb::get_param(response, params, password, "password", 8)
+				) {
+					return response;
+				}
+			
+			// Get uid.
+			if (email) {
+				if ((uid = get_uid_by_email(*email)) == NPos::npos) {
+					return Server::response(
+											vlib::http::status::unauthorized,
+											Json {{"error", "Unauthorized."}}
+											);
+				}
+			} else {
+				if ((uid = get_uid(*username)) == NPos::npos) {
+					return Server::response(
+											vlib::http::status::unauthorized,
+											Json {{"error", "Unauthorized."}}
+											);
+				}
+			}
+			
+			// Verify password.
+			if (verify_password(uid, *password)) {
+				
+				// Verify 2fa.
+				if (m_config.enable_2fa) {
+					if (!vweb::get_param(response, params, code, "2fa", 3) || code->is_undefined()) {
+						send_2fa(uid, headers, ip);
+						return Server::response(
+												vlib::http::status::two_factor_auth_required,
+												Headers {
+													{"Connection", "close"},
+												},
+												Json {
+													{"error", "2FA required."} // do not change this text, it can be used to detect 2fa requirement.
+												}
+												);
+					}
+					if (!verify_2fa(uid, *code)) {
+						return Server::response(
+												vlib::http::status::unauthorized,
+												Json {{"error", "Invalid 2FA code."}}
+												);
+					}
+				}
+				
+				// Sign in.
+				return sign_in_req(uid);
+			}
+			return Server::response(
+									vlib::http::status::unauthorized,
+									Json {{"error", "Unauthorized."}}
+									);
+			
+		} catch (vlib::Exception& e) {
+			return Server::response(
+				vlib::http::status::internal_server_error,
+				Json{{"error", e.err()}}
+			);
+		}
+	}
+	
+	// Sign a user out and return a response.
+	/*  @docs {
+	 *  @title: Sign out
+	 *  @description:
+	 *      Revoke the token of the currently signed in user.
+	 *
+	 *		The endpoint that calls this function should be authenticated.
+	 *  @parameter: {
+	 *      @name: uid
+	 *      @description: The user id of the request.
+	 *  }
+	 *  @return: Returns a response object.
+	 *  @usage:
+	 *		return Endpoint {
+	 *			"POST",
+	 *			"/backend/signout",
+	 *			"application/json",
+	 *			{
+	 *				.rate_limit = 10,
+	 *				.rate_limit_duration = 60,
+	 *			},
+	 *			[](Server& server, const Len& uid) {
+	 *				return server.sign_out_req(uid);
+	 *			}
+	 *		};
+	 } */
+	Response sign_out_req(const Len& uid) {
+		try {
+				
+			// Delete token.
+			sys_delete_user_token(uid);
+			
+			// Create headers.
+			Headers headers {
+				{"Connection", "close"},
+			};
+			reset_cookies(headers);
+			
+			// Response.
+			return Server::response(
+									vlib::http::status::success,
+									headers,
+									{{"message", "Successfully signed out."}}
+									);
+		} catch (vlib::Exception& e) {
+			return Server::response(
+				vlib::http::status::internal_server_error,
+				Json{{"error", e.err()}}
+			);
+		}
+	}
+	
+	// Sign up.
+	/*  @docs {
+	 *  @title: Sign Up
+	 *  @description:
+	 *      Sign up request.
+	 *  @parameter: {
+	 *      @name: params
+	 *      @description:
+	 *		The request parameters, the required parameters are [`first_name`, `last_name`, `username`, `email`, `password`, `verify_password`].
+	 *  }
+	 *  @parameter: {
+	 *      @name: headers
+	 *      @description: The request headers.
+	 *  }
+	 *  @parameter: {
+	 *      @name: ip
+	 *      @description: The request ip, used for the 2FA mail.
+	 *  }
+	 *  @return: Returns a response object.
+	 *  @usage:
+	 *      return Endpoint {
+	 *      	"POST",
+	 *      	"/backend/signup",
+	 *      	"application/json",
+	 *      	{
+	 *      		.rate_limit = 10,
+	 *      		.rate_limit_duration = 60,
+	 *      	},
+	 *      	[](
+	 *      		Server& server,
+	 *      		const Len&,
+	 *      		const Json& params,
+	 *      		const Headers& headers,
+	 *      		const vlib::Socket<>::Info& connection
+	 *      	) {
+	 *      		return server.sign_up_req(params, headers, connection.ip);
+	 *      	}
+	 *      };
+	 } */
+	Response sign_up_req(const Json& params, const Headers& headers = {}, const String& ip = null) {
+		try {
+			
+			// Vars.
+			vlib::http::Response response;
+			String
+			*first_name = nullptr,
+			*last_name = nullptr,
+			*username = nullptr,
+			*email = nullptr,
+			*pass = nullptr,
+			*verify_pass = nullptr;
+			
+			// Get params.
+			if (
+				!vweb::get_param(response, params, username, "username", 8) ||
+				!vweb::get_param(response, params, first_name, "first_name", 10) ||
+				!vweb::get_param(response, params, last_name, "last_name", 9) ||
+				!vweb::get_param(response, params, email, "email", 5) ||
+				!vweb::get_param(response, params, pass, "password", 8) ||
+				!vweb::get_param(response, params, verify_pass, "verify_password", 15)
+			) {
+				return response;
+			}
+			
+			// Verify password.
+			if (*pass != *verify_pass) {
+				return Server::response(
+					vlib::http::status::bad_request,
+					Json{{"error", "Passwords do not match."}}
+				);
+			}
+			
+			// Create.
+			Len uid = create_user(*first_name, *last_name, *username, *email, *pass);
+			
+			// Send 2fa code.
+			if (m_config.enable_2fa) {
+				send_2fa(uid, headers, ip);
+			}
+			
+			// Sign in.
+			return sign_in_req(uid);
+		
+		} catch (vlib::Exception& e) {
+			return Server::response(
+				vlib::http::status::internal_server_error,
+				Json{{"error", e.err()}}
+			);
+		}
+	}
+	
+	// Activate account after sign up.
+	/*  @docs {
+	 *  @title: Activate account
+	 *  @description:
+	 *      Activate account after a sign up / sign in.
+	 *  @parameter: {
+	 *      @name: uid
+	 *      @description: The user id. When the uid is `NPos::npos` the uid from the cookie `2FAUserID` will be used.
+	 *  }
+	 *  @parameter: {
+	 *      @name: params
+	 *      @description: The request parameters, the required parameters are [`2fa`]. Parameter `2fa` should be the user's received 2fa code.
+	 *  }
+	 *  @parameter: {
+	 *      @name: headers
+	 *      @description: The request headers.
+	 *  }
+	 *  @return: Returns a response object.
+	 *  @usage:
+	 *      return Endpoint {
+	 *      	"POST",
+	 *      	"/backend/signup/activate",
+	 *      	"application/json",
+	 *      	{
+	 *      		.rate_limit = 10,
+	 *      		.rate_limit_duration = 60,
+	 *      	},
+	 *      	[](Server& server, const Len& uid, const Json& params, const Headers& headers) {
+	 *      		return server.activate_user_req(uid, params, headers);
+	 *      	}
+	 *      };
+	 } */
+	Response activate_user_req(const Len& uid, const Json& params, const Headers& headers) {
+		try {
+				
+			// Vars.
+			Len l_uid = uid;
+			
+			// Get uid by cookie.
+			if (l_uid == NPos::npos) {
+				String value = vweb::get_cookie(headers, "2FAUserID");
+				if (value.is_defined() && !value.eq("-1", 2)) {
+					l_uid - value.as<Len>();
+				}
+			}
+			
+			// Check uid.
+			if (l_uid == NPos::npos) {
+				return Server::response(
+										vlib::http::status::forbidden,
+										Headers{{"Connection", "close"}},
+										Json{{"error", "Permission denied."}}
+										);
+			}
+			
+			// Get param.
+			vlib::http::Response response;
+			String *code = nullptr;
+			if (!vweb::get_param(response, params, code, "2fa", 3)) {
+				return response;
+			}
+			
+			// Verify.
+			if (verify_2fa(l_uid, *code)) {
+				
+				// Set activated.
+				set_activated(l_uid, true);
+				
+				// Response.
+				Headers headers {
+					{"Connection", "close"},
+				};
+				create_user_cookie(headers, l_uid);
+				return Server::response(
+										vlib::http::status::success,
+										headers,
+										Json{{"message", "Successfully verified the 2FA code."}}
+										);
+			}
+			
+			// Invalid code.
+			else {
+				return Server::response(
+										vlib::http::status::forbidden,
+										Headers{{"Connection", "close"}},
+										Json{{"error", "Permission denied."}}
+										);
+			}
+		
+		} catch (vlib::Exception& e) {
+			return Server::response(
+				vlib::http::status::internal_server_error,
+				Json{{"error", e.err()}}
+			);
+		}
+	}
+	
+	// Send 2fa request.
+	/*  @docs {
+	 *  @title: Send 2FA request
+	 *  @description:
+	 *      Send a 2FA to a user request.
+	 *
+	 *		For example used in forgot password handling.
+	 *  @parameter: {
+	 *      @name: params
+	 *      @description: The request parameters, the required parameters are [`email`].
+	 *  }
+	 *  @parameter: {
+	 *      @name: headers
+	 *      @description: The request headers.
+	 *  }
+	 *  @parameter: {
+	 *      @name: ip
+	 *      @description: The request ip, used for the 2FA mail.
+	 *  }
+	 *  @return: Returns a response object.
+	 *  @usage:
+	 *		return Endpoint {
+	 *			"POST",
+	 *			"/backend/send_2fa",
+	 *			"application/json",
+	 *			{
+	 *				.rate_limit = 10,
+	 *				.rate_limit_duration = 60,
+	 *			},
+	 *			[](
+	 *				Server& server,
+	 *				const Len&,
+	 *				const Json& params,
+	 *				const Headers& headers,
+	 *				const vlib::Socket<>::Info& connection
+	 *			) {
+	 *				return server.send_2fa_req(params, headers, connection.ip);
+	 *			}
+	 *		};
+	 } */
+	Response send_2fa_req(const Json& params, const Headers& headers = {}, const String& ip = null) {
+		
+		// Vars.
+		vlib::http::Response response;
+		String *email = nullptr;
+		
+		// Get params.
+		if (!vweb::get_param(response, params, email, "email", 5)) {
+			return response;
+		}
+		
+		// Get uid.
+		Len uid;
+		if ((uid = get_uid_by_email(*email)) == NPos::npos) {
+			return Server::response(
+				vlib::http::status::success,
+				Headers{{"Connection", "close"}},
+				Json{{"message", "A 2FA code was sent if the specified email exists."}}
+			);
+		}
+		
+		// Send.
+		send_2fa(uid, headers, ip);
+		return Server::response(
+			vlib::http::status::success,
+			Headers{{"Connection", "close"}},
+			Json{{"message", "A 2FA code was sent if the specified email exists."}}
+		);
+		
+	}
+	
+	// Forgot password request.
+	/*  @docs {
+	 *  @title: Forgot password request
+	 *  @description:
+	 *      Forgot password request of a user.
+	 *
+	 *		Automatically signs in after a successfull password reset.
+	 *  @parameter: {
+	 *      @name: params
+	 *      @description:
+	 *      	The request parameters, the required parameters are [`email`, `2fa`, `password` and `verify_password`].
+	 *  }
+	 *  @return:
+	 *      	Returns a response object.
+	 *  @usage:
+	 *      return Endpoint {
+	 *      	"POST",
+	 *      	"/backend/forgot_password",
+	 *      	"application/json",
+	 *      	{
+	 *      		.rate_limit = 10,
+	 *      		.rate_limit_duration = 60,
+	 *      	},
+	 *      	[](
+	 *      		Server& server,
+	 *      		const Len&,
+	 *      		const Json& params
+	 *      	) {
+	 *      		return server.forgot_password_req(params);
+	 *      	}
+	 *      };
+	 } */
+	Response forgot_password_req(const Json& params) {
+		
+		// Vars.
+		vlib::http::Response response;
+		String *email = nullptr, *code = nullptr, *pass = nullptr, *verify_pass = nullptr;
+		
+		// Get params.
+		if (
+			!vweb::get_param(response, params, email, "email", 5) ||
+			!vweb::get_param(response, params, code, "2fa", 3) ||
+			!vweb::get_param(response, params, pass, "password", 8) ||
+			!vweb::get_param(response, params, verify_pass, "verify_password", 15)
+		) {
+			return response;
+		}
+		
+		// Verify password.
+		if (*pass != *verify_pass) {
+			return Server::response(
+				 vlib::http::status::bad_request,
+				 Headers{{"Connection", "close"}},
+				 Json{{"error", "Passwords do not match."}}
+			 );
+		}
+		
+		// Get uid.
+		Len uid;
+		if ((uid = get_uid_by_email(*email)) == NPos::npos) {
+			return Server::response(
+				 vlib::http::status::forbidden,
+				 Headers{{"Connection", "close"}},
+				 Json{{"error", "Permission denied."}}
+			 );
+		}
+		
+		// Verify 2fa.
+		if (!verify_2fa(uid, *code)) {
+			return Server::response(
+				 vlib::http::status::forbidden,
+				 Headers{{"Connection", "close"}},
+				 Json{{"error", "Invalid 2FA code."}}
+			 );
+		}
+		
+		// Set password.
+		set_password(uid, *pass);
+		
+		// Sign in.
+		return sign_in_req(uid);
+		
+	}
+	
+	// Change password request.
+	/*  @docs {
+	 *  @title: Change password request
+	 *  @description:
+	 *      Change password request of a signed in user.
+	 *
+	 *		The endpoint that calls this function should be authenticated.
+	 *  @parameter: {
+	 *      @name: uid
+	 *      @description: The user id to sign in.
+	 *  }
+	 *  @parameter: {
+	 *      @name: params
+	 *      @description:
+	 *      	The request parameters, the required parameters are [`current_password`, `password` and `verify_password`].
+	 *  }
+	 *  @return:
+	 *      	Returns a response object.
+	 *  @usage:
+	 *      return Endpoint {
+	 *      	"POST",
+	 *      	"/backend/user/password",
+	 *      	"application/json",
+	 *      	{
+	 *      		.auth = Endpoint::authenticated,
+	 *      		.rate_limit = 10,
+	 *      		.rate_limit_duration = 60,
+	 *      	},
+	 *      	[](Server& server, const Len& uid, const Json& params) {
+	 *      		return server.change_password_req(uid, params);
+	 *      	}
+	 *      };
+	 } */
+	Response change_password_req(const Len& uid, const Json& params) {
+		
+		// Vars.
+		vlib::http::Response response;
+		String
+		*current_pass = nullptr,
+		*pass = nullptr,
+		*verify_pass = nullptr;
+		
+		// Get params.
+		if (
+			!vweb::get_param(response, params, current_pass, "current_password", 16) ||
+			!vweb::get_param(response, params, pass, "password", 8) ||
+			!vweb::get_param(response, params, verify_pass, "verify_password", 15)
+		) {
+			return response;
+		}
+		
+		// Verify old password.
+		if (!verify_password(uid, *current_pass)) {
+			return Server::response(
+				vlib::http::status::unauthorized,
+				Json{{"error", "Incorrect password."}}
+			);
+		}
+		
+		// Verify new password.
+		if (*pass != *verify_pass) {
+			return Server::response(
+				vlib::http::status::bad_request,
+				Json{{"error", "Passwords do not match."}}
+			);
+		}
+		
+		// Set password.
+		set_password(uid, *pass);
+		
+		// Success.
+		return Server::response(
+			vlib::http::status::success,
+			Json{{"message", "Successfully updated your password."}}
+		);
+	}
+	
     // Public.
 public:
     
@@ -737,6 +1670,24 @@ public:
      } */
     constexpr
     void    add_endpoints(const Array<Endpoint>& endpoints) {
+		
+		// Add default endpoints.
+		// Should be added before the users endpoints in case ...
+		// The user adds an endpoint with the same url that is required by the api.
+		if (m_endpoints.len() == 0) {
+			create_default_endpoints();
+		}
+		
+		// Check duplicates.
+		for (auto& x: endpoints) {
+			for (auto& y: m_endpoints) {
+				if (x.m_endpoint == y.m_endpoint) {
+					throw vlib::DuplicateError("Endpoint \"", y.m_endpoint, "\" already exists.");
+				}
+			}
+		}
+		
+		// Concat.
         m_endpoints.concat_r(endpoints);
     }
     
@@ -756,13 +1707,47 @@ public:
      } */
     template <typename... Endpoints> constexpr
     void    add_endpoints(const Endpoint& endpoint, Endpoints&&... endpoints) {
+		
+		// Add default endpoints.
+		// Should be added before the users endpoints in case ...
+		// The user adds an endpoint with the same url that is required by the api.
+		if (m_endpoints.len() == 0) {
+			create_default_endpoints();
+		}
+		
+		// Check duplicates.
+		for (auto& y: m_endpoints) {
+			if (endpoint.m_endpoint == y.m_endpoint) {
+				throw vlib::DuplicateError("Endpoint \"", y.m_endpoint, "\" already exists.");
+			}
+		}
+		
+		// Append.
         m_endpoints.append(endpoint);
         add_endpoints(endpoints...);
+		
     }
     template <typename... Endpoints> constexpr
     void    add_endpoints(Endpoint&& endpoint, Endpoints&&... endpoints) {
+		
+		// Add default endpoints.
+		// Should be added before the users endpoints in case ...
+		// The user adds an endpoint with the same url that is required by the api.
+		if (m_endpoints.len() == 0) {
+			create_default_endpoints();
+		}
+		
+		// Check duplicates.
+		for (auto& y: m_endpoints) {
+			if (endpoint.m_endpoint == y.m_endpoint) {
+				throw vlib::DuplicateError("Endpoint \"", y.m_endpoint, "\" already exists.");
+			}
+		}
+		
+		// Append.
         m_endpoints.append(endpoint);
         add_endpoints(endpoints...);
+		
     }
     
     // ---------------------------------------------------------
@@ -781,7 +1766,7 @@ public:
      *      ...
      *      Bool exists = server.username_exists("someusername");
      } */
-    Bool    username_exists(const String& username) {
+    Bool    username_exists(const String& username) const {
         return Path::exists(to_str(m_config.database, "/.sys/usernames/", username));
     }
     
@@ -798,7 +1783,7 @@ public:
      *      ...
      *      Bool exists = server.email_exists("some\@email.com");
      } */
-    Bool    email_exists(const String& email) {
+    Bool    email_exists(const String& email) const {
         return Path::exists(to_str(m_config.database, "/.sys/emails/", email));
     }
     
@@ -815,7 +1800,7 @@ public:
      *      ...
      *      Bool activated = server.is_activated(0);
      } */
-    Bool    is_activated(const Len& uid) {
+    Bool    is_activated(const Len& uid) const {
         return !Path::exists(to_str(m_config.database, "/.sys/unactivated/", uid));
     }
     
@@ -835,7 +1820,7 @@ public:
      *      ...
      *      server.set_activated(0, true);
      } */
-    void    set_activated(const Len& uid, const Bool& activated) {
+    void    set_activated(const Len& uid, const Bool& activated) const {
         if (activated) {
             Path::remove(to_str(m_config.database, "/.sys/unactivated/", uid));
         } else {
@@ -1002,6 +1987,9 @@ public:
      *      server.set_username(0, "newusername");
      } */
     void    set_username(const Len& uid, const String& username) const {
+		if (username_exists(username)) {
+			throw vlib::DuplicateError("Username \"", username, "\" already exists.");
+		}
         User user = get_user(uid);
         user.username = username;
         sys_save_user(uid, user);
@@ -1028,6 +2016,9 @@ public:
      *      server.set_email(0, "new\@email.com");
      } */
     void    set_email(const Len& uid, const String& email) const {
+		if (email_exists(email)) {
+			throw vlib::DuplicateError("Email \"", email, "\" already exists.");
+		}
         User user = get_user(uid);
         user.email = email;
         sys_save_user(uid, user);
@@ -1058,21 +2049,92 @@ public:
         user.password = SHA::hmac(m_hash_key, password);
         sys_save_user(uid, user);
     }
+	
+	// Set a user's data.
+	/*  @docs {
+	 *  @title: Set user
+	 *  @description:
+	 *      Set a user's data
+	 *
+	 *      Does not update the user's id, key and password data.
+	 *      If the uid does not exist an `UserDoesNotExistError` will be thrown.
+	 *  @parameter: {
+	 *      @name: uid
+	 *      @description: The user id.
+	 *  }
+	 *  @parameter: {
+	 *      @name: user
+	 *      @description: The new user object.
+	 *  }
+	 *  @usage:
+	 *      ...
+	 *      server.set_user(0, ...);
+	 *	@funcs: 2
+	 } */
+	void    set_user(const Len& uid, const User& user) const {
+		User current_user = get_user(uid);
+		String old_username, old_email;
+		
+		// First name.
+		if (user.first_name != current_user.first_name) {
+			current_user.first_name = user.first_name;
+		}
+		
+		// Last name.
+		if (user.last_name != current_user.last_name) {
+			current_user.last_name = user.last_name;
+		}
+		
+		// Username.
+		if (user.username != current_user.username) {
+			if (username_exists(user.username)) {
+				throw vlib::DuplicateError("Username \"", user.username, "\" already exists.");
+			}
+			old_username = move(current_user.username);
+			current_user.username = user.username;
+		}
+		
+		// Email.
+		if (user.email != current_user.email) {
+			if (email_exists(user.email)) {
+				throw vlib::DuplicateError("Email \"", user.email, "\" already exists.");
+			}
+			old_email = move(current_user.email);
+			current_user.email = user.email;
+		}
+		
+		// Save.
+		String suid = uid.str();
+		sys_save_user(uid, current_user);
+		if (old_username.is_defined()) {
+			sys_save_uid_by_username(suid, current_user.username);
+			sys_delete_uid_by_username(suid, old_username);
+		}
+		if (old_email.is_defined()) {
+			sys_save_uid_by_email(suid, current_user.email);
+			sys_delete_uid_by_email(suid, old_email);
+		}
+		
+	}
+	void    set_user(const Len& uid, const Json& user) const {
+		User u;
+		ullong index;
+		if ((index = user.find("first_name", 10)) != NPos::npos) {
+			u.first_name = user.value(index).ass();
+		}
+		if ((index = user.find("last_name", 9)) != NPos::npos) {
+			u.last_name = user.value(index).ass();
+		}
+		if ((index = user.find("username", 8)) != NPos::npos) {
+			u.username = user.value(index).ass();
+		}
+		if ((index = user.find("email", 5)) != NPos::npos) {
+			u.email = user.value(index).ass();
+		}
+		return set_user(uid, u);
+	}
     
-    // Load user data.
-    // Json    load_user(const Len& uid) const {
-    //     check_uid_within_range(uid);
-    //     return Json::parse(sys_load_data(to_str(m_config.database, "/users/", uid)));
-    // }
-    
-    // Save user data.
-    // Function "save_user()" is not thread safe.
-    // void    save_user(const Len& uid, const Json& data) const {
-    //     check_uid_within_range(uid);
-    //     data.save(to_str(m_config.database, "/users/", uid));
-    // }
-    
-    // Get uid by username.
+	// Get uid by username.
     // Returns "NPos::npos" when the username does not exist.
     /*  @docs {
      *  @title: Get UID
@@ -1293,6 +2355,76 @@ public:
     User    get_user_by_token(const String& token) const {
         return get_user(get_uid_by_token(token));
     }
+	
+	// Load user data.
+	/*  @docs {
+	 *  @title: Load user data
+	 *  @description:
+	 *      Load user data by subpath.
+	 *
+	 *		The subpath resides in the user's data directory.
+	 *  @return:
+	 *      Returns the loaded data.
+	 *  @template: {
+	 *      @name: Type
+	 *      @description: The type to load. The type must have a `Type::load(const String&)` static function to load the data by the full path.
+	 *  }
+	 *  @parameter: {
+	 *      @name: uid
+	 *      @description: The uid of the user.
+	 *  }
+	 *  @parameter: {
+	 *      @name: subpath
+	 *      @description: The subpath to the file.
+	 *  }
+	 *  @usage:
+	 *		...
+	 *      Json data = server.load_user_data(0, "mydata");
+	 *      String data = server.load_user_data<String>(0, "mystring");
+	 } */
+	template <typename Type = Json, typename... Air>
+	Type	load_user_data(const Len& uid, const String& subpath) const {
+		check_uid_within_range(uid);
+		Path path = to_str(m_config.database, "/users/", uid, '/', subpath);
+		if (!path.exists()) {
+			return {};
+		}
+		return Type::load(path);
+	}
+	
+	// Save user data.
+	/*  @docs {
+	 *  @title: Save user data
+	 *  @description:
+	 *      Save user data by subpath.
+	 *
+	 *		The subpath resides in the user's data directory.
+	 *  @template: {
+	 *      @name: Type
+	 *      @description: The type to save. The type must have a `Type::save(const String&)` member function to load the data by the full path.
+	 *  }
+	 *  @parameter: {
+	 *      @name: uid
+	 *      @description: The uid of the user.
+	 *  }
+	 *  @parameter: {
+	 *      @name: subpath
+	 *      @description: The subpath to the file.
+	 *  }
+	 *  @parameter: {
+	 *      @name: data
+	 *      @description: The data to save.
+	 *  }
+	 *  @usage:
+	 *		...
+	 *      server.save_user_data<Json>(0, "mydata", {{"Hello", "World!"}});
+	 *      server.save_user_data<String>(0, "mystring", "Hello World!");
+	 } */
+	template <typename Type = Json, typename... Air>
+	void	save_user_data(const Len& uid, const String& subpath, const Type& data) const {
+		check_uid_within_range(uid);
+		data.save(to_str(m_config.database, "/users/", uid, '/', subpath));
+	}
     
     // Generate an api key by uid.
     /*  @docs {
@@ -1311,7 +2443,7 @@ public:
      *  }
      *  @usage:
      *      ...
-     *      String api_key = server.generate_api_key("XXXXXX");
+     *      String api_key = server.generate_api_key(0);
      } */
     String  generate_api_key(const Len& uid) {
         check_uid_within_range(uid);
@@ -1321,6 +2453,28 @@ public:
         sys_save_user(uid, user);
         return api_key;
     }
+	
+	// Revoke the API key of a user.
+	/*  @docs {
+	 *  @title: Revoke API Key
+	 *  @description:
+	 *      Revoke the API key of a user.
+	 *
+	 *      If the uid does not exist an `UserDoesNotExistError` will be thrown.
+	 *  @parameter: {
+	 *      @name: uid
+	 *      @description: The uid of the account to revoke the API key for.
+	 *  }
+	 *  @usage:
+	 *      ...
+	 *      server.revoke_api_key(0);
+	 } */
+	void	revoke_api_key(const Len& uid) {
+		check_uid_within_range(uid);
+		User user = sys_load_user(uid);
+		user.api_key = "";
+		sys_save_user(uid, user);
+	}
     
     // Generate a token by uid.
     // Function "generate_token()" is not thread safe.
@@ -1346,7 +2500,7 @@ public:
         check_uid_within_range(uid);
         String token = to_str('1', uid, ':', sys_generate_api_key());
         sys_save_user_token(uid, Token {
-            .expiration = Date::get_seconds() + 3600,
+            .expiration = Date::get_seconds() + 86400,
             .token = SHA::hmac(m_hash_key, token),
         });
         return token;
@@ -1570,261 +2724,6 @@ public:
     }
     
     // ---------------------------------------------------------
-    // Default request functions.
-    
-    // Sign a user in and return a response.
-    /*  @docs {
-     *  @title: Direct Sign In Response
-     *  @description:
-     *      Signs a user in without authenticating and returns the correct response.
-     *  @warning:
-     *      This function should be used with caution since it creates an authentication token without any authentication checks.
-     *  @parameter: {
-     *      @name: uid
-     *      @description: The user id to sign in.
-     *  }
-     *  @return: Returns a response object.
-     *  @usage:
-     *      ...
-     *      return server.sign_in(0);
-     } */
-    Response sign_in(const Len& uid) {
-        
-        // Generate token.
-        String token = generate_token(uid);
-        
-        // Create headers.
-        Headers headers;
-        create_token_cookie(headers, token);
-        create_user_cookie(headers, uid);
-        create_detailed_user_cookie(headers, uid);
-        
-        // Response.
-        return Server::response(
-                                vlib::http::status::success,
-                                headers,
-                                {{"message", "Successfully signed in."}}
-                                );
-        
-    }
-    
-    // Sign a user in and return a response.
-    // Required params: [username, password].
-    /*  @docs {
-     *  @title: Sign In Response
-     *  @description:
-     *      Signs a user in and returns the correct response.
-     *
-     *      Requires a 2FA code. When no code is provided but the credentials were okay, the cookie 2FAUserID will be assigned.
-     *  @parameter: {
-     *      @name: params
-     *      @description:
-     *          The request parameters.
-     *
-     *          The required parameter fields are `[email or username, password, 2fa]`.
-     *
-     *          Field `2fa` is the 2FA code.
-     *  }
-     *  @return: Returns a response object.
-     *  @usage:
-     *      ...
-     *      server.sign_in(...);
-     } */
-    Response sign_in(const Json& params, const Headers& headers = {}, const String& ip = null) {
-        
-        // Vars.
-        vlib::http::Response response;
-        String *email = nullptr, *username = nullptr, *password = nullptr, *code = nullptr;
-        Len uid;
-        
-        // Get params.
-        if (
-            (
-             !vweb::get_param(response, params, username, "username", 8) &&
-             !vweb::get_param(response, params, email, "email", 5)
-             ) ||
-            !vweb::get_param(response, params, password, "password", 8)
-            ) {
-                return response;
-            }
-        
-        // Get uid.
-        if (email) {
-            if ((uid = get_uid_by_email(*email)) == NPos::npos) {
-                return Server::response(
-                                        vlib::http::status::unauthorized,
-                                        Json {{"error", "Unauthorized."}}
-                                        );
-            }
-        } else {
-            if ((uid = get_uid(*username)) == NPos::npos) {
-                return Server::response(
-                                        vlib::http::status::unauthorized,
-                                        Json {{"error", "Unauthorized."}}
-                                        );
-            }
-        }
-        
-        // Verify password.
-        if (verify_password(uid, *password)) {
-            
-            // Verify 2fa.
-            if (m_config.enable_2fa) {
-                if (!vweb::get_param(response, params, code, "2fa", 3) || code->is_undefined()) {
-                    send_2fa(uid, headers, ip);
-                    return Server::response(
-                                            vlib::http::status::two_factor_auth_required,
-                                            Headers {
-                                                {"Connection", "close"},
-                                            },
-                                            Json {
-                                                {"error", "2FA required."} // do not change this text, it can be used to detect 2fa requirement.
-                                            }
-                                            );
-                }
-                if (!verify_2fa(uid, *code)) {
-                    return Server::response(
-                                            vlib::http::status::unauthorized,
-                                            Json {{"error", "Invalid 2FA code."}}
-                                            );
-                }
-            }
-            
-            // Sign in.
-            return sign_in(uid);
-        }
-        return Server::response(
-                                vlib::http::status::unauthorized,
-                                Json {{"error", "Unauthorized."}}
-                                );
-    }
-    
-    // Sign a user out and return a response.
-    Response sign_out(const Len& uid) {
-        
-        // Delete token.
-        sys_delete_user_token(uid);
-        
-        // Create headers.
-        Headers headers {
-            {"Connection", "close"},
-        };
-        reset_cookies(headers);
-        
-        // Response.
-        return Server::response(
-                                vlib::http::status::success,
-                                headers,
-                                {{"message", "Successfully signed out."}}
-                                );
-    }
-    
-    // Sign up.
-    // Required params: [first_name, last_name, username, email, password, verify_password].
-    // Param mail_body_2fa should contain the string {{2FA}} which will be replaced with the actual 2fa code.
-    Response sign_up(const Json& params, const Headers& headers = {}, const String& ip = null) {
-        
-        // Vars.
-        vlib::http::Response response;
-        String
-        *first_name = nullptr,
-        *last_name = nullptr,
-        *username = nullptr,
-        *email = nullptr,
-        *pass = nullptr,
-        *verify_pass = nullptr;
-        
-        // Get params.
-        if (
-            !vweb::get_param(response, params, username, "username", 8) ||
-            !vweb::get_param(response, params, first_name, "first_name", 10) ||
-            !vweb::get_param(response, params, last_name, "last_name", 9) ||
-            !vweb::get_param(response, params, email, "email", 5) ||
-            !vweb::get_param(response, params, pass, "password", 8) ||
-            !vweb::get_param(response, params, verify_pass, "verify_password", 15)
-            ) {
-                return response;
-            }
-        
-        // Verify password.
-        if (*pass != *verify_pass) {
-            return Server::response(
-                                    vlib::http::status::bad_request,
-                                    Json{{"error", "Passwords do not match."}}
-                                    );
-        }
-        
-        // Create.
-        Len uid = create_user(*first_name, *last_name, *username, *email, *pass);
-        
-        // Send 2fa code.
-        if (m_config.enable_2fa) {
-            send_2fa(uid, headers, ip);
-        }
-        
-        // Sign in.
-        return sign_in(uid);
-    }
-    
-    // Activate account after sign up.
-    Response sign_up_activate(const Len& uid, const Json& params, const Headers& headers) {
-        
-        // Vars.
-        Len l_uid = uid;
-        
-        // Get uid by cookie.
-        if (l_uid == NPos::npos) {
-            String value = vweb::get_cookie(headers, "2FAUserID");
-            if (value.is_defined() && !value.eq("-1", 2)) {
-                l_uid - value.as<Len>();
-            }
-        }
-        
-        // Check uid.
-        if (l_uid == NPos::npos) {
-            return Server::response(
-                                    vlib::http::status::forbidden,
-                                    Headers{{"Connection", "close"}},
-                                    Json{{"error", "Permission denied."}}
-                                    );
-        }
-        
-        // Get param.
-        vlib::http::Response response;
-        String *code = nullptr;
-        if (!vweb::get_param(response, params, code, "2fa", 3)) {
-            return response;
-        }
-        
-        // Verify.
-        if (verify_2fa(l_uid, *code)) {
-            
-            // Set activated.
-            set_activated(l_uid, true);
-            
-            // Response.
-            Headers headers {
-                {"Connection", "close"},
-            };
-            create_user_cookie(headers, l_uid);
-            return Server::response(
-                                    vlib::http::status::success,
-                                    headers,
-                                    Json{{"message", "Successfully verified the 2FA code."}}
-                                    );
-        }
-        
-        // Invalid code.
-        else {
-            return Server::response(
-                                    vlib::http::status::forbidden,
-                                    Headers{{"Connection", "close"}},
-                                    Json{{"error", "Permission denied."}}
-                                    );
-        }
-    }
-    
-    // ---------------------------------------------------------
     // Headers.
     
     // Add header defaults.
@@ -1842,8 +2741,8 @@ public:
         headers["Access-Control-Allow-Credentials"] = "true";
         headers.append("Set-Cookie", to_str(
             "T=", token,
-            "; Max-Age=3600; Path=/; Expires=",
-            (Date::now() + (3600 * 1000)).str("%a, %d %b %Y %H:%M:%S %z"),
+            "; Max-Age=86400; Path=/; Expires=",
+            (Date::now() + (86400 * 1000)).str("%a, %d %b %Y %H:%M:%S %z"),
             "; SameSite=None; Secure; HttpOnly;"
         ));
     }
@@ -1877,7 +2776,7 @@ public:
     }
     
     // Create user headers.
-    //  - Should be called when a user has just signed in or signed up.
+    //  - Should be called when a user has just signed in, signed up or changed their account.
     void    create_detailed_user_cookie(Headers& headers, const Len& uid) {
         User user = get_user(uid);
         headers.append("Set-Cookie", to_str("UserName=", user.username, "; Path=/; SameSite=None; Secure;"));
@@ -1991,7 +2890,7 @@ public:
      *  @attribute: true
      } */
     constexpr auto& smtp() const { return m_smtp; }
-    
+	
     // Response 400.
     /*  @docs {
      *  @title: Response 400

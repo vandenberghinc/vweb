@@ -157,9 +157,11 @@ struct EndpointTemplate {
     m_headers({
 		{"Content-Type", content_type},
 		{"Keep-Alive", "5"},
-        {"Cache-Control", "max-age=86400"},
     })
     {
+		if (vweb_production) {
+			m_headers["Cache-Control"] = "max-age=86400";
+		}
         clean_url();
     }
     /*  @docs {
@@ -221,9 +223,11 @@ struct EndpointTemplate {
     m_headers({
 		{"Content-Type", content_type},
 		{"Keep-Alive", "5"},
-        {"Cache-Control", "max-age=86400"},
     })
     {
+		if (vweb_production) {
+			m_headers["Cache-Control"] = "max-age=86400";
+		}
         clean_url();
     }
     constexpr
@@ -250,6 +254,186 @@ struct EndpointTemplate {
         clean_url();
     }
     
+	// Constructor from JSView.
+	/*  @docs {
+	 *  @title: View Constructor
+	 *  @description:
+	 *      Constructor from a `View`.
+	 *
+	 *      The response body will be compressed.
+	 *  @parameter: {
+	 *      @name: endpoint
+	 *      @description: The endpoint suburl.
+	 *  }
+	 *  @parameter: {
+	 *      @name: view
+	 *      @description: The `View` object.
+	 *  }
+	 *  @usage:
+	 *      ...
+	 *      return Endpoint {
+	 *          "/",
+	 *          View {
+	 *              Title("Hello World!"),
+	 *          }
+	 *      };
+	 } */
+	constexpr
+	EndpointTemplate(
+			 const String& endpoint,
+			 const ui::JSView& view
+	) :
+	m_method(vlib::http::method::get),
+	m_endpoint(endpoint),
+	m_content_type(vlib::http::content_type::html),
+	m_headers({
+		// {"Content-Type", vlib::http::content_type::to_str(m_content_type.value())},
+		{"Keep-Alive", "5"},
+		
+		// Compress.
+		{"Content-Encoding", "gzip"},
+		{"Vary", "Accept-Encoding"},
+		
+		// Cache.
+		// {"Cache-Control", "max-age=86400"},
+		// {"Expires", "Thu, 01 Jan 1970 00:00:00 GMT"},
+		
+		// Dont cache for debugging.
+		{"Cache-Control", "no-cache, no-store, must-revalidate"},
+		{"Pragma", "no-cache"},
+		{"Expires", "0"},
+	}),
+	m_data(vlib::compress(view.build()))
+	{
+		clean_url();
+	}
+	/*  @docs {
+	 *  @title: View Constructor With Options
+	 *  @description:
+	 *      Constructor from a `View` with options.
+	 *
+	 *      The response body will be compressed.
+	 *  @parameter: {
+	 *      @name: endpoint
+	 *      @description: The endpoint suburl.
+	 *  }
+	 *  @parameter: {
+	 *      @name: options
+	 *      @description:
+	 *          The endpoint options for rate limiting and authentication.
+	 *
+	 *          See <link #vweb::EndpointTemplate::Options>Endpoint::Options</link> for more info.
+	 *  }
+	 *  @parameter: {
+	 *      @name: view
+	 *      @description: The `View` object.
+	 *  }
+	 *  @usage:
+	 *      ...
+	 *      return Endpoint {
+	 *          "/",
+	 *          { .auth = Endpoint::authenticated, }
+	 *          View {
+	 *              Title("Hello World!"),
+	 *          }
+	 *      };
+	 *  @funcs: 3
+	 } */
+	constexpr
+	EndpointTemplate(
+			 const String& endpoint,
+			 const Options& options,
+			 const ui::JSView& view
+	) :
+	m_method(vlib::http::method::get),
+	m_endpoint(endpoint),
+	m_content_type(vlib::http::content_type::html),
+	m_auth(options.auth),
+	m_rate_limit(options.rate_limit),
+	m_rate_limit_duration(options.rate_limit_duration),
+	m_type(0),
+	m_headers({
+		// {"Content-Type", vlib::http::content_type::to_str(m_content_type.value())},
+		{"Keep-Alive", "5"},
+		
+		// Compress.
+		// {"Content-Encoding", "gzip"},
+		// {"Vary", "Accept-Encoding"},
+		
+		// Cache.
+		// {"Cache-Control", "max-age=86400"},
+		// {"Expires", "Thu, 01 Jan 1970 00:00:00 GMT"},
+		
+		// Dont cache for debugging.
+		{"Cache-Control", "no-cache, no-store, must-revalidate"},
+		{"Pragma", "no-cache"},
+		{"Expires", "0"},
+	}),
+	// m_data(vlib::compress(view.build()))
+	m_data(view.build())
+	{
+		clean_url();
+	}
+	constexpr
+	EndpointTemplate(
+					 const String& method,
+					 const String& endpoint,
+					 const Options& options,
+					 const ui::JSView& view
+					 ) :
+	m_method(vlib::http::method::fromstr(method)),
+	m_endpoint(endpoint),
+	m_content_type(vlib::http::content_type::html),
+	m_auth(options.auth),
+	m_rate_limit(options.rate_limit),
+	m_rate_limit_duration(options.rate_limit_duration),
+	m_type(0),
+	m_headers({
+		// {"Content-Type", vlib::http::content_type::to_str(m_content_type.value())},
+		{"Keep-Alive", "5"},
+		
+		// Compress.
+		{"Content-Encoding", "gzip"},
+		{"Vary", "Accept-Encoding"},
+		
+		// Cache.
+		// {"Cache-Control", "max-age=86400"},
+		// {"Expires", "Thu, 01 Jan 1970 00:00:00 GMT"},
+		
+		// Dont cache for debugging.
+		{"Cache-Control", "no-cache, no-store, must-revalidate"},
+		{"Pragma", "no-cache"},
+		{"Expires", "0"},
+	}),
+	m_data(vlib::compress(view.build()))
+	{
+		clean_url();
+	}
+	constexpr
+	EndpointTemplate(
+		const String& method,
+		const String& endpoint,
+		const Options& options,
+		const Headers& headers,
+		const ui::JSView& view
+	) :
+	m_method(vlib::http::method::fromstr(method)),
+	m_endpoint(endpoint),
+	m_content_type(vlib::http::content_type::html),
+	m_auth(options.auth),
+	m_rate_limit(options.rate_limit),
+	m_rate_limit_duration(options.rate_limit_duration),
+	m_type(0),
+	m_headers(headers),
+	m_data(vlib::compress(view.build()))
+	{
+		// m_headers["Content-Type"] = vlib::http::content_type::to_str(m_content_type.value());
+		m_headers["Content-Encoding"] = "gzip";
+		m_headers["Vary"] = "Accept-Encoding";
+		m_headers["Keep-Alive"] = "5";
+		clean_url();
+	}
+	
     // Constructor from View.
     /*  @docs {
      *  @title: View Constructor

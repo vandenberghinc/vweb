@@ -34,12 +34,15 @@ private:
     String  m_post_js;              // the js code that will be executed at the bottom.
 	JArray  m_conditions;	        // the condition elements that can be rebuild by js code.
     Len     m_generated_ids = 0;    // generated ids count.
-    
+
+// Public.
+public:
+	
     // ---------------------------------------------------------
     // Private functions.
 	
 	// Build headers.
-    template <typename View>
+    template <typename View> 
 	String	build_headers(const View& view) {
 		String data;
         
@@ -78,7 +81,8 @@ private:
     String	build_element(
         Json& element,
         const Bool& visible = true,
-        const Json& pre_style = {}
+        const Json& pre_style = {},
+		const Bool& add_newlines = true
     ) {
 		
 		// Vars.
@@ -90,6 +94,10 @@ private:
         Json style = safe_get<Json>(element, "style");
         Json animations = safe_get<Json>(element, "animations");
         JArray children = safe_get<JArray>(element, "children");
+		String newline;
+		if (add_newlines) {
+			newline.append('\n');
+		}
 		
 		// Create.
 		String data;
@@ -100,12 +108,18 @@ private:
 		if (type == "Variable" || type == "SetVariable") {
             data << "<script type='text/javascript'>" <<
             "variables['" << element["key"].ass() << "'] = " << element["value"].json() << ';' <<
-            "</script>\n";
+            "</script>" << newline;
 		}
         
         // ========================================================================
         // Variable condition.
+		
+		// Javascript conditions can only be used inside an event.
+		else if (type.eq_first("IfJavaScript", 12)) {
+			throw vlib::InvalidUsageError("Javascript conditions can only be used inside an Event.");
+		}
         
+		// Other variable conditions.
         else if (is_variable_condition(type)) {
             
             // Set id.
@@ -144,7 +158,7 @@ private:
             }
             
             // Close tag.
-            data << "</" << tag << ">\n";
+			data << "</" << tag << '>' << newline;
             
         }
         
@@ -155,11 +169,20 @@ private:
             
             // Perform.
             if (visible) {
-                data << "<script type='text/javascript'>" <<
-                "if (" << element["forced"].asb() << " || vweb_get_endpoint() != '" << element["url"].ass() << "') {" <<
-                "window.location.href = '" << element["url"].ass() << "';" <<
-                "}" <<
-                "</script>\n";
+				data << "<script type='text/javascript'>";
+				if (element["url_param"].asb()) {
+					data <<
+					"const url_params = new URLSearchParams(window.location.search);"
+					"const url_param = url_params.get('" << element["url"].ass() << "');"
+					"if (" << element["forced"].asb() << " || vweb_get_endpoint() != url_param) {" <<
+					"window.location.href = url_param;";
+				} else {
+					data <<
+					"if (" << element["forced"].asb() << " || vweb_get_endpoint() != '" << element["url"].ass() << "') {" <<
+					"window.location.href = '" << element["url"].ass() << "';";
+				}
+				data << "}" <<
+				"</script>" << newline;
             }
         }
         
@@ -169,7 +192,7 @@ private:
         else if (type == "JavaScript") {
             data << "<script type='text/javascript'>" <<
             element["code"].ass() <<
-            "</script>\n";
+            "</script>" << newline;
         }
         
         // ========================================================================
@@ -197,10 +220,24 @@ private:
                     data << e << ".style['" << style.key(index) << "'] = " <<
                     style.value(index).json() << ";";
                 }
+				
+				// Add children.
+				for (auto& child: children) {
+					data << e << ".innerHTML += \"" << build_element(child.asj()).replace_r("\"", "&quot;") << "\";";
+				}
                 
                 // Close.
-                data << "</script>\n";
+                data << "</script>" << newline;
             }
+			
+			// Not visible so parse the children to html.
+			else if (children.len() > 0) {
+				String html_children;
+				for (auto& child: children) {
+					html_children << build_element(child.asj());
+				}
+				element["html_children"] = move(html_children);
+			}
         }
         
         // ========================================================================
@@ -227,7 +264,7 @@ private:
             };
             
             // Finalize.
-            data << "</" << tag << ">\n";
+            data << "</" << tag << ">" << newline;
             
         }
         
@@ -282,17 +319,27 @@ private:
                 "border: " << width * (8/80.0) << "px solid " << background << ";" <<
                 "border-color: " << background << " transparent transparent transparent;" <<
                 "' >" <<
-                "</div>\n";
+                "</div>" << newline;
             }
             
             // Finalize.
-            data << "</" << tag << ">\n";
+            data << "</" << tag << ">" << newline;
             
         }
+		
+		// ========================================================================
+		// Request.
+		
+		else if (type == "Request") {
+			data << "<script type='text/javascript'>" <<
+			build_request(element) <<
+			"</script>" << newline;
+		}
         
         // ========================================================================
-        // Elements without a tag.
-        // Like ForEach.
+        // Elements without a tag like ForEach etc.
+		// - Make sure elements that without a tag should not be be build like this
+		//   are matched before here.
         
         else if (tag == "") {
             data << build_elements(children, type, visible);
@@ -322,7 +369,7 @@ private:
             }
 			
 			// Finalize.
-			data << "</" << tag << ">\n";
+			data << "</" << tag << ">" << newline;
 			
 			// Warnings.
 			if (vweb_seo_warnings) {
@@ -360,6 +407,37 @@ private:
         return data;
     }
     
+	// Optionally add quotes to a string value but not to other types.
+	constexpr
+	String	add_quotes_when_str(const JsonValue& val) {
+		switch (val.type()) {
+			case vlib::json::types::string:
+				return String() << '\'' << val.ass() << '\'';
+			default:
+				return val.str();
+		}
+	}
+	
+	// Get the condition operator of a condition element.
+	constexpr
+	String	get_condition_operator(const char* data, const ullong len) {
+		if (vlib::array<char>::eq(data, len, "Eq", 2)) {
+			return "==";
+		} else if (vlib::array<char>::eq(data, len, "NotEq", 5)) {
+			return "!=";
+		} else if (vlib::array<char>::eq(data, len, "GreaterEq", 9)) {
+			return ">=";
+		} else if (vlib::array<char>::eq(data, len, "Greater", 7)) {
+			return ">";
+		} else if (vlib::array<char>::eq(data, len, "LesserEq", 8)) {
+			return "<=";
+		} else if (vlib::array<char>::eq(data, len, "Lesser", 6)) {
+			return "<";
+		} else {
+			throw vlib::InvalidUsageError("Unknown condition ending \"", data, "\".");
+		}
+	}
+	
     // Build event.
     // Returns js code for the event, not inside a script tag.
     // All ' characters will be escaped.
@@ -394,46 +472,59 @@ private:
                 data << "variables['" << child["key"].ass() << "']= !" <<
                 "variables['" << child["key"].ass() << "']" << ';';
             }
+			
+			// ========================================================================
+			// Javascript conditions.
+			
+			else if (child_type.eq_first("IfJavaScript", 12)) {
+				data <<
+				"if (" << child["key"].ass() <<
+				' ' << get_condition_operator(child_type.data() + 12, child_type.len() - 12) << ' '
+				<< add_quotes_when_str(child["value"]) << ") {" <<
+				build_event(child["children"].asa()) <<
+				"};";
+			}
             
             // ========================================================================
             // Redirect.
             
             else if (child_type == "Redirect") {
-                data <<
-                "if (" << child["forced"].asb() << " || vweb_get_endpoint() != '" << child["url"].ass() << "') {" <<
-                "window.location.href = '" << child["url"].ass() << "';" <<
-                "}";
+				if (child["url_param"].asb()) {
+					data <<
+					"const url_params = new URLSearchParams(window.location.search);"
+					"const url_param = url_params.get('" << child["url"].ass() << "');"
+					"if (" << child["forced"].asb() << " || vweb_get_endpoint() != url_param) {" <<
+					"window.location.href = url_param;";
+				} else {
+					data <<
+					"if (" << child["forced"].asb() << " || vweb_get_endpoint() != '" << child["url"].ass() << "') {" <<
+					"window.location.href = '" << child["url"].ass() << "';";
+				}
+                data << "}";
             }
             
             // ========================================================================
             // JavaScript.
             
             else if (child_type == "JavaScript") {
-                data << child["code"].ass() << ';';
+                data << child["code"].ass();
+				if (data.len() > 0 && data.last() != ';') {
+					data << ';';
+				}
             }
             
             // ========================================================================
             // Request.
             
             else if (child_type == "Request") {
-                data <<
-                build_event(child["pre_event"].asa()) << ';' <<
-                "vweb_request('" << child["method"].ass() << "', '" << child["endpoint"].ass() << "', " <<
-                child["body"].asj().dump(0).replace("\"$", "").replace("$\"", "") << ", " <<
-                "function(status, response) {" <<
-                build_event(child["success_event"].asa()) <<
-                "}, " <<
-                "function(status, response) {" <<
-                build_event(child["error_event"].asa()) <<
-                "}" <<
-                ")";
+                data << build_request(child);
             }
             
             // ========================================================================
             // Event.
             
             else if (child_type == "Event") {
-                data << build_event(child["children"].asa()) << ';';
+                data << build_event(child["children"].asa());
             }
             
             // ========================================================================
@@ -441,7 +532,7 @@ private:
             
             else if (child_type == "Delay") {
                 data << "setTimeout(() => {" <<
-                build_event(child["children"].asa()) << ';' <<
+                build_event(child["children"].asa()) <<
                 "}, " << child["delay"].asi() << ");";
             }
             
@@ -466,7 +557,7 @@ private:
             // Invalid.
             
             else {
-                throw vlib::InvalidUsageError("vweb::HTML", to_str("Element type \"", child_type, "\" is not allowed inside an \"Event\" element."));
+                throw vlib::InvalidUsageError("Element type \"", child_type, "\" is not allowed inside an \"Event\" element.");
             }
             
             
@@ -474,12 +565,31 @@ private:
         
         // Add rebuild.
         if (do_rebuild) {
-            data << ";vweb_rebuild();";
+			if (data.len() == 0 || data.last() != ';') {
+				data << ';';
+			}
+            data << "vweb_rebuild();";
         }
         
         // Handler.
         return data;
     }
+	
+	// Build a request js code.
+	constexpr
+	String	build_request(const Json& block) {
+		return String() <<
+		build_event(block["pre_event"].asa()) <<
+		"vweb_request('" << block["method"].ass() << "', '" << block["endpoint"].ass() << "', " <<
+		block["body"].asj().dump(0).replace("\"$", "").replace("$\"", "") << ", " <<
+		"function(status, response) {" <<
+		build_event(block["success_event"].asa()) <<
+		"}, " <<
+		"function(status, response) {" <<
+		build_event(block["error_event"].asa()) <<
+		"}" <<
+		");";
+	}
     
     // Build animation.
     constexpr
@@ -496,6 +606,12 @@ private:
         type == "IfVariableGreater" ||
         type == "IfVariableLesserEq" ||
         type == "IfVariableLesser" ||
+		// type == "IfJavaScriptEq" ||
+		// type == "IfJavaScriptNotEq" ||
+		// type == "IfJavaScriptGreaterEq" ||
+		// type == "IfJavaScriptGreater" ||
+		// type == "IfJavaScriptLesserEq" ||
+		// type == "IfJavaScriptLesser" ||
         type == "IfDeviceWidthEq" ||
         type == "IfDeviceWidthNotEq" ||
         type == "IfDeviceWidthGreaterEq" ||

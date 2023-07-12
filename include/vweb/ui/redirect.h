@@ -27,6 +27,7 @@ private:
     // Attributes.
     
     String  m_url;
+	Bool 	m_url_param = false;
     Bool    m_forced = false; // always redirect, even when on the same page.
 
 // Public.
@@ -40,6 +41,13 @@ public:
     Redirect(const String& url) :
     m_url(url)
     {}
+	
+	// Constructor.
+	constexpr
+	Redirect(const URLParam& url_param) :
+	m_url(url_param.key()),
+	m_url_param(true)
+	{}
     
     // ---------------------------------------------------------
     // Functions.
@@ -59,6 +67,7 @@ public:
         return Json {
             {"type", "Redirect"},
             {"forced", m_forced},
+			{"url_param", m_url_param},
             {"url", m_url},
         };
     }

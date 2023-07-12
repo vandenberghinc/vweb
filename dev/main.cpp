@@ -1,8 +1,11 @@
 // Author: Daan van den Bergh
 // Copyright: © 2022 Daan van den Bergh.
 
-#include "../include/vweb/vweb.h"
-int main() {}
+// #include "../include/vweb/vweb.h"
+// int main() {}
+
+// #include "generate_element_funcs.cpp"
+#include "bundle_js.cpp"
 
 // #include "../files/hello_world/start.cpp"
 // #include "../main/vweb.cpp"

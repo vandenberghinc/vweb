@@ -293,6 +293,7 @@ struct name : public Element { \
         this->append_h(this->m_children, child); \
 		this->source_file(internal::get_source()); \
     } \
+	\
     template <typename Child, typename... Children> requires (condition_mode == 3) constexpr \
 	name(const Child& child, Children&&... children) : \
     Element(type, "div")\
@@ -301,6 +302,16 @@ struct name : public Element { \
 		this->source_file(internal::get_source()); \
     } \
     \
+	constexpr \
+	name(const String& key, const JsonValue& value, const Event& event) requires (condition_mode == 4) : \
+	Element(type, "div")\
+	{ \
+		this->key(key); \
+		this->value(value);\
+		this->append_h(this->m_children, event); \
+		this->source_file(internal::get_source()); \
+	} \
+	\
     template <typename Type> requires (is_Element<Type>::value) constexpr \
 	name(Type&& obj) : \
     Element(obj) \
@@ -409,8 +420,6 @@ VWEB_ELEMENT_TEMPLATE(VStack, "VStack", "div", Json({
     // {"flex", "1"}, // disabled to support horizontal spacers in VStacks.
 	{"align-content", "flex-start"}, // align items at start, do not stretch / space when inside HStack.
     {"flex-direction", "column"},
-						
-            
 }));
             
 // HStack.
@@ -423,6 +432,7 @@ VWEB_ELEMENT_TEMPLATE(HStack, "HStack", "div", Json({
     {"overflow-x", "scroll"},
     {"overflow-y", "hidden"},
     {"display", "flex"},
+	{"align-items", "flex-start"}, // disable the auto extending of the childs height to the max child height.
 	// {"flex", "1"}, // disabled to support horizontal spacers in VStacks.
     
     // Hide scrollbar.
@@ -461,6 +471,7 @@ VWEB_ELEMENT_TEMPLATE(Divider, "Divider", "div", Json({
     {"padding", "0px"},
     {"width", "100%"},
     {"height", "1px"},
+	{"min-height", "1px"},
     {"background", "black"},
     // {"flex", "1"},
     // {"flex-grow", "1"},
@@ -627,6 +638,9 @@ struct RingLoader; VWEB_ELEMENT_NO_ARGS_TEMPLATE(RingLoader, "RingLoader", "div"
     {"background", "black"},
 }));
     
+// All variable condition should always end with one of the following options Eq, NotEq, GreaterEq, Greater, LesserEq or Lesser.
+// This is required for the HTMLBuilder.
+
 // Variable Conditions.
 struct IfVariableEq; VWEB_VARIABLE_CONDITION_TEMPLATE(IfVariableEq, "IfVariableEq", 1);
 struct IfVariableNotEq; VWEB_VARIABLE_CONDITION_TEMPLATE(IfVariableNotEq, "IfVariableNotEq", 1);
@@ -656,6 +670,14 @@ struct IfUnauthenticated; VWEB_VARIABLE_CONDITION_TEMPLATE(IfUnauthenticated, "I
 // Only checks if the cookie UserActivated is true.
 struct IfUserActivated; VWEB_VARIABLE_CONDITION_TEMPLATE(IfUserActivated, "IfUserActivated", 3);
 struct IfUserUnactivated; VWEB_VARIABLE_CONDITION_TEMPLATE(IfUserUnactivated, "IfUserUnactivated", 3);
+
+// Javascript variable conditions.
+struct IfJavaScriptEq; VWEB_VARIABLE_CONDITION_TEMPLATE(IfJavaScriptEq, "IfJavaScriptEq", 4);
+struct IfJavaScriptNotEq; VWEB_VARIABLE_CONDITION_TEMPLATE(IfJavaScriptNotEq, "IfJavaScriptNotEq", 4);
+struct IfJavaScriptGreaterEq; VWEB_VARIABLE_CONDITION_TEMPLATE(IfJavaScriptGreaterEq, "IfJavaScriptGreaterEq", 4);
+struct IfJavaScriptGreater; VWEB_VARIABLE_CONDITION_TEMPLATE(IfJavaScriptGreater, "IfJavaScriptGreater", 4);
+struct IfJavaScriptLesserEq; VWEB_VARIABLE_CONDITION_TEMPLATE(IfJavaScriptLesserEq, "IfJavaScriptLesserEq", 4);
+struct IfJavaScriptLesser; VWEB_VARIABLE_CONDITION_TEMPLATE(IfJavaScriptLesser, "IfJavaScriptLesser", 4);
 
 // Get element.
 struct GetElementById; VWEB_GET_ELEMENT_TEMPLATE(GetElementById, "GetElementById");

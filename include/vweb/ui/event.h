@@ -52,6 +52,12 @@ private:
             "IfResponseStatusGreaterEq",
             "IfResponseStatusLesser",
             "IfResponseStatusLesserEq",
+			"IfJavaScriptEq",
+			"IfJavaScriptNotEq",
+			"IfJavaScriptGreater",
+			"IfJavaScriptGreaterEq",
+			"IfJavaScriptLesser",
+			"IfJavaScriptLesserEq",
         };
         if (allowed_types.contains(json["type"].ass())) {
             if (json["type"].ass() == "GetElementById") {
@@ -85,9 +91,31 @@ public:
     {
         append_h(children...);
     }
+	
+	// Copy constructor.
+	constexpr
+	EventTemplate(const EventTemplate& obj) :
+	m_delay(obj.m_delay),
+	m_children(obj.m_children)
+	{}
+	
+	// Move constructor.
+	constexpr
+	EventTemplate(EventTemplate&& obj) :
+	m_delay(move(obj.m_delay)),
+	m_children(move(obj.m_children))
+	{}
     
     // ---------------------------------------------------------
-    // To json.
+    // Functions.
+	
+	// Move.
+	// Should be called when moving a element into another element.
+	// Otherwise the source element may be added as a child to the destination element.
+	constexpr
+	auto&&  move() {
+		return (Element&&) *this;
+	}
     
     constexpr
     Json  json() const requires (EventType == 0) {

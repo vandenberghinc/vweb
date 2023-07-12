@@ -4,7 +4,7 @@
 */
 
 #ifndef VWEB_CATCH_EXCEPTIONS
-#define VWEB_CATCH_EXCEPTIONS true
+#define VWEB_CATCH_EXCEPTIONS false
 #endif
 
 // Header.
@@ -48,6 +48,7 @@ using   TLS =    vlib::tls::Server<
 // ---------------------------------------------------------
 // Session.
 // @TODO sent permanently moved to http requests with redirect to https.
+// @TODO sent redirect to /signin when an unauthenticated request tries to visit an authenticated endpoint.
 
 template <typename Server, typename Connection>
 struct Session : public vlib::Thread<Session<Server, Connection>> {
@@ -209,6 +210,7 @@ public:
 			Int timeout = 50; // timeout.
 			Bool close = false; // close connection after sending response.
 			Bool authenticated = false; // is already authenticated within loop.
+			Bool is_restapi = false; // was a restapi endpoint.
 			Int requests = 0;
 			String auth_key;
 			ullong start_time = Date::get_mseconds();
@@ -282,6 +284,13 @@ public:
 						// Does not require authentication.
 						retrieve_auth_key(auth_key, uid, response, request);
 						if (response.is_defined()) {
+							if (endpoint.m_type == 0) {
+								response.reconstruct(
+									vlib::http::version::v1_1,
+									302,
+									{{"Location", to_str("/signin?next=", req_endpoint)}}
+								);
+							}
 							close = true;
 							break;
 						}
@@ -291,6 +300,13 @@ public:
 							SESLOG(4, to_str(m_conn->info.ip, ": ", "Doing authentication."));
 							authenticated = do_authentication(uid, response, request, auth_key);
 							if (response.is_defined()) {
+								if (endpoint.m_type == 0) {
+									response.reconstruct(
+										vlib::http::version::v1_1,
+										302,
+										{{"Location", to_str("/signin?next=", req_endpoint)}}
+									);
+								}
 								close = true;
 								break;
 							}
@@ -300,14 +316,13 @@ public:
 						if (endpoint.m_type == 0) {
 							SESLOG(4, to_str(m_conn->info.ip, ": ", "View endpoint."));
 							Headers headers = endpoint.m_headers;
-							if (request.content_type() != vlib::http::content_type::undefined) {
-								m_server->create_user_cookie(headers, uid);
-							}
+							m_server->create_user_cookie(headers, uid);
 							response.reconstruct(vlib::http::version::v1_1, 200, headers, endpoint.m_data);
 						}
 						
 						// Rest API endpoint.
 						else {
+							is_restapi = true;
 							handle_restapi_endpoint(response, request, endpoint, uid);
 						}
 						break;
@@ -333,7 +348,14 @@ public:
 			SESLOG(3, to_str(m_conn->info.ip, ": ", "Response time ", Date::get_mseconds() - start_time, "ms."));
 			
 			// Set default headers.
-			m_server->set_header_defaults(response.headers());
+			if (!is_restapi) {
+				m_server->set_header_defaults(response.headers());
+			}
+			
+			// Send response.
+			SESLOG(4, to_str(m_conn->info.ip, ": ", "Send response."));
+			send(response, m_timeout);
+			++requests;
 			
 			// Check close by header "Connection".
 			ullong header_index;
@@ -343,11 +365,6 @@ public:
 			) {
 				close = true;
 			}
-			
-			// Send response.
-			SESLOG(4, to_str(m_conn->info.ip, ": ", "Send response."));
-			send(response, m_timeout);
-			++requests;
 			
 			// Check connection close.
 			if (close) {
@@ -500,6 +517,7 @@ public:
 				uid = NPos::npos;
 				return false;
 			}
+			SESLOG(0, to_str(m_conn->info.ip, ": ", "Successfull authentication by api key."));
 			return true;
 		}
 		
@@ -511,6 +529,7 @@ public:
 				uid = NPos::npos;
 				return false;
 			}
+			SESLOG(0, to_str(m_conn->info.ip, ": ", "Successfull authentication by token."));
 			return true;
 		}
 		
@@ -546,7 +565,11 @@ public:
 			// No data.
 			if (query.len() == 0) {
 				SESLOG(2, to_str(m_conn->info.ip, ": ", "Bad request: no query data while \"?\" is provided."));
-				response = m_server->m_400;
+				response = m_server->response(
+					vlib::http::status::bad_request,
+					Headers{{"Connection", "close"}},
+					Json{{"error", "Bad request: no query data while \"?\" is provided."}}
+				);
 				return ;
 			}
 			
@@ -558,7 +581,11 @@ public:
 			// By query string.
 			else {
 				SESLOG(2, to_str(m_conn->info.ip, ": ", "Bad request: parsing a query string is not supported, send as json instead."));
-				response = m_server->m_400;
+				response = m_server->response(
+					vlib::http::status::bad_request,
+					Headers{{"Connection", "close"}},
+					Json{{"error", "Bad request: parsing a query string is not supported, send as json instead."}}
+				);
 				return ;
 			}
 			
@@ -573,7 +600,11 @@ public:
 			#if VWEB_CATCH_EXCEPTIONS == true
 			} catch (vlib::Exception& e) {
 				SESLOG(2, to_str(m_conn->info.ip, ": ", "Bad request: failed to parse json body parameters."));
-				response = m_server->m_400;
+				response = m_server->response(
+					vlib::http::status::bad_request,
+					Headers{{"Connection", "close"}},
+					Json{{"error", "Bad request: failed to parse json body parameters."}}
+				);
 				return ;
 			}
 			#endif
@@ -616,10 +647,10 @@ public:
 				e.dump();
 			}
 			response = m_server->response(
-										  vlib::http::status::internal_server_error,
-										  Headers{{"Connection", "close"}},
-										  Json{{"error", e.err()}}
-										  );
+				vlib::http::status::internal_server_error,
+				Headers{{"Connection", "close"}},
+				Json{{"error", e.err()}}
+			);
 		}
 		#endif
 	}

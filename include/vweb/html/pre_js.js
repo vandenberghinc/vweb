@@ -115,6 +115,12 @@ function vweb_is_variable_condition(type) {
 	type == "IfVariableGreater" ||
 	type == "IfVariableLesserEq" ||
 	type == "IfVariableLesser" ||
+	type == "IfJavaScriptEq" ||
+	type == "IfJavaScriptNotEq" ||
+	type == "IfJavaScriptGreaterEq" ||
+	type == "IfJavaScriptGreater" ||
+	type == "IfJavaScriptLesserEq" ||
+	type == "IfJavaScriptLesser" ||
 	type == "IfDeviceWidthEq" ||
 	type == "IfDeviceWidthNotEq" ||
 	type == "IfDeviceWidthGreaterEq" ||
@@ -395,6 +401,8 @@ function vweb_build_get_element(element) {
         const key = element["key"];
         const value = element["value"];
         const style = element["style"];
+		const html_children = element["html_children"];
+		const children = element["children"];
 		
 		// Get element.
         let e = vweb_get_element(id);
@@ -409,13 +417,15 @@ function vweb_build_get_element(element) {
 		}
 		
 		// Set style.
-		else if (style != null) {
+		if (style != null) {
 			vweb_apply_style(e, element, style);
 		}
 		
-		// Error.
-		else {
-			console.log("[vweb_build_get_element] ERROR: None of the element attributes are assigned.");
+		// Add children.
+		if (html_children != null) {
+			e.innerHTML += html_children;
+		} else if (children != null) {
+			console.log(JSON.stringify(children));
 		}
 		
 	}
