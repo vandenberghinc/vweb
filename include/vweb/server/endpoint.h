@@ -458,35 +458,35 @@ struct EndpointTemplate {
      *          }
      *      };
      } */
-    constexpr
-    EndpointTemplate(
-             const String& endpoint,
-             const ui::Element& view
-    ) :
-    m_method(vlib::http::method::get),
-    m_endpoint(endpoint),
-    m_content_type(vlib::http::content_type::html),
-    m_headers({
-		// {"Content-Type", vlib::http::content_type::to_str(m_content_type.value())},
-		{"Keep-Alive", "5"},
-        
-        // Compress.
-        {"Content-Encoding", "gzip"},
-        {"Vary", "Accept-Encoding"},
-        
-        // Cache.
-        // {"Cache-Control", "max-age=86400"},
-        // {"Expires", "Thu, 01 Jan 1970 00:00:00 GMT"},
-        
-        // Dont cache for debugging.
-        {"Cache-Control", "no-cache, no-store, must-revalidate"},
-        {"Pragma", "no-cache"},
-        {"Expires", "0"},
-    })
-    {
-        clean_url();
-        fill_data(view);
-    }
+  //   constexpr
+  //   EndpointTemplate(
+  //            const String& endpoint,
+  //            const ui::Element& view
+  //   ) :
+  //   m_method(vlib::http::method::get),
+  //   m_endpoint(endpoint),
+  //   m_content_type(vlib::http::content_type::html),
+  //   m_headers({
+		// // {"Content-Type", vlib::http::content_type::to_str(m_content_type.value())},
+		// {"Keep-Alive", "5"},
+  //       
+  //       // Compress.
+  //       {"Content-Encoding", "gzip"},
+  //       {"Vary", "Accept-Encoding"},
+  //       
+  //       // Cache.
+  //       // {"Cache-Control", "max-age=86400"},
+  //       // {"Expires", "Thu, 01 Jan 1970 00:00:00 GMT"},
+  //       
+  //       // Dont cache for debugging.
+  //       {"Cache-Control", "no-cache, no-store, must-revalidate"},
+  //       {"Pragma", "no-cache"},
+  //       {"Expires", "0"},
+  //   })
+  //   {
+  //       clean_url();
+  //       fill_data(view);
+  //   }
     /*  @docs {
      *  @title: View Constructor With Options
      *  @description:
@@ -519,99 +519,99 @@ struct EndpointTemplate {
      *      };
      *  @funcs: 3
      } */
-    constexpr
-    EndpointTemplate(
-             const String& endpoint,
-             const Options& options,
-             const ui::Element& view
-    ) :
-    m_method(vlib::http::method::get),
-    m_endpoint(endpoint),
-    m_content_type(vlib::http::content_type::html),
-    m_auth(options.auth),
-    m_rate_limit(options.rate_limit),
-    m_rate_limit_duration(options.rate_limit_duration),
-    m_type(0),
-    m_headers({
-		// {"Content-Type", vlib::http::content_type::to_str(m_content_type.value())},
-		{"Keep-Alive", "5"},
-        
-        // Compress.
-        {"Content-Encoding", "gzip"},
-        {"Vary", "Accept-Encoding"},
-        
-        // Cache.
-        // {"Cache-Control", "max-age=86400"},
-        // {"Expires", "Thu, 01 Jan 1970 00:00:00 GMT"},
-        
-        // Dont cache for debugging.
-        {"Cache-Control", "no-cache, no-store, must-revalidate"},
-        {"Pragma", "no-cache"},
-        {"Expires", "0"},
-    })
-    {
-        clean_url();
-        fill_data(view);
-    }
-    constexpr
-    EndpointTemplate(
-                     const String& method,
-                     const String& endpoint,
-                     const Options& options,
-                     const ui::Element& view
-                     ) :
-    m_method(vlib::http::method::fromstr(method)),
-    m_endpoint(endpoint),
-    m_content_type(vlib::http::content_type::html),
-    m_auth(options.auth),
-    m_rate_limit(options.rate_limit),
-    m_rate_limit_duration(options.rate_limit_duration),
-    m_type(0),
-    m_headers({
-		// {"Content-Type", vlib::http::content_type::to_str(m_content_type.value())},
-		{"Keep-Alive", "5"},
-        
-        // Compress.
-        {"Content-Encoding", "gzip"},
-        {"Vary", "Accept-Encoding"},
-        
-        // Cache.
-        // {"Cache-Control", "max-age=86400"},
-        // {"Expires", "Thu, 01 Jan 1970 00:00:00 GMT"},
-        
-        // Dont cache for debugging.
-        {"Cache-Control", "no-cache, no-store, must-revalidate"},
-        {"Pragma", "no-cache"},
-        {"Expires", "0"},
-    })
-    {
-        clean_url();
-        fill_data(view);
-    }
-    constexpr
-    EndpointTemplate(
-        const String& method,
-        const String& endpoint,
-        const Options& options,
-        const Headers& headers,
-        const ui::Element& view
-    ) :
-    m_method(vlib::http::method::fromstr(method)),
-    m_endpoint(endpoint),
-    m_content_type(vlib::http::content_type::html),
-    m_auth(options.auth),
-    m_rate_limit(options.rate_limit),
-    m_rate_limit_duration(options.rate_limit_duration),
-    m_type(0),
-    m_headers(headers)
-    {
-		// m_headers["Content-Type"] = vlib::http::content_type::to_str(m_content_type.value());
-        m_headers["Content-Encoding"] = "gzip";
-        m_headers["Vary"] = "Accept-Encoding";
-		m_headers["Keep-Alive"] = "5";
-        clean_url();
-        fill_data(view);
-    }
+  //   constexpr
+  //   EndpointTemplate(
+  //            const String& endpoint,
+  //            const Options& options,
+  //            const ui::Element& view
+  //   ) :
+  //   m_method(vlib::http::method::get),
+  //   m_endpoint(endpoint),
+  //   m_content_type(vlib::http::content_type::html),
+  //   m_auth(options.auth),
+  //   m_rate_limit(options.rate_limit),
+  //   m_rate_limit_duration(options.rate_limit_duration),
+  //   m_type(0),
+  //   m_headers({
+		// // {"Content-Type", vlib::http::content_type::to_str(m_content_type.value())},
+		// {"Keep-Alive", "5"},
+  //
+  //       // Compress.
+  //       {"Content-Encoding", "gzip"},
+  //       {"Vary", "Accept-Encoding"},
+  //
+  //       // Cache.
+  //       // {"Cache-Control", "max-age=86400"},
+  //       // {"Expires", "Thu, 01 Jan 1970 00:00:00 GMT"},
+  //
+  //       // Dont cache for debugging.
+  //       {"Cache-Control", "no-cache, no-store, must-revalidate"},
+  //       {"Pragma", "no-cache"},
+  //       {"Expires", "0"},
+  //   })
+  //   {
+  //       clean_url();
+  //       fill_data(view);
+  //   }
+  //   constexpr
+  //   EndpointTemplate(
+  //                    const String& method,
+  //                    const String& endpoint,
+  //                    const Options& options,
+  //                    const ui::Element& view
+  //                    ) :
+  //   m_method(vlib::http::method::fromstr(method)),
+  //   m_endpoint(endpoint),
+  //   m_content_type(vlib::http::content_type::html),
+  //   m_auth(options.auth),
+  //   m_rate_limit(options.rate_limit),
+  //   m_rate_limit_duration(options.rate_limit_duration),
+  //   m_type(0),
+  //   m_headers({
+		// // {"Content-Type", vlib::http::content_type::to_str(m_content_type.value())},
+		// {"Keep-Alive", "5"},
+  //
+  //       // Compress.
+  //       {"Content-Encoding", "gzip"},
+  //       {"Vary", "Accept-Encoding"},
+  //
+  //       // Cache.
+  //       // {"Cache-Control", "max-age=86400"},
+  //       // {"Expires", "Thu, 01 Jan 1970 00:00:00 GMT"},
+  //
+  //       // Dont cache for debugging.
+  //       {"Cache-Control", "no-cache, no-store, must-revalidate"},
+  //       {"Pragma", "no-cache"},
+  //       {"Expires", "0"},
+  //   })
+  //   {
+  //       clean_url();
+  //       fill_data(view);
+  //   }
+  //   constexpr
+  //   EndpointTemplate(
+  //       const String& method,
+  //       const String& endpoint,
+  //       const Options& options,
+  //       const Headers& headers,
+  //       const ui::Element& view
+  //   ) :
+  //   m_method(vlib::http::method::fromstr(method)),
+  //   m_endpoint(endpoint),
+  //   m_content_type(vlib::http::content_type::html),
+  //   m_auth(options.auth),
+  //   m_rate_limit(options.rate_limit),
+  //   m_rate_limit_duration(options.rate_limit_duration),
+  //   m_type(0),
+  //   m_headers(headers)
+  //   {
+		// // m_headers["Content-Type"] = vlib::http::content_type::to_str(m_content_type.value());
+  //       m_headers["Content-Encoding"] = "gzip";
+  //       m_headers["Vary"] = "Accept-Encoding";
+		// m_headers["Keep-Alive"] = "5";
+  //       clean_url();
+  //       fill_data(view);
+  //   }
     
     // Constructor from function RestAPIFunc1 for rest api.
     /*  @docs {
@@ -1034,11 +1034,11 @@ struct EndpointTemplate {
     }
     
     // Fill data.
-    constexpr
-    void    fill_data(const ui::Element& view) {
-        m_data = HTMLBuilder::build(view);
-        m_data = vlib::compress(m_data);
-    }
+    // constexpr
+    // void    fill_data(const ui::Element& view) {
+    //     m_data = HTMLBuilder::build(view);
+    //     m_data = vlib::compress(m_data);
+    // }
       
 };
 

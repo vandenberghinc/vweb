@@ -3,29 +3,31 @@
  * Copyright: © 2022 - 2023 Daan van den Bergh.
  */
 
-// Title.
-class Title extends Element {
+// Text.
+class Text extends Element {
 	
 	// Default styling.
 	static default_styling = {
 		"margin": "0px 0px 0px 0px",
+		"padding": "2.5px",
+		"padding": "2.5px",
+		"font-size": "20px",
 		"color": "inherit",
-		"white-space": "wrap",
 		"text-align": "inherit",
-		"color": "green",
+		"white-space": "wrap",
 	};
 	
 	// Constructor.
 	constructor(text) {
 		
 		// Initialize base class.
-		super("Title", "h1");
+		super("Text", "p");
 		
 		// Set default styling.
-		this.style(Title.default_styling);
+		this.style(Text.default_styling);
 		
 		// Set text.
-		this.text(text);
+		this.inner_html(text);
 	}
 		
 }

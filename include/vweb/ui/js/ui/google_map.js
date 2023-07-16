@@ -34,7 +34,7 @@ class GoogleMap extends Element {
 		this.attributes(GoogleMap.default_attributes);
 		
 		// Set source.
-		this.src("https://www.google.com/maps/embed/v1/" + mode + "?key=" + google_cloud_api_key + "&" + utils.url_encode({"q": location.replaceAll(' ', '+')}));
+		this.src("https://www.google.com/maps/embed/v1/" + mode + "?key=" + google_cloud_api_key + "&" + vweb.utils.url_encode({"q": location.replaceAll(' ', '+')}));
 		
 	}
 	

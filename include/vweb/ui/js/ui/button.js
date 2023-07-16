@@ -41,7 +41,7 @@ class Button extends Element {
 		this.events(Button.default_events);
 		
 		// Set text.
-		this.text(text);
+		this.inner_html(text);
 	}
 		
 }

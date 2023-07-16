@@ -707,6 +707,7 @@ int main() {
 		{"tabindex", "tab_index"},
 		{"usemap", "use_map"},
 		{"zindex", "z_index"},
+		{"onmessage", "on_message"},
 		// {"async", "_async"},
 		// {"class", "class_name"},
 		// {"for", "_for"},
@@ -726,6 +727,9 @@ int main() {
 		"wrap",
 		"hidden",
 		"media",
+		"on_click",
+		"class",
+		"color",
 	};
 	
 	// Pad numeric funcs.
@@ -791,6 +795,7 @@ int main() {
 			// Comment.
 			String comment (data + space, len - space);
 			comment.replace_start_r(" \t");
+			if (comment.last() != '.') { comment.append('.'); }
 			
 			// Commented out.
 			String commented_out = "";
@@ -811,9 +816,35 @@ int main() {
 				}
 			}
 			
+			// Docs name.
+			String docs_name = name;
+			docs_name.replace_r('_', ' ');
+			docs_name.first() = vlib::uppercase(docs_name.first());
+			String docs;
+			if (commented_out.is_undefined()) {
+				docs <<
+				"    /*	@docs: {" << "\n" <<
+				"     *	@name: " << docs_name << "\n" <<
+				"     *	@description: " << "\n" <<
+				"     *		" << comment << "\n" <<
+				"     *		The equivalent of CSS attribute `" << jsname << "`." << "\n" <<
+				"     *		" << "\n" <<
+				"     *		Returns the attribute value when parameter `value` is `null`." << "\n" <<
+				"     *	@return: " << "\n" <<
+				"     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned." << "\n" <<
+				"     *	@parameter: {" << "\n" <<
+				"     *		@name: value" << "\n" <<
+				"     *		@description: The value to assign. Leave `null` to retrieve the attribute's value." << "\n" <<
+				"     *	}: " << "\n" <<
+				"     *	@inherit: false" << "\n" <<
+				"     } */ " << "\n";
+			}
+			
 			// Create func.
 			js << "    // " << comment << "\n" <<
+			docs <<
 			"    " << commented_out << name << "(value) {" << "\n" <<
+			"    " << commented_out << "    if (value == null) { return this.element.style." << jsname << "; }" << "\n" <<
 			"    " << commented_out << "    this.element.style." << jsname << " = " << padded_value << ";" << "\n" <<
 			"    " << commented_out << "    return this;" << "\n" <<
 			"    " << commented_out << "}" << "\n" << "\n";
@@ -836,8 +867,8 @@ int main() {
 			print(data);
 			return ;
 		}
-		String name (data, space);
-		name.replace_r('-', '_');
+		String html_name (data, space);
+		html_name.replace_r('-', '_');
 		
 		// Comment.
 		space = line.find_first_not_of(" ", space);
@@ -852,22 +883,23 @@ int main() {
 		}
 		String comment (data + space, len - space);
 		comment.replace_start_r(" \t");
+		if (comment.last() != '.') { comment.append('.'); }
 		
 		// Skip.
-		if (name.contains('*') || name.contains('@') || comment.contains("Use CSS instead")) {
+		if (html_name.contains('*') || html_name.contains('@') || comment.contains("Use CSS instead")) {
 			return ;
 		}
 		
 		// Convert name.
-		String converted_name = name;
-		ullong index = convert_names.keys().find(name);
+		String converted_name = html_name;
+		ullong index = convert_names.keys().find(html_name);
 		if (index != NPos::npos) {
 			converted_name = convert_names.value(index);
 		}
 		
 		// Commented out.
 		String commented_out = "";
-		if (disabled_funcs.contains(name)) {
+		if (disabled_funcs.contains(converted_name)) {
 			commented_out = "// ";
 		}
 		
@@ -884,10 +916,36 @@ int main() {
 			}
 		}
 		
+		// Docs name.
+		String docs_name = converted_name;
+		docs_name.replace_r('_', ' ');
+		docs_name.first() = vlib::uppercase(docs_name.first());
+		String docs;
+		if (commented_out.is_undefined()) {
+			docs <<
+			"    /*	@docs: {" << "\n" <<
+			"     *	@name: " << docs_name << "\n" <<
+			"     *	@description: " << "\n" <<
+			"     *		" << comment << "\n" <<
+			"     *		The equivalent of HTML attribute `" << html_name << "`." << "\n" <<
+			"     *		" << "\n" <<
+			"     *		Returns the attribute value when parameter `value` is `null`." << "\n" <<
+			"     *	@return: " << "\n" <<
+			"     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned." << "\n" <<
+			"     *	@parameter: {" << "\n" <<
+			"     *		@name: value" << "\n" <<
+			"     *		@description: The value to assign. Leave `null` to retrieve the attribute's value." << "\n" <<
+			"     *	}: " << "\n" <<
+			"     *	@inherit: false" << "\n" <<
+			"     } */ " << "\n";
+		}
+			
 		// Create func.
 		js << "    // " << comment << "\n" <<
+		docs <<
 		"    " << commented_out << converted_name << "(value) {" << "\n" <<
-		"    " << commented_out << "	this.element." << name << " = " << padded_value << ";" << "\n" <<
+		"    " << commented_out << "    if (value == null) { return this.element." << html_name << "; }" << "\n" <<
+		"    " << commented_out << "	this.element." << html_name << " = " << padded_value << ";" << "\n" <<
 		"    " << commented_out << "	return this;" << "\n" <<
 		"    " << commented_out << "}" << "\n" << "\n";
 		
@@ -907,8 +965,8 @@ int main() {
 			print(data);
 			return ;
 		}
-		String name (data, space);
-		name.replace_r('-', '_');
+		String html_name (data, space);
+		html_name.replace_r('-', '_');
 		
 		// Comment.
 		space = line.find_first_not_of(" ", space);
@@ -923,22 +981,23 @@ int main() {
 		}
 		String comment (data + space, len - space);
 		comment.replace_start_r(" \t");
+		if (comment.last() != '.') { comment.append('.'); }
 		
 		// Skip.
-		if (name.contains('*') || name.contains('@') || comment.contains("Use CSS instead")) {
+		if (html_name.contains('*') || html_name.contains('@') || comment.contains("Use CSS instead")) {
 			return ;
 		}
 		
 		// Convert name.
-		String converted_name = name;
-		ullong index = convert_names.keys().find(name);
+		String converted_name = html_name;
+		ullong index = convert_names.keys().find(html_name);
 		if (index != NPos::npos) {
 			converted_name = convert_names.value(index);
 		}
 		
 		// Commented out.
 		String commented_out = "";
-		if (disabled_funcs.contains(name)) {
+		if (disabled_funcs.contains(converted_name)) {
 			commented_out = "// ";
 		}
 		
@@ -959,10 +1018,36 @@ int main() {
 			return ;
 		}
 		
+		// Docs name.
+		String docs_name = converted_name;
+		docs_name.replace_r('_', ' ');
+		docs_name.first() = vlib::uppercase(docs_name.first());
+		String docs;
+		if (commented_out.is_undefined()) {
+			docs <<
+			"    /*	@docs: {" << "\n" <<
+			"     *	@name: " << docs_name << "\n" <<
+			"     *	@description: " << "\n" <<
+			"     *		" << comment << "\n" <<
+			"     *		The equivalent of HTML attribute `" << html_name << "`." << "\n" <<
+			"     *		" << "\n" <<
+			"     *		Returns the attribute value when parameter `value` is `null`." << "\n" <<
+			"     *	@return: " << "\n" <<
+			"     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned." << "\n" <<
+			"     *	@parameter: {" << "\n" <<
+			"     *		@name: value" << "\n" <<
+			"     *		@description: The value to assign. Leave `null` to retrieve the attribute's value." << "\n" <<
+			"     *	}: " << "\n" <<
+			"     *	@inherit: false" << "\n" <<
+			"     } */ " << "\n";
+		}
+		
 		// Create func.
 		js << "    // " << comment << "\n" <<
+		docs <<
 		"    " << commented_out << converted_name << "(value) {" << "\n" <<
-		"    " << commented_out << "	this.element." << name << " = " << padded_value << ";" << "\n" <<
+		"    " << commented_out << "    if (value == null) { return this.element." << html_name << "; }" << "\n" <<
+		"    " << commented_out << "	this.element." << html_name << " = " << padded_value << ";" << "\n" <<
 		"    " << commented_out << "	return this;" << "\n" <<
 		"    " << commented_out << "}" << "\n" << "\n";
 

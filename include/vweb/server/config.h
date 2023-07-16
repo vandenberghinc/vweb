@@ -30,6 +30,7 @@ struct Config {
 	Path  	key;                		// path to the certificate key.
 	String  pass;               		// the password of the certificate.
 	Path  	ca_bundle;          		// path to the ca bundle (optional).
+	Path    source;	            		// path to root directory (automatically assigned).
 	Path    statics;            		// path to static directory.
 	Path    database;           		// path to database.
 	Bool    enable_2fa = true;  		// 2FA required after sign up to activate account and after sign in.
@@ -127,7 +128,7 @@ struct Config {
 	 } */
 	static
 	Config load(const Path& path) {
-		Path base = path.base();
+		Path base = path.base().abs();
 		Json json = Json {
 			{"server", Json {
 				{"ip", "*"},
@@ -173,6 +174,7 @@ struct Config {
 			.key = tls["key"].ass().replace_r("$BASE", base),
 			.pass = tls["pass"].ass(),
 			.ca_bundle = tls["ca_bundle"].ass().replace_r("$BASE", base),
+			.source = base,
 			.statics = server["static"].ass().replace_r("$BASE", base),
 			.database = server["database"].ass().replace_r("$BASE", base),
 			.enable_2fa = server["enable_2fa"].asb(),

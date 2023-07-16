@@ -22,7 +22,7 @@ class Input extends Element {
 	};
 	
 	// Constructor.
-	constructor(text) {
+	constructor(placeholder) {
 		
 		// Initialize base class.
 		super("Input", "input");
@@ -32,6 +32,9 @@ class Input extends Element {
 		
 		// Set default styling
 		this.style(Input.default_styling);
+
+		// Set placeholder text.
+		this.placeholder(placeholder);
 		
 	}
 	

@@ -29,7 +29,7 @@
 		C3851BF42A37CBE2000BDC60 /* .vpackage */ = {isa = PBXFileReference; lastKnownFileType = text; path = .vpackage; sourceTree = "<group>"; };
 		C39C73632A248A74004865D9 /* vweb */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = vweb; sourceTree = BUILT_PRODUCTS_DIR; };
 		C39C73732A269C09004865D9 /* main.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = main.cpp; sourceTree = "<group>"; };
-		C3DD76A52A5EC7F100E62615 /* dev */ = {isa = PBXFileReference; lastKnownFileType = folder; name = dev; sourceTree = "<group>"; };
+		C3DD76A62A63D32800E62615 /* dev */ = {isa = PBXFileReference; lastKnownFileType = folder; name = dev; sourceTree = "<group>"; };
 		C3FF94FA2A52DDD8008A5D71 /* include */ = {isa = PBXFileReference; lastKnownFileType = folder; name = include; path = ../include; sourceTree = "<group>"; };
 		C3FF94FB2A52DDD8008A5D71 /* main */ = {isa = PBXFileReference; lastKnownFileType = folder; name = main; path = ../main; sourceTree = "<group>"; };
 		C3FF94FD2A52DDD8008A5D71 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; name = README.md; path = ../README.md; sourceTree = "<group>"; };
@@ -56,7 +56,7 @@
 				C3FF94FA2A52DDD8008A5D71 /* include */,
 				C3FF94FB2A52DDD8008A5D71 /* main */,
 				C380A9E22A56FCDB001605F7 /* docs */,
-				C3DD76A52A5EC7F100E62615 /* dev */,
+				C3DD76A62A63D32800E62615 /* dev */,
 				C380A9E52A58ACCB001605F7 /* files */,
 				C39C73642A248A74004865D9 /* Products */,
 			);

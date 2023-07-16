@@ -8,7 +8,7 @@ let elements = {};
 let variables = {};
 
 // =======================================================================
-// Utils.
+// vweb.utils.
 
 // Is string.
 function is_string(value) {

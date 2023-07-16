@@ -22,7 +22,7 @@ class If extends Element {
 		if (boolean) {
 
 			// Is function.
-			if (utils.is_func(child_or_func)) {
+			if (vweb.utils.is_func(child_or_func)) {
 				child_or_func();
 			}
 
@@ -57,7 +57,7 @@ class IfDeviceWith extends Element {
 		this.style(View.default_styling);
 		
 		// Add child.
-		if (comparison(utils.get_device_width(), this.value)) {
+		if (comparison(vweb.utils.get_device_width(), this.value)) {
 			this.append(this.child);
 		}
 	}

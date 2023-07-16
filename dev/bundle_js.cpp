@@ -5,59 +5,38 @@
 
 using namespace vlib::types::shortcuts;
 
-// Add js.
-constexpr void add_data_to_js(String& js, const Code& data) {
-	for (auto& i: data.iterate()) {
-		if (
-			i.is_comment() ||
-			(i.is_code() && (
-				(js.last() == '\n' && i.character() == '\n') ||
-				(js.last() == ' ' && i.character() == ' ') ||
-				(i.character() == '\t') ||
-				((i.character() == ' ' || i.character() == '\t') && i.next() == '\n')
-			))
-		) {
-			continue;
-		} else {
-			js.append(i.character());
-		}
-	}
-}
-
 int main() {
 	
-	// Init js.
-	String js;
-	js <<
-	"/*" "\n"
-	" * Author: Daan van den Bergh" "\n"
-	" * Copyright: © 2022 - 2023 Daan van den Bergh." "\n"
-	" */" "\n";
+	// Vars.
+	Path js = Path(__FILE__).base(2).join("include/vweb/ui/js");
+	Path css = Path(__FILE__).base(2).join("include/vweb/ui/css");
 	
-	// Dir.
-	Path dir = Path(__FILE__).base(2).join("include/vweb/js");
-	Array<Path> paths;
+	// Include vhighlight.
+	Path vinc = Path(__FILE__).base(3);
+	vinc.join("vhighlight/include/vhighlight/js/vhighlight.js").cp(js.join("libs/vhighlight.js"));
+	vinc.join("vhighlight/include/vhighlight/css/vhighlight.css").cp(css.join("vhighlight.css"));
 	
-	// Define paths in order.
-	for (auto& path: Array<Path>{
-		dir.join("ui/element.js"),
-	}) {
-		paths.append(path);
-		Code data = path.load();
-		add_data_to_js(js, data);
-	}
-	
-	// Parse.
-	for (auto& path: dir.paths(true)) {
-		if (path.full_name() != "vweb.js" && path.extension() == "js") {
-			if (paths.contains(path)) {
-				continue;
-			}
-			paths.append(path);
-			Code data = path.load();
-			add_data_to_js(js, data);
-		}
-	}
-	js.save(dir.join("vweb.js"));
-	print("Bundled into ", dir.join("vweb.js"), ".");
+	// Bundle js dir.
+	vlib::JavaScript::bundle({
+		.source = js,
+		.include_order = {
+			"modules/wrapper.js",
+			"ui/element.js",
+		},
+		.exclude = {
+			"vweb.js"
+		},
+		.header = to_str(
+			"/*" "\n"
+			" * Author: Daan van den Bergh" "\n"
+			" * Copyright: © 2022 - ", Date::now().year(), " Daan van den Bergh." "\n"
+			" */" "\n"
+		),
+		.newlines = true,
+		.double_newlines = false,
+		.whitespace = false,
+		.comments = false,
+	})
+	.save(js.join("vweb.js"));
+	print_marker("Bundled.");
 }

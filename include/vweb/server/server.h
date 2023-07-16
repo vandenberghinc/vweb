@@ -12,7 +12,7 @@
 //   wont get constructed if the log level is hidden.
 #define SERVLOG(min_log_level, text) \
 	log_mutex.lock(); \
-	if (m_config.log_level >= min_log_level) {\
+	if (config.log_level >= min_log_level) {\
 		print("[Server] ", text); \
 	} \
 	log_mutex.unlock();
@@ -104,7 +104,7 @@ public:
     // Attributes.
     // Requires public for "Session".
     
-    server::Config        		m_config;               // server configuration.
+    server::Config        		config;               // server configuration.
     Array<Endpoint>     		m_endpoints;            // all endpoint.
     Len                 		m_max_uid;              // the maximum user id, including deleted users.
     String              		m_hash_key;             // key used for hashing passwords and api keys.
@@ -126,9 +126,10 @@ public:
         {"X-Frame-Options", "DENY"},
         {"Strict-Transport-Security", "max-age=31536000"},
         {"Content-Security-Policy",
+			String() <<
 			"default-src 'self' *.google-analytics.com; "
 			"img-src 'self' *.google-analytics.com raw.githubusercontent.com; "
-			"script-src 'self' 'unsafe-inline' ajax.googleapis.com www.googletagmanager.com googletagmanager.com *.google-analytics.com raw.githubusercontent.com code.jquery.com; "
+			"script-src 'self' ajax.googleapis.com www.googletagmanager.com googletagmanager.com *.google-analytics.com raw.githubusercontent.com code.jquery.com; "
 			"style-src 'self' 'unsafe-inline'; "
 			"upgrade-insecure-requests; "
 			"block-all-mixed-content;"
@@ -180,8 +181,9 @@ public:
     };
     
     // Mail content.
-    String      m_2fa_mail = HTMLBuilder::build_mail
-       (
+	String      m_2fa_mail = "{{2FA}}";
+       /*(
+		HTMLBuilder::build_mail
         ui::View {
             ui::VStack {
                 
@@ -299,7 +301,7 @@ public:
          // .width("100%")
          // .height("100%")
          .move()
-    );
+    );*/
     
 // Private.
 private:
@@ -311,7 +313,7 @@ private:
     // With a handler for the file name.
     template <typename String, typename Func>
     void    iter_dir(const String& subpath, Func&& func) {
-        Path path = m_config.database.join(subpath);
+        Path path = config.database.join(subpath);
         DIR *dir;
         struct dirent* ent;
         if ((dir = ::opendir(path.c_str())) != NULL) {
@@ -386,7 +388,7 @@ private:
     
     // Load system user data.
     User    sys_load_user(const Len& uid) const {
-        String data = sys_load_data(to_str(m_config.database, "/.sys/users/", uid));
+        String data = sys_load_data(to_str(config.database, "/.sys/users/", uid));
         User user;
         if (!data.eq("D", 1)) {
             user.uid = uid;
@@ -441,7 +443,7 @@ private:
     
     // Save system user data.
     void    sys_save_user(const Len& uid, const User& user) const {
-        Path path = to_str(m_config.database, "/.sys/users/", uid);
+        Path path = to_str(config.database, "/.sys/users/", uid);
         path.save(to_str(
                         user.first_name, '\n',
                         user.last_name, '\n',
@@ -454,7 +456,7 @@ private:
     
     // Delete system user data.
     void    sys_delete_user(const Len& uid) const {
-        Path::save(to_str(m_config.database, "/.sys/users/", uid), "D");
+        Path::save(to_str(config.database, "/.sys/users/", uid), "D");
         String suid = uid.str();
         sys_save_uid_by_username(suid, "D");
         sys_save_uid_by_email(suid, "D");
@@ -462,7 +464,7 @@ private:
     
     // Load system user token.
     Token   sys_load_user_token(const Len& uid) const {
-        String data = sys_load_data(to_str(m_config.database, "/.sys/tokens/", uid));
+        String data = sys_load_data(to_str(config.database, "/.sys/tokens/", uid));
         if (!data.eq("D", 1)) {
             ullong index = 0, start_index = 0, delimiter_index = 0;
             for (auto& c: data) {
@@ -487,39 +489,39 @@ private:
     // Save system user token.
     void    sys_save_user_token(const Len& uid, const Token& token) const {
         if (token.expiration == 0) {
-            Path::save(to_str(m_config.database, "/.sys/tokens/", uid), "D");
+            Path::save(to_str(config.database, "/.sys/tokens/", uid), "D");
             return ;
         }
         String data;
         data.concats_r(token.expiration, ':', token.token, '\n');
-        data.save(to_str(m_config.database, "/.sys/tokens/", uid));
+        data.save(to_str(config.database, "/.sys/tokens/", uid));
     }
     
     // Delete system user token.
     void    sys_delete_user_token(const Len& uid) const {
-        Path::save(to_str(m_config.database, "/.sys/tokens/", uid), "D");
+        Path::save(to_str(config.database, "/.sys/tokens/", uid), "D");
     }
     
     // Save / delete system uid by username.
     void    sys_save_uid_by_username(const String& uid, const String& username) const {
-        uid.save(to_str(m_config.database, "/.sys/usernames/", username));
+        uid.save(to_str(config.database, "/.sys/usernames/", username));
     }
 	void    sys_delete_uid_by_username(const String& uid, const String& username) const {
-		Path::remove(to_str(m_config.database, "/.sys/usernames/", username));
+		Path::remove(to_str(config.database, "/.sys/usernames/", username));
 	}
     
     // Save / delete system uid by email.
     void    sys_save_uid_by_email(const String& uid, const String& email) const {
-        uid.save(to_str(m_config.database, "/.sys/emails/", email));
+        uid.save(to_str(config.database, "/.sys/emails/", email));
     }
 	void    sys_delete_uid_by_email(const String& uid, const String& email) const {
-		Path::remove(to_str(m_config.database, "/.sys/emails/", email));
+		Path::remove(to_str(config.database, "/.sys/emails/", email));
 	}
     
     // Save system 2fa by uid.
     void    sys_save_2fa_by_uid(const String& uid, const TwoFactorAuth& auth) const {
         Path::save(
-                   to_str(m_config.database, "/.sys/2fa/", uid),
+                   to_str(config.database, "/.sys/2fa/", uid),
                    to_str(auth.code, '\n', auth.expiration)
                    );
     }
@@ -527,7 +529,7 @@ private:
     // Load system 2fa by uid.
     TwoFactorAuth sys_load_2fa_by_uid(const String& uid) const {
         try {
-            String data = String::load(to_str(m_config.database, "/.sys/2fa/", uid));
+            String data = String::load(to_str(config.database, "/.sys/2fa/", uid));
             data.replace_end_r("\n");
             ullong pos;
             if ((pos = data.find('\n')) != NPos::npos) {
@@ -544,7 +546,7 @@ private:
     
     // Delete system 2fa by uid.
     void    sys_delete_2fa_by_uid(const String& uid) const {
-        Path::remove(to_str(m_config.database, "/.sys/2fa/", uid));
+        Path::remove(to_str(config.database, "/.sys/2fa/", uid));
     }
     
 	// ---------------------------------------------------------
@@ -559,12 +561,13 @@ private:
 		// Add vweb static files.
 		Path include_base = Path(__FILE__).base(2);
 		Array<vlib::Pack<String, String, Path>> packs = {
-			{"text/css", "/vweb/css.css", include_base.join("html/css.css")},
-			{"application/javascript", "/vweb/vweb.js", include_base.join("js/vweb.js")},
+			{"text/css", "/vweb/vweb.css", include_base.join("ui/css/vweb.css")},
+			{"text/css", "/vweb/vhighlight.css", include_base.join("ui/css/vhighlight.css")},
+			{"application/javascript", "/vweb/vweb.js", include_base.join("ui/js/vweb.js")},
 			
 			// Deprecated.
-			{"application/javascript", "/vweb/pre_js.js", include_base.join("html/pre_js.js")},
-			{"application/javascript", "/vweb/post_js.js", include_base.join("html/post_js.js")},
+			// {"application/javascript", "/vweb/pre_js.js", include_base.join("html/pre_js.js")},
+			// {"application/javascript", "/vweb/post_js.js", include_base.join("html/post_js.js")},
 		};
 		for (auto& [content_type, endpoint, full_path]: packs) {
 			m_endpoints.append(Endpoint {
@@ -720,7 +723,7 @@ private:
 			[](Server& server, const Len& uid, const Json& params) {
 				server.set_user(uid, params);
 				Headers headers;
-				create_detailed_user_cookie(headers, uid);
+				server.create_detailed_user_cookie(headers, uid);
 				return server.response(
 					vlib::http::status::success,
 					headers,
@@ -795,6 +798,7 @@ private:
 				.rate_limit_duration = 60,
 			},
 			[](Server& server, const Len& uid, const Json& params) {
+				print("GET!");
 				vlib::http::Response response;
 				String *path;
 				if (!vweb::get_param(response, params, path, "path", 4)) {
@@ -820,7 +824,7 @@ private:
 			[](Server& server, const Len& uid, const Json& params) {
 				vlib::http::Response response;
 				String *path;
-				Json *data;
+				Json *data = NULL;
 				if (
 					!vweb::get_param(response, params, path, "path", 4) ||
 					!vweb::get_param(response, params, data, "data", 4)
@@ -838,27 +842,95 @@ private:
 	}
 	
 	// Create static endpoints.
-	void    create_static_endpoints(const Path& path) {
+	void    create_static_endpoints(const Path& path, const Bool& js_views = false) {
+		if (!path.exists()) { return ; }
 		
 		// Load static files.
-		for (auto& child: path.paths()) {
-			if (child.is_dir()) {
-				create_static_endpoints(child);
-			} else if (child.is_file()) {
+		for (auto& child: path.paths(true)) {
+			if (child.is_file()) {
 				String content_type = "UNDEFINED";
 				String& extension = child.extension();
+				String data;
+				
+				// Javascript views directory.
 				if (extension == "js") {
 					content_type = "text/javascript";
 				}
+				if (js_views) {
+					if (extension != "js") {
+						continue;
+					}
+					Code js = child.load();
+					String transformed_js;
+					
+					// Make some javascript edits.
+					String join_str_batch;
+					bool is_str = false;
+					ullong str_end_index = 0;
+					String allowed_between_str_chars = "\n\t ";
+					for (auto& i: js.iterate()) {
+						
+						// Transform a line like ["Hello World!" "\n"] to ["Hello World!\n"].
+						bool append = str_end_index == 0;
+						if (str_end_index != 0 && i.is_any_str()) {
+							join_str_batch.reset();
+							str_end_index = 0;
+							--transformed_js.len();
+							append = false;
+						} else if (str_end_index != 0) {
+							if (allowed_between_str_chars.contains(i.character())) {
+								join_str_batch.append(i.character());
+								append = false;
+							} else {
+								str_end_index = 0;
+								transformed_js.concat_r(join_str_batch);
+								join_str_batch.reset();
+								append = true;
+							}
+						}
+						if (!is_str && i.is_any_str()) {
+							is_str = true;
+						} else if (is_str && !i.is_any_str()) {
+							is_str = false;
+							if (allowed_between_str_chars.contains(i.character())) {
+								str_end_index = i.index;
+								join_str_batch.append(i.character());
+								append = false;
+							}
+						}
+						if (append) {
+							transformed_js.append(i.character());
+						}
+					}
+					data = move(transformed_js);
+					
+					// Trim js.
+					if (vweb_production) {
+						data = vlib::JavaScript::trim(data, {
+							.newlines = true,
+							.double_newlines = false,
+							.whitespace = false,
+							.comments = false,
+						});
+					}
+					
+				}
+				
+				// No js.
+				else {
+					data = child.load();
+				}
+				
+				// Add.
 				m_endpoints.append(Endpoint(
 					"GET",
-					child.abs().slice(m_config.statics.len()),
+					js_views ? child.abs().slice(config.source.len()) : child.abs().slice(config.statics.len()),
 					content_type,
 					{
 						.rate_limit = 100,
 						.rate_limit_duration = 60,
 					},
-					child.load()
+					data
 				));
 			}
 		}
@@ -872,7 +944,7 @@ private:
 			"GET",
 			"/rob ots.txt",
 			"text/plain",
-			to_str("User-agent: *\nDisallow: \n\nSitemap: https://", m_config.domain, "/sitemap.xml"),
+			to_str("User-agent: *\nDisallow: \n\nSitemap: https://", config.domain, "/sitemap.xml"),
 		});
 	}
 	
@@ -890,7 +962,7 @@ private:
 			) {
 				sitemap <<
 				"<url>" << '\n' <<
-				"	<loc>https://" << to_str(m_config.domain, "/", endpoint.m_endpoint).replace_r("//", "/") << "</loc>" << '\n' <<
+				"	<loc>https://" << to_str(config.domain, "/", endpoint.m_endpoint).replace_r("//", "/") << "</loc>" << '\n' <<
 				"</url>" << '\n';
 			}
 		}
@@ -1028,7 +1100,7 @@ private:
 			if (verify_password(uid, *password)) {
 				
 				// Verify 2fa.
-				if (m_config.enable_2fa) {
+				if (config.enable_2fa) {
 					if (!vweb::get_param(response, params, code, "2fa", 3) || code->is_undefined()) {
 						send_2fa(uid, headers, ip);
 						return Server::response(
@@ -1193,7 +1265,7 @@ private:
 			Len uid = create_user(*first_name, *last_name, *username, *email, *pass);
 			
 			// Send 2fa code.
-			if (m_config.enable_2fa) {
+			if (config.enable_2fa) {
 				send_2fa(uid, headers, ip);
 			}
 			
@@ -1564,7 +1636,7 @@ public:
      *      };
      } */
     Server(const server::Config& config) :
-    m_config(config),
+    config(config),
     m_smtp(config.smtp),
 	m_backend(config, &(*this))
     {}
@@ -1576,11 +1648,11 @@ public:
 	void    initialize() {
 		
 		// Check & create database.
-		if (m_config.database.is_undefined()) {
+		if (config.database.is_undefined()) {
 			throw vlib::FileNotFoundError("The \"database\" attribute in the server config is undefined.");
 		}
-		if (!m_config.database.exists()) {
-			throw vlib::FileNotFoundError("Database \"", m_config.database, "\" does not exist.");
+		if (!config.database.exists()) {
+			throw vlib::FileNotFoundError("Database \"", config.database, "\" does not exist.");
 		}
 		for (auto& name: {
 			".sys",
@@ -1593,14 +1665,14 @@ public:
 			".sys/2fa",
 			"users",
 		}) {
-			Path path = m_config.database.join(name);
+			Path path = config.database.join(name);
 			if (!path.exists()) {
 				path.mkdir();
 			}
 		}
 		
 		// Load keys.
-		Path path = m_config.database.join(".sys/keys/keys");
+		Path path = config.database.join(".sys/keys/keys");
 		if (!path.exists()) {
 			m_hash_key = SHA::generate_key(32);
 			Json data {
@@ -1616,10 +1688,14 @@ public:
 		m_max_uid = get_max_uid();
 		
 		// Create media endpoints.
-		if (m_config.statics.is_defined()) {
-			m_config.statics.abs_r();
-			create_static_endpoints(m_config.statics);
+		if (config.statics.is_defined()) {
+			config.statics.abs_r();
+			create_static_endpoints(config.statics);
 		}
+		
+		// JS views.
+		create_static_endpoints(config.source.join("views"), true);
+		create_static_endpoints(config.source.join("ui"), true);
 		
 		// Create sitemap when it does not exist.
 		bool found_sitemap = false;
@@ -1767,7 +1843,7 @@ public:
      *      Bool exists = server.username_exists("someusername");
      } */
     Bool    username_exists(const String& username) const {
-        return Path::exists(to_str(m_config.database, "/.sys/usernames/", username));
+        return Path::exists(to_str(config.database, "/.sys/usernames/", username));
     }
     
     // Check if an email exists.
@@ -1784,7 +1860,7 @@ public:
      *      Bool exists = server.email_exists("some\@email.com");
      } */
     Bool    email_exists(const String& email) const {
-        return Path::exists(to_str(m_config.database, "/.sys/emails/", email));
+        return Path::exists(to_str(config.database, "/.sys/emails/", email));
     }
     
     // Check if a user account is activated.
@@ -1801,7 +1877,7 @@ public:
      *      Bool activated = server.is_activated(0);
      } */
     Bool    is_activated(const Len& uid) const {
-        return !Path::exists(to_str(m_config.database, "/.sys/unactivated/", uid));
+        return !Path::exists(to_str(config.database, "/.sys/unactivated/", uid));
     }
     
     // Set the activated status of a user account is activated.
@@ -1822,9 +1898,9 @@ public:
      } */
     void    set_activated(const Len& uid, const Bool& activated) const {
         if (activated) {
-            Path::remove(to_str(m_config.database, "/.sys/unactivated/", uid));
+            Path::remove(to_str(config.database, "/.sys/unactivated/", uid));
         } else {
-            Path::touch(to_str(m_config.database, "/.sys/unactivated/", uid));
+            Path::touch(to_str(config.database, "/.sys/unactivated/", uid));
         }
     }
     
@@ -1892,7 +1968,7 @@ public:
         String suid = uid.str();
         sys_save_uid_by_username(suid, username);
         sys_save_uid_by_email(suid, email);
-        Path::touch(to_str(m_config.database, "/.sys/unactivated/", suid));
+        Path::touch(to_str(config.database, "/.sys/unactivated/", suid));
         
         // Return uid.
         return uid;
@@ -2119,16 +2195,16 @@ public:
 	void    set_user(const Len& uid, const Json& user) const {
 		User u;
 		ullong index;
-		if ((index = user.find("first_name", 10)) != NPos::npos) {
+		if ((index = user.find("first_name", 10)) != NPos::npos && user.value(index).iss()) {
 			u.first_name = user.value(index).ass();
 		}
-		if ((index = user.find("last_name", 9)) != NPos::npos) {
+		if ((index = user.find("last_name", 9)) != NPos::npos && user.value(index).iss()) {
 			u.last_name = user.value(index).ass();
 		}
-		if ((index = user.find("username", 8)) != NPos::npos) {
+		if ((index = user.find("username", 8)) != NPos::npos && user.value(index).iss()) {
 			u.username = user.value(index).ass();
 		}
-		if ((index = user.find("email", 5)) != NPos::npos) {
+		if ((index = user.find("email", 5)) != NPos::npos && user.value(index).iss()) {
 			u.email = user.value(index).ass();
 		}
 		return set_user(uid, u);
@@ -2156,7 +2232,7 @@ public:
         if (username.is_undefined()) {
             return NPos::npos;
         }
-        Path path = to_str(m_config.database, "/.sys/usernames/", username);
+        Path path = to_str(config.database, "/.sys/usernames/", username);
         if (path.exists()) {
             String data = sys_load_data(path);
             if (data.eq("D", 1)) {
@@ -2189,7 +2265,7 @@ public:
         if (email.is_undefined()) {
             return NPos::npos;
         }
-        Path path = to_str(m_config.database, "/.sys/emails/", email);
+        Path path = to_str(config.database, "/.sys/emails/", email);
         if (path.exists()) {
             String data = sys_load_data(path);
             if (data.eq("D", 1)) {
@@ -2385,7 +2461,7 @@ public:
 	template <typename Type = Json, typename... Air>
 	Type	load_user_data(const Len& uid, const String& subpath) const {
 		check_uid_within_range(uid);
-		Path path = to_str(m_config.database, "/users/", uid, '/', subpath);
+		Path path = to_str(config.database, "/users/", uid, '/', subpath);
 		if (!path.exists()) {
 			return {};
 		}
@@ -2423,7 +2499,7 @@ public:
 	template <typename Type = Json, typename... Air>
 	void	save_user_data(const Len& uid, const String& subpath, const Type& data) const {
 		check_uid_within_range(uid);
-		data.save(to_str(m_config.database, "/users/", uid, '/', subpath));
+		data.save(to_str(config.database, "/users/", uid, '/', subpath));
 	}
     
     // Generate an api key by uid.
@@ -2686,7 +2762,7 @@ public:
         
         // Send mail.
         send_mail({
-            .sender = m_config.domain_name.is_defined() ? vlib::smtp::Address{m_config.domain_name, m_smtp.email} : vlib::smtp::Address{m_smtp.email},
+            .sender = config.domain_name.is_defined() ? vlib::smtp::Address{config.domain_name, m_smtp.email} : vlib::smtp::Address{m_smtp.email},
             .recipients = {user.email},
             .subject = "Two Factor Authentication Code",
             .body = body,
@@ -2730,8 +2806,8 @@ public:
     constexpr
     void    set_header_defaults(Headers& headers) {
         headers.concat_r(m_default_headers);
-        headers["Origin"] = m_config.domain;
-        headers["Access-Control-Allow-Origin"] = m_config.domain;
+        headers["Origin"] = config.domain;
+        headers["Access-Control-Allow-Origin"] = config.domain;
     }
     
     // Create token headers.
@@ -2759,7 +2835,7 @@ public:
             ));
             headers.append("Set-Cookie", to_str(
                 CString("UserActivated=", 14),
-                m_config.enable_2fa ? is_activated(uid) : Bool(true),
+                config.enable_2fa ? is_activated(uid) : Bool(true),
                 CString("; Path=/; SameSite=None; Secure;", 32)
             ));
         } else {
@@ -2769,7 +2845,7 @@ public:
             ));
             headers.append("Set-Cookie", to_str(
                 CString("UserActivated=", 14),
-                m_config.enable_2fa ? false : true,
+                config.enable_2fa ? false : true,
                 CString("; Path=/; SameSite=None; Secure;", 32)
             ));
         }
@@ -2865,14 +2941,6 @@ public:
     
     // ---------------------------------------------------------
     // Attributes.
-    
-    // Config.
-    /*  @docs {
-     *  @title: Config
-     *  @description: Get the underlying server config attribute.
-     *  @attribute: true
-     } */
-    constexpr auto& config() const { return m_config; }
     
     // Endpoints.
     /*  @docs {

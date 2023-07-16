@@ -18,6 +18,7 @@ namespace ui {
 static String 	google_tag;
 
 // JS View.
+// @TODO rename to View.
 struct JSView {
 	
 	// ---------------------------------------------------------
@@ -75,7 +76,8 @@ struct JSView {
 		data << "<link rel='icon' href='/favicon.ico' type='image/x-icon' />" << "\n";
 		
 		// Stylesheet.
-		data << "<link rel=\"stylesheet\" href=\"/vweb/css.css\">" << "\n";
+		data << "<link rel=\"stylesheet\" href=\"/vweb/vweb.css\">" << "\n";
+		data << "<link rel=\"stylesheet\" href=\"/vweb/vhighlight.css\">" << "\n";
 		for (auto& src: css_includes) {
 			data << "<link rel=\"stylesheet\" href=\"" << src << "\">" << "\n";
 		}
@@ -86,14 +88,7 @@ struct JSView {
 		// Google tag.
 		if (google_tag.is_defined()) {
 			data <<
-			"<!-- Google tag (gtag.js) -->" <<
-			"<script async src='https://www.googletagmanager.com/gtag/js?id=" << google_tag << "'></script>" <<
-			"<script>" <<
-			" window.dataLayer = window.dataLayer || [];" <<
-			" function gtag(){dataLayer.push(arguments);}" <<
-			" gtag('js', new Date());" <<
-			" gtag('config', '" << google_tag << "');" <<
-			"</script>" << "\n";
+			"<script async src='https://www.googletagmanager.com/gtag/js?id=" << google_tag << "'></script>";
 		}
 		
 		// JS includes.
@@ -105,9 +100,6 @@ struct JSView {
 		
 		// JS source.
 		data << "<script src='" << source << "'></script>" << "\n";
-		// data << "<script type='text/javascript'>utils.on_content_loaded(on_load()); </script>" << "\n";
-		data << "<script type='text/javascript'>document.addEventListener(\"DOMContentLoaded\", on_load);</script>" << "\n";
-		;
 		
 		// Body.
 		data << "<body id='body'></body>\n";

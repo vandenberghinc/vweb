@@ -4,7 +4,7 @@
 */
 
 #ifndef VWEB_CATCH_EXCEPTIONS
-#define VWEB_CATCH_EXCEPTIONS false
+#define VWEB_CATCH_EXCEPTIONS true
 #endif
 
 // Header.
@@ -17,7 +17,7 @@
 vlib::Mutex log_mutex;
 #define SESLOG(min_log_level, text) \
     log_mutex.lock(); \
-    if (m_server->m_config.log_level >= min_log_level) {\
+    if (m_server->config.log_level >= min_log_level) {\
         print("[Session:", m_session_index, "] ", text); \
     } \
     log_mutex.unlock();
@@ -169,7 +169,7 @@ public:
 	// Reset all attributes.
 	void    reset() {
 		m_conn->not_serving = true;
-		m_conn->expiration = Date::get_seconds() + m_server->m_config.keep_alive.value();
+		m_conn->expiration = Date::get_seconds() + m_server->config.keep_alive.value();
 		*m_busy = false;
 	}
 	
@@ -337,7 +337,7 @@ public:
 			}
 			
 			// Log.
-			if (m_server->m_config.log_level > 0) {
+			if (m_server->config.log_level > 0) {
 				SESLOG(1, to_str(
 					m_conn->info.ip, ": ",
 					vlib::http::method::to_str(request.method()), ' ',
@@ -643,7 +643,7 @@ public:
 			
 		#if VWEB_CATCH_EXCEPTIONS == true
 		} catch (vlib::Exception& e) {
-			if (m_server->m_config.log_level >= 1) {
+			if (m_server->config.log_level >= 1) {
 				e.dump();
 			}
 			response = m_server->response(

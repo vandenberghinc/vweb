@@ -12,7 +12,7 @@
 //   wont get constructed if the log level is hidden.
 #define BACKENDLOG(min_log_level, text) \
     log_mutex.lock(); \
-    if (m_server->m_config.log_level >= min_log_level) {\
+    if (m_server->config.log_level >= min_log_level) {\
         print("[Backend] ", text); \
     } \
     log_mutex.unlock();
@@ -83,11 +83,11 @@ public:
 	constexpr
 	Backend(const vweb::server::Config& config, Server* server) :
 	m_server(server),
-	m_use_https(m_server->m_config.port == -1 && m_server->m_config.cert.is_defined())
+	m_use_https(m_server->config.port == -1 && m_server->config.cert.is_defined())
 	{
 		// Resize connections.
-		m_conns.resize(m_server->m_config.max_connections.value());
-		m_conns.len() = m_server->m_config.max_connections.value();
+		m_conns.resize(m_server->config.max_connections.value());
+		m_conns.len() = m_server->config.max_connections.value();
 	}
 	
 	// ---------------------------------------------------------
@@ -95,8 +95,8 @@ public:
 	
 	// Start sessions.
 	void    start_sessions() {
-		m_sessions.resize(m_server->m_config.max_threads.value());
-		m_sessions.len() = m_server->m_config.max_threads.value();
+		m_sessions.resize(m_server->config.max_threads.value());
+		m_sessions.len() = m_server->config.max_threads.value();
 		for (auto& index: m_sessions.indexes()) {
 			m_sessions[index].m_server = m_server;
 			m_sessions[index].m_session_index = (int) index;
@@ -160,13 +160,13 @@ public:
 		// Construct the socket.
 		TCP sock;
 		Int port = 80;
-		if (m_server->m_config.port != -1) {
-			port = m_server->m_config.port;
+		if (m_server->config.port != -1) {
+			port = m_server->config.port;
 		}
-		if (m_server->m_config.ip == "*" || m_server->m_config.ip == "") {
+		if (m_server->config.ip == "*" || m_server->config.ip == "") {
 			sock.construct(port);
 		} else {
-			sock.construct(m_server->m_config.ip, port);
+			sock.construct(m_server->config.ip, port);
 		}
 		
 		// Listen.
@@ -258,7 +258,7 @@ public:
 							conn.info = vlib::move(conn_info);
 							conn.numeric_ip = conn_ip;
 							conn.poll_index = 0;
-							conn.expiration = Date::get_seconds() + m_server->m_config.keep_alive.value();
+							conn.expiration = Date::get_seconds() + m_server->config.keep_alive.value();
 						}
 					}
 				// }
@@ -294,25 +294,25 @@ public:
 		// Construct the socket.
 		TLS sock;
 		Int port = 443;
-		if (m_server->m_config.port != -1) { // https is disabled if the port is enabled but okay.
-			port = m_server->m_config.port;
+		if (m_server->config.port != -1) { // https is disabled if the port is enabled but okay.
+			port = m_server->config.port;
 		}
-		if (m_server->m_config.ip == "*" || m_server->m_config.ip == "") {
+		if (m_server->config.ip == "*" || m_server->config.ip == "") {
 			sock.construct(
 				port,
-				m_server->m_config.cert,
-				m_server->m_config.key,
-				m_server->m_config.pass,
-				m_server->m_config.ca_bundle
+				m_server->config.cert,
+				m_server->config.key,
+				m_server->config.pass,
+				m_server->config.ca_bundle
 			);
 		} else {
 			sock.construct(
-				m_server->m_config.ip,
+				m_server->config.ip,
 				port,
-				m_server->m_config.cert,
-				m_server->m_config.key,
-				m_server->m_config.pass,
-				m_server->m_config.ca_bundle
+				m_server->config.cert,
+				m_server->config.key,
+				m_server->config.pass,
+				m_server->config.ca_bundle
 			);
 		}
 		
@@ -399,7 +399,7 @@ public:
 								conn.info = vlib::move(conn_info);
 								conn.numeric_ip = conn_ip;
 								conn.poll_index = 0;
-								conn.expiration = Date::get_seconds() + m_server->m_config.keep_alive.value();
+								conn.expiration = Date::get_seconds() + m_server->config.keep_alive.value();
 							}
 						} catch(vlib::Exception& e) {
 							TLS::close(ctx);
@@ -443,7 +443,7 @@ public:
 		
 		// Poll file descriptors.
 		Array<struct pollfd, uint> pfds;
-		pfds.fill_r(m_server->m_config.max_connections, {});
+		pfds.fill_r(m_server->config.max_connections, {});
 		
 		// Loop.
 		while (true) {
