@@ -36,7 +36,7 @@ class CodeBlock extends Element {
 			while (code.length > 0 && code[code.length - 1] == "\n") {
 				code = code.slice(-code.length, -1);
 			}
-			this.text(code.replaceAll("<", "&lt;").replaceAll(">", "&gt;"));
+			this.text(code.replaceAll("<", "&lt;").replaceAll(">", "&gt;")); 
 		}
 
 		// Zero arguments, may be to set default styling.
@@ -73,8 +73,9 @@ class CodeBlock extends Element {
 
 
 	// Highlight code.
-	highlight() {
-		vhighlight.highlight(this.element);
+	highlight(options = {}) {
+		options.element = this.element;
+		vhighlight.highlight(options);
 		return this;
 	}
 

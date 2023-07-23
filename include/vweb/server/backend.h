@@ -42,6 +42,7 @@ private:
 		Int 					fd = -1;			// file descriptor, always assigned also on tls.
 		SSL*					ctx = NULL;			// ssl context.
 		uint					poll_index = 0;		// poll index for the backend.
+		Bool 					close = false;		// socket should be closed.
 		Bool 					connected = false;	// is connected.
 		Bool 					not_serving = true;	// is not being served by a session.
 		vlib::Socket<>::Info 	info;				// socket info.
@@ -143,9 +144,9 @@ public:
 	void	close_connection(Connection& conn) {
 		if (conn.ctx != NULL) {
 			TLS::close(conn.ctx);
-		} else if (conn.fd != -1) {
-			TCP::close(conn.fd);
 		}
+		TCP::close(conn.fd);
+		conn.close = false;
 		conn.connected = false;
 		conn.not_serving = true;
 		conn.fd = -1;
@@ -227,7 +228,7 @@ public:
 						// Find available client index.
 						uint index = 0;
 						for (auto& conn: m_conns) {
-							if (!conn.connected) {
+							if (!conn.close && !conn.connected) {
 								break;
 							}
 							++index;
@@ -240,7 +241,7 @@ public:
 						}
 						
 						// Check blacklist.
-						BACKENDLOG(1, to_str("Accepted HTTP file descriptor ", conn_fd, "."));
+						BACKENDLOG(1, to_str("Accepted HTTP connection ", index, " file descriptor ", conn_fd, "."));
 						vlib::Socket<>::Info conn_info = TCP::info(conn_fd);
 						LLong conn_ip = conn_info.numeric_ip();
 						if (!blacklist.verify(conn_ip)) {
@@ -253,6 +254,7 @@ public:
 							auto& conn = m_conns[index];
 							conn.fd = conn_fd;
 							conn.ctx = NULL;
+							conn.close = false;
 							conn.connected = true;
 							conn.not_serving = true;
 							conn.info = vlib::move(conn_info);
@@ -366,7 +368,7 @@ public:
 						// Find available client index.
 						uint index = 0;
 						for (auto& conn: m_conns) {
-							if (!conn.connected) {
+							if (!conn.close && !conn.connected) {
 								break;
 							}
 							++index;
@@ -381,7 +383,7 @@ public:
 						// Check blacklist.
 						try {
 							Int conn_fd = SSL_get_fd(ctx);
-							BACKENDLOG(1, to_str("Accepted HTTPS file descriptor ", conn_fd, "."));
+							BACKENDLOG(1, to_str("Accepted HTTPS connection ", index, " file descriptor ", conn_fd, "."));
 							vlib::Socket<>::Info conn_info = TCP::info(conn_fd);
 							LLong conn_ip = conn_info.numeric_ip();
 							if (!blacklist.verify(conn_ip)) {
@@ -394,6 +396,7 @@ public:
 								auto& conn = m_conns[index];
 								conn.fd = conn_fd;
 								conn.ctx = ctx;
+								conn.close = false;
 								conn.connected = true;
 								conn.not_serving = true;
 								conn.info = vlib::move(conn_info);
@@ -454,7 +457,10 @@ public:
 				// Create pfds.
 				pfds.len() = 1; // server is already added.
 				for (auto& conn: m_conns) {
-					if (conn.connected && conn.not_serving) {
+					if (conn.close) {
+						close_connection(conn);
+					}
+					else if (conn.connected && conn.not_serving) {
 						
 						// Add.
 						conn.poll_index = pfds.len();
@@ -507,7 +513,7 @@ public:
 					++conn_index;
 					
 					// Handle connected clients.
-					if (conn.connected && conn.not_serving && conn.poll_index != 0) {
+					if (!conn.close && conn.connected && conn.not_serving && conn.poll_index != 0) {
 						auto& pfd = pfds[conn.poll_index];
 						
 						// Check ssl context and fd.

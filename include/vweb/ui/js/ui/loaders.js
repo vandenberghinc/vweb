@@ -11,7 +11,9 @@ class RingLoader extends Element {
 	static default_styling = {
 		"width": "80px",
 		"height": "80px",
-		"background": "black",
+		"--child-background": "black",
+		"display": "inline-block",
+		"position": "relative",
 	};
 	
 	// Constructor.
@@ -19,7 +21,7 @@ class RingLoader extends Element {
 		
 		// Initialize base class.
 		super("RingLoader", "div");
-		
+
 		// Set default styling.
 		this.style(RingLoader.default_styling);
 		
@@ -27,25 +29,48 @@ class RingLoader extends Element {
 		this.update();
 		
 	}
+
+	// Overwrite the set background function.
+	background(value) {
+        if (value == null) { return tthis.element.style["--child-background"]; }
+        this.element.style["--child-background"] = value;
+        return this;
+    }
 	
 	// Update.
 	// Needs to be called after initialing or changing the loader.
 	update() {
 		this.remove_children();
+		const width = parseFloat(this.element.style.width.replace("px", ""));
+		const height = parseFloat(this.element.style.height.replace("px", ""));
+		const background = this.element.style["--child-background"];
 		const children_style = {
-			"width": "calc(" + this.element.style.width + " * (64.0px / 80.0px))",
-			"height": "calc(" + this.element.style.height + " * (64.0px / 80.0px))",
-			"margin": "calc(" + this.element.style.width + " * (8.0px / 80.0px))",
-			"border": "calc(" + this.element.style.width + " * (8.0px / 80.0px)) solid " + this.element.style.background,
-			"border-color": this.element.style.background + " transparent transparent transparent",
-		}
+			"box-sizing": "border-box",
+			"display": "block",
+			"position": "absolute",
+			"width": `${width * (64.0 / 80.0)}px`,
+			"height": `${height * (64.0 / 80.0)}px`,
+			"margin": `${width * (8.0 / 80.0)}px`,
+			"border": `${width * (8.0 / 80.0)}px solid ${background}`,
+			"border-color": `${background} transparent transparent transparent`,
+			"border-radius": "50%",
+			"animation": "RingLoader 1.2s cubic-bezier(0.5, 0, 0.5, 1) infinite",
+		};
 		for (let i = 0; i < 4; i++) {
 			let e = document.createElement("div");
 			for (let attr in children_style) {
 				e.style[attr] = children_style[attr];
 			}
+			if (i == 1) {
+				e.style.animationDelay = "-0.45s";
+			} else if (i == 2) {
+				e.style.animationDelay = "-0.3s";
+			} else if (i == 3) {
+				e.style.animationDelay = "-0.15s";
+			}
 			this.append(e);
 		}
+		return this;
 	}
 		
 }

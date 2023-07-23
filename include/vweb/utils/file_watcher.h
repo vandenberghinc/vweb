@@ -102,7 +102,7 @@ public:
             
             // Execute.
             Proc proc { .timeout = 60 * 5 * 1000, .async = true, .log = true };
-            if (proc.execute(output.c_str(), "--no-file-watcher", NULL) != 0) {
+            if (proc.execute(output.c_str(), output.c_str(), "--no-file-watcher", NULL) != 0) {
                 throw vlib::StartError("Encountered an error while running the webserver.");
             }
             child_pid = proc.pid();
@@ -136,6 +136,12 @@ public:
         // Log.
         print_marker("[FileWatcher] Starting file watcher.");
         
+		// Add defaults.
+		const Path base = Path(__FILE__).base(2);
+		m_paths.append(base.join("ui/js/vweb.js"));
+		m_paths.append(base.join("ui/css/vweb.css"));
+		m_paths.append(base.join("ui/css/vhighlight.css"));
+		
         // Parse includes.
         parse_includes(m_source.join("start.cpp"));
 		

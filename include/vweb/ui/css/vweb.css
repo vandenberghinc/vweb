@@ -18,3 +18,13 @@ Copyright: © 2022 Daan van den Bergh.
 	scrollbar-width: none;
 	
 }
+
+/* Ring loader keyframe. */
+@keyframes RingLoader {
+	0% {
+		transform: rotate(0deg);
+	}
+	100% {
+		transform: rotate(360deg);
+	}
+}

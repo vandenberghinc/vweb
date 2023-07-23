@@ -32,19 +32,19 @@ function vweb_get_element(id) {
 }
 
 // Get device width.
-function vweb_get_device_width() {
+function vweb_device_width() {
 	return (window.innerWidth > 0) ? window.innerWidth : screen.width;
 }
 
 // Get endpoint sub url.
-function vweb_get_endpoint() {
+function vweb_endpoint() {
 	endpoint = window.location.href.replace("https://", "").replace("http://", "");
 	endpoint = endpoint.substr(endpoint.indexOf('/'), endpoint.length);
 	return endpoint;
 }
 
 // Get a cookie value by name.
-function vweb_get_cookie(name) {
+function vweb_cookie(name) {
 	let index = document.cookie.indexOf(name + "=");
 	if (index == -1) {
 		return null;
@@ -61,7 +61,7 @@ function vweb_get_cookie(name) {
 
 // Get user id.
 function vweb_get_uid() {
-    const uid = vweb_get_cookie("UserID");
+    const uid = vweb_cookie("UserID");
 	if (uid == -1) {
 		return null;
 	}
@@ -70,7 +70,7 @@ function vweb_get_uid() {
 
 // Get the is user activated boolean.
 function vweb_get_user_activated() {
-	if (vweb_get_cookie("UserActivated") == "true") {
+	if (vweb_cookie("UserActivated") == "true") {
 		return true;
 	}
 	return false;
@@ -184,42 +184,42 @@ function vweb_get_visibility_by_variable_condition(element, type) {
 	
 	// Device conditions.
 	else if (type == "IfDeviceWidthEq") {
-		if (vweb_get_device_width() == element["value"]) {
+		if (vweb_device_width() == element["value"]) {
 			return true;
 		} else {
 			return false;
 		}
 	}
 	else if (type == "IfDeviceWidthNotEq") {
-		if (vweb_get_device_width() != element["value"]) {
+		if (vweb_device_width() != element["value"]) {
 			return true;
 		} else {
 			return false;
 		}
 	}
 	else if (type == "IfDeviceWidthGreaterEq") {
-		if (vweb_get_device_width() >= element["value"]) {
+		if (vweb_device_width() >= element["value"]) {
 			return true;
 		} else {
 			return false;
 		}
 	}
 	else if (type == "IfDeviceWidthGreater") {
-		if (vweb_get_device_width() > element["value"]) {
+		if (vweb_device_width() > element["value"]) {
 			return true;
 		} else {
 			return false;
 		}
 	}
 	else if (type == "IfDeviceWidthLesserEq") {
-		if (vweb_get_device_width() <= element["value"]) {
+		if (vweb_device_width() <= element["value"]) {
 			return true;
 		} else {
 			return false;
 		}
 	}
 	else if (type == "IfDeviceWidthLesser") {
-		if (vweb_get_device_width() < element["value"]) {
+		if (vweb_device_width() < element["value"]) {
 			return true;
 		} else {
 			return false;
@@ -228,14 +228,14 @@ function vweb_get_visibility_by_variable_condition(element, type) {
 	
 	// Endpoint conditions.
 	else if (type == "IfEndpointEq") {
-		if (vweb_get_endpoint() == element["value"]) {
+		if (vweb_endpoint() == element["value"]) {
 			return true;
 		} else {
 			return false;
 		}
 	}
 	else if (type == "IfEndpointNotEq") {
-		if (vweb_get_endpoint() != element["value"]) {
+		if (vweb_endpoint() != element["value"]) {
 			return true;
 		} else {
 			return false;
@@ -339,7 +339,7 @@ function vweb_rebuild_element(element, hidden = false) {
 	
 	// Redirect.
 	else if (type == "Redirect") {
-		if (!hidden && (element["forced"] == true || vweb_get_endpoint() != element["url"])) {
+		if (!hidden && (element["forced"] == true || vweb_endpoint() != element["url"])) {
 			window.location.href = element["url"];
 		}
 	}

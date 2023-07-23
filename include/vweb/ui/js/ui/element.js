@@ -4,6 +4,12 @@
  */
 
 // Element.
+/*	@docs: {
+ *	@chapter: UI
+ *	@title: Element
+ *	@description:
+ *		Base class Element for derived classes.
+ } */
 class Element {
 	
 	// ---------------------------------------------------------
@@ -77,12 +83,9 @@ class Element {
 	// A direct HTML Node is also accepted.
 	// A function is also accepted and will be executed.
 	append(...children) {
-		if (children.length === 0) {
-			return this;
-		}
 		for (let i = 0; i < children.length; i++) {
 			const child = children[i];
-			if (child) {
+			if (child != null) {
 
 				// VWeb element.
 				if (child.element != null) {
@@ -97,31 +100,38 @@ class Element {
 					}
 				}
 
+				// Execute function.
+				else if (vweb.utils.is_func(child)) {
+					this.append(child());
+				}
+
 				// Node element.
 				else if (child instanceof Node) {
 					this.element.appendChild(child);
 				}
 
-				// Execute function.
-				else if (vweb.utils.is_func(child)) {
-					child();
+				// Append text.
+				else if (vweb.utils.is_string(child)) {
+					this.element.appendChild(document.createTextNode(child));	
 				}
+
+				// else {
+				// 	console.log("UNKOWN CHILD: ", child);
+				// }
 
 			}
 		}
 		return this;
 	}
 	zstack_append(...children) {
-		if (children.length === 0) {
-			return this;
-		}
 		for (let i = 0; i < children.length; i++) {
 			const child = children[i];
-			if (child) {
+			if (child != null) {
 
 				// VWeb element.
 				if (child.element != null) {
-					child.element.style.position = "absolute";
+					// child.element.style.position = "absolute";
+					child.element.style.gridArea = "1 / 1 / 2 / 2";
 					if (
 						child.element_type == "ForEach" ||
 						child.element_type == "If" ||
@@ -133,15 +143,21 @@ class Element {
 					}
 				}
 
+				// Execute function.
+				else if (vweb.utils.is_func(child)) {
+					this.append(child());
+				}
+
 				// Node element.
 				else if (child instanceof Node) {
-					child.element.style.position = "absolute";
+					// child.element.style.position = "absolute";
+					child.element.style.gridArea = "1 / 1 / 2 / 2";
 					this.element.appendChild(child);
 				}
 
-				// Execute function.
-				else if (vweb.utils.is_func(child)) {
-					child();
+				// Append text.
+				else if (vweb.utils.is_string(child)) {
+					this.element.appendChild(document.createTextNode(child));	
 				}
 
 			}
@@ -159,6 +175,21 @@ class Element {
 	append_children_to(parent) {
 		while (this.element.firstChild) {
 			parent.appendChild(this.element.firstChild)
+		}
+		return this;
+	}
+
+	// Remove child.
+	// Can either be a Node object an Element derived object or an id.
+	remove_child(child) {
+		if (child.element != null) {
+			this.element.removeChild(child.element);
+		} else if (child instanceof Node) {
+			this.element.removeChild(child);
+		} else if (vweb.utils.is_string(child)) {
+			this.element.removeChild(document.getElementById(child));
+		} else {
+			console.error("Invalid parameter type for function \"remove_child()\".");
 		}
 		return this;
 	}
@@ -208,24 +239,30 @@ class Element {
 		'progress',
 		'video',
 	];
-	width(value) {
-		if (value == null) {
-			return this.element.offsetWidth;
-		}
-		if (Element.elements_with_width_attribute.includes(this.element_tag)) {
+	width(value, check_attribute = true) {
+		if (check_attribute && Element.elements_with_width_attribute.includes(this.element_tag)) {
+			if (value == null) {
+				return this.element.width;
+			}
 			this.element.width = value;
 		} else {
+			if (value == null) {
+				return this.element.style.width;
+			}
 			this.element.style.width = this.pad_numeric(value);
 		}
 		return this;
 	}
 	height(value) {
-		if (value == null) {
-			return this.element.offsetHeight;
-		}
 		if (Element.elements_with_width_attribute.includes(this.element_tag)) {
+			if (value == null) {
+				return this.element.height;
+			}
 			this.element.height = value;
 		} else {
+			if (value == null) {
+				return this.element.style.height;
+			}
 			this.element.style.height = this.pad_numeric(value);
 		}
 		return this;
@@ -251,6 +288,14 @@ class Element {
 		return this;
 	}
 
+	// Get the offset width and height.
+	offset_width() {
+		return this.element.offsetWidth;
+	}
+	offset_height() {
+		return this.element.offsetHeight;
+	}
+
 	// Get the x and y offset
 	x() {
 		return this.element.offsetLeft;
@@ -268,8 +313,15 @@ class Element {
 
 	// Padding, 1 or 4 args.
 	padding(...values) {
-		if (values.length === 1) {
+		if (values.length === 0) {
+			return this.element.style.padding;
+		} else if (values.length === 1) {
 			this.element.style.padding = this.pad_numeric(values[0]);
+		} else if (values.length === 2) {	
+			this.element.style.paddingTop = this.pad_numeric(values[0]);
+			this.element.style.paddingRight = this.pad_numeric(values[1]);
+			this.element.style.paddingBottom = this.pad_numeric(values[0]);
+			this.element.style.paddingLeft = this.pad_numeric(values[1]);
 		} else if (values.length === 4) {
 			this.element.style.paddingTop = this.pad_numeric(values[0]);
 			this.element.style.paddingRight = this.pad_numeric(values[1]);
@@ -283,8 +335,15 @@ class Element {
 	
 	// Margin, 1 or 4 args.
 	margin(...values) {
-		if (values.length === 1) {
+		if (values.length === 0) {
+			return this.element.style.margin;
+		} else if (values.length === 1) {
 			this.element.style.margin = this.pad_numeric(values[0]);
+		} else if (values.length === 2) {		
+			this.element.style.marginTop = this.pad_numeric(values[0]);
+			this.element.style.marginRight = this.pad_numeric(values[1]);
+			this.element.style.marginBottom = this.pad_numeric(values[0]);
+			this.element.style.marginLeft = this.pad_numeric(values[1]);
 		} else if (values.length === 4) {
 			this.element.style.marginTop = this.pad_numeric(values[0]);
 			this.element.style.marginRight = this.pad_numeric(values[1]);
@@ -298,7 +357,9 @@ class Element {
 	
 	// Position, 1 or 4 args.
 	position(...values) {
-		if (values.length === 1) {
+		if (values.length === 0) {
+			return this.element.style.position;
+		} else if (values.length === 1) {
 			this.element.style.position = values[0];
 		} else if (values.length === 4) {
 			this.element.style.position = "absolute";
@@ -367,9 +428,11 @@ class Element {
 	align(value) {
 		switch (this.element_type) {
 			case "HStack":
+			case "ZStack":
 				this.element.style.justifyContent = value;
 				return this;
 			case "VStack":
+			case "Scroller":
 				this.element.style.alignItems = value;
 				return this;
 			default:
@@ -391,9 +454,11 @@ class Element {
 	align_vertical(value) {
 		switch (this.element_type) {
 			case "HStack":
+			case "ZStack":
 				this.element.style.alignItems = value;
 				return this;
 			case "VStack":
+			case "Scroller":
 				this.element.style.justifyContent = value;
 				return this;
 			default:
@@ -434,7 +499,7 @@ class Element {
 	// Styling functions.
 
 	/*	@docs: {
-     *	@name: Color
+     *	@title: Color
      *	@description: 
      *		Sets the color of text, also supports a `Gradient` element.
      *		
@@ -446,7 +511,7 @@ class Element {
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
+     *	} 
      *	@inherit: false
      } */ 
     color(value) {
@@ -642,7 +707,7 @@ class Element {
     // Specify if the element is hidden.
     // Should not be used with an argument, rather use hide() and show().
     // When no argument is passed it returns the visibility boolean.
-    hidden(...args) {
+    is_hidden(...args) {
     	if (args.length === 0) {
     		return this.element.style.display == "none" || typeof this.element.style.display === "undefined";
     	}
@@ -687,23 +752,37 @@ class Element {
 			let dict = {};
 			for (let property in this.element.style) {
 				if (this.element.style.hasOwnProperty(property)) {
-					const key = this.element.style[property];
-					const value = this.element.style[key];
-					if (key !== '' && key !== undefined && typeof key !== 'function' &&
-						value !== '' && value !== undefined && typeof value !== 'function') {
-						dict[key] = value;
+
+					// Custom css styles will be a direct key instead of the string index.
+					// if (property[0] == "-") { 
+					if (!(/^\d+$/).test(property) && this.element.style[property] != '' && typeof this.element.style[property] !== 'function') { 
+						// console.log(property);
+						dict[property] = this.element.style[property];
 					}
+
+					// Default styles will be an index string instead of the key.
+					else { 
+						const key = this.element.style[property];
+						const value = this.element.style[key];
+						if (
+							key !== '' && key !== undefined && typeof key !== 'function' &&
+							value !== '' && value !== undefined && typeof value !== 'function'
+						) {
+							dict[key] = value;
+						}
+					}
+
 				}
 			}
 			return dict;
 		}
-		for (let i in css_attr) {
+		for (const i in css_attr) {
 			const value = css_attr[i];
-			if (i == "display" && value != null && value != "none") {
+			if (i === "display" && value != null && value !== "none") {
 				this.element_display = value;
 			}
 			this.element.style[i] = value;
-		}
+		}	
 		return this;
 	}
 	
@@ -738,14 +817,14 @@ class Element {
 	// Set events by dict.
 	events(html_events) {
 		for (let i in html_events) {
-			this.element[i] = i[html_events];
+			this.element[i] = html_events[i];
 		}
 		return this;
 	}
 
 	// Specifies one or more classnames for an element (refers to a class in a style sheet).
     /*	@docs: {
-     *	@name: Class
+     *	@title: Class
      *	@description: 
      *		Specifies one or more classnames for an element (refers to a class in a style sheet).
      *		The equivalent of HTML attribute `class`.
@@ -756,7 +835,7 @@ class Element {
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
+     *	} 
      *	@inherit: false
      } */ 
     class(value) {
@@ -790,17 +869,212 @@ class Element {
 	// Animate.
 	animate({
 		keyframes = [], 
-		options = {duration: 300, easing: "ease-in-out"},
+		easing = "ease-in-out",
+		delay = 0,
+		duration = 1000,
+		repeat = false,
 		on_finish = null,
 	}) {
-		const animation = this.element.animate(keyframes, options);
-		if (on_finish !== null) {
-			const e = this;
-			animation.onfinish = function() {
+		const e = this;
+
+		// Keep a single keyframe state for delays.
+		function keep_state(index) {
+			e.element.animate(
+				[
+					keyframes[index],
+					keyframes[index],
+				], 
+				{
+					duration: delay,
+				}
+			);
+		}
+
+		// Do an animation.
+		function do_animation(index) {
+
+			// Animate.
+			if (index + 1 < keyframes.length) {
+				const from = keyframes[index];
+				const to = keyframes[index + 1];
+				e.element.animate(
+					[
+						from, 
+						to,
+					], 
+					{
+						duration: from.duration || duration,
+						// easing: from.easing || easing,
+					}
+				);
+				if (to.delay != null && to.delay > 0) {
+					setTimeout(() => keep_state(index + 1), from.duration || duration);
+					setTimeout(() => do_animation(index + 1), (from.duration || duration) + (to.delay || 0));
+				} else {
+					setTimeout(() => do_animation(index + 1), from.duration || duration);
+				}
+			}
+
+			// Repeat when finished.
+			else if (repeat) {
+
+				// Keep last state till delay.
+				if (delay > 0) {
+					keep_state(keyframes.length - 1);
+					setTimeout(() => do_animation(0), delay);
+
+				}
+
+				// No delay.
+				else {
+					const delay = keyframes[keyframes.length - 1].duration || duration;
+					setTimeout(() => do_animation(0), delay);
+				}
+
+			}
+
+			// Finished.
+			else if (on_finish != null) {
 				on_finish(e);
 			}
-		}
+		};
+
+		// Start.
+		setTimeout(() => do_animation(0), delay || 0);
 		return this;
+
+		// ============================================
+		// v1.
+		/*
+
+		// Use default animation when the keyframes do not contain key "duration" or "delay".
+		const default_animation = true;
+		for (let i = 0; i < keyframes.length; i++) {
+			if (keyframes[i].duration != null || keyframes[i].delay != null) {
+				default_animation = false;
+				break;
+			}
+		}
+
+		// Default animation.
+		if (default_animation) {
+			if (options.iterations == "infinite") {
+				options.iterations = Infinity;
+			}
+			if (options.iterations == "infinite") {
+				options.iterations = Infinity;
+			}
+			const animation = this.element.animate(keyframes, options);
+			if (on_finish !== null) {
+				const e = this;
+				animation.onfinish = function() {
+					on_finish(e);
+				}
+			}
+			return this;
+		}
+
+		// const { keyframes, options: animationOptions, on_finish } = options;
+
+		// List of properties that require the "px" unit
+  		const padded_properties = [
+			"top",
+			"left",
+			"right",
+			"bottom",
+			"width",
+			"height",
+			"margin",
+			"margin-top",
+			"margin-bottom",
+			"margin-left",
+			"margin-right",
+			"padding",
+			"padding-top",
+			"padding-bottom",
+			"padding-left",
+			"padding-right",
+			"border-width",
+			"border-top-width",
+			"border-bottom-width",
+			"border-left-width",
+			"border-right-width",
+			"border-radius",
+  		];
+
+    	const animate_frame = (index) => {
+	        if (index >= keyframes.length) {
+	            if (options.iterations === "infinite") {
+	                // Repeat the animation if iterations are set to "infinite"
+	                requestAnimationFrame(() => animate_frame(0));
+	            } else if (typeof options.iterations === "number" && options.iterations > 1) {
+	                // Repeat the animation a finite number of times
+	                requestAnimationFrame(() => animate_frame(0));
+	                options.iterations--;
+	            } else if (on_finish) {
+	                // Animation finished, call the on_finish callback
+	                on_finish();
+	            }
+	            return;
+	        }
+
+	        const keyframe = keyframes[index];
+	        const next_keyframe = keyframes[index + 1] || keyframes[0];
+
+	        const duration = keyframe.duration || options.duration || 1000; // Default duration if not provided
+	        const delay = keyframe.delay || options.delay || 0; // Default duration if not provided
+	        const start_time = Date.now();
+
+	        const animate_step = () => {
+	            const elapsed = Date.now() - start_time;
+	            const delay_progress = delay == 0 ? 1 : Math.min(elapsed / delay, 1);
+	            const progress = duration == 0 ? 1 : Math.min((elapsed - delay) / duration, 1);
+
+	            if (delay_progress >= 1) {
+		            for (let property in keyframe) {
+		            	const from = keyframe[property];
+		            	const to = next_keyframe[property];
+
+		            	// Apply "px" unit to properties that require it.
+		            	if (padded_properties.includes(property)) {
+		            		let padding;
+		            		if (vweb.utils.is_string(from)) {
+		            			if (from.includes("px")) {
+		            				from = parseFloat(from.substr(0, from.length - 2));
+		            				padding = "px";
+		            			} else if (from.includes("%")) {
+		            				from = parseFloat(from.substr(0, from.length - 1));
+		            				padding = "%";
+		            			}
+		            		} else {
+		            			padding = "px";
+		            		}
+			                const current = (to - from) * progress + from;
+							this.element.style[property] = current + padding;
+						}
+
+						// Apply non-numeric animation directly.
+						else if (progress >= 1){
+							this.element.style[property] = to;
+						}
+
+		            }
+		         }
+
+	            if (delay_progress < 1 || progress < 1) {
+	                requestAnimationFrame(animate_step);
+	            } else {
+	                requestAnimationFrame(() => animate_frame(index + 1));
+	            }
+	        };
+
+	        animate_step();
+	    };
+
+	    animate_frame(0);
+
+		return this;
+		*/
 	}
 
 	// ---------------------------------------------------------
@@ -812,6 +1086,133 @@ class Element {
     	this.element.onclick = value;
     	return this;
     }
+
+    // Script to be run when the browser window is being resized.
+    /*	@docs: {
+     *	@title: On resize
+     *	@description: 
+     *		Script to be run when the browser window is being resized.
+     *		
+     *		The first parameter of the callback is the `Element` object.
+     *	@return: 
+     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *	@parameter: {
+     *		@name: value
+     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+     *	}: 
+     *	@inherit: false
+     } */ 
+    on_window_resize({callback, once = false, delay = 25}) {
+        if (callback == null) { return window.onresize; }
+    	const e = this;
+    	window.addEventListener('resize', () => {
+    		if (once && e.on_window_resize_timer != null) {
+    			clearTimeout(e.on_window_resize_timer)
+    		}
+    		e.on_window_resize_timer = setTimeout(() => callback(e), delay);
+    	});
+    	return this;
+    }
+
+    // Custom on attachment drop event.
+    on_attachment_drop({handler, compress = false}) {
+    	this.on_drag_over(function(e) {
+			e.preventDefault();
+			e.dataTransfer.dropEffect = "copy";
+		});
+		this.on_drop(function(e) {
+			e.preventDefault();
+			const files = e.dataTransfer.files;
+			for (let i = 0; i < files.length; i++) {
+				const file = files[i];
+				const reader = new FileReader();
+				reader.onload = (event) => {
+					if (compress == true) {
+						handler(file.name, vweb.utils.compress(event.target.result), file);
+					} else {
+						handler(file.name, event.target.result, file);
+					}
+				};
+				reader.readAsText(file);
+			}
+		});
+		return this;
+    }
+
+    // Event when a element appears to the user.
+    on_appear({callback, repeat = false}) {
+    	let is_called = false;
+    	const observer = new IntersectionObserver((entries, observer) => {
+			entries.forEach(entry => {
+				if (entry.isIntersecting && !is_called) {
+					if (callback != null) {
+						const e = this;
+						callback(e);
+					}
+					if (!repeat) {
+						observer.unobserve(entry.target);
+					}
+					is_called = true;
+				} else if (!entry.isIntersecting) {
+					is_called = false;
+				}
+			});
+		});
+		observer.observe(this.element);
+		return this;
+    }
+
+    // ---------------------------------------------------------
+	// Pseudo element styles.
+
+	// Style the before object.
+	// Returns style object of the pseudo-element.
+	before() {
+		const pseudo = getComputedStyle(this.element, '::before');
+		const e = new Element();
+		e.element = pseudo;
+		return e;
+	}
+
+	// Style the after object.
+	// Returns style object of the pseudo-element.
+	after() {
+		const pseudo = getComputedStyle(this.element, '::after');
+		const e = new Element();
+		e.element = pseudo;
+		return e;
+	}
+
+	// ---------------------------------------------------------
+	// Other functions.
+
+	// Get the children.
+	children() {
+		return this.element.children;
+	}
+
+	// Get the first child.
+	first_child() {
+		return this.element.firstChild;
+	}
+
+	// Get the last child.
+	last_child() {
+		return this.element.lastChild;
+	}
+
+	// ---------------------------------------------------------
+	// Custom functions for some derived classes.
+
+	// Get or set the parent element.
+	// Only assigned when this is a child element of a specific Element derived class, such as LoaderButton.
+	parent(value) {
+		if (value == null) {
+			return this.parent_e;
+		}
+		this.parent_e = value;
+		return this;
+	}
 
 	// ---------------------------------------------------------
 	// Cast functions.
@@ -832,7 +1233,7 @@ class Element {
 
     // Specifies an accent color for user-interface controls.
     /*	@docs: {
-     *	@name: Accent color
+     *	@title: Accent color
      *	@description: 
      *		Specifies an accent color for user-interface controls.
      *		The equivalent of CSS attribute `accentColor`.
@@ -854,7 +1255,7 @@ class Element {
 
     // Specifies the alignment between the lines inside a flexible container when the items do not use all available space.
     /*	@docs: {
-     *	@name: Align content
+     *	@title: Align content
      *	@description: 
      *		Specifies the alignment between the lines inside a flexible container when the items do not use all available space.
      *		The equivalent of CSS attribute `alignContent`.
@@ -871,12 +1272,16 @@ class Element {
     align_content(value) {
         if (value == null) { return this.element.style.alignContent; }
         this.element.style.alignContent = value;
+        this.element.style.msAlignContent = value;
+        this.element.style.webkitAlignContent = value;
+        this.element.style.MozAlignContent = value;
+        this.element.style.OAlignContent = value;
         return this;
     }
 
     // Specifies the alignment for items inside a flexible container.
     /*	@docs: {
-     *	@name: Align items
+     *	@title: Align items
      *	@description: 
      *		Specifies the alignment for items inside a flexible container.
      *		The equivalent of CSS attribute `alignItems`.
@@ -893,12 +1298,16 @@ class Element {
     align_items(value) {
         if (value == null) { return this.element.style.alignItems; }
         this.element.style.alignItems = value;
+        this.element.style.msAlignItems = value;
+        this.element.style.webkitAlignItems = value;
+        this.element.style.MozAlignItems = value;
+        this.element.style.OAlignItems = value;
         return this;
     }
 
     // Specifies the alignment for selected items inside a flexible container.
     /*	@docs: {
-     *	@name: Align self
+     *	@title: Align self
      *	@description: 
      *		Specifies the alignment for selected items inside a flexible container.
      *		The equivalent of CSS attribute `alignSelf`.
@@ -915,12 +1324,16 @@ class Element {
     align_self(value) {
         if (value == null) { return this.element.style.alignSelf; }
         this.element.style.alignSelf = value;
+        this.element.style.msAlignSelf = value;
+        this.element.style.webkitAlignSelf = value;
+        this.element.style.MozAlignSelf = value;
+        this.element.style.OAlignSelf = value;
         return this;
     }
 
     // Resets all properties (except unicode-bidi and direction).
     /*	@docs: {
-     *	@name: All
+     *	@title: All
      *	@description: 
      *		Resets all properties (except unicode-bidi and direction).
      *		The equivalent of CSS attribute `all`.
@@ -942,7 +1355,7 @@ class Element {
 
     // A shorthand property for all the animation-* properties.
     /*	@docs: {
-     *	@name: Animation
+     *	@title: Animation
      *	@description: 
      *		A shorthand property for all the animation-* properties.
      *		The equivalent of CSS attribute `animation`.
@@ -959,12 +1372,16 @@ class Element {
     animation(value) {
         if (value == null) { return this.element.style.animation; }
         this.element.style.animation = value;
+        this.element.style.msAnimation = value;
+        this.element.style.webkitAnimation = value;
+        this.element.style.MozAnimation = value;
+        this.element.style.OAnimation = value;
         return this;
     }
 
     // Specifies a delay for the start of an animation.
     /*	@docs: {
-     *	@name: Animation delay
+     *	@title: Animation delay
      *	@description: 
      *		Specifies a delay for the start of an animation.
      *		The equivalent of CSS attribute `animationDelay`.
@@ -981,12 +1398,16 @@ class Element {
     animation_delay(value) {
         if (value == null) { return this.element.style.animationDelay; }
         this.element.style.animationDelay = value;
+        this.element.style.msAnimationDelay = value;
+        this.element.style.webkitAnimationDelay = value;
+        this.element.style.MozAnimationDelay = value;
+        this.element.style.OAnimationDelay = value;
         return this;
     }
 
     // Specifies whether an animation should be played forwards, backwards or in alternate cycles.
     /*	@docs: {
-     *	@name: Animation direction
+     *	@title: Animation direction
      *	@description: 
      *		Specifies whether an animation should be played forwards, backwards or in alternate cycles.
      *		The equivalent of CSS attribute `animationDirection`.
@@ -1003,12 +1424,16 @@ class Element {
     animation_direction(value) {
         if (value == null) { return this.element.style.animationDirection; }
         this.element.style.animationDirection = value;
+        this.element.style.msAnimationDirection = value;
+        this.element.style.webkitAnimationDirection = value;
+        this.element.style.MozAnimationDirection = value;
+        this.element.style.OAnimationDirection = value;
         return this;
     }
 
     // Specifies how long an animation should take to complete one cycle.
     /*	@docs: {
-     *	@name: Animation duration
+     *	@title: Animation duration
      *	@description: 
      *		Specifies how long an animation should take to complete one cycle.
      *		The equivalent of CSS attribute `animationDuration`.
@@ -1025,12 +1450,16 @@ class Element {
     animation_duration(value) {
         if (value == null) { return this.element.style.animationDuration; }
         this.element.style.animationDuration = value;
+        this.element.style.msAnimationDuration = value;
+        this.element.style.webkitAnimationDuration = value;
+        this.element.style.MozAnimationDuration = value;
+        this.element.style.OAnimationDuration = value;
         return this;
     }
 
     // Specifies a style for the element when the animation is not playing (before it starts, after it ends, or both).
     /*	@docs: {
-     *	@name: Animation fill mode
+     *	@title: Animation fill mode
      *	@description: 
      *		Specifies a style for the element when the animation is not playing (before it starts, after it ends, or both).
      *		The equivalent of CSS attribute `animationFillMode`.
@@ -1047,12 +1476,16 @@ class Element {
     animation_fill_mode(value) {
         if (value == null) { return this.element.style.animationFillMode; }
         this.element.style.animationFillMode = value;
+        this.element.style.msAnimationFillMode = value;
+        this.element.style.webkitAnimationFillMode = value;
+        this.element.style.MozAnimationFillMode = value;
+        this.element.style.OAnimationFillMode = value;
         return this;
     }
 
     // Specifies the number of times an animation should be played.
     /*	@docs: {
-     *	@name: Animation iteration count
+     *	@title: Animation iteration count
      *	@description: 
      *		Specifies the number of times an animation should be played.
      *		The equivalent of CSS attribute `animationIterationCount`.
@@ -1069,12 +1502,16 @@ class Element {
     animation_iteration_count(value) {
         if (value == null) { return this.element.style.animationIterationCount; }
         this.element.style.animationIterationCount = value;
+        this.element.style.msAnimationIterationCount = value;
+        this.element.style.webkitAnimationIterationCount = value;
+        this.element.style.MozAnimationIterationCount = value;
+        this.element.style.OAnimationIterationCount = value;
         return this;
     }
 
     // Specifies a name for the @keyframes animation.
     /*	@docs: {
-     *	@name: Animation name
+     *	@title: Animation name
      *	@description: 
      *		Specifies a name for the @keyframes animation.
      *		The equivalent of CSS attribute `animationName`.
@@ -1091,12 +1528,16 @@ class Element {
     animation_name(value) {
         if (value == null) { return this.element.style.animationName; }
         this.element.style.animationName = value;
+        this.element.style.msAnimationName = value;
+        this.element.style.webkitAnimationName = value;
+        this.element.style.MozAnimationName = value;
+        this.element.style.OAnimationName = value;
         return this;
     }
 
     // Specifies whether the animation is running or paused.
     /*	@docs: {
-     *	@name: Animation play state
+     *	@title: Animation play state
      *	@description: 
      *		Specifies whether the animation is running or paused.
      *		The equivalent of CSS attribute `animationPlayState`.
@@ -1113,12 +1554,16 @@ class Element {
     animation_play_state(value) {
         if (value == null) { return this.element.style.animationPlayState; }
         this.element.style.animationPlayState = value;
+        this.element.style.msAnimationPlayState = value;
+        this.element.style.webkitAnimationPlayState = value;
+        this.element.style.MozAnimationPlayState = value;
+        this.element.style.OAnimationPlayState = value;
         return this;
     }
 
     // Specifies the speed curve of an animation.
     /*	@docs: {
-     *	@name: Animation timing function
+     *	@title: Animation timing function
      *	@description: 
      *		Specifies the speed curve of an animation.
      *		The equivalent of CSS attribute `animationTimingFunction`.
@@ -1135,12 +1580,16 @@ class Element {
     animation_timing_function(value) {
         if (value == null) { return this.element.style.animationTimingFunction; }
         this.element.style.animationTimingFunction = value;
+        this.element.style.msAnimationTimingFunction = value;
+        this.element.style.webkitAnimationTimingFunction = value;
+        this.element.style.MozAnimationTimingFunction = value;
+        this.element.style.OAnimationTimingFunction = value;
         return this;
     }
 
     // Specifies preferred aspect ratio of an element.
     /*	@docs: {
-     *	@name: Aspect ratio
+     *	@title: Aspect ratio
      *	@description: 
      *		Specifies preferred aspect ratio of an element.
      *		The equivalent of CSS attribute `aspectRatio`.
@@ -1162,7 +1611,7 @@ class Element {
 
     // Defines a graphical effect to the area behind an element.
     /*	@docs: {
-     *	@name: Backdrop filter
+     *	@title: Backdrop filter
      *	@description: 
      *		Defines a graphical effect to the area behind an element.
      *		The equivalent of CSS attribute `backdropFilter`.
@@ -1184,7 +1633,7 @@ class Element {
 
     // Defines whether or not the back face of an element should be visible when facing the user.
     /*	@docs: {
-     *	@name: Backface visibility
+     *	@title: Backface visibility
      *	@description: 
      *		Defines whether or not the back face of an element should be visible when facing the user.
      *		The equivalent of CSS attribute `backfaceVisibility`.
@@ -1201,12 +1650,16 @@ class Element {
     backface_visibility(value) {
         if (value == null) { return this.element.style.backfaceVisibility; }
         this.element.style.backfaceVisibility = value;
+        this.element.style.msBackfaceVisibility = value;
+        this.element.style.webkitBackfaceVisibility = value;
+        this.element.style.MozBackfaceVisibility = value;
+        this.element.style.OBackfaceVisibility = value;
         return this;
     }
 
     // A shorthand property for all the background-* properties.
     /*	@docs: {
-     *	@name: Background
+     *	@title: Background
      *	@description: 
      *		A shorthand property for all the background-* properties.
      *		The equivalent of CSS attribute `background`.
@@ -1228,7 +1681,7 @@ class Element {
 
     // Sets whether a background image scrolls with the rest of the page, or is fixed.
     /*	@docs: {
-     *	@name: Background attachment
+     *	@title: Background attachment
      *	@description: 
      *		Sets whether a background image scrolls with the rest of the page, or is fixed.
      *		The equivalent of CSS attribute `backgroundAttachment`.
@@ -1250,7 +1703,7 @@ class Element {
 
     // Specifies the blending mode of each background layer (color/image).
     /*	@docs: {
-     *	@name: Background blend mode
+     *	@title: Background blend mode
      *	@description: 
      *		Specifies the blending mode of each background layer (color/image).
      *		The equivalent of CSS attribute `backgroundBlendMode`.
@@ -1272,7 +1725,7 @@ class Element {
 
     // Defines how far the background (color or image) should extend within an element.
     /*	@docs: {
-     *	@name: Background clip
+     *	@title: Background clip
      *	@description: 
      *		Defines how far the background (color or image) should extend within an element.
      *		The equivalent of CSS attribute `backgroundClip`.
@@ -1289,12 +1742,16 @@ class Element {
     background_clip(value) {
         if (value == null) { return this.element.style.backgroundClip; }
         this.element.style.backgroundClip = value;
+        this.element.style.msBackgroundClip = value;
+        this.element.style.webkitBackgroundClip = value;
+        this.element.style.MozBackgroundClip = value;
+        this.element.style.OBackgroundClip = value;
         return this;
     }
 
     // Specifies the background color of an element.
     /*	@docs: {
-     *	@name: Background color
+     *	@title: Background color
      *	@description: 
      *		Specifies the background color of an element.
      *		The equivalent of CSS attribute `backgroundColor`.
@@ -1316,7 +1773,7 @@ class Element {
 
     // Specifies one or more background images for an element.
     /*	@docs: {
-     *	@name: Background image
+     *	@title: Background image
      *	@description: 
      *		Specifies one or more background images for an element.
      *		The equivalent of CSS attribute `backgroundImage`.
@@ -1338,7 +1795,7 @@ class Element {
 
     // Specifies the origin position of a background image.
     /*	@docs: {
-     *	@name: Background origin
+     *	@title: Background origin
      *	@description: 
      *		Specifies the origin position of a background image.
      *		The equivalent of CSS attribute `backgroundOrigin`.
@@ -1355,12 +1812,16 @@ class Element {
     background_origin(value) {
         if (value == null) { return this.element.style.backgroundOrigin; }
         this.element.style.backgroundOrigin = value;
+        this.element.style.msBackgroundOrigin = value;
+        this.element.style.webkitBackgroundOrigin = value;
+        this.element.style.MozBackgroundOrigin = value;
+        this.element.style.OBackgroundOrigin = value;
         return this;
     }
 
     // Specifies the position of a background image.
     /*	@docs: {
-     *	@name: Background position
+     *	@title: Background position
      *	@description: 
      *		Specifies the position of a background image.
      *		The equivalent of CSS attribute `backgroundPosition`.
@@ -1382,7 +1843,7 @@ class Element {
 
     // Specifies the position of a background image on x-axis.
     /*	@docs: {
-     *	@name: Background position x
+     *	@title: Background position x
      *	@description: 
      *		Specifies the position of a background image on x-axis.
      *		The equivalent of CSS attribute `backgroundPositionX`.
@@ -1404,7 +1865,7 @@ class Element {
 
     // Specifies the position of a background image on y-axis.
     /*	@docs: {
-     *	@name: Background position y
+     *	@title: Background position y
      *	@description: 
      *		Specifies the position of a background image on y-axis.
      *		The equivalent of CSS attribute `backgroundPositionY`.
@@ -1426,7 +1887,7 @@ class Element {
 
     // Sets if/how a background image will be repeated.
     /*	@docs: {
-     *	@name: Background repeat
+     *	@title: Background repeat
      *	@description: 
      *		Sets if/how a background image will be repeated.
      *		The equivalent of CSS attribute `backgroundRepeat`.
@@ -1448,7 +1909,7 @@ class Element {
 
     // Specifies the size of the background images.
     /*	@docs: {
-     *	@name: Background size
+     *	@title: Background size
      *	@description: 
      *		Specifies the size of the background images.
      *		The equivalent of CSS attribute `backgroundSize`.
@@ -1465,12 +1926,16 @@ class Element {
     background_size(value) {
         if (value == null) { return this.element.style.backgroundSize; }
         this.element.style.backgroundSize = this.pad_numeric(value);
+        this.element.style.msBackgroundSize = this.pad_numeric(value);
+        this.element.style.webkitBackgroundSize = this.pad_numeric(value);
+        this.element.style.MozBackgroundSize = this.pad_numeric(value);
+        this.element.style.OBackgroundSize = this.pad_numeric(value);
         return this;
     }
 
     // Specifies the size of an element in block direction.
     /*	@docs: {
-     *	@name: Block size
+     *	@title: Block size
      *	@description: 
      *		Specifies the size of an element in block direction.
      *		The equivalent of CSS attribute `blockSize`.
@@ -1499,7 +1964,7 @@ class Element {
 
     // A shorthand property for border-block-width, border-block-style and border-block-color.
     /*	@docs: {
-     *	@name: Border block
+     *	@title: Border block
      *	@description: 
      *		A shorthand property for border-block-width, border-block-style and border-block-color.
      *		The equivalent of CSS attribute `borderBlock`.
@@ -1521,7 +1986,7 @@ class Element {
 
     // Sets the color of the borders at start and end in the block direction.
     /*	@docs: {
-     *	@name: Border block color
+     *	@title: Border block color
      *	@description: 
      *		Sets the color of the borders at start and end in the block direction.
      *		The equivalent of CSS attribute `borderBlockColor`.
@@ -1543,7 +2008,7 @@ class Element {
 
     // Sets the color of the border at the end in the block direction.
     /*	@docs: {
-     *	@name: Border block end color
+     *	@title: Border block end color
      *	@description: 
      *		Sets the color of the border at the end in the block direction.
      *		The equivalent of CSS attribute `borderBlockEndColor`.
@@ -1565,7 +2030,7 @@ class Element {
 
     // Sets the style of the border at the end in the block direction.
     /*	@docs: {
-     *	@name: Border block end style
+     *	@title: Border block end style
      *	@description: 
      *		Sets the style of the border at the end in the block direction.
      *		The equivalent of CSS attribute `borderBlockEndStyle`.
@@ -1587,7 +2052,7 @@ class Element {
 
     // Sets the width of the border at the end in the block direction.
     /*	@docs: {
-     *	@name: Border block end width
+     *	@title: Border block end width
      *	@description: 
      *		Sets the width of the border at the end in the block direction.
      *		The equivalent of CSS attribute `borderBlockEndWidth`.
@@ -1609,7 +2074,7 @@ class Element {
 
     // Sets the color of the border at the start in the block direction.
     /*	@docs: {
-     *	@name: Border block start color
+     *	@title: Border block start color
      *	@description: 
      *		Sets the color of the border at the start in the block direction.
      *		The equivalent of CSS attribute `borderBlockStartColor`.
@@ -1631,7 +2096,7 @@ class Element {
 
     // Sets the style of the border at the start in the block direction.
     /*	@docs: {
-     *	@name: Border block start style
+     *	@title: Border block start style
      *	@description: 
      *		Sets the style of the border at the start in the block direction.
      *		The equivalent of CSS attribute `borderBlockStartStyle`.
@@ -1653,7 +2118,7 @@ class Element {
 
     // Sets the width of the border at the start in the block direction.
     /*	@docs: {
-     *	@name: Border block start width
+     *	@title: Border block start width
      *	@description: 
      *		Sets the width of the border at the start in the block direction.
      *		The equivalent of CSS attribute `borderBlockStartWidth`.
@@ -1675,7 +2140,7 @@ class Element {
 
     // Sets the style of the borders at start and end in the block direction.
     /*	@docs: {
-     *	@name: Border block style
+     *	@title: Border block style
      *	@description: 
      *		Sets the style of the borders at start and end in the block direction.
      *		The equivalent of CSS attribute `borderBlockStyle`.
@@ -1697,7 +2162,7 @@ class Element {
 
     // Sets the width of the borders at start and end in the block direction.
     /*	@docs: {
-     *	@name: Border block width
+     *	@title: Border block width
      *	@description: 
      *		Sets the width of the borders at start and end in the block direction.
      *		The equivalent of CSS attribute `borderBlockWidth`.
@@ -1719,7 +2184,7 @@ class Element {
 
     // A shorthand property for border-bottom-width, border-bottom-style and border-bottom-color.
     /*	@docs: {
-     *	@name: Border bottom
+     *	@title: Border bottom
      *	@description: 
      *		A shorthand property for border-bottom-width, border-bottom-style and border-bottom-color.
      *		The equivalent of CSS attribute `borderBottom`.
@@ -1741,7 +2206,7 @@ class Element {
 
     // Sets the color of the bottom border.
     /*	@docs: {
-     *	@name: Border bottom color
+     *	@title: Border bottom color
      *	@description: 
      *		Sets the color of the bottom border.
      *		The equivalent of CSS attribute `borderBottomColor`.
@@ -1763,7 +2228,7 @@ class Element {
 
     // Defines the radius of the border of the bottom-left corner.
     /*	@docs: {
-     *	@name: Border bottom left radius
+     *	@title: Border bottom left radius
      *	@description: 
      *		Defines the radius of the border of the bottom-left corner.
      *		The equivalent of CSS attribute `borderBottomLeftRadius`.
@@ -1785,7 +2250,7 @@ class Element {
 
     // Defines the radius of the border of the bottom-right corner.
     /*	@docs: {
-     *	@name: Border bottom right radius
+     *	@title: Border bottom right radius
      *	@description: 
      *		Defines the radius of the border of the bottom-right corner.
      *		The equivalent of CSS attribute `borderBottomRightRadius`.
@@ -1807,7 +2272,7 @@ class Element {
 
     // Sets the style of the bottom border.
     /*	@docs: {
-     *	@name: Border bottom style
+     *	@title: Border bottom style
      *	@description: 
      *		Sets the style of the bottom border.
      *		The equivalent of CSS attribute `borderBottomStyle`.
@@ -1829,7 +2294,7 @@ class Element {
 
     // Sets the width of the bottom border.
     /*	@docs: {
-     *	@name: Border bottom width
+     *	@title: Border bottom width
      *	@description: 
      *		Sets the width of the bottom border.
      *		The equivalent of CSS attribute `borderBottomWidth`.
@@ -1851,7 +2316,7 @@ class Element {
 
     // Sets whether table borders should collapse into a single border or be separated.
     /*	@docs: {
-     *	@name: Border collapse
+     *	@title: Border collapse
      *	@description: 
      *		Sets whether table borders should collapse into a single border or be separated.
      *		The equivalent of CSS attribute `borderCollapse`.
@@ -1873,7 +2338,7 @@ class Element {
 
     // Sets the color of the four borders.
     /*	@docs: {
-     *	@name: Border color
+     *	@title: Border color
      *	@description: 
      *		Sets the color of the four borders.
      *		The equivalent of CSS attribute `borderColor`.
@@ -1895,7 +2360,7 @@ class Element {
 
     // A shorthand property for all the border-image-* properties.
     /*	@docs: {
-     *	@name: Border image
+     *	@title: Border image
      *	@description: 
      *		A shorthand property for all the border-image-* properties.
      *		The equivalent of CSS attribute `borderImage`.
@@ -1912,12 +2377,16 @@ class Element {
     border_image(value) {
         if (value == null) { return this.element.style.borderImage; }
         this.element.style.borderImage = value;
+        this.element.style.msBorderImage = value;
+        this.element.style.webkitBorderImage = value;
+        this.element.style.MozBorderImage = value;
+        this.element.style.OBorderImage = value;
         return this;
     }
 
     // Specifies the amount by which the border image area extends beyond the border box.
     /*	@docs: {
-     *	@name: Border image outset
+     *	@title: Border image outset
      *	@description: 
      *		Specifies the amount by which the border image area extends beyond the border box.
      *		The equivalent of CSS attribute `borderImageOutset`.
@@ -1939,7 +2408,7 @@ class Element {
 
     // Specifies whether the border image should be repeated, rounded or stretched.
     /*	@docs: {
-     *	@name: Border image repeat
+     *	@title: Border image repeat
      *	@description: 
      *		Specifies whether the border image should be repeated, rounded or stretched.
      *		The equivalent of CSS attribute `borderImageRepeat`.
@@ -1961,7 +2430,7 @@ class Element {
 
     // Specifies how to slice the border image.
     /*	@docs: {
-     *	@name: Border image slice
+     *	@title: Border image slice
      *	@description: 
      *		Specifies how to slice the border image.
      *		The equivalent of CSS attribute `borderImageSlice`.
@@ -1983,7 +2452,7 @@ class Element {
 
     // Specifies the path to the image to be used as a border.
     /*	@docs: {
-     *	@name: Border image source
+     *	@title: Border image source
      *	@description: 
      *		Specifies the path to the image to be used as a border.
      *		The equivalent of CSS attribute `borderImageSource`.
@@ -2005,7 +2474,7 @@ class Element {
 
     // Specifies the width of the border image.
     /*	@docs: {
-     *	@name: Border image width
+     *	@title: Border image width
      *	@description: 
      *		Specifies the width of the border image.
      *		The equivalent of CSS attribute `borderImageWidth`.
@@ -2027,7 +2496,7 @@ class Element {
 
     // A shorthand property for border-inline-width, border-inline-style and border-inline-color.
     /*	@docs: {
-     *	@name: Border inline
+     *	@title: Border inline
      *	@description: 
      *		A shorthand property for border-inline-width, border-inline-style and border-inline-color.
      *		The equivalent of CSS attribute `borderInline`.
@@ -2049,7 +2518,7 @@ class Element {
 
     // Sets the color of the borders at start and end in the inline direction.
     /*	@docs: {
-     *	@name: Border inline color
+     *	@title: Border inline color
      *	@description: 
      *		Sets the color of the borders at start and end in the inline direction.
      *		The equivalent of CSS attribute `borderInlineColor`.
@@ -2071,7 +2540,7 @@ class Element {
 
     // Sets the color of the border at the end in the inline direction.
     /*	@docs: {
-     *	@name: Border inline end color
+     *	@title: Border inline end color
      *	@description: 
      *		Sets the color of the border at the end in the inline direction.
      *		The equivalent of CSS attribute `borderInlineEndColor`.
@@ -2093,7 +2562,7 @@ class Element {
 
     // Sets the style of the border at the end in the inline direction.
     /*	@docs: {
-     *	@name: Border inline end style
+     *	@title: Border inline end style
      *	@description: 
      *		Sets the style of the border at the end in the inline direction.
      *		The equivalent of CSS attribute `borderInlineEndStyle`.
@@ -2115,7 +2584,7 @@ class Element {
 
     // Sets the width of the border at the end in the inline direction.
     /*	@docs: {
-     *	@name: Border inline end width
+     *	@title: Border inline end width
      *	@description: 
      *		Sets the width of the border at the end in the inline direction.
      *		The equivalent of CSS attribute `borderInlineEndWidth`.
@@ -2137,7 +2606,7 @@ class Element {
 
     // Sets the color of the border at the start in the inline direction.
     /*	@docs: {
-     *	@name: Border inline start color
+     *	@title: Border inline start color
      *	@description: 
      *		Sets the color of the border at the start in the inline direction.
      *		The equivalent of CSS attribute `borderInlineStartColor`.
@@ -2159,7 +2628,7 @@ class Element {
 
     // Sets the style of the border at the start in the inline direction.
     /*	@docs: {
-     *	@name: Border inline start style
+     *	@title: Border inline start style
      *	@description: 
      *		Sets the style of the border at the start in the inline direction.
      *		The equivalent of CSS attribute `borderInlineStartStyle`.
@@ -2181,7 +2650,7 @@ class Element {
 
     // Sets the width of the border at the start in the inline direction.
     /*	@docs: {
-     *	@name: Border inline start width
+     *	@title: Border inline start width
      *	@description: 
      *		Sets the width of the border at the start in the inline direction.
      *		The equivalent of CSS attribute `borderInlineStartWidth`.
@@ -2203,7 +2672,7 @@ class Element {
 
     // Sets the style of the borders at start and end in the inline direction.
     /*	@docs: {
-     *	@name: Border inline style
+     *	@title: Border inline style
      *	@description: 
      *		Sets the style of the borders at start and end in the inline direction.
      *		The equivalent of CSS attribute `borderInlineStyle`.
@@ -2225,7 +2694,7 @@ class Element {
 
     // Sets the width of the borders at start and end in the inline direction.
     /*	@docs: {
-     *	@name: Border inline width
+     *	@title: Border inline width
      *	@description: 
      *		Sets the width of the borders at start and end in the inline direction.
      *		The equivalent of CSS attribute `borderInlineWidth`.
@@ -2247,7 +2716,7 @@ class Element {
 
     // A shorthand property for all the border-left-* properties.
     /*	@docs: {
-     *	@name: Border left
+     *	@title: Border left
      *	@description: 
      *		A shorthand property for all the border-left-* properties.
      *		The equivalent of CSS attribute `borderLeft`.
@@ -2269,7 +2738,7 @@ class Element {
 
     // Sets the color of the left border.
     /*	@docs: {
-     *	@name: Border left color
+     *	@title: Border left color
      *	@description: 
      *		Sets the color of the left border.
      *		The equivalent of CSS attribute `borderLeftColor`.
@@ -2291,7 +2760,7 @@ class Element {
 
     // Sets the style of the left border.
     /*	@docs: {
-     *	@name: Border left style
+     *	@title: Border left style
      *	@description: 
      *		Sets the style of the left border.
      *		The equivalent of CSS attribute `borderLeftStyle`.
@@ -2313,7 +2782,7 @@ class Element {
 
     // Sets the width of the left border.
     /*	@docs: {
-     *	@name: Border left width
+     *	@title: Border left width
      *	@description: 
      *		Sets the width of the left border.
      *		The equivalent of CSS attribute `borderLeftWidth`.
@@ -2335,7 +2804,7 @@ class Element {
 
     // A shorthand property for the four border-*-radius properties.
     /*	@docs: {
-     *	@name: Border radius
+     *	@title: Border radius
      *	@description: 
      *		A shorthand property for the four border-*-radius properties.
      *		The equivalent of CSS attribute `borderRadius`.
@@ -2352,12 +2821,16 @@ class Element {
     border_radius(value) {
         if (value == null) { return this.element.style.borderRadius; }
         this.element.style.borderRadius = this.pad_numeric(value);
+        this.element.style.msBorderRadius = this.pad_numeric(value);
+        this.element.style.webkitBorderRadius = this.pad_numeric(value);
+        this.element.style.MozBorderRadius = this.pad_numeric(value);
+        this.element.style.OBorderRadius = this.pad_numeric(value);
         return this;
     }
 
     // A shorthand property for all the border-right-* properties.
     /*	@docs: {
-     *	@name: Border right
+     *	@title: Border right
      *	@description: 
      *		A shorthand property for all the border-right-* properties.
      *		The equivalent of CSS attribute `borderRight`.
@@ -2379,7 +2852,7 @@ class Element {
 
     // Sets the color of the right border.
     /*	@docs: {
-     *	@name: Border right color
+     *	@title: Border right color
      *	@description: 
      *		Sets the color of the right border.
      *		The equivalent of CSS attribute `borderRightColor`.
@@ -2401,7 +2874,7 @@ class Element {
 
     // Sets the style of the right border.
     /*	@docs: {
-     *	@name: Border right style
+     *	@title: Border right style
      *	@description: 
      *		Sets the style of the right border.
      *		The equivalent of CSS attribute `borderRightStyle`.
@@ -2423,7 +2896,7 @@ class Element {
 
     // Sets the width of the right border.
     /*	@docs: {
-     *	@name: Border right width
+     *	@title: Border right width
      *	@description: 
      *		Sets the width of the right border.
      *		The equivalent of CSS attribute `borderRightWidth`.
@@ -2445,7 +2918,7 @@ class Element {
 
     // Sets the distance between the borders of adjacent cells.
     /*	@docs: {
-     *	@name: Border spacing
+     *	@title: Border spacing
      *	@description: 
      *		Sets the distance between the borders of adjacent cells.
      *		The equivalent of CSS attribute `borderSpacing`.
@@ -2467,7 +2940,7 @@ class Element {
 
     // Sets the style of the four borders.
     /*	@docs: {
-     *	@name: Border style
+     *	@title: Border style
      *	@description: 
      *		Sets the style of the four borders.
      *		The equivalent of CSS attribute `borderStyle`.
@@ -2489,7 +2962,7 @@ class Element {
 
     // A shorthand property for border-top-width, border-top-style and border-top-color.
     /*	@docs: {
-     *	@name: Border top
+     *	@title: Border top
      *	@description: 
      *		A shorthand property for border-top-width, border-top-style and border-top-color.
      *		The equivalent of CSS attribute `borderTop`.
@@ -2511,7 +2984,7 @@ class Element {
 
     // Sets the color of the top border.
     /*	@docs: {
-     *	@name: Border top color
+     *	@title: Border top color
      *	@description: 
      *		Sets the color of the top border.
      *		The equivalent of CSS attribute `borderTopColor`.
@@ -2533,7 +3006,7 @@ class Element {
 
     // Defines the radius of the border of the top-left corner.
     /*	@docs: {
-     *	@name: Border top left radius
+     *	@title: Border top left radius
      *	@description: 
      *		Defines the radius of the border of the top-left corner.
      *		The equivalent of CSS attribute `borderTopLeftRadius`.
@@ -2555,7 +3028,7 @@ class Element {
 
     // Defines the radius of the border of the top-right corner.
     /*	@docs: {
-     *	@name: Border top right radius
+     *	@title: Border top right radius
      *	@description: 
      *		Defines the radius of the border of the top-right corner.
      *		The equivalent of CSS attribute `borderTopRightRadius`.
@@ -2577,7 +3050,7 @@ class Element {
 
     // Sets the style of the top border.
     /*	@docs: {
-     *	@name: Border top style
+     *	@title: Border top style
      *	@description: 
      *		Sets the style of the top border.
      *		The equivalent of CSS attribute `borderTopStyle`.
@@ -2599,7 +3072,7 @@ class Element {
 
     // Sets the width of the top border.
     /*	@docs: {
-     *	@name: Border top width
+     *	@title: Border top width
      *	@description: 
      *		Sets the width of the top border.
      *		The equivalent of CSS attribute `borderTopWidth`.
@@ -2621,7 +3094,7 @@ class Element {
 
     // Sets the width of the four borders.
     /*	@docs: {
-     *	@name: Border width
+     *	@title: Border width
      *	@description: 
      *		Sets the width of the four borders.
      *		The equivalent of CSS attribute `borderWidth`.
@@ -2643,7 +3116,7 @@ class Element {
 
     // Sets the elements position, from the bottom of its parent element.
     /*	@docs: {
-     *	@name: Bottom
+     *	@title: Bottom
      *	@description: 
      *		Sets the elements position, from the bottom of its parent element.
      *		The equivalent of CSS attribute `bottom`.
@@ -2665,7 +3138,7 @@ class Element {
 
     // Sets the behavior of the background and border of an element at page-break, or, for in-line elements, at line-break.
     /*	@docs: {
-     *	@name: Box decoration break
+     *	@title: Box decoration break
      *	@description: 
      *		Sets the behavior of the background and border of an element at page-break, or, for in-line elements, at line-break.
      *		The equivalent of CSS attribute `boxDecorationBreak`.
@@ -2687,7 +3160,7 @@ class Element {
 
     // The box-reflect property is used to create a reflection of an element.
     /*	@docs: {
-     *	@name: Box reflect
+     *	@title: Box reflect
      *	@description: 
      *		The box-reflect property is used to create a reflection of an element.
      *		The equivalent of CSS attribute `boxReflect`.
@@ -2709,7 +3182,7 @@ class Element {
 
     // Attaches one or more shadows to an element.
     /*	@docs: {
-     *	@name: Box shadow
+     *	@title: Box shadow
      *	@description: 
      *		Attaches one or more shadows to an element.
      *		The equivalent of CSS attribute `boxShadow`.
@@ -2726,12 +3199,16 @@ class Element {
     box_shadow(value) {
         if (value == null) { return this.element.style.boxShadow; }
         this.element.style.boxShadow = value;
+        this.element.style.msBoxShadow = value;
+        this.element.style.webkitBoxShadow = value;
+        this.element.style.MozBoxShadow = value;
+        this.element.style.OBoxShadow = value;
         return this;
     }
 
     // Defines how the width and height of an element are calculated: should they include padding and borders, or not.
     /*	@docs: {
-     *	@name: Box sizing
+     *	@title: Box sizing
      *	@description: 
      *		Defines how the width and height of an element are calculated: should they include padding and borders, or not.
      *		The equivalent of CSS attribute `boxSizing`.
@@ -2748,12 +3225,16 @@ class Element {
     box_sizing(value) {
         if (value == null) { return this.element.style.boxSizing; }
         this.element.style.boxSizing = value;
+        this.element.style.msBoxSizing = value;
+        this.element.style.webkitBoxSizing = value;
+        this.element.style.MozBoxSizing = value;
+        this.element.style.OBoxSizing = value;
         return this;
     }
 
     // Specifies whether or not a page-, column-, or region-break should occur after the specified element.
     /*	@docs: {
-     *	@name: Break after
+     *	@title: Break after
      *	@description: 
      *		Specifies whether or not a page-, column-, or region-break should occur after the specified element.
      *		The equivalent of CSS attribute `breakAfter`.
@@ -2775,7 +3256,7 @@ class Element {
 
     // Specifies whether or not a page-, column-, or region-break should occur before the specified element.
     /*	@docs: {
-     *	@name: Break before
+     *	@title: Break before
      *	@description: 
      *		Specifies whether or not a page-, column-, or region-break should occur before the specified element.
      *		The equivalent of CSS attribute `breakBefore`.
@@ -2797,7 +3278,7 @@ class Element {
 
     // Specifies whether or not a page-, column-, or region-break should occur inside the specified element.
     /*	@docs: {
-     *	@name: Break inside
+     *	@title: Break inside
      *	@description: 
      *		Specifies whether or not a page-, column-, or region-break should occur inside the specified element.
      *		The equivalent of CSS attribute `breakInside`.
@@ -2819,7 +3300,7 @@ class Element {
 
     // Specifies the placement of a table caption.
     /*	@docs: {
-     *	@name: Caption side
+     *	@title: Caption side
      *	@description: 
      *		Specifies the placement of a table caption.
      *		The equivalent of CSS attribute `captionSide`.
@@ -2841,7 +3322,7 @@ class Element {
 
     // Specifies the color of the cursor (caret) in inputs, textareas, or any element that is editable.
     /*	@docs: {
-     *	@name: Caret color
+     *	@title: Caret color
      *	@description: 
      *		Specifies the color of the cursor (caret) in inputs, textareas, or any element that is editable.
      *		The equivalent of CSS attribute `caretColor`.
@@ -2863,7 +3344,7 @@ class Element {
 
     // Specifies what should happen with the element that is next to a floating element.
     /*	@docs: {
-     *	@name: Clear
+     *	@title: Clear
      *	@description: 
      *		Specifies what should happen with the element that is next to a floating element.
      *		The equivalent of CSS attribute `clear`.
@@ -2885,7 +3366,7 @@ class Element {
 
     // Clips an absolutely positioned element.
     /*	@docs: {
-     *	@name: Clip
+     *	@title: Clip
      *	@description: 
      *		Clips an absolutely positioned element.
      *		The equivalent of CSS attribute `clip`.
@@ -2914,7 +3395,7 @@ class Element {
 
     // Specifies the number of columns an element should be divided into.
     /*	@docs: {
-     *	@name: Column count
+     *	@title: Column count
      *	@description: 
      *		Specifies the number of columns an element should be divided into.
      *		The equivalent of CSS attribute `columnCount`.
@@ -2931,12 +3412,16 @@ class Element {
     column_count(value) {
         if (value == null) { return this.element.style.columnCount; }
         this.element.style.columnCount = value;
+        this.element.style.msColumnCount = value;
+        this.element.style.webkitColumnCount = value;
+        this.element.style.MozColumnCount = value;
+        this.element.style.OColumnCount = value;
         return this;
     }
 
     // Specifies how to fill columns, balanced or not.
     /*	@docs: {
-     *	@name: Column fill
+     *	@title: Column fill
      *	@description: 
      *		Specifies how to fill columns, balanced or not.
      *		The equivalent of CSS attribute `columnFill`.
@@ -2958,7 +3443,7 @@ class Element {
 
     // Specifies the gap between the columns.
     /*	@docs: {
-     *	@name: Column gap
+     *	@title: Column gap
      *	@description: 
      *		Specifies the gap between the columns.
      *		The equivalent of CSS attribute `columnGap`.
@@ -2975,12 +3460,16 @@ class Element {
     column_gap(value) {
         if (value == null) { return this.element.style.columnGap; }
         this.element.style.columnGap = value;
+        this.element.style.msColumnGap = value;
+        this.element.style.webkitColumnGap = value;
+        this.element.style.MozColumnGap = value;
+        this.element.style.OColumnGap = value;
         return this;
     }
 
     // A shorthand property for all the column-rule-* properties.
     /*	@docs: {
-     *	@name: Column rule
+     *	@title: Column rule
      *	@description: 
      *		A shorthand property for all the column-rule-* properties.
      *		The equivalent of CSS attribute `columnRule`.
@@ -2997,12 +3486,16 @@ class Element {
     column_rule(value) {
         if (value == null) { return this.element.style.columnRule; }
         this.element.style.columnRule = value;
+        this.element.style.msColumnRule = value;
+        this.element.style.webkitColumnRule = value;
+        this.element.style.MozColumnRule = value;
+        this.element.style.OColumnRule = value;
         return this;
     }
 
     // Specifies the color of the rule between columns.
     /*	@docs: {
-     *	@name: Column rule color
+     *	@title: Column rule color
      *	@description: 
      *		Specifies the color of the rule between columns.
      *		The equivalent of CSS attribute `columnRuleColor`.
@@ -3019,12 +3512,16 @@ class Element {
     column_rule_color(value) {
         if (value == null) { return this.element.style.columnRuleColor; }
         this.element.style.columnRuleColor = value;
+        this.element.style.msColumnRuleColor = value;
+        this.element.style.webkitColumnRuleColor = value;
+        this.element.style.MozColumnRuleColor = value;
+        this.element.style.OColumnRuleColor = value;
         return this;
     }
 
     // Specifies the style of the rule between columns.
     /*	@docs: {
-     *	@name: Column rule style
+     *	@title: Column rule style
      *	@description: 
      *		Specifies the style of the rule between columns.
      *		The equivalent of CSS attribute `columnRuleStyle`.
@@ -3041,12 +3538,16 @@ class Element {
     column_rule_style(value) {
         if (value == null) { return this.element.style.columnRuleStyle; }
         this.element.style.columnRuleStyle = value;
+        this.element.style.msColumnRuleStyle = value;
+        this.element.style.webkitColumnRuleStyle = value;
+        this.element.style.MozColumnRuleStyle = value;
+        this.element.style.OColumnRuleStyle = value;
         return this;
     }
 
     // Specifies the width of the rule between columns.
     /*	@docs: {
-     *	@name: Column rule width
+     *	@title: Column rule width
      *	@description: 
      *		Specifies the width of the rule between columns.
      *		The equivalent of CSS attribute `columnRuleWidth`.
@@ -3063,12 +3564,16 @@ class Element {
     column_rule_width(value) {
         if (value == null) { return this.element.style.columnRuleWidth; }
         this.element.style.columnRuleWidth = this.pad_numeric(value);
+        this.element.style.msColumnRuleWidth = this.pad_numeric(value);
+        this.element.style.webkitColumnRuleWidth = this.pad_numeric(value);
+        this.element.style.MozColumnRuleWidth = this.pad_numeric(value);
+        this.element.style.OColumnRuleWidth = this.pad_numeric(value);
         return this;
     }
 
     // Specifies how many columns an element should span across.
     /*	@docs: {
-     *	@name: Column span
+     *	@title: Column span
      *	@description: 
      *		Specifies how many columns an element should span across.
      *		The equivalent of CSS attribute `columnSpan`.
@@ -3090,7 +3595,7 @@ class Element {
 
     // Specifies the column width.
     /*	@docs: {
-     *	@name: Column width
+     *	@title: Column width
      *	@description: 
      *		Specifies the column width.
      *		The equivalent of CSS attribute `columnWidth`.
@@ -3107,12 +3612,16 @@ class Element {
     column_width(value) {
         if (value == null) { return this.element.style.columnWidth; }
         this.element.style.columnWidth = this.pad_numeric(value);
+        this.element.style.msColumnWidth = this.pad_numeric(value);
+        this.element.style.webkitColumnWidth = this.pad_numeric(value);
+        this.element.style.MozColumnWidth = this.pad_numeric(value);
+        this.element.style.OColumnWidth = this.pad_numeric(value);
         return this;
     }
 
     // A shorthand property for column-width and column-count.
     /*	@docs: {
-     *	@name: Columns
+     *	@title: Columns
      *	@description: 
      *		A shorthand property for column-width and column-count.
      *		The equivalent of CSS attribute `columns`.
@@ -3134,7 +3643,7 @@ class Element {
 
     // Used with the :before and :after pseudo-elements, to insert generated content.
     /*	@docs: {
-     *	@name: Content
+     *	@title: Content
      *	@description: 
      *		Used with the :before and :after pseudo-elements, to insert generated content.
      *		The equivalent of CSS attribute `content`.
@@ -3156,7 +3665,7 @@ class Element {
 
     // Increases or decreases the value of one or more CSS counters.
     /*	@docs: {
-     *	@name: Counter increment
+     *	@title: Counter increment
      *	@description: 
      *		Increases or decreases the value of one or more CSS counters.
      *		The equivalent of CSS attribute `counterIncrement`.
@@ -3178,7 +3687,7 @@ class Element {
 
     // Creates or resets one or more CSS counters.
     /*	@docs: {
-     *	@name: Counter reset
+     *	@title: Counter reset
      *	@description: 
      *		Creates or resets one or more CSS counters.
      *		The equivalent of CSS attribute `counterReset`.
@@ -3200,7 +3709,7 @@ class Element {
 
     // Specifies the mouse cursor to be displayed when pointing over an element.
     /*	@docs: {
-     *	@name: Cursor
+     *	@title: Cursor
      *	@description: 
      *		Specifies the mouse cursor to be displayed when pointing over an element.
      *		The equivalent of CSS attribute `cursor`.
@@ -3222,7 +3731,7 @@ class Element {
 
     // Specifies the text direction/writing direction.
     /*	@docs: {
-     *	@name: Direction
+     *	@title: Direction
      *	@description: 
      *		Specifies the text direction/writing direction.
      *		The equivalent of CSS attribute `direction`.
@@ -3251,7 +3760,7 @@ class Element {
 
     // Specifies whether or not to display borders and background on empty cells in a table.
     /*	@docs: {
-     *	@name: Empty cells
+     *	@title: Empty cells
      *	@description: 
      *		Specifies whether or not to display borders and background on empty cells in a table.
      *		The equivalent of CSS attribute `emptyCells`.
@@ -3273,7 +3782,7 @@ class Element {
 
     // Defines effects (e.g. blurring or color shifting) on an element before the element is displayed.
     /*	@docs: {
-     *	@name: Filter
+     *	@title: Filter
      *	@description: 
      *		Defines effects (e.g. blurring or color shifting) on an element before the element is displayed.
      *		The equivalent of CSS attribute `filter`.
@@ -3290,12 +3799,16 @@ class Element {
     filter(value) {
         if (value == null) { return this.element.style.filter; }
         this.element.style.filter = value;
+        this.element.style.msFilter = value;
+        this.element.style.webkitFilter = value;
+        this.element.style.MozFilter = value;
+        this.element.style.OFilter = value;
         return this;
     }
 
     // A shorthand property for the flex-grow, flex-shrink, and the flex-basis properties.
     /*	@docs: {
-     *	@name: Flex
+     *	@title: Flex
      *	@description: 
      *		A shorthand property for the flex-grow, flex-shrink, and the flex-basis properties.
      *		The equivalent of CSS attribute `flex`.
@@ -3312,12 +3825,16 @@ class Element {
     flex(value) {
         if (value == null) { return this.element.style.flex; }
         this.element.style.flex = value;
+        this.element.style.msFlex = value;
+        this.element.style.webkitFlex = value;
+        this.element.style.MozFlex = value;
+        this.element.style.OFlex = value;
         return this;
     }
 
     // Specifies the initial length of a flexible item.
     /*	@docs: {
-     *	@name: Flex basis
+     *	@title: Flex basis
      *	@description: 
      *		Specifies the initial length of a flexible item.
      *		The equivalent of CSS attribute `flexBasis`.
@@ -3334,12 +3851,16 @@ class Element {
     flex_basis(value) {
         if (value == null) { return this.element.style.flexBasis; }
         this.element.style.flexBasis = value;
+        this.element.style.msFlexBasis = value;
+        this.element.style.webkitFlexBasis = value;
+        this.element.style.MozFlexBasis = value;
+        this.element.style.OFlexBasis = value;
         return this;
     }
 
     // Specifies the direction of the flexible items.
     /*	@docs: {
-     *	@name: Flex direction
+     *	@title: Flex direction
      *	@description: 
      *		Specifies the direction of the flexible items.
      *		The equivalent of CSS attribute `flexDirection`.
@@ -3356,12 +3877,16 @@ class Element {
     flex_direction(value) {
         if (value == null) { return this.element.style.flexDirection; }
         this.element.style.flexDirection = value;
+        this.element.style.msFlexDirection = value;
+        this.element.style.webkitFlexDirection = value;
+        this.element.style.MozFlexDirection = value;
+        this.element.style.OFlexDirection = value;
         return this;
     }
 
     // A shorthand property for the flex-direction and the flex-wrap properties.
     /*	@docs: {
-     *	@name: Flex flow
+     *	@title: Flex flow
      *	@description: 
      *		A shorthand property for the flex-direction and the flex-wrap properties.
      *		The equivalent of CSS attribute `flexFlow`.
@@ -3378,12 +3903,16 @@ class Element {
     flex_flow(value) {
         if (value == null) { return this.element.style.flexFlow; }
         this.element.style.flexFlow = value;
+        this.element.style.msFlexFlow = value;
+        this.element.style.webkitFlexFlow = value;
+        this.element.style.MozFlexFlow = value;
+        this.element.style.OFlexFlow = value;
         return this;
     }
 
     // Specifies how much the item will grow relative to the rest.
     /*	@docs: {
-     *	@name: Flex grow
+     *	@title: Flex grow
      *	@description: 
      *		Specifies how much the item will grow relative to the rest.
      *		The equivalent of CSS attribute `flexGrow`.
@@ -3400,12 +3929,16 @@ class Element {
     flex_grow(value) {
         if (value == null) { return this.element.style.flexGrow; }
         this.element.style.flexGrow = value;
+        this.element.style.msFlexGrow = value;
+        this.element.style.webkitFlexGrow = value;
+        this.element.style.MozFlexGrow = value;
+        this.element.style.OFlexGrow = value;
         return this;
     }
 
     // Specifies how the item will shrink relative to the rest.
     /*	@docs: {
-     *	@name: Flex shrink
+     *	@title: Flex shrink
      *	@description: 
      *		Specifies how the item will shrink relative to the rest.
      *		The equivalent of CSS attribute `flexShrink`.
@@ -3422,12 +3955,16 @@ class Element {
     flex_shrink(value) {
         if (value == null) { return this.element.style.flexShrink; }
         this.element.style.flexShrink = value;
+        this.element.style.msFlexShrink = value;
+        this.element.style.webkitFlexShrink = value;
+        this.element.style.MozFlexShrink = value;
+        this.element.style.OFlexShrink = value;
         return this;
     }
 
     // Specifies whether the flexible items should wrap or not.
     /*	@docs: {
-     *	@name: Flex wrap
+     *	@title: Flex wrap
      *	@description: 
      *		Specifies whether the flexible items should wrap or not.
      *		The equivalent of CSS attribute `flexWrap`.
@@ -3444,12 +3981,16 @@ class Element {
     flex_wrap(value) {
         if (value == null) { return this.element.style.flexWrap; }
         this.element.style.flexWrap = value;
+        this.element.style.msFlexWrap = value;
+        this.element.style.webkitFlexWrap = value;
+        this.element.style.MozFlexWrap = value;
+        this.element.style.OFlexWrap = value;
         return this;
     }
 
     // Specifies whether an element should float to the left, right, or not at all.
     /*	@docs: {
-     *	@name: Float
+     *	@title: Float
      *	@description: 
      *		Specifies whether an element should float to the left, right, or not at all.
      *		The equivalent of CSS attribute `float`.
@@ -3471,7 +4012,7 @@ class Element {
 
     // A shorthand property for the font-style, font-variant, font-weight, font-size/line-height, and the font-family properties.
     /*	@docs: {
-     *	@name: Font
+     *	@title: Font
      *	@description: 
      *		A shorthand property for the font-style, font-variant, font-weight, font-size/line-height, and the font-family properties.
      *		The equivalent of CSS attribute `font`.
@@ -3493,7 +4034,7 @@ class Element {
 
     // Specifies the font family for text.
     /*	@docs: {
-     *	@name: Font family
+     *	@title: Font family
      *	@description: 
      *		Specifies the font family for text.
      *		The equivalent of CSS attribute `fontFamily`.
@@ -3515,7 +4056,7 @@ class Element {
 
     // Allows control over advanced typographic features in OpenType fonts.
     /*	@docs: {
-     *	@name: Font feature settings
+     *	@title: Font feature settings
      *	@description: 
      *		Allows control over advanced typographic features in OpenType fonts.
      *		The equivalent of CSS attribute `fontFeatureSettings`.
@@ -3537,7 +4078,7 @@ class Element {
 
     // Controls the usage of the kerning information (how letters are spaced).
     /*	@docs: {
-     *	@name: Font kerning
+     *	@title: Font kerning
      *	@description: 
      *		Controls the usage of the kerning information (how letters are spaced).
      *		The equivalent of CSS attribute `fontKerning`.
@@ -3559,7 +4100,7 @@ class Element {
 
     // Controls the usage of language-specific glyphs in a typeface.
     /*	@docs: {
-     *	@name: Font language override
+     *	@title: Font language override
      *	@description: 
      *		Controls the usage of language-specific glyphs in a typeface.
      *		The equivalent of CSS attribute `fontLanguageOverride`.
@@ -3581,7 +4122,7 @@ class Element {
 
     // Specifies the font size of text.
     /*	@docs: {
-     *	@name: Font size
+     *	@title: Font size
      *	@description: 
      *		Specifies the font size of text.
      *		The equivalent of CSS attribute `fontSize`.
@@ -3603,7 +4144,7 @@ class Element {
 
     // Preserves the readability of text when font fallback occurs.
     /*	@docs: {
-     *	@name: Font size adjust
+     *	@title: Font size adjust
      *	@description: 
      *		Preserves the readability of text when font fallback occurs.
      *		The equivalent of CSS attribute `fontSizeAdjust`.
@@ -3625,7 +4166,7 @@ class Element {
 
     // Selects a normal, condensed, or expanded face from a font family.
     /*	@docs: {
-     *	@name: Font stretch
+     *	@title: Font stretch
      *	@description: 
      *		Selects a normal, condensed, or expanded face from a font family.
      *		The equivalent of CSS attribute `fontStretch`.
@@ -3647,7 +4188,7 @@ class Element {
 
     // Specifies the font style for text.
     /*	@docs: {
-     *	@name: Font style
+     *	@title: Font style
      *	@description: 
      *		Specifies the font style for text.
      *		The equivalent of CSS attribute `fontStyle`.
@@ -3669,7 +4210,7 @@ class Element {
 
     // Controls which missing typefaces (bold or italic) may be synthesized by the browser.
     /*	@docs: {
-     *	@name: Font synthesis
+     *	@title: Font synthesis
      *	@description: 
      *		Controls which missing typefaces (bold or italic) may be synthesized by the browser.
      *		The equivalent of CSS attribute `fontSynthesis`.
@@ -3691,7 +4232,7 @@ class Element {
 
     // Specifies whether or not a text should be displayed in a small-caps font.
     /*	@docs: {
-     *	@name: Font variant
+     *	@title: Font variant
      *	@description: 
      *		Specifies whether or not a text should be displayed in a small-caps font.
      *		The equivalent of CSS attribute `fontVariant`.
@@ -3713,7 +4254,7 @@ class Element {
 
     // Controls the usage of alternate glyphs associated to alternative names defined in @font-feature-values.
     /*	@docs: {
-     *	@name: Font variant alternates
+     *	@title: Font variant alternates
      *	@description: 
      *		Controls the usage of alternate glyphs associated to alternative names defined in @font-feature-values.
      *		The equivalent of CSS attribute `fontVariantAlternates`.
@@ -3735,7 +4276,7 @@ class Element {
 
     // Controls the usage of alternate glyphs for capital letters.
     /*	@docs: {
-     *	@name: Font variant caps
+     *	@title: Font variant caps
      *	@description: 
      *		Controls the usage of alternate glyphs for capital letters.
      *		The equivalent of CSS attribute `fontVariantCaps`.
@@ -3757,7 +4298,7 @@ class Element {
 
     // Controls the usage of alternate glyphs for East Asian scripts (e.g Japanese and Chinese).
     /*	@docs: {
-     *	@name: Font variant east asian
+     *	@title: Font variant east asian
      *	@description: 
      *		Controls the usage of alternate glyphs for East Asian scripts (e.g Japanese and Chinese).
      *		The equivalent of CSS attribute `fontVariantEastAsian`.
@@ -3779,7 +4320,7 @@ class Element {
 
     // Controls which ligatures and contextual forms are used in textual content of the elements it applies to.
     /*	@docs: {
-     *	@name: Font variant ligatures
+     *	@title: Font variant ligatures
      *	@description: 
      *		Controls which ligatures and contextual forms are used in textual content of the elements it applies to.
      *		The equivalent of CSS attribute `fontVariantLigatures`.
@@ -3801,7 +4342,7 @@ class Element {
 
     // Controls the usage of alternate glyphs for numbers, fractions, and ordinal markers.
     /*	@docs: {
-     *	@name: Font variant numeric
+     *	@title: Font variant numeric
      *	@description: 
      *		Controls the usage of alternate glyphs for numbers, fractions, and ordinal markers.
      *		The equivalent of CSS attribute `fontVariantNumeric`.
@@ -3823,7 +4364,7 @@ class Element {
 
     // Controls the usage of alternate glyphs of smaller size positioned as superscript or subscript regarding the baseline of the font.
     /*	@docs: {
-     *	@name: Font variant position
+     *	@title: Font variant position
      *	@description: 
      *		Controls the usage of alternate glyphs of smaller size positioned as superscript or subscript regarding the baseline of the font.
      *		The equivalent of CSS attribute `fontVariantPosition`.
@@ -3845,7 +4386,7 @@ class Element {
 
     // Specifies the weight of a font.
     /*	@docs: {
-     *	@name: Font weight
+     *	@title: Font weight
      *	@description: 
      *		Specifies the weight of a font.
      *		The equivalent of CSS attribute `fontWeight`.
@@ -3867,7 +4408,7 @@ class Element {
 
     // A shorthand property for the row-gap and the column-gap properties.
     /*	@docs: {
-     *	@name: Gap
+     *	@title: Gap
      *	@description: 
      *		A shorthand property for the row-gap and the column-gap properties.
      *		The equivalent of CSS attribute `gap`.
@@ -3889,7 +4430,7 @@ class Element {
 
     // A shorthand property for the grid-template-rows, grid-template-columns, grid-template-areas, grid-auto-rows, grid-auto-columns, and the grid-auto-flow properties.
     /*	@docs: {
-     *	@name: Grid
+     *	@title: Grid
      *	@description: 
      *		A shorthand property for the grid-template-rows, grid-template-columns, grid-template-areas, grid-auto-rows, grid-auto-columns, and the grid-auto-flow properties.
      *		The equivalent of CSS attribute `grid`.
@@ -3911,7 +4452,7 @@ class Element {
 
     // Either specifies a name for the grid item, or this property is a shorthand property for the grid-row-start, grid-column-start, grid-row-end, and grid-column-end properties.
     /*	@docs: {
-     *	@name: Grid area
+     *	@title: Grid area
      *	@description: 
      *		Either specifies a name for the grid item, or this property is a shorthand property for the grid-row-start, grid-column-start, grid-row-end, and grid-column-end properties.
      *		The equivalent of CSS attribute `gridArea`.
@@ -3933,7 +4474,7 @@ class Element {
 
     // Specifies a default column size.
     /*	@docs: {
-     *	@name: Grid auto columns
+     *	@title: Grid auto columns
      *	@description: 
      *		Specifies a default column size.
      *		The equivalent of CSS attribute `gridAutoColumns`.
@@ -3955,7 +4496,7 @@ class Element {
 
     // Specifies how auto-placed items are inserted in the grid.
     /*	@docs: {
-     *	@name: Grid auto flow
+     *	@title: Grid auto flow
      *	@description: 
      *		Specifies how auto-placed items are inserted in the grid.
      *		The equivalent of CSS attribute `gridAutoFlow`.
@@ -3977,7 +4518,7 @@ class Element {
 
     // Specifies a default row size.
     /*	@docs: {
-     *	@name: Grid auto rows
+     *	@title: Grid auto rows
      *	@description: 
      *		Specifies a default row size.
      *		The equivalent of CSS attribute `gridAutoRows`.
@@ -3999,7 +4540,7 @@ class Element {
 
     // A shorthand property for the grid-column-start and the grid-column-end properties.
     /*	@docs: {
-     *	@name: Grid column
+     *	@title: Grid column
      *	@description: 
      *		A shorthand property for the grid-column-start and the grid-column-end properties.
      *		The equivalent of CSS attribute `gridColumn`.
@@ -4021,7 +4562,7 @@ class Element {
 
     // Specifies where to end the grid item.
     /*	@docs: {
-     *	@name: Grid column end
+     *	@title: Grid column end
      *	@description: 
      *		Specifies where to end the grid item.
      *		The equivalent of CSS attribute `gridColumnEnd`.
@@ -4043,7 +4584,7 @@ class Element {
 
     // Specifies the size of the gap between columns.
     /*	@docs: {
-     *	@name: Grid column gap
+     *	@title: Grid column gap
      *	@description: 
      *		Specifies the size of the gap between columns.
      *		The equivalent of CSS attribute `gridColumnGap`.
@@ -4065,7 +4606,7 @@ class Element {
 
     // Specifies where to start the grid item.
     /*	@docs: {
-     *	@name: Grid column start
+     *	@title: Grid column start
      *	@description: 
      *		Specifies where to start the grid item.
      *		The equivalent of CSS attribute `gridColumnStart`.
@@ -4087,7 +4628,7 @@ class Element {
 
     // A shorthand property for the grid-row-gap and grid-column-gap properties.
     /*	@docs: {
-     *	@name: Grid gap
+     *	@title: Grid gap
      *	@description: 
      *		A shorthand property for the grid-row-gap and grid-column-gap properties.
      *		The equivalent of CSS attribute `gridGap`.
@@ -4109,7 +4650,7 @@ class Element {
 
     // A shorthand property for the grid-row-start and the grid-row-end properties.
     /*	@docs: {
-     *	@name: Grid row
+     *	@title: Grid row
      *	@description: 
      *		A shorthand property for the grid-row-start and the grid-row-end properties.
      *		The equivalent of CSS attribute `gridRow`.
@@ -4131,7 +4672,7 @@ class Element {
 
     // Specifies where to end the grid item.
     /*	@docs: {
-     *	@name: Grid row end
+     *	@title: Grid row end
      *	@description: 
      *		Specifies where to end the grid item.
      *		The equivalent of CSS attribute `gridRowEnd`.
@@ -4153,7 +4694,7 @@ class Element {
 
     // Specifies the size of the gap between rows.
     /*	@docs: {
-     *	@name: Grid row gap
+     *	@title: Grid row gap
      *	@description: 
      *		Specifies the size of the gap between rows.
      *		The equivalent of CSS attribute `gridRowGap`.
@@ -4175,7 +4716,7 @@ class Element {
 
     // Specifies where to start the grid item.
     /*	@docs: {
-     *	@name: Grid row start
+     *	@title: Grid row start
      *	@description: 
      *		Specifies where to start the grid item.
      *		The equivalent of CSS attribute `gridRowStart`.
@@ -4197,7 +4738,7 @@ class Element {
 
     // A shorthand property for the grid-template-rows, grid-template-columns and grid-areas properties.
     /*	@docs: {
-     *	@name: Grid template
+     *	@title: Grid template
      *	@description: 
      *		A shorthand property for the grid-template-rows, grid-template-columns and grid-areas properties.
      *		The equivalent of CSS attribute `gridTemplate`.
@@ -4219,7 +4760,7 @@ class Element {
 
     // Specifies how to display columns and rows, using named grid items.
     /*	@docs: {
-     *	@name: Grid template areas
+     *	@title: Grid template areas
      *	@description: 
      *		Specifies how to display columns and rows, using named grid items.
      *		The equivalent of CSS attribute `gridTemplateAreas`.
@@ -4241,7 +4782,7 @@ class Element {
 
     // Specifies the size of the columns, and how many columns in a grid layout.
     /*	@docs: {
-     *	@name: Grid template columns
+     *	@title: Grid template columns
      *	@description: 
      *		Specifies the size of the columns, and how many columns in a grid layout.
      *		The equivalent of CSS attribute `gridTemplateColumns`.
@@ -4263,7 +4804,7 @@ class Element {
 
     // Specifies the size of the rows in a grid layout.
     /*	@docs: {
-     *	@name: Grid template rows
+     *	@title: Grid template rows
      *	@description: 
      *		Specifies the size of the rows in a grid layout.
      *		The equivalent of CSS attribute `gridTemplateRows`.
@@ -4285,7 +4826,7 @@ class Element {
 
     // Specifies whether a punctuation character may be placed outside the line box.
     /*	@docs: {
-     *	@name: Hanging punctuation
+     *	@title: Hanging punctuation
      *	@description: 
      *		Specifies whether a punctuation character may be placed outside the line box.
      *		The equivalent of CSS attribute `hangingPunctuation`.
@@ -4314,7 +4855,7 @@ class Element {
 
     // Sets how to split words to improve the layout of paragraphs.
     /*	@docs: {
-     *	@name: Hyphens
+     *	@title: Hyphens
      *	@description: 
      *		Sets how to split words to improve the layout of paragraphs.
      *		The equivalent of CSS attribute `hyphens`.
@@ -4336,7 +4877,7 @@ class Element {
 
     // Specifies the type of algorithm to use for image scaling.
     /*	@docs: {
-     *	@name: Image rendering
+     *	@title: Image rendering
      *	@description: 
      *		Specifies the type of algorithm to use for image scaling.
      *		The equivalent of CSS attribute `imageRendering`.
@@ -4358,7 +4899,7 @@ class Element {
 
     // Specifies the size of an element in the inline direction.
     /*	@docs: {
-     *	@name: Inline size
+     *	@title: Inline size
      *	@description: 
      *		Specifies the size of an element in the inline direction.
      *		The equivalent of CSS attribute `inlineSize`.
@@ -4380,7 +4921,7 @@ class Element {
 
     // Specifies the distance between an element and the parent element.
     /*	@docs: {
-     *	@name: Inset
+     *	@title: Inset
      *	@description: 
      *		Specifies the distance between an element and the parent element.
      *		The equivalent of CSS attribute `inset`.
@@ -4402,7 +4943,7 @@ class Element {
 
     // Specifies the distance between an element and the parent element in the block direction.
     /*	@docs: {
-     *	@name: Inset block
+     *	@title: Inset block
      *	@description: 
      *		Specifies the distance between an element and the parent element in the block direction.
      *		The equivalent of CSS attribute `insetBlock`.
@@ -4424,7 +4965,7 @@ class Element {
 
     // Specifies the distance between the end of an element and the parent element in the block direction.
     /*	@docs: {
-     *	@name: Inset block end
+     *	@title: Inset block end
      *	@description: 
      *		Specifies the distance between the end of an element and the parent element in the block direction.
      *		The equivalent of CSS attribute `insetBlockEnd`.
@@ -4446,7 +4987,7 @@ class Element {
 
     // Specifies the distance between the start of an element and the parent element in the block direction.
     /*	@docs: {
-     *	@name: Inset block start
+     *	@title: Inset block start
      *	@description: 
      *		Specifies the distance between the start of an element and the parent element in the block direction.
      *		The equivalent of CSS attribute `insetBlockStart`.
@@ -4468,7 +5009,7 @@ class Element {
 
     // Specifies the distance between an element and the parent element in the inline direction.
     /*	@docs: {
-     *	@name: Inset inline
+     *	@title: Inset inline
      *	@description: 
      *		Specifies the distance between an element and the parent element in the inline direction.
      *		The equivalent of CSS attribute `insetInline`.
@@ -4490,7 +5031,7 @@ class Element {
 
     // Specifies the distance between the end of an element and the parent element in the inline direction.
     /*	@docs: {
-     *	@name: Inset inline end
+     *	@title: Inset inline end
      *	@description: 
      *		Specifies the distance between the end of an element and the parent element in the inline direction.
      *		The equivalent of CSS attribute `insetInlineEnd`.
@@ -4512,7 +5053,7 @@ class Element {
 
     // Specifies the distance between the start of an element and the parent element in the inline direction.
     /*	@docs: {
-     *	@name: Inset inline start
+     *	@title: Inset inline start
      *	@description: 
      *		Specifies the distance between the start of an element and the parent element in the inline direction.
      *		The equivalent of CSS attribute `insetInlineStart`.
@@ -4534,7 +5075,7 @@ class Element {
 
     // Defines whether an element must create a new stacking content.
     /*	@docs: {
-     *	@name: Isolation
+     *	@title: Isolation
      *	@description: 
      *		Defines whether an element must create a new stacking content.
      *		The equivalent of CSS attribute `isolation`.
@@ -4556,7 +5097,7 @@ class Element {
 
     // Specifies the alignment between the items inside a flexible container when the items do not use all available space.
     /*	@docs: {
-     *	@name: Justify content
+     *	@title: Justify content
      *	@description: 
      *		Specifies the alignment between the items inside a flexible container when the items do not use all available space.
      *		The equivalent of CSS attribute `justifyContent`.
@@ -4573,12 +5114,16 @@ class Element {
     justify_content(value) {
         if (value == null) { return this.element.style.justifyContent; }
         this.element.style.justifyContent = value;
+        this.element.style.msJustifyContent = value;
+        this.element.style.webkitJustifyContent = value;
+        this.element.style.MozJustifyContent = value;
+        this.element.style.OJustifyContent = value;
         return this;
     }
 
     // Is set on the grid container. Specifies the alignment of grid items in the inline direction.
     /*	@docs: {
-     *	@name: Justify items
+     *	@title: Justify items
      *	@description: 
      *		Is set on the grid container. Specifies the alignment of grid items in the inline direction.
      *		The equivalent of CSS attribute `justifyItems`.
@@ -4600,7 +5145,7 @@ class Element {
 
     // Is set on the grid item. Specifies the alignment of the grid item in the inline direction.
     /*	@docs: {
-     *	@name: Justify self
+     *	@title: Justify self
      *	@description: 
      *		Is set on the grid item. Specifies the alignment of the grid item in the inline direction.
      *		The equivalent of CSS attribute `justifySelf`.
@@ -4622,7 +5167,7 @@ class Element {
 
     // Specifies the left position of a positioned element.
     /*	@docs: {
-     *	@name: Left
+     *	@title: Left
      *	@description: 
      *		Specifies the left position of a positioned element.
      *		The equivalent of CSS attribute `left`.
@@ -4644,7 +5189,7 @@ class Element {
 
     // Increases or decreases the space between characters in a text.
     /*	@docs: {
-     *	@name: Letter spacing
+     *	@title: Letter spacing
      *	@description: 
      *		Increases or decreases the space between characters in a text.
      *		The equivalent of CSS attribute `letterSpacing`.
@@ -4666,7 +5211,7 @@ class Element {
 
     // Specifies how/if to break lines.
     /*	@docs: {
-     *	@name: Line break
+     *	@title: Line break
      *	@description: 
      *		Specifies how/if to break lines.
      *		The equivalent of CSS attribute `lineBreak`.
@@ -4688,7 +5233,7 @@ class Element {
 
     // Sets the line height.
     /*	@docs: {
-     *	@name: Line height
+     *	@title: Line height
      *	@description: 
      *		Sets the line height.
      *		The equivalent of CSS attribute `lineHeight`.
@@ -4710,7 +5255,7 @@ class Element {
 
     // Sets all the properties for a list in one declaration.
     /*	@docs: {
-     *	@name: List style
+     *	@title: List style
      *	@description: 
      *		Sets all the properties for a list in one declaration.
      *		The equivalent of CSS attribute `listStyle`.
@@ -4732,7 +5277,7 @@ class Element {
 
     // Specifies an image as the list-item marker.
     /*	@docs: {
-     *	@name: List style image
+     *	@title: List style image
      *	@description: 
      *		Specifies an image as the list-item marker.
      *		The equivalent of CSS attribute `listStyleImage`.
@@ -4754,7 +5299,7 @@ class Element {
 
     // Specifies the position of the list-item markers (bullet points).
     /*	@docs: {
-     *	@name: List style position
+     *	@title: List style position
      *	@description: 
      *		Specifies the position of the list-item markers (bullet points).
      *		The equivalent of CSS attribute `listStylePosition`.
@@ -4776,7 +5321,7 @@ class Element {
 
     // Specifies the type of list-item marker.
     /*	@docs: {
-     *	@name: List style type
+     *	@title: List style type
      *	@description: 
      *		Specifies the type of list-item marker.
      *		The equivalent of CSS attribute `listStyleType`.
@@ -4805,7 +5350,7 @@ class Element {
 
     // Specifies the margin in the block direction.
     /*	@docs: {
-     *	@name: Margin block
+     *	@title: Margin block
      *	@description: 
      *		Specifies the margin in the block direction.
      *		The equivalent of CSS attribute `marginBlock`.
@@ -4827,7 +5372,7 @@ class Element {
 
     // Specifies the margin at the end in the block direction.
     /*	@docs: {
-     *	@name: Margin block end
+     *	@title: Margin block end
      *	@description: 
      *		Specifies the margin at the end in the block direction.
      *		The equivalent of CSS attribute `marginBlockEnd`.
@@ -4849,7 +5394,7 @@ class Element {
 
     // Specifies the margin at the start in the block direction.
     /*	@docs: {
-     *	@name: Margin block start
+     *	@title: Margin block start
      *	@description: 
      *		Specifies the margin at the start in the block direction.
      *		The equivalent of CSS attribute `marginBlockStart`.
@@ -4871,7 +5416,7 @@ class Element {
 
     // Sets the bottom margin of an element.
     /*	@docs: {
-     *	@name: Margin bottom
+     *	@title: Margin bottom
      *	@description: 
      *		Sets the bottom margin of an element.
      *		The equivalent of CSS attribute `marginBottom`.
@@ -4893,7 +5438,7 @@ class Element {
 
     // Specifies the margin in the inline direction.
     /*	@docs: {
-     *	@name: Margin inline
+     *	@title: Margin inline
      *	@description: 
      *		Specifies the margin in the inline direction.
      *		The equivalent of CSS attribute `marginInline`.
@@ -4915,7 +5460,7 @@ class Element {
 
     // Specifies the margin at the end in the inline direction.
     /*	@docs: {
-     *	@name: Margin inline end
+     *	@title: Margin inline end
      *	@description: 
      *		Specifies the margin at the end in the inline direction.
      *		The equivalent of CSS attribute `marginInlineEnd`.
@@ -4937,7 +5482,7 @@ class Element {
 
     // Specifies the margin at the start in the inline direction.
     /*	@docs: {
-     *	@name: Margin inline start
+     *	@title: Margin inline start
      *	@description: 
      *		Specifies the margin at the start in the inline direction.
      *		The equivalent of CSS attribute `marginInlineStart`.
@@ -4959,7 +5504,7 @@ class Element {
 
     // Sets the left margin of an element.
     /*	@docs: {
-     *	@name: Margin left
+     *	@title: Margin left
      *	@description: 
      *		Sets the left margin of an element.
      *		The equivalent of CSS attribute `marginLeft`.
@@ -4981,7 +5526,7 @@ class Element {
 
     // Sets the right margin of an element.
     /*	@docs: {
-     *	@name: Margin right
+     *	@title: Margin right
      *	@description: 
      *		Sets the right margin of an element.
      *		The equivalent of CSS attribute `marginRight`.
@@ -5003,7 +5548,7 @@ class Element {
 
     // Sets the top margin of an element.
     /*	@docs: {
-     *	@name: Margin top
+     *	@title: Margin top
      *	@description: 
      *		Sets the top margin of an element.
      *		The equivalent of CSS attribute `marginTop`.
@@ -5025,7 +5570,7 @@ class Element {
 
     // Hides parts of an element by masking or clipping an image at specific places.
     /*	@docs: {
-     *	@name: Mask
+     *	@title: Mask
      *	@description: 
      *		Hides parts of an element by masking or clipping an image at specific places.
      *		The equivalent of CSS attribute `mask`.
@@ -5042,12 +5587,16 @@ class Element {
     mask(value) {
         if (value == null) { return this.element.style.mask; }
         this.element.style.mask = value;
+        this.element.style.msMask = value;
+        this.element.style.webkitMask = value;
+        this.element.style.MozMask = value;
+        this.element.style.OMask = value;
         return this;
     }
 
     // Specifies the mask area.
     /*	@docs: {
-     *	@name: Mask clip
+     *	@title: Mask clip
      *	@description: 
      *		Specifies the mask area.
      *		The equivalent of CSS attribute `maskClip`.
@@ -5069,7 +5618,7 @@ class Element {
 
     // Represents a compositing operation used on the current mask layer with the mask layers below it.
     /*	@docs: {
-     *	@name: Mask composite
+     *	@title: Mask composite
      *	@description: 
      *		Represents a compositing operation used on the current mask layer with the mask layers below it.
      *		The equivalent of CSS attribute `maskComposite`.
@@ -5086,12 +5635,16 @@ class Element {
     mask_composite(value) {
         if (value == null) { return this.element.style.maskComposite; }
         this.element.style.maskComposite = value;
+        this.element.style.msMaskComposite = value;
+        this.element.style.webkitMaskComposite = value;
+        this.element.style.MozMaskComposite = value;
+        this.element.style.OMaskComposite = value;
         return this;
     }
 
     // Specifies an image to be used as a mask layer for an element.
     /*	@docs: {
-     *	@name: Mask image
+     *	@title: Mask image
      *	@description: 
      *		Specifies an image to be used as a mask layer for an element.
      *		The equivalent of CSS attribute `maskImage`.
@@ -5113,7 +5666,7 @@ class Element {
 
     // Specifies whether the mask layer image is treated as a luminance mask or as an alpha mask.
     /*	@docs: {
-     *	@name: Mask mode
+     *	@title: Mask mode
      *	@description: 
      *		Specifies whether the mask layer image is treated as a luminance mask or as an alpha mask.
      *		The equivalent of CSS attribute `maskMode`.
@@ -5135,7 +5688,7 @@ class Element {
 
     // Specifies the origin position (the mask position area) of a mask layer image.
     /*	@docs: {
-     *	@name: Mask origin
+     *	@title: Mask origin
      *	@description: 
      *		Specifies the origin position (the mask position area) of a mask layer image.
      *		The equivalent of CSS attribute `maskOrigin`.
@@ -5157,7 +5710,7 @@ class Element {
 
     // Sets the starting position of a mask layer image (relative to the mask position area).
     /*	@docs: {
-     *	@name: Mask position
+     *	@title: Mask position
      *	@description: 
      *		Sets the starting position of a mask layer image (relative to the mask position area).
      *		The equivalent of CSS attribute `maskPosition`.
@@ -5179,7 +5732,7 @@ class Element {
 
     // Specifies how the mask layer image is repeated.
     /*	@docs: {
-     *	@name: Mask repeat
+     *	@title: Mask repeat
      *	@description: 
      *		Specifies how the mask layer image is repeated.
      *		The equivalent of CSS attribute `maskRepeat`.
@@ -5201,7 +5754,7 @@ class Element {
 
     // Specifies the size of a mask layer image.
     /*	@docs: {
-     *	@name: Mask size
+     *	@title: Mask size
      *	@description: 
      *		Specifies the size of a mask layer image.
      *		The equivalent of CSS attribute `maskSize`.
@@ -5223,7 +5776,7 @@ class Element {
 
     // Specifies whether an SVG <mask> element is treated as a luminance mask or as an alpha mask.
     /*	@docs: {
-     *	@name: Mask type
+     *	@title: Mask type
      *	@description: 
      *		Specifies whether an SVG <mask> element is treated as a luminance mask or as an alpha mask.
      *		The equivalent of CSS attribute `maskType`.
@@ -5245,7 +5798,7 @@ class Element {
 
     // Sets the maximum height of an element.
     /*	@docs: {
-     *	@name: Max height
+     *	@title: Max height
      *	@description: 
      *		Sets the maximum height of an element.
      *		The equivalent of CSS attribute `maxHeight`.
@@ -5267,7 +5820,7 @@ class Element {
 
     // Sets the maximum width of an element.
     /*	@docs: {
-     *	@name: Max width
+     *	@title: Max width
      *	@description: 
      *		Sets the maximum width of an element.
      *		The equivalent of CSS attribute `maxWidth`.
@@ -5289,7 +5842,7 @@ class Element {
 
     // Sets the maximum size of an element in the block direction.
     /*	@docs: {
-     *	@name: Max block size
+     *	@title: Max block size
      *	@description: 
      *		Sets the maximum size of an element in the block direction.
      *		The equivalent of CSS attribute `maxBlockSize`.
@@ -5311,7 +5864,7 @@ class Element {
 
     // Sets the maximum size of an element in the inline direction.
     /*	@docs: {
-     *	@name: Max inline size
+     *	@title: Max inline size
      *	@description: 
      *		Sets the maximum size of an element in the inline direction.
      *		The equivalent of CSS attribute `maxInlineSize`.
@@ -5333,7 +5886,7 @@ class Element {
 
     // Sets the minimum size of an element in the block direction.
     /*	@docs: {
-     *	@name: Min block size
+     *	@title: Min block size
      *	@description: 
      *		Sets the minimum size of an element in the block direction.
      *		The equivalent of CSS attribute `minBlockSize`.
@@ -5355,7 +5908,7 @@ class Element {
 
     // Sets the minimum size of an element in the inline direction.
     /*	@docs: {
-     *	@name: Min inline size
+     *	@title: Min inline size
      *	@description: 
      *		Sets the minimum size of an element in the inline direction.
      *		The equivalent of CSS attribute `minInlineSize`.
@@ -5377,7 +5930,7 @@ class Element {
 
     // Sets the minimum height of an element.
     /*	@docs: {
-     *	@name: Min height
+     *	@title: Min height
      *	@description: 
      *		Sets the minimum height of an element.
      *		The equivalent of CSS attribute `minHeight`.
@@ -5399,7 +5952,7 @@ class Element {
 
     // Sets the minimum width of an element.
     /*	@docs: {
-     *	@name: Min width
+     *	@title: Min width
      *	@description: 
      *		Sets the minimum width of an element.
      *		The equivalent of CSS attribute `minWidth`.
@@ -5421,7 +5974,7 @@ class Element {
 
     // Specifies how an element's content should blend with its direct parent background.
     /*	@docs: {
-     *	@name: Mix blend mode
+     *	@title: Mix blend mode
      *	@description: 
      *		Specifies how an element's content should blend with its direct parent background.
      *		The equivalent of CSS attribute `mixBlendMode`.
@@ -5443,7 +5996,7 @@ class Element {
 
     // Specifies how the contents of a replaced element should be fitted to the box established by its used height and width.
     /*	@docs: {
-     *	@name: Object fit
+     *	@title: Object fit
      *	@description: 
      *		Specifies how the contents of a replaced element should be fitted to the box established by its used height and width.
      *		The equivalent of CSS attribute `objectFit`.
@@ -5465,7 +6018,7 @@ class Element {
 
     // Specifies the alignment of the replaced element inside its box.
     /*	@docs: {
-     *	@name: Object position
+     *	@title: Object position
      *	@description: 
      *		Specifies the alignment of the replaced element inside its box.
      *		The equivalent of CSS attribute `objectPosition`.
@@ -5487,7 +6040,7 @@ class Element {
 
     // Is a shorthand, and specifies how to animate an element along a path.
     /*	@docs: {
-     *	@name: Offset
+     *	@title: Offset
      *	@description: 
      *		Is a shorthand, and specifies how to animate an element along a path.
      *		The equivalent of CSS attribute `offset`.
@@ -5509,7 +6062,7 @@ class Element {
 
     // Specifies a point on an element that is fixed to the path it is animated along.
     /*	@docs: {
-     *	@name: Offset anchor
+     *	@title: Offset anchor
      *	@description: 
      *		Specifies a point on an element that is fixed to the path it is animated along.
      *		The equivalent of CSS attribute `offsetAnchor`.
@@ -5531,7 +6084,7 @@ class Element {
 
     // Specifies the position along a path where an animated element is placed.
     /*	@docs: {
-     *	@name: Offset distance
+     *	@title: Offset distance
      *	@description: 
      *		Specifies the position along a path where an animated element is placed.
      *		The equivalent of CSS attribute `offsetDistance`.
@@ -5553,7 +6106,7 @@ class Element {
 
     // Specifies the path an element is animated along.
     /*	@docs: {
-     *	@name: Offset path
+     *	@title: Offset path
      *	@description: 
      *		Specifies the path an element is animated along.
      *		The equivalent of CSS attribute `offsetPath`.
@@ -5575,7 +6128,7 @@ class Element {
 
     // Specifies rotation of an element as it is animated along a path.
     /*	@docs: {
-     *	@name: Offset rotate
+     *	@title: Offset rotate
      *	@description: 
      *		Specifies rotation of an element as it is animated along a path.
      *		The equivalent of CSS attribute `offsetRotate`.
@@ -5597,7 +6150,7 @@ class Element {
 
     // Sets the opacity level for an element.
     /*	@docs: {
-     *	@name: Opacity
+     *	@title: Opacity
      *	@description: 
      *		Sets the opacity level for an element.
      *		The equivalent of CSS attribute `opacity`.
@@ -5619,7 +6172,7 @@ class Element {
 
     // Sets the order of the flexible item, relative to the rest.
     /*	@docs: {
-     *	@name: Order
+     *	@title: Order
      *	@description: 
      *		Sets the order of the flexible item, relative to the rest.
      *		The equivalent of CSS attribute `order`.
@@ -5636,12 +6189,16 @@ class Element {
     order(value) {
         if (value == null) { return this.element.style.order; }
         this.element.style.order = value;
+        this.element.style.msOrder = value;
+        this.element.style.webkitOrder = value;
+        this.element.style.MozOrder = value;
+        this.element.style.OOrder = value;
         return this;
     }
 
     // Sets the minimum number of lines that must be left at the bottom of a page or column.
     /*	@docs: {
-     *	@name: Orphans
+     *	@title: Orphans
      *	@description: 
      *		Sets the minimum number of lines that must be left at the bottom of a page or column.
      *		The equivalent of CSS attribute `orphans`.
@@ -5663,7 +6220,7 @@ class Element {
 
     // A shorthand property for the outline-width, outline-style, and the outline-color properties.
     /*	@docs: {
-     *	@name: Outline
+     *	@title: Outline
      *	@description: 
      *		A shorthand property for the outline-width, outline-style, and the outline-color properties.
      *		The equivalent of CSS attribute `outline`.
@@ -5685,7 +6242,7 @@ class Element {
 
     // Sets the color of an outline.
     /*	@docs: {
-     *	@name: Outline color
+     *	@title: Outline color
      *	@description: 
      *		Sets the color of an outline.
      *		The equivalent of CSS attribute `outlineColor`.
@@ -5707,7 +6264,7 @@ class Element {
 
     // Offsets an outline, and draws it beyond the border edge.
     /*	@docs: {
-     *	@name: Outline offset
+     *	@title: Outline offset
      *	@description: 
      *		Offsets an outline, and draws it beyond the border edge.
      *		The equivalent of CSS attribute `outlineOffset`.
@@ -5729,7 +6286,7 @@ class Element {
 
     // Sets the style of an outline.
     /*	@docs: {
-     *	@name: Outline style
+     *	@title: Outline style
      *	@description: 
      *		Sets the style of an outline.
      *		The equivalent of CSS attribute `outlineStyle`.
@@ -5751,7 +6308,7 @@ class Element {
 
     // Sets the width of an outline.
     /*	@docs: {
-     *	@name: Outline width
+     *	@title: Outline width
      *	@description: 
      *		Sets the width of an outline.
      *		The equivalent of CSS attribute `outlineWidth`.
@@ -5773,7 +6330,7 @@ class Element {
 
     // Specifies what happens if content overflows an element's box.
     /*	@docs: {
-     *	@name: Overflow
+     *	@title: Overflow
      *	@description: 
      *		Specifies what happens if content overflows an element's box.
      *		The equivalent of CSS attribute `overflow`.
@@ -5795,7 +6352,7 @@ class Element {
 
     // Specifies whether or not content in viewable area in a scrollable contianer should be pushed down when new content is loaded above.
     /*	@docs: {
-     *	@name: Overflow anchor
+     *	@title: Overflow anchor
      *	@description: 
      *		Specifies whether or not content in viewable area in a scrollable contianer should be pushed down when new content is loaded above.
      *		The equivalent of CSS attribute `overflowAnchor`.
@@ -5817,7 +6374,7 @@ class Element {
 
     // Specifies whether or not the browser can break lines with long words, if they overflow the container.
     /*	@docs: {
-     *	@name: Overflow wrap
+     *	@title: Overflow wrap
      *	@description: 
      *		Specifies whether or not the browser can break lines with long words, if they overflow the container.
      *		The equivalent of CSS attribute `overflowWrap`.
@@ -5839,7 +6396,7 @@ class Element {
 
     // Specifies whether or not to clip the left/right edges of the content, if it overflows the element's content area.
     /*	@docs: {
-     *	@name: Overflow x
+     *	@title: Overflow x
      *	@description: 
      *		Specifies whether or not to clip the left/right edges of the content, if it overflows the element's content area.
      *		The equivalent of CSS attribute `overflowX`.
@@ -5861,7 +6418,7 @@ class Element {
 
     // Specifies whether or not to clip the top/bottom edges of the content, if it overflows the element's content area.
     /*	@docs: {
-     *	@name: Overflow y
+     *	@title: Overflow y
      *	@description: 
      *		Specifies whether or not to clip the top/bottom edges of the content, if it overflows the element's content area.
      *		The equivalent of CSS attribute `overflowY`.
@@ -5883,7 +6440,7 @@ class Element {
 
     // Specifies whether to have scroll chaining or overscroll affordance in x- and y-directions.
     /*	@docs: {
-     *	@name: Overscroll behavior
+     *	@title: Overscroll behavior
      *	@description: 
      *		Specifies whether to have scroll chaining or overscroll affordance in x- and y-directions.
      *		The equivalent of CSS attribute `overscrollBehavior`.
@@ -5905,7 +6462,7 @@ class Element {
 
     // Specifies whether to have scroll chaining or overscroll affordance in the block direction.
     /*	@docs: {
-     *	@name: Overscroll behavior block
+     *	@title: Overscroll behavior block
      *	@description: 
      *		Specifies whether to have scroll chaining or overscroll affordance in the block direction.
      *		The equivalent of CSS attribute `overscrollBehaviorBlock`.
@@ -5927,7 +6484,7 @@ class Element {
 
     // Specifies whether to have scroll chaining or overscroll affordance in the inline direction.
     /*	@docs: {
-     *	@name: Overscroll behavior inline
+     *	@title: Overscroll behavior inline
      *	@description: 
      *		Specifies whether to have scroll chaining or overscroll affordance in the inline direction.
      *		The equivalent of CSS attribute `overscrollBehaviorInline`.
@@ -5949,7 +6506,7 @@ class Element {
 
     // Specifies whether to have scroll chaining or overscroll affordance in x-direction.
     /*	@docs: {
-     *	@name: Overscroll behavior x
+     *	@title: Overscroll behavior x
      *	@description: 
      *		Specifies whether to have scroll chaining or overscroll affordance in x-direction.
      *		The equivalent of CSS attribute `overscrollBehaviorX`.
@@ -5971,7 +6528,7 @@ class Element {
 
     // Specifies whether to have scroll chaining or overscroll affordance in y-directions.
     /*	@docs: {
-     *	@name: Overscroll behavior y
+     *	@title: Overscroll behavior y
      *	@description: 
      *		Specifies whether to have scroll chaining or overscroll affordance in y-directions.
      *		The equivalent of CSS attribute `overscrollBehaviorY`.
@@ -6000,7 +6557,7 @@ class Element {
 
     // Specifies the padding in the block direction.
     /*	@docs: {
-     *	@name: Padding block
+     *	@title: Padding block
      *	@description: 
      *		Specifies the padding in the block direction.
      *		The equivalent of CSS attribute `paddingBlock`.
@@ -6022,7 +6579,7 @@ class Element {
 
     // Specifies the padding at the end in the block direction.
     /*	@docs: {
-     *	@name: Padding block end
+     *	@title: Padding block end
      *	@description: 
      *		Specifies the padding at the end in the block direction.
      *		The equivalent of CSS attribute `paddingBlockEnd`.
@@ -6044,7 +6601,7 @@ class Element {
 
     // Specifies the padding at the start in the block direction.
     /*	@docs: {
-     *	@name: Padding block start
+     *	@title: Padding block start
      *	@description: 
      *		Specifies the padding at the start in the block direction.
      *		The equivalent of CSS attribute `paddingBlockStart`.
@@ -6066,7 +6623,7 @@ class Element {
 
     // Sets the bottom padding of an element.
     /*	@docs: {
-     *	@name: Padding bottom
+     *	@title: Padding bottom
      *	@description: 
      *		Sets the bottom padding of an element.
      *		The equivalent of CSS attribute `paddingBottom`.
@@ -6088,7 +6645,7 @@ class Element {
 
     // Specifies the padding in the inline direction.
     /*	@docs: {
-     *	@name: Padding inline
+     *	@title: Padding inline
      *	@description: 
      *		Specifies the padding in the inline direction.
      *		The equivalent of CSS attribute `paddingInline`.
@@ -6110,7 +6667,7 @@ class Element {
 
     // Specifies the padding at the end in the inline direction.
     /*	@docs: {
-     *	@name: Padding inline end
+     *	@title: Padding inline end
      *	@description: 
      *		Specifies the padding at the end in the inline direction.
      *		The equivalent of CSS attribute `paddingInlineEnd`.
@@ -6132,7 +6689,7 @@ class Element {
 
     // Specifies the padding at the start in the inline direction.
     /*	@docs: {
-     *	@name: Padding inline start
+     *	@title: Padding inline start
      *	@description: 
      *		Specifies the padding at the start in the inline direction.
      *		The equivalent of CSS attribute `paddingInlineStart`.
@@ -6154,7 +6711,7 @@ class Element {
 
     // Sets the left padding of an element.
     /*	@docs: {
-     *	@name: Padding left
+     *	@title: Padding left
      *	@description: 
      *		Sets the left padding of an element.
      *		The equivalent of CSS attribute `paddingLeft`.
@@ -6176,7 +6733,7 @@ class Element {
 
     // Sets the right padding of an element.
     /*	@docs: {
-     *	@name: Padding right
+     *	@title: Padding right
      *	@description: 
      *		Sets the right padding of an element.
      *		The equivalent of CSS attribute `paddingRight`.
@@ -6198,7 +6755,7 @@ class Element {
 
     // Sets the top padding of an element.
     /*	@docs: {
-     *	@name: Padding top
+     *	@title: Padding top
      *	@description: 
      *		Sets the top padding of an element.
      *		The equivalent of CSS attribute `paddingTop`.
@@ -6220,7 +6777,7 @@ class Element {
 
     // Sets the page-break behavior after an element.
     /*	@docs: {
-     *	@name: Page break after
+     *	@title: Page break after
      *	@description: 
      *		Sets the page-break behavior after an element.
      *		The equivalent of CSS attribute `pageBreakAfter`.
@@ -6242,7 +6799,7 @@ class Element {
 
     // Sets the page-break behavior before an element.
     /*	@docs: {
-     *	@name: Page break before
+     *	@title: Page break before
      *	@description: 
      *		Sets the page-break behavior before an element.
      *		The equivalent of CSS attribute `pageBreakBefore`.
@@ -6264,7 +6821,7 @@ class Element {
 
     // Sets the page-break behavior inside an element.
     /*	@docs: {
-     *	@name: Page break inside
+     *	@title: Page break inside
      *	@description: 
      *		Sets the page-break behavior inside an element.
      *		The equivalent of CSS attribute `pageBreakInside`.
@@ -6286,7 +6843,7 @@ class Element {
 
     // Sets the order of how an SVG element or text is painted.
     /*	@docs: {
-     *	@name: Paint order
+     *	@title: Paint order
      *	@description: 
      *		Sets the order of how an SVG element or text is painted.
      *		The equivalent of CSS attribute `paintOrder`.
@@ -6308,7 +6865,7 @@ class Element {
 
     // Gives a 3D-positioned element some perspective.
     /*	@docs: {
-     *	@name: Perspective
+     *	@title: Perspective
      *	@description: 
      *		Gives a 3D-positioned element some perspective.
      *		The equivalent of CSS attribute `perspective`.
@@ -6325,12 +6882,16 @@ class Element {
     perspective(value) {
         if (value == null) { return this.element.style.perspective; }
         this.element.style.perspective = value;
+        this.element.style.msPerspective = value;
+        this.element.style.webkitPerspective = value;
+        this.element.style.MozPerspective = value;
+        this.element.style.OPerspective = value;
         return this;
     }
 
     // Defines at which position the user is looking at the 3D-positioned element.
     /*	@docs: {
-     *	@name: Perspective origin
+     *	@title: Perspective origin
      *	@description: 
      *		Defines at which position the user is looking at the 3D-positioned element.
      *		The equivalent of CSS attribute `perspectiveOrigin`.
@@ -6347,12 +6908,16 @@ class Element {
     perspective_origin(value) {
         if (value == null) { return this.element.style.perspectiveOrigin; }
         this.element.style.perspectiveOrigin = value;
+        this.element.style.msPerspectiveOrigin = value;
+        this.element.style.webkitPerspectiveOrigin = value;
+        this.element.style.MozPerspectiveOrigin = value;
+        this.element.style.OPerspectiveOrigin = value;
         return this;
     }
 
     // Specifies align-content and justify-content property values for flexbox and grid layouts.
     /*	@docs: {
-     *	@name: Place content
+     *	@title: Place content
      *	@description: 
      *		Specifies align-content and justify-content property values for flexbox and grid layouts.
      *		The equivalent of CSS attribute `placeContent`.
@@ -6374,7 +6939,7 @@ class Element {
 
     // Specifies align-items and justify-items property values for grid layouts.
     /*	@docs: {
-     *	@name: Place items
+     *	@title: Place items
      *	@description: 
      *		Specifies align-items and justify-items property values for grid layouts.
      *		The equivalent of CSS attribute `placeItems`.
@@ -6396,7 +6961,7 @@ class Element {
 
     // Specifies align-self and justify-self property values for grid layouts.
     /*	@docs: {
-     *	@name: Place self
+     *	@title: Place self
      *	@description: 
      *		Specifies align-self and justify-self property values for grid layouts.
      *		The equivalent of CSS attribute `placeSelf`.
@@ -6418,7 +6983,7 @@ class Element {
 
     // Defines whether or not an element reacts to pointer events.
     /*	@docs: {
-     *	@name: Pointer events
+     *	@title: Pointer events
      *	@description: 
      *		Defines whether or not an element reacts to pointer events.
      *		The equivalent of CSS attribute `pointerEvents`.
@@ -6447,7 +7012,7 @@ class Element {
 
     // Sets the type of quotation marks for embedded quotations.
     /*	@docs: {
-     *	@name: Quotes
+     *	@title: Quotes
      *	@description: 
      *		Sets the type of quotation marks for embedded quotations.
      *		The equivalent of CSS attribute `quotes`.
@@ -6469,7 +7034,7 @@ class Element {
 
     // Defines if (and how) an element is resizable by the user.
     /*	@docs: {
-     *	@name: Resize
+     *	@title: Resize
      *	@description: 
      *		Defines if (and how) an element is resizable by the user.
      *		The equivalent of CSS attribute `resize`.
@@ -6491,7 +7056,7 @@ class Element {
 
     // Specifies the right position of a positioned element.
     /*	@docs: {
-     *	@name: Right
+     *	@title: Right
      *	@description: 
      *		Specifies the right position of a positioned element.
      *		The equivalent of CSS attribute `right`.
@@ -6513,7 +7078,7 @@ class Element {
 
     // Specifies the rotation of an element.
     /*	@docs: {
-     *	@name: Rotate
+     *	@title: Rotate
      *	@description: 
      *		Specifies the rotation of an element.
      *		The equivalent of CSS attribute `rotate`.
@@ -6535,7 +7100,7 @@ class Element {
 
     // Specifies the gap between the grid rows.
     /*	@docs: {
-     *	@name: Row gap
+     *	@title: Row gap
      *	@description: 
      *		Specifies the gap between the grid rows.
      *		The equivalent of CSS attribute `rowGap`.
@@ -6557,7 +7122,7 @@ class Element {
 
     // Specifies the size of an element by scaling up or down.
     /*	@docs: {
-     *	@name: Scale
+     *	@title: Scale
      *	@description: 
      *		Specifies the size of an element by scaling up or down.
      *		The equivalent of CSS attribute `scale`.
@@ -6579,7 +7144,7 @@ class Element {
 
     // Specifies whether to smoothly animate the scroll position in a scrollable box, instead of a straight jump.
     /*	@docs: {
-     *	@name: Scroll behavior
+     *	@title: Scroll behavior
      *	@description: 
      *		Specifies whether to smoothly animate the scroll position in a scrollable box, instead of a straight jump.
      *		The equivalent of CSS attribute `scrollBehavior`.
@@ -6601,7 +7166,7 @@ class Element {
 
     // Specifies the margin between the snap position and the container.
     /*	@docs: {
-     *	@name: Scroll margin
+     *	@title: Scroll margin
      *	@description: 
      *		Specifies the margin between the snap position and the container.
      *		The equivalent of CSS attribute `scrollMargin`.
@@ -6623,7 +7188,7 @@ class Element {
 
     // Specifies the margin between the snap position and the container in the block direction.
     /*	@docs: {
-     *	@name: Scroll margin block
+     *	@title: Scroll margin block
      *	@description: 
      *		Specifies the margin between the snap position and the container in the block direction.
      *		The equivalent of CSS attribute `scrollMarginBlock`.
@@ -6645,7 +7210,7 @@ class Element {
 
     // Specifies the end margin between the snap position and the container in the block direction.
     /*	@docs: {
-     *	@name: Scroll margin block end
+     *	@title: Scroll margin block end
      *	@description: 
      *		Specifies the end margin between the snap position and the container in the block direction.
      *		The equivalent of CSS attribute `scrollMarginBlockEnd`.
@@ -6667,7 +7232,7 @@ class Element {
 
     // Specifies the start margin between the snap position and the container in the block direction.
     /*	@docs: {
-     *	@name: Scroll margin block start
+     *	@title: Scroll margin block start
      *	@description: 
      *		Specifies the start margin between the snap position and the container in the block direction.
      *		The equivalent of CSS attribute `scrollMarginBlockStart`.
@@ -6689,7 +7254,7 @@ class Element {
 
     // Specifies the margin between the snap position on the bottom side and the container.
     /*	@docs: {
-     *	@name: Scroll margin bottom
+     *	@title: Scroll margin bottom
      *	@description: 
      *		Specifies the margin between the snap position on the bottom side and the container.
      *		The equivalent of CSS attribute `scrollMarginBottom`.
@@ -6711,7 +7276,7 @@ class Element {
 
     // Specifies the margin between the snap position and the container in the inline direction.
     /*	@docs: {
-     *	@name: Scroll margin inline
+     *	@title: Scroll margin inline
      *	@description: 
      *		Specifies the margin between the snap position and the container in the inline direction.
      *		The equivalent of CSS attribute `scrollMarginInline`.
@@ -6733,7 +7298,7 @@ class Element {
 
     // Specifies the end margin between the snap position and the container in the inline direction.
     /*	@docs: {
-     *	@name: Scroll margin inline end
+     *	@title: Scroll margin inline end
      *	@description: 
      *		Specifies the end margin between the snap position and the container in the inline direction.
      *		The equivalent of CSS attribute `scrollMarginInlineEnd`.
@@ -6755,7 +7320,7 @@ class Element {
 
     // Specifies the start margin between the snap position and the container in the inline direction.
     /*	@docs: {
-     *	@name: Scroll margin inline start
+     *	@title: Scroll margin inline start
      *	@description: 
      *		Specifies the start margin between the snap position and the container in the inline direction.
      *		The equivalent of CSS attribute `scrollMarginInlineStart`.
@@ -6777,7 +7342,7 @@ class Element {
 
     // Specifies the margin between the snap position on the left side and the container.
     /*	@docs: {
-     *	@name: Scroll margin left
+     *	@title: Scroll margin left
      *	@description: 
      *		Specifies the margin between the snap position on the left side and the container.
      *		The equivalent of CSS attribute `scrollMarginLeft`.
@@ -6799,7 +7364,7 @@ class Element {
 
     // Specifies the margin between the snap position on the right side and the container.
     /*	@docs: {
-     *	@name: Scroll margin right
+     *	@title: Scroll margin right
      *	@description: 
      *		Specifies the margin between the snap position on the right side and the container.
      *		The equivalent of CSS attribute `scrollMarginRight`.
@@ -6821,7 +7386,7 @@ class Element {
 
     // Specifies the margin between the snap position on the top side and the container.
     /*	@docs: {
-     *	@name: Scroll margin top
+     *	@title: Scroll margin top
      *	@description: 
      *		Specifies the margin between the snap position on the top side and the container.
      *		The equivalent of CSS attribute `scrollMarginTop`.
@@ -6843,7 +7408,7 @@ class Element {
 
     // Specifies the distance from the container to the snap position on the child elements.
     /*	@docs: {
-     *	@name: Scroll padding
+     *	@title: Scroll padding
      *	@description: 
      *		Specifies the distance from the container to the snap position on the child elements.
      *		The equivalent of CSS attribute `scrollPadding`.
@@ -6865,7 +7430,7 @@ class Element {
 
     // Specifies the distance in block direction from the container to the snap position on the child elements.
     /*	@docs: {
-     *	@name: Scroll padding block
+     *	@title: Scroll padding block
      *	@description: 
      *		Specifies the distance in block direction from the container to the snap position on the child elements.
      *		The equivalent of CSS attribute `scrollPaddingBlock`.
@@ -6887,7 +7452,7 @@ class Element {
 
     // Specifies the distance in block direction from the end of the container to the snap position on the child elements.
     /*	@docs: {
-     *	@name: Scroll padding block end
+     *	@title: Scroll padding block end
      *	@description: 
      *		Specifies the distance in block direction from the end of the container to the snap position on the child elements.
      *		The equivalent of CSS attribute `scrollPaddingBlockEnd`.
@@ -6909,7 +7474,7 @@ class Element {
 
     // Specifies the distance in block direction from the start of the container to the snap position on the child elements.
     /*	@docs: {
-     *	@name: Scroll padding block start
+     *	@title: Scroll padding block start
      *	@description: 
      *		Specifies the distance in block direction from the start of the container to the snap position on the child elements.
      *		The equivalent of CSS attribute `scrollPaddingBlockStart`.
@@ -6931,7 +7496,7 @@ class Element {
 
     // Specifies the distance from the bottom of the container to the snap position on the child elements.
     /*	@docs: {
-     *	@name: Scroll padding bottom
+     *	@title: Scroll padding bottom
      *	@description: 
      *		Specifies the distance from the bottom of the container to the snap position on the child elements.
      *		The equivalent of CSS attribute `scrollPaddingBottom`.
@@ -6953,7 +7518,7 @@ class Element {
 
     // Specifies the distance in inline direction from the container to the snap position on the child elements.
     /*	@docs: {
-     *	@name: Scroll padding inline
+     *	@title: Scroll padding inline
      *	@description: 
      *		Specifies the distance in inline direction from the container to the snap position on the child elements.
      *		The equivalent of CSS attribute `scrollPaddingInline`.
@@ -6975,7 +7540,7 @@ class Element {
 
     // Specifies the distance in inline direction from the end of the container to the snap position on the child elements.
     /*	@docs: {
-     *	@name: Scroll padding inline end
+     *	@title: Scroll padding inline end
      *	@description: 
      *		Specifies the distance in inline direction from the end of the container to the snap position on the child elements.
      *		The equivalent of CSS attribute `scrollPaddingInlineEnd`.
@@ -6997,7 +7562,7 @@ class Element {
 
     // Specifies the distance in inline direction from the start of the container to the snap position on the child elements.
     /*	@docs: {
-     *	@name: Scroll padding inline start
+     *	@title: Scroll padding inline start
      *	@description: 
      *		Specifies the distance in inline direction from the start of the container to the snap position on the child elements.
      *		The equivalent of CSS attribute `scrollPaddingInlineStart`.
@@ -7019,7 +7584,7 @@ class Element {
 
     // Specifies the distance from the left side of the container to the snap position on the child elements.
     /*	@docs: {
-     *	@name: Scroll padding left
+     *	@title: Scroll padding left
      *	@description: 
      *		Specifies the distance from the left side of the container to the snap position on the child elements.
      *		The equivalent of CSS attribute `scrollPaddingLeft`.
@@ -7041,7 +7606,7 @@ class Element {
 
     // Specifies the distance from the right side of the container to the snap position on the child elements.
     /*	@docs: {
-     *	@name: Scroll padding right
+     *	@title: Scroll padding right
      *	@description: 
      *		Specifies the distance from the right side of the container to the snap position on the child elements.
      *		The equivalent of CSS attribute `scrollPaddingRight`.
@@ -7063,7 +7628,7 @@ class Element {
 
     // Specifies the distance from the top of the container to the snap position on the child elements.
     /*	@docs: {
-     *	@name: Scroll padding top
+     *	@title: Scroll padding top
      *	@description: 
      *		Specifies the distance from the top of the container to the snap position on the child elements.
      *		The equivalent of CSS attribute `scrollPaddingTop`.
@@ -7085,7 +7650,7 @@ class Element {
 
     // Specifies where to position elements when the user stops scrolling.
     /*	@docs: {
-     *	@name: Scroll snap align
+     *	@title: Scroll snap align
      *	@description: 
      *		Specifies where to position elements when the user stops scrolling.
      *		The equivalent of CSS attribute `scrollSnapAlign`.
@@ -7107,7 +7672,7 @@ class Element {
 
     // Specifies scroll behaviour after fast swipe on trackpad or touch screen.
     /*	@docs: {
-     *	@name: Scroll snap stop
+     *	@title: Scroll snap stop
      *	@description: 
      *		Specifies scroll behaviour after fast swipe on trackpad or touch screen.
      *		The equivalent of CSS attribute `scrollSnapStop`.
@@ -7129,7 +7694,7 @@ class Element {
 
     // Specifies how snap behaviour should be when scrolling.
     /*	@docs: {
-     *	@name: Scroll snap type
+     *	@title: Scroll snap type
      *	@description: 
      *		Specifies how snap behaviour should be when scrolling.
      *		The equivalent of CSS attribute `scrollSnapType`.
@@ -7151,7 +7716,7 @@ class Element {
 
     // Specifies the color of the scrollbar of an element.
     /*	@docs: {
-     *	@name: Scrollbar color
+     *	@title: Scrollbar color
      *	@description: 
      *		Specifies the color of the scrollbar of an element.
      *		The equivalent of CSS attribute `scrollbarColor`.
@@ -7173,7 +7738,7 @@ class Element {
 
     // Specifies the width of a tab character.
     /*	@docs: {
-     *	@name: Tab size
+     *	@title: Tab size
      *	@description: 
      *		Specifies the width of a tab character.
      *		The equivalent of CSS attribute `tabSize`.
@@ -7195,7 +7760,7 @@ class Element {
 
     // Defines the algorithm used to lay out table cells, rows, and columns.
     /*	@docs: {
-     *	@name: Table layout
+     *	@title: Table layout
      *	@description: 
      *		Defines the algorithm used to lay out table cells, rows, and columns.
      *		The equivalent of CSS attribute `tableLayout`.
@@ -7217,7 +7782,7 @@ class Element {
 
     // Specifies the horizontal alignment of text.
     /*	@docs: {
-     *	@name: Text align
+     *	@title: Text align
      *	@description: 
      *		Specifies the horizontal alignment of text.
      *		The equivalent of CSS attribute `textAlign`.
@@ -7239,7 +7804,7 @@ class Element {
 
     // Describes how the last line of a block or a line right before a forced line break is aligned when text-align is "justify".
     /*	@docs: {
-     *	@name: Text align last
+     *	@title: Text align last
      *	@description: 
      *		Describes how the last line of a block or a line right before a forced line break is aligned when text-align is "justify".
      *		The equivalent of CSS attribute `textAlignLast`.
@@ -7261,7 +7826,7 @@ class Element {
 
     // Specifies the combination of multiple characters into the space of a single character.
     /*	@docs: {
-     *	@name: Text combine upright
+     *	@title: Text combine upright
      *	@description: 
      *		Specifies the combination of multiple characters into the space of a single character.
      *		The equivalent of CSS attribute `textCombineUpright`.
@@ -7283,7 +7848,7 @@ class Element {
 
     // Specifies the decoration added to text.
     /*	@docs: {
-     *	@name: Text decoration
+     *	@title: Text decoration
      *	@description: 
      *		Specifies the decoration added to text.
      *		The equivalent of CSS attribute `textDecoration`.
@@ -7305,7 +7870,7 @@ class Element {
 
     // Specifies the color of the text-decoration.
     /*	@docs: {
-     *	@name: Text decoration color
+     *	@title: Text decoration color
      *	@description: 
      *		Specifies the color of the text-decoration.
      *		The equivalent of CSS attribute `textDecorationColor`.
@@ -7327,7 +7892,7 @@ class Element {
 
     // Specifies the type of line in a text-decoration.
     /*	@docs: {
-     *	@name: Text decoration line
+     *	@title: Text decoration line
      *	@description: 
      *		Specifies the type of line in a text-decoration.
      *		The equivalent of CSS attribute `textDecorationLine`.
@@ -7349,7 +7914,7 @@ class Element {
 
     // Specifies the style of the line in a text decoration.
     /*	@docs: {
-     *	@name: Text decoration style
+     *	@title: Text decoration style
      *	@description: 
      *		Specifies the style of the line in a text decoration.
      *		The equivalent of CSS attribute `textDecorationStyle`.
@@ -7371,7 +7936,7 @@ class Element {
 
     // Specifies the thickness of the decoration line.
     /*	@docs: {
-     *	@name: Text decoration thickness
+     *	@title: Text decoration thickness
      *	@description: 
      *		Specifies the thickness of the decoration line.
      *		The equivalent of CSS attribute `textDecorationThickness`.
@@ -7393,7 +7958,7 @@ class Element {
 
     // Applies emphasis marks to text.
     /*	@docs: {
-     *	@name: Text emphasis
+     *	@title: Text emphasis
      *	@description: 
      *		Applies emphasis marks to text.
      *		The equivalent of CSS attribute `textEmphasis`.
@@ -7415,7 +7980,7 @@ class Element {
 
     // Specifies the indentation of the first line in a text-block.
     /*	@docs: {
-     *	@name: Text indent
+     *	@title: Text indent
      *	@description: 
      *		Specifies the indentation of the first line in a text-block.
      *		The equivalent of CSS attribute `textIndent`.
@@ -7437,7 +8002,7 @@ class Element {
 
     // Specifies the justification method used when text-align is "justify".
     /*	@docs: {
-     *	@name: Text justify
+     *	@title: Text justify
      *	@description: 
      *		Specifies the justification method used when text-align is "justify".
      *		The equivalent of CSS attribute `textJustify`.
@@ -7459,7 +8024,7 @@ class Element {
 
     // Defines the orientation of characters in a line.
     /*	@docs: {
-     *	@name: Text orientation
+     *	@title: Text orientation
      *	@description: 
      *		Defines the orientation of characters in a line.
      *		The equivalent of CSS attribute `textOrientation`.
@@ -7481,7 +8046,7 @@ class Element {
 
     // Specifies what should happen when text overflows the containing element.
     /*	@docs: {
-     *	@name: Text overflow
+     *	@title: Text overflow
      *	@description: 
      *		Specifies what should happen when text overflows the containing element.
      *		The equivalent of CSS attribute `textOverflow`.
@@ -7503,7 +8068,7 @@ class Element {
 
     // Adds shadow to text.
     /*	@docs: {
-     *	@name: Text shadow
+     *	@title: Text shadow
      *	@description: 
      *		Adds shadow to text.
      *		The equivalent of CSS attribute `textShadow`.
@@ -7525,7 +8090,7 @@ class Element {
 
     // Controls the capitalization of text.
     /*	@docs: {
-     *	@name: Text transform
+     *	@title: Text transform
      *	@description: 
      *		Controls the capitalization of text.
      *		The equivalent of CSS attribute `textTransform`.
@@ -7547,7 +8112,7 @@ class Element {
 
     // Specifies the position of the underline which is set using the text-decoration property.
     /*	@docs: {
-     *	@name: Text underline position
+     *	@title: Text underline position
      *	@description: 
      *		Specifies the position of the underline which is set using the text-decoration property.
      *		The equivalent of CSS attribute `textUnderlinePosition`.
@@ -7569,7 +8134,7 @@ class Element {
 
     // Specifies the top position of a positioned element.
     /*	@docs: {
-     *	@name: Top
+     *	@title: Top
      *	@description: 
      *		Specifies the top position of a positioned element.
      *		The equivalent of CSS attribute `top`.
@@ -7591,7 +8156,7 @@ class Element {
 
     // Applies a 2D or 3D transformation to an element.
     /*	@docs: {
-     *	@name: Transform
+     *	@title: Transform
      *	@description: 
      *		Applies a 2D or 3D transformation to an element.
      *		The equivalent of CSS attribute `transform`.
@@ -7608,12 +8173,16 @@ class Element {
     transform(value) {
         if (value == null) { return this.element.style.transform; }
         this.element.style.transform = value;
+        this.element.style.msTransform = value;
+        this.element.style.webkitTransform = value;
+        this.element.style.MozTransform = value;
+        this.element.style.OTransform = value;
         return this;
     }
 
     // Allows you to change the position on transformed elements.
     /*	@docs: {
-     *	@name: Transform origin
+     *	@title: Transform origin
      *	@description: 
      *		Allows you to change the position on transformed elements.
      *		The equivalent of CSS attribute `transformOrigin`.
@@ -7630,12 +8199,16 @@ class Element {
     transform_origin(value) {
         if (value == null) { return this.element.style.transformOrigin; }
         this.element.style.transformOrigin = value;
+        this.element.style.msTransformOrigin = value;
+        this.element.style.webkitTransformOrigin = value;
+        this.element.style.MozTransformOrigin = value;
+        this.element.style.OTransformOrigin = value;
         return this;
     }
 
     // Specifies how nested elements are rendered in 3D space.
     /*	@docs: {
-     *	@name: Transform style
+     *	@title: Transform style
      *	@description: 
      *		Specifies how nested elements are rendered in 3D space.
      *		The equivalent of CSS attribute `transformStyle`.
@@ -7652,12 +8225,16 @@ class Element {
     transform_style(value) {
         if (value == null) { return this.element.style.transformStyle; }
         this.element.style.transformStyle = value;
+        this.element.style.msTransformStyle = value;
+        this.element.style.webkitTransformStyle = value;
+        this.element.style.MozTransformStyle = value;
+        this.element.style.OTransformStyle = value;
         return this;
     }
 
     // A shorthand property for all the transition-* properties.
     /*	@docs: {
-     *	@name: Transition
+     *	@title: Transition
      *	@description: 
      *		A shorthand property for all the transition-* properties.
      *		The equivalent of CSS attribute `transition`.
@@ -7674,12 +8251,16 @@ class Element {
     transition(value) {
         if (value == null) { return this.element.style.transition; }
         this.element.style.transition = value;
+        this.element.style.msTransition = value;
+        this.element.style.webkitTransition = value;
+        this.element.style.MozTransition = value;
+        this.element.style.OTransition = value;
         return this;
     }
 
     // Specifies when the transition effect will start.
     /*	@docs: {
-     *	@name: Transition delay
+     *	@title: Transition delay
      *	@description: 
      *		Specifies when the transition effect will start.
      *		The equivalent of CSS attribute `transitionDelay`.
@@ -7696,12 +8277,16 @@ class Element {
     transition_delay(value) {
         if (value == null) { return this.element.style.transitionDelay; }
         this.element.style.transitionDelay = value;
+        this.element.style.msTransitionDelay = value;
+        this.element.style.webkitTransitionDelay = value;
+        this.element.style.MozTransitionDelay = value;
+        this.element.style.OTransitionDelay = value;
         return this;
     }
 
     // Specifies how many seconds or milliseconds a transition effect takes to complete.
     /*	@docs: {
-     *	@name: Transition duration
+     *	@title: Transition duration
      *	@description: 
      *		Specifies how many seconds or milliseconds a transition effect takes to complete.
      *		The equivalent of CSS attribute `transitionDuration`.
@@ -7718,12 +8303,16 @@ class Element {
     transition_duration(value) {
         if (value == null) { return this.element.style.transitionDuration; }
         this.element.style.transitionDuration = value;
+        this.element.style.msTransitionDuration = value;
+        this.element.style.webkitTransitionDuration = value;
+        this.element.style.MozTransitionDuration = value;
+        this.element.style.OTransitionDuration = value;
         return this;
     }
 
     // Specifies the name of the CSS property the transition effect is for.
     /*	@docs: {
-     *	@name: Transition property
+     *	@title: Transition property
      *	@description: 
      *		Specifies the name of the CSS property the transition effect is for.
      *		The equivalent of CSS attribute `transitionProperty`.
@@ -7740,12 +8329,16 @@ class Element {
     transition_property(value) {
         if (value == null) { return this.element.style.transitionProperty; }
         this.element.style.transitionProperty = value;
+        this.element.style.msTransitionProperty = value;
+        this.element.style.webkitTransitionProperty = value;
+        this.element.style.MozTransitionProperty = value;
+        this.element.style.OTransitionProperty = value;
         return this;
     }
 
     // Specifies the speed curve of the transition effect.
     /*	@docs: {
-     *	@name: Transition timing function
+     *	@title: Transition timing function
      *	@description: 
      *		Specifies the speed curve of the transition effect.
      *		The equivalent of CSS attribute `transitionTimingFunction`.
@@ -7762,12 +8355,16 @@ class Element {
     transition_timing_function(value) {
         if (value == null) { return this.element.style.transitionTimingFunction; }
         this.element.style.transitionTimingFunction = value;
+        this.element.style.msTransitionTimingFunction = value;
+        this.element.style.webkitTransitionTimingFunction = value;
+        this.element.style.MozTransitionTimingFunction = value;
+        this.element.style.OTransitionTimingFunction = value;
         return this;
     }
 
     // Specifies the position of an element.
     /*	@docs: {
-     *	@name: Translate
+     *	@title: Translate
      *	@description: 
      *		Specifies the position of an element.
      *		The equivalent of CSS attribute `translate`.
@@ -7789,7 +8386,7 @@ class Element {
 
     // Used together with the direction property to set or return whether the text should be overridden to support multiple languages in the same document.
     /*	@docs: {
-     *	@name: Unicode bidi
+     *	@title: Unicode bidi
      *	@description: 
      *		Used together with the direction property to set or return whether the text should be overridden to support multiple languages in the same document.
      *		The equivalent of CSS attribute `unicodeBidi`.
@@ -7811,7 +8408,7 @@ class Element {
 
     // Specifies whether the text of an element can be selected.
     /*	@docs: {
-     *	@name: User select
+     *	@title: User select
      *	@description: 
      *		Specifies whether the text of an element can be selected.
      *		The equivalent of CSS attribute `userSelect`.
@@ -7828,6 +8425,10 @@ class Element {
     user_select(value) {
         if (value == null) { return this.element.style.userSelect; }
         this.element.style.userSelect = value;
+        this.element.style.msUserSelect = value;
+        this.element.style.webkitUserSelect = value;
+        this.element.style.MozUserSelect = value;
+        this.element.style.OUserSelect = value;
         return this;
     }
 
@@ -7840,7 +8441,7 @@ class Element {
 
     // Specifies whether or not an element is visible.
     /*	@docs: {
-     *	@name: Visibility
+     *	@title: Visibility
      *	@description: 
      *		Specifies whether or not an element is visible.
      *		The equivalent of CSS attribute `visibility`.
@@ -7862,7 +8463,7 @@ class Element {
 
     // Specifies how white-space inside an element is handled.
     /*	@docs: {
-     *	@name: White space
+     *	@title: White space
      *	@description: 
      *		Specifies how white-space inside an element is handled.
      *		The equivalent of CSS attribute `whiteSpace`.
@@ -7884,7 +8485,7 @@ class Element {
 
     // Sets the minimum number of lines that must be left at the top of a page or column.
     /*	@docs: {
-     *	@name: Widows
+     *	@title: Widows
      *	@description: 
      *		Sets the minimum number of lines that must be left at the top of a page or column.
      *		The equivalent of CSS attribute `widows`.
@@ -7913,7 +8514,7 @@ class Element {
 
     // Specifies how words should break when reaching the end of a line.
     /*	@docs: {
-     *	@name: Word break
+     *	@title: Word break
      *	@description: 
      *		Specifies how words should break when reaching the end of a line.
      *		The equivalent of CSS attribute `wordBreak`.
@@ -7935,7 +8536,7 @@ class Element {
 
     // Increases or decreases the space between words in a text.
     /*	@docs: {
-     *	@name: Word spacing
+     *	@title: Word spacing
      *	@description: 
      *		Increases or decreases the space between words in a text.
      *		The equivalent of CSS attribute `wordSpacing`.
@@ -7957,7 +8558,7 @@ class Element {
 
     // Allows long, unbreakable words to be broken and wrap to the next line.
     /*	@docs: {
-     *	@name: Word wrap
+     *	@title: Word wrap
      *	@description: 
      *		Allows long, unbreakable words to be broken and wrap to the next line.
      *		The equivalent of CSS attribute `wordWrap`.
@@ -7979,7 +8580,7 @@ class Element {
 
     // Specifies whether lines of text are laid out horizontally or vertically.
     /*	@docs: {
-     *	@name: Writing mode
+     *	@title: Writing mode
      *	@description: 
      *		Specifies whether lines of text are laid out horizontally or vertically.
      *		The equivalent of CSS attribute `writingMode`.
@@ -8005,7 +8606,7 @@ class Element {
 
     // Specifies the types of files that the server accepts (only for type="file").
     /*	@docs: {
-     *	@name: Accept
+     *	@title: Accept
      *	@description: 
      *		Specifies the types of files that the server accepts (only for type="file").
      *		The equivalent of HTML attribute `accept`.
@@ -8027,7 +8628,7 @@ class Element {
 
     // Specifies the character encodings that are to be used for the form submission.
     /*	@docs: {
-     *	@name: Accept charset
+     *	@title: Accept charset
      *	@description: 
      *		Specifies the character encodings that are to be used for the form submission.
      *		The equivalent of HTML attribute `accept_charset`.
@@ -8049,7 +8650,7 @@ class Element {
 
     // Specifies where to send the form-data when a form is submitted.
     /*	@docs: {
-     *	@name: Action
+     *	@title: Action
      *	@description: 
      *		Specifies where to send the form-data when a form is submitted.
      *		The equivalent of HTML attribute `action`.
@@ -8071,7 +8672,7 @@ class Element {
 
     // Specifies an alternate text when the original element fails to display.
     /*	@docs: {
-     *	@name: Alt
+     *	@title: Alt
      *	@description: 
      *		Specifies an alternate text when the original element fails to display.
      *		The equivalent of HTML attribute `alt`.
@@ -8093,7 +8694,7 @@ class Element {
 
     // Specifies that the script is executed asynchronously (only for external scripts).
     /*	@docs: {
-     *	@name: Async
+     *	@title: Async
      *	@description: 
      *		Specifies that the script is executed asynchronously (only for external scripts).
      *		The equivalent of HTML attribute `async`.
@@ -8115,7 +8716,7 @@ class Element {
 
     // Specifies whether the <form> or the <input> element should have autocomplete enabled.
     /*	@docs: {
-     *	@name: Auto complete
+     *	@title: Auto complete
      *	@description: 
      *		Specifies whether the <form> or the <input> element should have autocomplete enabled.
      *		The equivalent of HTML attribute `autocomplete`.
@@ -8137,7 +8738,7 @@ class Element {
 
     // Specifies that the element should automatically get focus when the page loads.
     /*	@docs: {
-     *	@name: Auto focus
+     *	@title: Auto focus
      *	@description: 
      *		Specifies that the element should automatically get focus when the page loads.
      *		The equivalent of HTML attribute `autofocus`.
@@ -8159,7 +8760,7 @@ class Element {
 
     // Specifies that the audio/video will start playing as soon as it is ready.
     /*	@docs: {
-     *	@name: Auto play
+     *	@title: Auto play
      *	@description: 
      *		Specifies that the audio/video will start playing as soon as it is ready.
      *		The equivalent of HTML attribute `autoplay`.
@@ -8181,7 +8782,7 @@ class Element {
 
     // Specifies the character encoding.
     /*	@docs: {
-     *	@name: Charset
+     *	@title: Charset
      *	@description: 
      *		Specifies the character encoding.
      *		The equivalent of HTML attribute `charset`.
@@ -8203,7 +8804,7 @@ class Element {
 
     // Specifies that an <input> element should be pre-selected when the page loads (for type="checkbox" or type="radio").
     /*	@docs: {
-     *	@name: Checked
+     *	@title: Checked
      *	@description: 
      *		Specifies that an <input> element should be pre-selected when the page loads (for type="checkbox" or type="radio").
      *		The equivalent of HTML attribute `checked`.
@@ -8225,7 +8826,7 @@ class Element {
 
     // Specifies a URL which explains the quote/deleted/inserted text.
     /*	@docs: {
-     *	@name: Cite
+     *	@title: Cite
      *	@description: 
      *		Specifies a URL which explains the quote/deleted/inserted text.
      *		The equivalent of HTML attribute `cite`.
@@ -8246,30 +8847,15 @@ class Element {
     }
 
     // Specifies one or more classnames for an element (refers to a class in a style sheet).
-    /*	@docs: {
-     *	@name: Class
-     *	@description: 
-     *		Specifies one or more classnames for an element (refers to a class in a style sheet).
-     *		The equivalent of HTML attribute `class`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
     // class(value) {
     //     if (value == null) { return this.element.class; }
-    // 	this.element.className = value;
+    // 	this.element.class = value;
     // 	return this;
     // }
 
     // Specifies the visible width of a text area.
     /*	@docs: {
-     *	@name: Cols
+     *	@title: Cols
      *	@description: 
      *		Specifies the visible width of a text area.
      *		The equivalent of HTML attribute `cols`.
@@ -8291,7 +8877,7 @@ class Element {
 
     // Specifies the number of columns a table cell should span.
     /*	@docs: {
-     *	@name: Colspan
+     *	@title: Colspan
      *	@description: 
      *		Specifies the number of columns a table cell should span.
      *		The equivalent of HTML attribute `colspan`.
@@ -8313,7 +8899,7 @@ class Element {
 
     // Gives the value associated with the http-equiv or name attribute.
     /*	@docs: {
-     *	@name: Content
+     *	@title: Content
      *	@description: 
      *		Gives the value associated with the http-equiv or name attribute.
      *		The equivalent of HTML attribute `content`.
@@ -8335,7 +8921,7 @@ class Element {
 
     // Specifies whether the content of an element is editable or not.
     /*	@docs: {
-     *	@name: Content editable
+     *	@title: Content editable
      *	@description: 
      *		Specifies whether the content of an element is editable or not.
      *		The equivalent of HTML attribute `contenteditable`.
@@ -8357,7 +8943,7 @@ class Element {
 
     // Specifies that audio/video controls should be displayed (such as a play/pause button etc).
     /*	@docs: {
-     *	@name: Controls
+     *	@title: Controls
      *	@description: 
      *		Specifies that audio/video controls should be displayed (such as a play/pause button etc).
      *		The equivalent of HTML attribute `controls`.
@@ -8379,7 +8965,7 @@ class Element {
 
     // Specifies the coordinates of the area.
     /*	@docs: {
-     *	@name: Coords
+     *	@title: Coords
      *	@description: 
      *		Specifies the coordinates of the area.
      *		The equivalent of HTML attribute `coords`.
@@ -8401,7 +8987,7 @@ class Element {
 
     // Specifies the URL of the resource to be used by the object.
     /*	@docs: {
-     *	@name: Data
+     *	@title: Data
      *	@description: 
      *		Specifies the URL of the resource to be used by the object.
      *		The equivalent of HTML attribute `data`.
@@ -8423,7 +9009,7 @@ class Element {
 
     // Specifies the date and time.
     /*	@docs: {
-     *	@name: Datetime
+     *	@title: Datetime
      *	@description: 
      *		Specifies the date and time.
      *		The equivalent of HTML attribute `datetime`.
@@ -8445,7 +9031,7 @@ class Element {
 
     // Specifies that the track is to be enabled if the user's preferences do not indicate that another track would be more appropriate.
     /*	@docs: {
-     *	@name: Default
+     *	@title: Default
      *	@description: 
      *		Specifies that the track is to be enabled if the user's preferences do not indicate that another track would be more appropriate.
      *		The equivalent of HTML attribute `default`.
@@ -8467,7 +9053,7 @@ class Element {
 
     // Specifies that the script is executed when the page has finished parsing (only for external scripts).
     /*	@docs: {
-     *	@name: Defer
+     *	@title: Defer
      *	@description: 
      *		Specifies that the script is executed when the page has finished parsing (only for external scripts).
      *		The equivalent of HTML attribute `defer`.
@@ -8489,7 +9075,7 @@ class Element {
 
     // Specifies the text direction for the content in an element.
     /*	@docs: {
-     *	@name: Dir
+     *	@title: Dir
      *	@description: 
      *		Specifies the text direction for the content in an element.
      *		The equivalent of HTML attribute `dir`.
@@ -8511,7 +9097,7 @@ class Element {
 
     // Specifies that the text direction will be submitted.
     /*	@docs: {
-     *	@name: Dirname
+     *	@title: Dirname
      *	@description: 
      *		Specifies that the text direction will be submitted.
      *		The equivalent of HTML attribute `dirname`.
@@ -8533,7 +9119,7 @@ class Element {
 
     // Specifies that the specified element/group of elements should be disabled.
     /*	@docs: {
-     *	@name: Disabled
+     *	@title: Disabled
      *	@description: 
      *		Specifies that the specified element/group of elements should be disabled.
      *		The equivalent of HTML attribute `disabled`.
@@ -8555,7 +9141,7 @@ class Element {
 
     // Specifies that the target will be downloaded when a user clicks on the hyperlink.
     /*	@docs: {
-     *	@name: Download
+     *	@title: Download
      *	@description: 
      *		Specifies that the target will be downloaded when a user clicks on the hyperlink.
      *		The equivalent of HTML attribute `download`.
@@ -8577,7 +9163,7 @@ class Element {
 
     // Specifies whether an element is draggable or not.
     /*	@docs: {
-     *	@name: Draggable
+     *	@title: Draggable
      *	@description: 
      *		Specifies whether an element is draggable or not.
      *		The equivalent of HTML attribute `draggable`.
@@ -8599,7 +9185,7 @@ class Element {
 
     // Specifies how the form-data should be encoded when submitting it to the server (only for method="post").
     /*	@docs: {
-     *	@name: Enctype
+     *	@title: Enctype
      *	@description: 
      *		Specifies how the form-data should be encoded when submitting it to the server (only for method="post").
      *		The equivalent of HTML attribute `enctype`.
@@ -8621,7 +9207,7 @@ class Element {
 
     // Specifies which form element(s) a label/calculation is bound to.
     /*	@docs: {
-     *	@name: For
+     *	@title: For
      *	@description: 
      *		Specifies which form element(s) a label/calculation is bound to.
      *		The equivalent of HTML attribute `for`.
@@ -8643,7 +9229,7 @@ class Element {
 
     // Specifies the name of the form the element belongs to.
     /*	@docs: {
-     *	@name: Form
+     *	@title: Form
      *	@description: 
      *		Specifies the name of the form the element belongs to.
      *		The equivalent of HTML attribute `form`.
@@ -8665,7 +9251,7 @@ class Element {
 
     // Specifies where to send the form-data when a form is submitted. Only for type="submit".
     /*	@docs: {
-     *	@name: Form action
+     *	@title: Form action
      *	@description: 
      *		Specifies where to send the form-data when a form is submitted. Only for type="submit".
      *		The equivalent of HTML attribute `formaction`.
@@ -8687,7 +9273,7 @@ class Element {
 
     // Specifies one or more headers cells a cell is related to.
     /*	@docs: {
-     *	@name: Headers
+     *	@title: Headers
      *	@description: 
      *		Specifies one or more headers cells a cell is related to.
      *		The equivalent of HTML attribute `headers`.
@@ -8723,7 +9309,7 @@ class Element {
 
     // Specifies the range that is considered to be a high value.
     /*	@docs: {
-     *	@name: High
+     *	@title: High
      *	@description: 
      *		Specifies the range that is considered to be a high value.
      *		The equivalent of HTML attribute `high`.
@@ -8745,7 +9331,7 @@ class Element {
 
     // Specifies the URL of the page the link goes to.
     /*	@docs: {
-     *	@name: Href
+     *	@title: Href
      *	@description: 
      *		Specifies the URL of the page the link goes to.
      *		The equivalent of HTML attribute `href`.
@@ -8767,7 +9353,7 @@ class Element {
 
     // Specifies the language of the linked document.
     /*	@docs: {
-     *	@name: Href lang
+     *	@title: Href lang
      *	@description: 
      *		Specifies the language of the linked document.
      *		The equivalent of HTML attribute `hreflang`.
@@ -8789,7 +9375,7 @@ class Element {
 
     // Provides an HTTP header for the information/value of the content attribute.
     /*	@docs: {
-     *	@name: Http equiv
+     *	@title: Http equiv
      *	@description: 
      *		Provides an HTTP header for the information/value of the content attribute.
      *		The equivalent of HTML attribute `http_equiv`.
@@ -8811,7 +9397,7 @@ class Element {
 
     // Specifies a unique id for an element.
     /*	@docs: {
-     *	@name: Id
+     *	@title: Id
      *	@description: 
      *		Specifies a unique id for an element.
      *		The equivalent of HTML attribute `id`.
@@ -8833,7 +9419,7 @@ class Element {
 
     // Specifies an image as a server-side image map.
     /*	@docs: {
-     *	@name: Is map
+     *	@title: Is map
      *	@description: 
      *		Specifies an image as a server-side image map.
      *		The equivalent of HTML attribute `ismap`.
@@ -8855,7 +9441,7 @@ class Element {
 
     // Specifies the kind of text track.
     /*	@docs: {
-     *	@name: Kind
+     *	@title: Kind
      *	@description: 
      *		Specifies the kind of text track.
      *		The equivalent of HTML attribute `kind`.
@@ -8877,7 +9463,7 @@ class Element {
 
     // Specifies the title of the text track.
     /*	@docs: {
-     *	@name: Label
+     *	@title: Label
      *	@description: 
      *		Specifies the title of the text track.
      *		The equivalent of HTML attribute `label`.
@@ -8899,7 +9485,7 @@ class Element {
 
     // Specifies the language of the element's content.
     /*	@docs: {
-     *	@name: Lang
+     *	@title: Lang
      *	@description: 
      *		Specifies the language of the element's content.
      *		The equivalent of HTML attribute `lang`.
@@ -8921,7 +9507,7 @@ class Element {
 
     // Refers to a <datalist> element that contains pre-defined options for an <input> element.
     /*	@docs: {
-     *	@name: List
+     *	@title: List
      *	@description: 
      *		Refers to a <datalist> element that contains pre-defined options for an <input> element.
      *		The equivalent of HTML attribute `list`.
@@ -8943,7 +9529,7 @@ class Element {
 
     // Specifies that the audio/video will start over again, every time it is finished.
     /*	@docs: {
-     *	@name: Loop
+     *	@title: Loop
      *	@description: 
      *		Specifies that the audio/video will start over again, every time it is finished.
      *		The equivalent of HTML attribute `loop`.
@@ -8965,7 +9551,7 @@ class Element {
 
     // Specifies the range that is considered to be a low value.
     /*	@docs: {
-     *	@name: Low
+     *	@title: Low
      *	@description: 
      *		Specifies the range that is considered to be a low value.
      *		The equivalent of HTML attribute `low`.
@@ -8987,7 +9573,7 @@ class Element {
 
     // Specifies the maximum value.
     /*	@docs: {
-     *	@name: Max
+     *	@title: Max
      *	@description: 
      *		Specifies the maximum value.
      *		The equivalent of HTML attribute `max`.
@@ -9009,7 +9595,7 @@ class Element {
 
     // Specifies the maximum number of characters allowed in an element.
     /*	@docs: {
-     *	@name: Max length
+     *	@title: Max length
      *	@description: 
      *		Specifies the maximum number of characters allowed in an element.
      *		The equivalent of HTML attribute `maxlength`.
@@ -9038,7 +9624,7 @@ class Element {
 
     // Specifies the HTTP method to use when sending form-data.
     /*	@docs: {
-     *	@name: Method
+     *	@title: Method
      *	@description: 
      *		Specifies the HTTP method to use when sending form-data.
      *		The equivalent of HTML attribute `method`.
@@ -9060,7 +9646,7 @@ class Element {
 
     // Specifies a minimum value.
     /*	@docs: {
-     *	@name: Min
+     *	@title: Min
      *	@description: 
      *		Specifies a minimum value.
      *		The equivalent of HTML attribute `min`.
@@ -9082,7 +9668,7 @@ class Element {
 
     // Specifies that a user can enter more than one value.
     /*	@docs: {
-     *	@name: Multiple
+     *	@title: Multiple
      *	@description: 
      *		Specifies that a user can enter more than one value.
      *		The equivalent of HTML attribute `multiple`.
@@ -9104,7 +9690,7 @@ class Element {
 
     // Specifies that the audio output of the video should be muted.
     /*	@docs: {
-     *	@name: Muted
+     *	@title: Muted
      *	@description: 
      *		Specifies that the audio output of the video should be muted.
      *		The equivalent of HTML attribute `muted`.
@@ -9126,7 +9712,7 @@ class Element {
 
     // Specifies the name of the element.
     /*	@docs: {
-     *	@name: Name
+     *	@title: Name
      *	@description: 
      *		Specifies the name of the element.
      *		The equivalent of HTML attribute `name`.
@@ -9148,7 +9734,7 @@ class Element {
 
     // Specifies that the form should not be validated when submitted.
     /*	@docs: {
-     *	@name: No validate
+     *	@title: No validate
      *	@description: 
      *		Specifies that the form should not be validated when submitted.
      *		The equivalent of HTML attribute `novalidate`.
@@ -9168,1534 +9754,9 @@ class Element {
     	return this;
     }
 
-    // Script to be run on abort.
-    /*	@docs: {
-     *	@name: On abort
-     *	@description: 
-     *		Script to be run on abort.
-     *		The equivalent of HTML attribute `onabort`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_abort(value) {
-        if (value == null) { return this.element.onabort; }
-    	this.element.onabort = value;
-    	return this;
-    }
-
-    // Script to be run after the document is printed.
-    /*	@docs: {
-     *	@name: On after print
-     *	@description: 
-     *		Script to be run after the document is printed.
-     *		The equivalent of HTML attribute `onafterprint`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_after_print(value) {
-        if (value == null) { return this.element.onafterprint; }
-    	this.element.onafterprint = value;
-    	return this;
-    }
-
-    // Script to be run before the document is printed.
-    /*	@docs: {
-     *	@name: On before print
-     *	@description: 
-     *		Script to be run before the document is printed.
-     *		The equivalent of HTML attribute `onbeforeprint`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_before_print(value) {
-        if (value == null) { return this.element.onbeforeprint; }
-    	this.element.onbeforeprint = value;
-    	return this;
-    }
-
-    // Script to be run when the document is about to be unloaded.
-    /*	@docs: {
-     *	@name: On before unload
-     *	@description: 
-     *		Script to be run when the document is about to be unloaded.
-     *		The equivalent of HTML attribute `onbeforeunload`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_before_unload(value) {
-        if (value == null) { return this.element.onbeforeunload; }
-    	this.element.onbeforeunload = value;
-    	return this;
-    }
-
-    // Script to be run when the element loses focus.
-    /*	@docs: {
-     *	@name: On blur
-     *	@description: 
-     *		Script to be run when the element loses focus.
-     *		The equivalent of HTML attribute `onblur`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_blur(value) {
-        if (value == null) { return this.element.onblur; }
-    	this.element.onblur = value;
-    	return this;
-    }
-
-    // Script to be run when a file is ready to start playing (when it has buffered enough to begin).
-    /*	@docs: {
-     *	@name: On canplay
-     *	@description: 
-     *		Script to be run when a file is ready to start playing (when it has buffered enough to begin).
-     *		The equivalent of HTML attribute `oncanplay`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_canplay(value) {
-        if (value == null) { return this.element.oncanplay; }
-    	this.element.oncanplay = value;
-    	return this;
-    }
-
-    // Script to be run when a file can be played all the way to the end without pausing for buffering.
-    /*	@docs: {
-     *	@name: On canplay through
-     *	@description: 
-     *		Script to be run when a file can be played all the way to the end without pausing for buffering.
-     *		The equivalent of HTML attribute `oncanplaythrough`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_canplay_through(value) {
-        if (value == null) { return this.element.oncanplaythrough; }
-    	this.element.oncanplaythrough = value;
-    	return this;
-    }
-
-    // Script to be run when the value of the element is changed.
-    /*	@docs: {
-     *	@name: On change
-     *	@description: 
-     *		Script to be run when the value of the element is changed.
-     *		The equivalent of HTML attribute `onchange`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_change(value) {
-        if (value == null) { return this.element.onchange; }
-    	this.element.onchange = value;
-    	return this;
-    }
-
-    // Script to be run when the element is being clicked.
-    // on_click(value) {
-    //     if (value == null) { return this.element.onclick; }
-    // 	this.element.onclick = value;
-    // 	return this;
-    // }
-
-    // Script to be run when a context menu is triggered.
-    /*	@docs: {
-     *	@name: On context menu
-     *	@description: 
-     *		Script to be run when a context menu is triggered.
-     *		The equivalent of HTML attribute `oncontextmenu`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_context_menu(value) {
-        if (value == null) { return this.element.oncontextmenu; }
-    	this.element.oncontextmenu = value;
-    	return this;
-    }
-
-    // Script to be run when the content of the element is being copied.
-    /*	@docs: {
-     *	@name: On copy
-     *	@description: 
-     *		Script to be run when the content of the element is being copied.
-     *		The equivalent of HTML attribute `oncopy`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_copy(value) {
-        if (value == null) { return this.element.oncopy; }
-    	this.element.oncopy = value;
-    	return this;
-    }
-
-    // Script to be run when the cue changes in a <track> element.
-    /*	@docs: {
-     *	@name: On cue change
-     *	@description: 
-     *		Script to be run when the cue changes in a <track> element.
-     *		The equivalent of HTML attribute `oncuechange`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_cue_change(value) {
-        if (value == null) { return this.element.oncuechange; }
-    	this.element.oncuechange = value;
-    	return this;
-    }
-
-    // Script to be run when the content of the element is being cut.
-    /*	@docs: {
-     *	@name: On cut
-     *	@description: 
-     *		Script to be run when the content of the element is being cut.
-     *		The equivalent of HTML attribute `oncut`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_cut(value) {
-        if (value == null) { return this.element.oncut; }
-    	this.element.oncut = value;
-    	return this;
-    }
-
-    // Script to be run when the element is being double-clicked.
-    /*	@docs: {
-     *	@name: On dbl click
-     *	@description: 
-     *		Script to be run when the element is being double-clicked.
-     *		The equivalent of HTML attribute `ondblclick`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_dbl_click(value) {
-        if (value == null) { return this.element.ondblclick; }
-    	this.element.ondblclick = value;
-    	return this;
-    }
-
-    // Script to be run when the element is being dragged.
-    /*	@docs: {
-     *	@name: On drag
-     *	@description: 
-     *		Script to be run when the element is being dragged.
-     *		The equivalent of HTML attribute `ondrag`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_drag(value) {
-        if (value == null) { return this.element.ondrag; }
-    	this.element.ondrag = value;
-    	return this;
-    }
-
-    // Script to be run at the end of a drag operation.
-    /*	@docs: {
-     *	@name: On drag end
-     *	@description: 
-     *		Script to be run at the end of a drag operation.
-     *		The equivalent of HTML attribute `ondragend`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_drag_end(value) {
-        if (value == null) { return this.element.ondragend; }
-    	this.element.ondragend = value;
-    	return this;
-    }
-
-    // Script to be run when an element has been dragged to a valid drop target.
-    /*	@docs: {
-     *	@name: On drag enter
-     *	@description: 
-     *		Script to be run when an element has been dragged to a valid drop target.
-     *		The equivalent of HTML attribute `ondragenter`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_drag_enter(value) {
-        if (value == null) { return this.element.ondragenter; }
-    	this.element.ondragenter = value;
-    	return this;
-    }
-
-    // Script to be run when an element leaves a valid drop target.
-    /*	@docs: {
-     *	@name: On drag leave
-     *	@description: 
-     *		Script to be run when an element leaves a valid drop target.
-     *		The equivalent of HTML attribute `ondragleave`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_drag_leave(value) {
-        if (value == null) { return this.element.ondragleave; }
-    	this.element.ondragleave = value;
-    	return this;
-    }
-
-    // Script to be run when an element is being dragged over a valid drop target.
-    /*	@docs: {
-     *	@name: On drag over
-     *	@description: 
-     *		Script to be run when an element is being dragged over a valid drop target.
-     *		The equivalent of HTML attribute `ondragover`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_drag_over(value) {
-        if (value == null) { return this.element.ondragover; }
-    	this.element.ondragover = value;
-    	return this;
-    }
-
-    // Script to be run at the start of a drag operation.
-    /*	@docs: {
-     *	@name: On drag start
-     *	@description: 
-     *		Script to be run at the start of a drag operation.
-     *		The equivalent of HTML attribute `ondragstart`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_drag_start(value) {
-        if (value == null) { return this.element.ondragstart; }
-    	this.element.ondragstart = value;
-    	return this;
-    }
-
-    // Script to be run when dragged element is being dropped.
-    /*	@docs: {
-     *	@name: On drop
-     *	@description: 
-     *		Script to be run when dragged element is being dropped.
-     *		The equivalent of HTML attribute `ondrop`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_drop(value) {
-        if (value == null) { return this.element.ondrop; }
-    	this.element.ondrop = value;
-    	return this;
-    }
-
-    // Script to be run when the length of the media changes.
-    /*	@docs: {
-     *	@name: On duration change
-     *	@description: 
-     *		Script to be run when the length of the media changes.
-     *		The equivalent of HTML attribute `ondurationchange`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_duration_change(value) {
-        if (value == null) { return this.element.ondurationchange; }
-    	this.element.ondurationchange = value;
-    	return this;
-    }
-
-    // Script to be run when something bad happens and the file is suddenly unavailable (like unexpectedly disconnects).
-    /*	@docs: {
-     *	@name: On emptied
-     *	@description: 
-     *		Script to be run when something bad happens and the file is suddenly unavailable (like unexpectedly disconnects).
-     *		The equivalent of HTML attribute `onemptied`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_emptied(value) {
-        if (value == null) { return this.element.onemptied; }
-    	this.element.onemptied = value;
-    	return this;
-    }
-
-    // Script to be run when the media has reach the end (a useful event for messages like "thanks for listening").
-    /*	@docs: {
-     *	@name: On ended
-     *	@description: 
-     *		Script to be run when the media has reach the end (a useful event for messages like "thanks for listening").
-     *		The equivalent of HTML attribute `onended`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_ended(value) {
-        if (value == null) { return this.element.onended; }
-    	this.element.onended = value;
-    	return this;
-    }
-
-    // Script to be run when an error occurs.
-    /*	@docs: {
-     *	@name: On error
-     *	@description: 
-     *		Script to be run when an error occurs.
-     *		The equivalent of HTML attribute `onerror`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_error(value) {
-        if (value == null) { return this.element.onerror; }
-    	this.element.onerror = value;
-    	return this;
-    }
-
-    // Script to be run when the element gets focus.
-    /*	@docs: {
-     *	@name: On focus
-     *	@description: 
-     *		Script to be run when the element gets focus.
-     *		The equivalent of HTML attribute `onfocus`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_focus(value) {
-        if (value == null) { return this.element.onfocus; }
-    	this.element.onfocus = value;
-    	return this;
-    }
-
-    // Script to be run when there has been changes to the anchor part of the a URL.
-    /*	@docs: {
-     *	@name: On hash change
-     *	@description: 
-     *		Script to be run when there has been changes to the anchor part of the a URL.
-     *		The equivalent of HTML attribute `onhashchange`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_hash_change(value) {
-        if (value == null) { return this.element.onhashchange; }
-    	this.element.onhashchange = value;
-    	return this;
-    }
-
-    // Script to be run when the element gets user input.
-    /*	@docs: {
-     *	@name: On input
-     *	@description: 
-     *		Script to be run when the element gets user input.
-     *		The equivalent of HTML attribute `oninput`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_input(value) {
-        if (value == null) { return this.element.oninput; }
-    	this.element.oninput = value;
-    	return this;
-    }
-
-    // Script to be run when the element is invalid.
-    /*	@docs: {
-     *	@name: On invalid
-     *	@description: 
-     *		Script to be run when the element is invalid.
-     *		The equivalent of HTML attribute `oninvalid`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_invalid(value) {
-        if (value == null) { return this.element.oninvalid; }
-    	this.element.oninvalid = value;
-    	return this;
-    }
-
-    // Script to be run when a user is pressing a key.
-    /*	@docs: {
-     *	@name: On key down
-     *	@description: 
-     *		Script to be run when a user is pressing a key.
-     *		The equivalent of HTML attribute `onkeydown`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_key_down(value) {
-        if (value == null) { return this.element.onkeydown; }
-    	this.element.onkeydown = value;
-    	return this;
-    }
-
-    // Script to be run when a user presses a key.
-    /*	@docs: {
-     *	@name: On key press
-     *	@description: 
-     *		Script to be run when a user presses a key.
-     *		The equivalent of HTML attribute `onkeypress`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_key_press(value) {
-        if (value == null) { return this.element.onkeypress; }
-    	this.element.onkeypress = value;
-    	return this;
-    }
-
-    // Script to be run when a user releases a key.
-    /*	@docs: {
-     *	@name: On key up
-     *	@description: 
-     *		Script to be run when a user releases a key.
-     *		The equivalent of HTML attribute `onkeyup`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_key_up(value) {
-        if (value == null) { return this.element.onkeyup; }
-    	this.element.onkeyup = value;
-    	return this;
-    }
-
-    // Script to be run when the element is finished loading.
-    /*	@docs: {
-     *	@name: On load
-     *	@description: 
-     *		Script to be run when the element is finished loading.
-     *		The equivalent of HTML attribute `onload`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_load(value) {
-        if (value == null) { return this.element.onload; }
-    	this.element.onload = value;
-    	return this;
-    }
-
-    // Script to be run when media data is loaded.
-    /*	@docs: {
-     *	@name: On loaded data
-     *	@description: 
-     *		Script to be run when media data is loaded.
-     *		The equivalent of HTML attribute `onloadeddata`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_loaded_data(value) {
-        if (value == null) { return this.element.onloadeddata; }
-    	this.element.onloadeddata = value;
-    	return this;
-    }
-
-    // Script to be run when meta data (like dimensions and duration) are loaded.
-    /*	@docs: {
-     *	@name: On loaded metadata
-     *	@description: 
-     *		Script to be run when meta data (like dimensions and duration) are loaded.
-     *		The equivalent of HTML attribute `onloadedmetadata`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_loaded_metadata(value) {
-        if (value == null) { return this.element.onloadedmetadata; }
-    	this.element.onloadedmetadata = value;
-    	return this;
-    }
-
-    // Script to be run just as the file begins to load before anything is actually loaded.
-    /*	@docs: {
-     *	@name: On load start
-     *	@description: 
-     *		Script to be run just as the file begins to load before anything is actually loaded.
-     *		The equivalent of HTML attribute `onloadstart`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_load_start(value) {
-        if (value == null) { return this.element.onloadstart; }
-    	this.element.onloadstart = value;
-    	return this;
-    }
-
-    // Script to be run when a mouse button is pressed down on an element.
-    /*	@docs: {
-     *	@name: On mouse down
-     *	@description: 
-     *		Script to be run when a mouse button is pressed down on an element.
-     *		The equivalent of HTML attribute `onmousedown`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_mouse_down(value) {
-        if (value == null) { return this.element.onmousedown; }
-    	this.element.onmousedown = value;
-    	return this;
-    }
-
-    // Script to be run as long as the  mouse pointer is moving over an element.
-    /*	@docs: {
-     *	@name: On mouse move
-     *	@description: 
-     *		Script to be run as long as the  mouse pointer is moving over an element.
-     *		The equivalent of HTML attribute `onmousemove`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_mouse_move(value) {
-        if (value == null) { return this.element.onmousemove; }
-    	this.element.onmousemove = value;
-    	return this;
-    }
-
-    // Script to be run when a mouse pointer moves out of an element.
-    /*	@docs: {
-     *	@name: On mouse out
-     *	@description: 
-     *		Script to be run when a mouse pointer moves out of an element.
-     *		The equivalent of HTML attribute `onmouseout`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_mouse_out(value) {
-        if (value == null) { return this.element.onmouseout; }
-    	this.element.onmouseout = value;
-    	return this;
-    }
-
-    // Script to be run when a mouse pointer moves over an element.
-    /*	@docs: {
-     *	@name: On mouse over
-     *	@description: 
-     *		Script to be run when a mouse pointer moves over an element.
-     *		The equivalent of HTML attribute `onmouseover`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_mouse_over(value) {
-        if (value == null) { return this.element.onmouseover; }
-    	this.element.onmouseover = value;
-    	return this;
-    }
-
-    // Script to be run when a mouse button is released over an element.
-    /*	@docs: {
-     *	@name: On mouse up
-     *	@description: 
-     *		Script to be run when a mouse button is released over an element.
-     *		The equivalent of HTML attribute `onmouseup`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_mouse_up(value) {
-        if (value == null) { return this.element.onmouseup; }
-    	this.element.onmouseup = value;
-    	return this;
-    }
-
-    // Script to be run when a mouse wheel is being scrolled over an element.
-    /*	@docs: {
-     *	@name: On mouse wheel
-     *	@description: 
-     *		Script to be run when a mouse wheel is being scrolled over an element.
-     *		The equivalent of HTML attribute `onmousewheel`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_mouse_wheel(value) {
-        if (value == null) { return this.element.onmousewheel; }
-    	this.element.onmousewheel = value;
-    	return this;
-    }
-
-    // Script to be run when the browser starts to work offline.
-    /*	@docs: {
-     *	@name: On offline
-     *	@description: 
-     *		Script to be run when the browser starts to work offline.
-     *		The equivalent of HTML attribute `onoffline`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_offline(value) {
-        if (value == null) { return this.element.onoffline; }
-    	this.element.onoffline = value;
-    	return this;
-    }
-
-    // Script to be run when the browser starts to work online.
-    /*	@docs: {
-     *	@name: On online
-     *	@description: 
-     *		Script to be run when the browser starts to work online.
-     *		The equivalent of HTML attribute `ononline`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_online(value) {
-        if (value == null) { return this.element.ononline; }
-    	this.element.ononline = value;
-    	return this;
-    }
-
-    // Script to be run when a user navigates away from a page.
-    /*	@docs: {
-     *	@name: On page hide
-     *	@description: 
-     *		Script to be run when a user navigates away from a page.
-     *		The equivalent of HTML attribute `onpagehide`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_page_hide(value) {
-        if (value == null) { return this.element.onpagehide; }
-    	this.element.onpagehide = value;
-    	return this;
-    }
-
-    // Script to be run when a user navigates to a page.
-    /*	@docs: {
-     *	@name: On page show
-     *	@description: 
-     *		Script to be run when a user navigates to a page.
-     *		The equivalent of HTML attribute `onpageshow`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_page_show(value) {
-        if (value == null) { return this.element.onpageshow; }
-    	this.element.onpageshow = value;
-    	return this;
-    }
-
-    // Script to be run when the user pastes some content in an element.
-    /*	@docs: {
-     *	@name: On paste
-     *	@description: 
-     *		Script to be run when the user pastes some content in an element.
-     *		The equivalent of HTML attribute `onpaste`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_paste(value) {
-        if (value == null) { return this.element.onpaste; }
-    	this.element.onpaste = value;
-    	return this;
-    }
-
-    // Script to be run when the media is paused either by the user or programmatically.
-    /*	@docs: {
-     *	@name: On pause
-     *	@description: 
-     *		Script to be run when the media is paused either by the user or programmatically.
-     *		The equivalent of HTML attribute `onpause`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_pause(value) {
-        if (value == null) { return this.element.onpause; }
-    	this.element.onpause = value;
-    	return this;
-    }
-
-    // Script to be run when the media has started playing.
-    /*	@docs: {
-     *	@name: On play
-     *	@description: 
-     *		Script to be run when the media has started playing.
-     *		The equivalent of HTML attribute `onplay`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_play(value) {
-        if (value == null) { return this.element.onplay; }
-    	this.element.onplay = value;
-    	return this;
-    }
-
-    // Script to be run when the media has started playing.
-    /*	@docs: {
-     *	@name: On playing
-     *	@description: 
-     *		Script to be run when the media has started playing.
-     *		The equivalent of HTML attribute `onplaying`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_playing(value) {
-        if (value == null) { return this.element.onplaying; }
-    	this.element.onplaying = value;
-    	return this;
-    }
-
-    // Script to be run when the window's history changes.
-    /*	@docs: {
-     *	@name: On popstate
-     *	@description: 
-     *		Script to be run when the window's history changes.
-     *		The equivalent of HTML attribute `onpopstate`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_popstate(value) {
-        if (value == null) { return this.element.onpopstate; }
-    	this.element.onpopstate = value;
-    	return this;
-    }
-
-    // Script to be run when the browser is in the process of getting the media data.
-    /*	@docs: {
-     *	@name: Onprogress
-     *	@description: 
-     *		Script to be run when the browser is in the process of getting the media data.
-     *		The equivalent of HTML attribute `onprogress`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    onprogress(value) {
-        if (value == null) { return this.element.onprogress; }
-    	this.element.onprogress = value;
-    	return this;
-    }
-
-    // Script to be run each time the playback rate changes (like when a user switches to a slow motion or fast forward mode).
-    /*	@docs: {
-     *	@name: On rate change
-     *	@description: 
-     *		Script to be run each time the playback rate changes (like when a user switches to a slow motion or fast forward mode).
-     *		The equivalent of HTML attribute `onratechange`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_rate_change(value) {
-        if (value == null) { return this.element.onratechange; }
-    	this.element.onratechange = value;
-    	return this;
-    }
-
-    // Script to be run when a reset button in a form is clicked.
-    /*	@docs: {
-     *	@name: On reset
-     *	@description: 
-     *		Script to be run when a reset button in a form is clicked.
-     *		The equivalent of HTML attribute `onreset`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_reset(value) {
-        if (value == null) { return this.element.onreset; }
-    	this.element.onreset = value;
-    	return this;
-    }
-
-    // Script to be run when the browser window is being resized.
-    /*	@docs: {
-     *	@name: On resize
-     *	@description: 
-     *		Script to be run when the browser window is being resized.
-     *		The equivalent of HTML attribute `onresize`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_resize(value) {
-        if (value == null) { return this.element.onresize; }
-    	this.element.onresize = value;
-    	return this;
-    }
-
-    // Script to be run when an element's scrollbar is being scrolled.
-    /*	@docs: {
-     *	@name: On scroll
-     *	@description: 
-     *		Script to be run when an element's scrollbar is being scrolled.
-     *		The equivalent of HTML attribute `onscroll`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_scroll(value) {
-        if (value == null) { return this.element.onscroll; }
-    	this.element.onscroll = value;
-    	return this;
-    }
-
-    // Script to be run when the user writes something in a search field (for <input type="search">).
-    /*	@docs: {
-     *	@name: On search
-     *	@description: 
-     *		Script to be run when the user writes something in a search field (for <input type="search">).
-     *		The equivalent of HTML attribute `onsearch`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_search(value) {
-        if (value == null) { return this.element.onsearch; }
-    	this.element.onsearch = value;
-    	return this;
-    }
-
-    // Script to be run when the seeking attribute is set to false indicating that seeking has ended.
-    /*	@docs: {
-     *	@name: On seeked
-     *	@description: 
-     *		Script to be run when the seeking attribute is set to false indicating that seeking has ended.
-     *		The equivalent of HTML attribute `onseeked`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_seeked(value) {
-        if (value == null) { return this.element.onseeked; }
-    	this.element.onseeked = value;
-    	return this;
-    }
-
-    // Script to be run when the seeking attribute is set to true indicating that seeking is active.
-    /*	@docs: {
-     *	@name: On seeking
-     *	@description: 
-     *		Script to be run when the seeking attribute is set to true indicating that seeking is active.
-     *		The equivalent of HTML attribute `onseeking`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_seeking(value) {
-        if (value == null) { return this.element.onseeking; }
-    	this.element.onseeking = value;
-    	return this;
-    }
-
-    // Script to be run when the element gets selected.
-    /*	@docs: {
-     *	@name: On select
-     *	@description: 
-     *		Script to be run when the element gets selected.
-     *		The equivalent of HTML attribute `onselect`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_select(value) {
-        if (value == null) { return this.element.onselect; }
-    	this.element.onselect = value;
-    	return this;
-    }
-
-    // Script to be run when the browser is unable to fetch the media data for whatever reason.
-    /*	@docs: {
-     *	@name: On stalled
-     *	@description: 
-     *		Script to be run when the browser is unable to fetch the media data for whatever reason.
-     *		The equivalent of HTML attribute `onstalled`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_stalled(value) {
-        if (value == null) { return this.element.onstalled; }
-    	this.element.onstalled = value;
-    	return this;
-    }
-
-    // Script to be run when a Web Storage area is updated.
-    /*	@docs: {
-     *	@name: On storage
-     *	@description: 
-     *		Script to be run when a Web Storage area is updated.
-     *		The equivalent of HTML attribute `onstorage`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_storage(value) {
-        if (value == null) { return this.element.onstorage; }
-    	this.element.onstorage = value;
-    	return this;
-    }
-
-    // Script to be run when a form is submitted.
-    /*	@docs: {
-     *	@name: On submit
-     *	@description: 
-     *		Script to be run when a form is submitted.
-     *		The equivalent of HTML attribute `onsubmit`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_submit(value) {
-        if (value == null) { return this.element.onsubmit; }
-    	this.element.onsubmit = value;
-    	return this;
-    }
-
-    // Script to be run when fetching the media data is stopped before it is completely loaded for whatever reason.
-    /*	@docs: {
-     *	@name: On suspend
-     *	@description: 
-     *		Script to be run when fetching the media data is stopped before it is completely loaded for whatever reason.
-     *		The equivalent of HTML attribute `onsuspend`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_suspend(value) {
-        if (value == null) { return this.element.onsuspend; }
-    	this.element.onsuspend = value;
-    	return this;
-    }
-
-    // Script to be run when the playing position has changed (like when the user fast forwards to a different point in the media).
-    /*	@docs: {
-     *	@name: On time update
-     *	@description: 
-     *		Script to be run when the playing position has changed (like when the user fast forwards to a different point in the media).
-     *		The equivalent of HTML attribute `ontimeupdate`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_time_update(value) {
-        if (value == null) { return this.element.ontimeupdate; }
-    	this.element.ontimeupdate = value;
-    	return this;
-    }
-
-    // Script to be run when the user opens or closes the <details> element.
-    /*	@docs: {
-     *	@name: On toggle
-     *	@description: 
-     *		Script to be run when the user opens or closes the <details> element.
-     *		The equivalent of HTML attribute `ontoggle`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_toggle(value) {
-        if (value == null) { return this.element.ontoggle; }
-    	this.element.ontoggle = value;
-    	return this;
-    }
-
-    // Script to be run when a page has unloaded (or the browser window has been closed).
-    /*	@docs: {
-     *	@name: On unload
-     *	@description: 
-     *		Script to be run when a page has unloaded (or the browser window has been closed).
-     *		The equivalent of HTML attribute `onunload`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_unload(value) {
-        if (value == null) { return this.element.onunload; }
-    	this.element.onunload = value;
-    	return this;
-    }
-
-    // Script to be run each time the volume of a video/audio has been changed.
-    /*	@docs: {
-     *	@name: On volume change
-     *	@description: 
-     *		Script to be run each time the volume of a video/audio has been changed.
-     *		The equivalent of HTML attribute `onvolumechange`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_volume_change(value) {
-        if (value == null) { return this.element.onvolumechange; }
-    	this.element.onvolumechange = value;
-    	return this;
-    }
-
-    // Script to be run when the media has paused but is expected to resume (like when the media pauses to buffer more data).
-    /*	@docs: {
-     *	@name: On waiting
-     *	@description: 
-     *		Script to be run when the media has paused but is expected to resume (like when the media pauses to buffer more data).
-     *		The equivalent of HTML attribute `onwaiting`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_waiting(value) {
-        if (value == null) { return this.element.onwaiting; }
-    	this.element.onwaiting = value;
-    	return this;
-    }
-
-    // Script to be run when the mouse wheel rolls up or down over an element.
-    /*	@docs: {
-     *	@name: On wheel
-     *	@description: 
-     *		Script to be run when the mouse wheel rolls up or down over an element.
-     *		The equivalent of HTML attribute `onwheel`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_wheel(value) {
-        if (value == null) { return this.element.onwheel; }
-    	this.element.onwheel = value;
-    	return this;
-    }
-
     // Specifies that the details should be visible (open) to the user.
     /*	@docs: {
-     *	@name: Open
+     *	@title: Open
      *	@description: 
      *		Specifies that the details should be visible (open) to the user.
      *		The equivalent of HTML attribute `open`.
@@ -10717,7 +9778,7 @@ class Element {
 
     // Specifies what value is the optimal value for the gauge.
     /*	@docs: {
-     *	@name: Optimum
+     *	@title: Optimum
      *	@description: 
      *		Specifies what value is the optimal value for the gauge.
      *		The equivalent of HTML attribute `optimum`.
@@ -10739,7 +9800,7 @@ class Element {
 
     // Specifies a regular expression that an <input> element's value is checked against.
     /*	@docs: {
-     *	@name: Pattern
+     *	@title: Pattern
      *	@description: 
      *		Specifies a regular expression that an <input> element's value is checked against.
      *		The equivalent of HTML attribute `pattern`.
@@ -10761,7 +9822,7 @@ class Element {
 
     // Specifies a short hint that describes the expected value of the element.
     /*	@docs: {
-     *	@name: Placeholder
+     *	@title: Placeholder
      *	@description: 
      *		Specifies a short hint that describes the expected value of the element.
      *		The equivalent of HTML attribute `placeholder`.
@@ -10783,7 +9844,7 @@ class Element {
 
     // Specifies an image to be shown while the video is downloading, or until the user hits the play button.
     /*	@docs: {
-     *	@name: Poster
+     *	@title: Poster
      *	@description: 
      *		Specifies an image to be shown while the video is downloading, or until the user hits the play button.
      *		The equivalent of HTML attribute `poster`.
@@ -10805,7 +9866,7 @@ class Element {
 
     // Specifies if and how the author thinks the audio/video should be loaded when the page loads.
     /*	@docs: {
-     *	@name: Preload
+     *	@title: Preload
      *	@description: 
      *		Specifies if and how the author thinks the audio/video should be loaded when the page loads.
      *		The equivalent of HTML attribute `preload`.
@@ -10827,7 +9888,7 @@ class Element {
 
     // Specifies that the element is read-only.
     /*	@docs: {
-     *	@name: Readonly
+     *	@title: Readonly
      *	@description: 
      *		Specifies that the element is read-only.
      *		The equivalent of HTML attribute `readonly`.
@@ -10849,7 +9910,7 @@ class Element {
 
     // Specifies the relationship between the current document and the linked document.
     /*	@docs: {
-     *	@name: Rel
+     *	@title: Rel
      *	@description: 
      *		Specifies the relationship between the current document and the linked document.
      *		The equivalent of HTML attribute `rel`.
@@ -10871,7 +9932,7 @@ class Element {
 
     // Specifies that the element must be filled out before submitting the form.
     /*	@docs: {
-     *	@name: Required
+     *	@title: Required
      *	@description: 
      *		Specifies that the element must be filled out before submitting the form.
      *		The equivalent of HTML attribute `required`.
@@ -10893,7 +9954,7 @@ class Element {
 
     // Specifies that the list order should be descending (9,8,7...).
     /*	@docs: {
-     *	@name: Reversed
+     *	@title: Reversed
      *	@description: 
      *		Specifies that the list order should be descending (9,8,7...).
      *		The equivalent of HTML attribute `reversed`.
@@ -10915,7 +9976,7 @@ class Element {
 
     // Specifies the visible number of lines in a text area.
     /*	@docs: {
-     *	@name: Rows
+     *	@title: Rows
      *	@description: 
      *		Specifies the visible number of lines in a text area.
      *		The equivalent of HTML attribute `rows`.
@@ -10937,7 +9998,7 @@ class Element {
 
     // Specifies the number of rows a table cell should span.
     /*	@docs: {
-     *	@name: Row span
+     *	@title: Row span
      *	@description: 
      *		Specifies the number of rows a table cell should span.
      *		The equivalent of HTML attribute `rowspan`.
@@ -10959,7 +10020,7 @@ class Element {
 
     // Enables an extra set of restrictions for the content in an <iframe>.
     /*	@docs: {
-     *	@name: Sandbox
+     *	@title: Sandbox
      *	@description: 
      *		Enables an extra set of restrictions for the content in an <iframe>.
      *		The equivalent of HTML attribute `sandbox`.
@@ -10981,7 +10042,7 @@ class Element {
 
     // Specifies whether a header cell is a header for a column, row, or group of columns or rows.
     /*	@docs: {
-     *	@name: Scope
+     *	@title: Scope
      *	@description: 
      *		Specifies whether a header cell is a header for a column, row, or group of columns or rows.
      *		The equivalent of HTML attribute `scope`.
@@ -11003,7 +10064,7 @@ class Element {
 
     // Specifies that an option should be pre-selected when the page loads.
     /*	@docs: {
-     *	@name: Selected
+     *	@title: Selected
      *	@description: 
      *		Specifies that an option should be pre-selected when the page loads.
      *		The equivalent of HTML attribute `selected`.
@@ -11025,7 +10086,7 @@ class Element {
 
     // Specifies the shape of the area.
     /*	@docs: {
-     *	@name: Shape
+     *	@title: Shape
      *	@description: 
      *		Specifies the shape of the area.
      *		The equivalent of HTML attribute `shape`.
@@ -11047,7 +10108,7 @@ class Element {
 
     // Specifies the width, in characters (for <input>) or specifies the number of visible options (for <select>).
     /*	@docs: {
-     *	@name: Size
+     *	@title: Size
      *	@description: 
      *		Specifies the width, in characters (for <input>) or specifies the number of visible options (for <select>).
      *		The equivalent of HTML attribute `size`.
@@ -11069,7 +10130,7 @@ class Element {
 
     // Specifies the size of the linked resource.
     /*	@docs: {
-     *	@name: Sizes
+     *	@title: Sizes
      *	@description: 
      *		Specifies the size of the linked resource.
      *		The equivalent of HTML attribute `sizes`.
@@ -11091,7 +10152,7 @@ class Element {
 
     // Specifies the number of columns to span.
     /*	@docs: {
-     *	@name: Span
+     *	@title: Span
      *	@description: 
      *		Specifies the number of columns to span.
      *		The equivalent of HTML attribute `span`.
@@ -11113,7 +10174,7 @@ class Element {
 
     // Specifies whether the element is to have its spelling and grammar checked or not.
     /*	@docs: {
-     *	@name: Spell check
+     *	@title: Spell check
      *	@description: 
      *		Specifies whether the element is to have its spelling and grammar checked or not.
      *		The equivalent of HTML attribute `spellcheck`.
@@ -11135,7 +10196,7 @@ class Element {
 
     // Specifies the URL of the media file.
     /*	@docs: {
-     *	@name: Src
+     *	@title: Src
      *	@description: 
      *		Specifies the URL of the media file.
      *		The equivalent of HTML attribute `src`.
@@ -11157,7 +10218,7 @@ class Element {
 
     // Specifies the HTML content of the page to show in the <iframe>.
     /*	@docs: {
-     *	@name: Src doc
+     *	@title: Src doc
      *	@description: 
      *		Specifies the HTML content of the page to show in the <iframe>.
      *		The equivalent of HTML attribute `srcdoc`.
@@ -11179,7 +10240,7 @@ class Element {
 
     // Specifies the language of the track text data (required if kind="subtitles").
     /*	@docs: {
-     *	@name: Src lang
+     *	@title: Src lang
      *	@description: 
      *		Specifies the language of the track text data (required if kind="subtitles").
      *		The equivalent of HTML attribute `srclang`.
@@ -11201,7 +10262,7 @@ class Element {
 
     // Specifies the URL of the image to use in different situations.
     /*	@docs: {
-     *	@name: Rrsrc set
+     *	@title: Rrsrc set
      *	@description: 
      *		Specifies the URL of the image to use in different situations.
      *		The equivalent of HTML attribute `srcset`.
@@ -11223,7 +10284,7 @@ class Element {
 
     // Specifies the start value of an ordered list.
     /*	@docs: {
-     *	@name: Start
+     *	@title: Start
      *	@description: 
      *		Specifies the start value of an ordered list.
      *		The equivalent of HTML attribute `start`.
@@ -11245,7 +10306,7 @@ class Element {
 
     // Specifies the legal number intervals for an input field.
     /*	@docs: {
-     *	@name: Step
+     *	@title: Step
      *	@description: 
      *		Specifies the legal number intervals for an input field.
      *		The equivalent of HTML attribute `step`.
@@ -11274,7 +10335,7 @@ class Element {
 
     // Specifies the tabbing order of an element.
     /*	@docs: {
-     *	@name: Tab index
+     *	@title: Tab index
      *	@description: 
      *		Specifies the tabbing order of an element.
      *		The equivalent of HTML attribute `tabindex`.
@@ -11296,7 +10357,7 @@ class Element {
 
     // Specifies the target for where to open the linked document or where to submit the form.
     /*	@docs: {
-     *	@name: Target
+     *	@title: Target
      *	@description: 
      *		Specifies the target for where to open the linked document or where to submit the form.
      *		The equivalent of HTML attribute `target`.
@@ -11318,7 +10379,7 @@ class Element {
 
     // Specifies extra information about an element.
     /*	@docs: {
-     *	@name: Title
+     *	@title: Title
      *	@description: 
      *		Specifies extra information about an element.
      *		The equivalent of HTML attribute `title`.
@@ -11340,7 +10401,7 @@ class Element {
 
     // Specifies whether the content of an element should be translated or not.
     /*	@docs: {
-     *	@name: Translate
+     *	@title: Translate
      *	@description: 
      *		Specifies whether the content of an element should be translated or not.
      *		The equivalent of HTML attribute `translate`.
@@ -11362,7 +10423,7 @@ class Element {
 
     // Specifies the type of element.
     /*	@docs: {
-     *	@name: Type
+     *	@title: Type
      *	@description: 
      *		Specifies the type of element.
      *		The equivalent of HTML attribute `type`.
@@ -11384,7 +10445,7 @@ class Element {
 
     // Specifies an image as a client-side image map.
     /*	@docs: {
-     *	@name: Use map
+     *	@title: Use map
      *	@description: 
      *		Specifies an image as a client-side image map.
      *		The equivalent of HTML attribute `usemap`.
@@ -11406,7 +10467,7 @@ class Element {
 
     // Specifies the value of the element.
     /*	@docs: {
-     *	@name: Value
+     *	@title: Value
      *	@description: 
      *		Specifies the value of the element.
      *		The equivalent of HTML attribute `value`.
@@ -11440,12 +10501,14 @@ class Element {
     // 	return this;
     // }
 
-    // Script to be run when the message is triggered.
+    // Script to be run after the document is printed.
     /*	@docs: {
-     *	@name: On message
+     *	@title: On after print
      *	@description: 
-     *		Script to be run when the message is triggered.
-     *		The equivalent of HTML attribute `onmessage`.
+     *		Script to be run after the document is printed.
+     *		The equivalent of HTML attribute `onafterprint`.
+     *		
+     *		The first parameter of the callback is the `Element` object.
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
@@ -11456,10 +10519,1769 @@ class Element {
      *	}: 
      *	@inherit: false
      } */ 
-    on_message(value) {
-        if (value == null) { return this.element.onmessage; }
-    	this.element.onmessage = value;
+    on_after_print(callback) {
+        if (callback == null) { return this.element.onafterprint; }
+    	const e = this;
+    	this.element.onafterprint = () => callback(e);
     	return this;
     }
-	
+
+    // Script to be run before the document is printed.
+    /*	@docs: {
+     *	@title: On before print
+     *	@description: 
+     *		Script to be run before the document is printed.
+     *		The equivalent of HTML attribute `onbeforeprint`.
+     *		
+     *		The first parameter of the callback is the `Element` object.
+     *		
+     *		Returns the attribute value when parameter `value` is `null`.
+     *	@return: 
+     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *	@parameter: {
+     *		@name: value
+     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+     *	}: 
+     *	@inherit: false
+     } */ 
+    on_before_print(callback) {
+        if (callback == null) { return this.element.onbeforeprint; }
+    	const e = this;
+    	this.element.onbeforeprint = () => callback(e);
+    	return this;
+    }
+
+    // Script to be run when the document is about to be unloaded.
+    /*	@docs: {
+     *	@title: On before unload
+     *	@description: 
+     *		Script to be run when the document is about to be unloaded.
+     *		The equivalent of HTML attribute `onbeforeunload`.
+     *		
+     *		The first parameter of the callback is the `Element` object.
+     *		
+     *		Returns the attribute value when parameter `value` is `null`.
+     *	@return: 
+     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *	@parameter: {
+     *		@name: value
+     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+     *	}: 
+     *	@inherit: false
+     } */ 
+    on_before_unload(callback) {
+        if (callback == null) { return this.element.onbeforeunload; }
+    	const e = this;
+    	this.element.onbeforeunload = () => callback(e);
+    	return this;
+    }
+
+    // Script to be run when an error occurs.
+    /*	@docs: {
+     *	@title: On error
+     *	@description: 
+     *		Script to be run when an error occurs.
+     *		The equivalent of HTML attribute `onerror`.
+     *		
+     *		The first parameter of the callback is the `Element` object.
+     *		
+     *		Returns the attribute value when parameter `value` is `null`.
+     *	@return: 
+     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *	@parameter: {
+     *		@name: value
+     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+     *	}: 
+     *	@inherit: false
+     } */ 
+    on_error(callback) {
+        if (callback == null) { return this.element.onerror; }
+    	const e = this;
+    	this.element.onerror = () => callback(e);
+    	return this;
+    }
+
+    // Script to be run when there has been changes to the anchor part of the a URL.
+    /*	@docs: {
+     *	@title: On hash change
+     *	@description: 
+     *		Script to be run when there has been changes to the anchor part of the a URL.
+     *		The equivalent of HTML attribute `onhashchange`.
+     *		
+     *		The first parameter of the callback is the `Element` object.
+     *		
+     *		Returns the attribute value when parameter `value` is `null`.
+     *	@return: 
+     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *	@parameter: {
+     *		@name: value
+     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+     *	}: 
+     *	@inherit: false
+     } */ 
+    on_hash_change(callback) {
+        if (callback == null) { return this.element.onhashchange; }
+    	const e = this;
+    	this.element.onhashchange = () => callback(e);
+    	return this;
+    }
+
+    // Fires after the page is finished loading.
+    /*	@docs: {
+     *	@title: On load
+     *	@description: 
+     *		Fires after the page is finished loading.
+     *		The equivalent of HTML attribute `onload`.
+     *		
+     *		The first parameter of the callback is the `Element` object.
+     *		
+     *		Returns the attribute value when parameter `value` is `null`.
+     *	@return: 
+     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *	@parameter: {
+     *		@name: value
+     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+     *	}: 
+     *	@inherit: false
+     } */ 
+    on_load(callback) {
+        if (callback == null) { return this.element.onload; }
+    	const e = this;
+    	this.element.onload = () => callback(e);
+    	return this;
+    }
+
+    // Script to be run when the message is triggered.
+    /*	@docs: {
+     *	@title: On message
+     *	@description: 
+     *		Script to be run when the message is triggered.
+     *		The equivalent of HTML attribute `onmessage`.
+     *		
+     *		The first parameter of the callback is the `Element` object.
+     *		
+     *		Returns the attribute value when parameter `value` is `null`.
+     *	@return: 
+     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *	@parameter: {
+     *		@name: value
+     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+     *	}: 
+     *	@inherit: false
+     } */ 
+    on_message(callback) {
+        if (callback == null) { return this.element.onmessage; }
+    	const e = this;
+    	this.element.onmessage = () => callback(e);
+    	return this;
+    }
+
+    // Script to be run when the browser starts to work offline.
+    /*	@docs: {
+     *	@title: On offline
+     *	@description: 
+     *		Script to be run when the browser starts to work offline.
+     *		The equivalent of HTML attribute `onoffline`.
+     *		
+     *		The first parameter of the callback is the `Element` object.
+     *		
+     *		Returns the attribute value when parameter `value` is `null`.
+     *	@return: 
+     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *	@parameter: {
+     *		@name: value
+     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+     *	}: 
+     *	@inherit: false
+     } */ 
+    on_offline(callback) {
+        if (callback == null) { return this.element.onoffline; }
+    	const e = this;
+    	this.element.onoffline = () => callback(e);
+    	return this;
+    }
+
+    // Script to be run when the browser starts to work online.
+    /*	@docs: {
+     *	@title: On online
+     *	@description: 
+     *		Script to be run when the browser starts to work online.
+     *		The equivalent of HTML attribute `ononline`.
+     *		
+     *		The first parameter of the callback is the `Element` object.
+     *		
+     *		Returns the attribute value when parameter `value` is `null`.
+     *	@return: 
+     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *	@parameter: {
+     *		@name: value
+     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+     *	}: 
+     *	@inherit: false
+     } */ 
+    on_online(callback) {
+        if (callback == null) { return this.element.ononline; }
+    	const e = this;
+    	this.element.ononline = () => callback(e);
+    	return this;
+    }
+
+    // Script to be run when a user navigates away from a page.
+    /*	@docs: {
+     *	@title: On page hide
+     *	@description: 
+     *		Script to be run when a user navigates away from a page.
+     *		The equivalent of HTML attribute `onpagehide`.
+     *		
+     *		The first parameter of the callback is the `Element` object.
+     *		
+     *		Returns the attribute value when parameter `value` is `null`.
+     *	@return: 
+     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *	@parameter: {
+     *		@name: value
+     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+     *	}: 
+     *	@inherit: false
+     } */ 
+    on_page_hide(callback) {
+        if (callback == null) { return this.element.onpagehide; }
+    	const e = this;
+    	this.element.onpagehide = () => callback(e);
+    	return this;
+    }
+
+    // Script to be run when a user navigates to a page.
+    /*	@docs: {
+     *	@title: On page show
+     *	@description: 
+     *		Script to be run when a user navigates to a page.
+     *		The equivalent of HTML attribute `onpageshow`.
+     *		
+     *		The first parameter of the callback is the `Element` object.
+     *		
+     *		Returns the attribute value when parameter `value` is `null`.
+     *	@return: 
+     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *	@parameter: {
+     *		@name: value
+     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+     *	}: 
+     *	@inherit: false
+     } */ 
+    on_page_show(callback) {
+        if (callback == null) { return this.element.onpageshow; }
+    	const e = this;
+    	this.element.onpageshow = () => callback(e);
+    	return this;
+    }
+
+    // Script to be run when the window's history changes.
+    /*	@docs: {
+     *	@title: On popstate
+     *	@description: 
+     *		Script to be run when the window's history changes.
+     *		The equivalent of HTML attribute `onpopstate`.
+     *		
+     *		The first parameter of the callback is the `Element` object.
+     *		
+     *		Returns the attribute value when parameter `value` is `null`.
+     *	@return: 
+     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *	@parameter: {
+     *		@name: value
+     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+     *	}: 
+     *	@inherit: false
+     } */ 
+    on_popstate(callback) {
+        if (callback == null) { return this.element.onpopstate; }
+    	const e = this;
+    	this.element.onpopstate = () => callback(e);
+    	return this;
+    }
+
+    // Fires when the browser window is resized.
+    /*	@docs: {
+     *	@title: On resize
+     *	@description: 
+     *		Fires when the browser window is resized.
+     *		The equivalent of HTML attribute `onresize`.
+     *		
+     *		The first parameter of the callback is the `Element` object.
+     *		
+     *		Returns the attribute value when parameter `value` is `null`.
+     *	@return: 
+     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *	@parameter: {
+     *		@name: value
+     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+     *	}: 
+     *	@inherit: false
+     } */ 
+    on_resize(callback) {
+        if (callback == null) { return this.element.onresize; }
+    	const e = this;
+    	this.element.onresize = () => callback(e);
+    	return this;
+    }
+
+    // Script to be run when a Web Storage area is updated.
+    /*	@docs: {
+     *	@title: On storage
+     *	@description: 
+     *		Script to be run when a Web Storage area is updated.
+     *		The equivalent of HTML attribute `onstorage`.
+     *		
+     *		The first parameter of the callback is the `Element` object.
+     *		
+     *		Returns the attribute value when parameter `value` is `null`.
+     *	@return: 
+     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *	@parameter: {
+     *		@name: value
+     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+     *	}: 
+     *	@inherit: false
+     } */ 
+    on_storage(callback) {
+        if (callback == null) { return this.element.onstorage; }
+    	const e = this;
+    	this.element.onstorage = () => callback(e);
+    	return this;
+    }
+
+    // Fires once a page has unloaded (or the browser window has been closed).
+    /*	@docs: {
+     *	@title: On unload
+     *	@description: 
+     *		Fires once a page has unloaded (or the browser window has been closed).
+     *		The equivalent of HTML attribute `onunload`.
+     *		
+     *		The first parameter of the callback is the `Element` object.
+     *		
+     *		Returns the attribute value when parameter `value` is `null`.
+     *	@return: 
+     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *	@parameter: {
+     *		@name: value
+     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+     *	}: 
+     *	@inherit: false
+     } */ 
+    on_unload(callback) {
+        if (callback == null) { return this.element.onunload; }
+    	const e = this;
+    	this.element.onunload = () => callback(e);
+    	return this;
+    }
+
+    // Fires the moment that the element loses focus.
+    /*	@docs: {
+     *	@title: On blur
+     *	@description: 
+     *		Fires the moment that the element loses focus.
+     *		The equivalent of HTML attribute `onblur`.
+     *		
+     *		The first parameter of the callback is the `Element` object.
+     *		
+     *		Returns the attribute value when parameter `value` is `null`.
+     *	@return: 
+     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *	@parameter: {
+     *		@name: value
+     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+     *	}: 
+     *	@inherit: false
+     } */ 
+    on_blur(callback) {
+        if (callback == null) { return this.element.onblur; }
+    	const e = this;
+    	this.element.onblur = () => callback(e);
+    	return this;
+    }
+
+    // Fires the moment when the value of the element is changed.
+    /*	@docs: {
+     *	@title: On change
+     *	@description: 
+     *		Fires the moment when the value of the element is changed.
+     *		The equivalent of HTML attribute `onchange`.
+     *		
+     *		The first parameter of the callback is the `Element` object.
+     *		
+     *		Returns the attribute value when parameter `value` is `null`.
+     *	@return: 
+     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *	@parameter: {
+     *		@name: value
+     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+     *	}: 
+     *	@inherit: false
+     } */ 
+    on_change(callback) {
+        if (callback == null) { return this.element.onchange; }
+    	const e = this;
+    	this.element.onchange = () => callback(e);
+    	return this;
+    }
+
+    // Script to be run when a context menu is triggered.
+    /*	@docs: {
+     *	@title: On context menu
+     *	@description: 
+     *		Script to be run when a context menu is triggered.
+     *		The equivalent of HTML attribute `oncontextmenu`.
+     *		
+     *		The first parameter of the callback is the `Element` object.
+     *		
+     *		Returns the attribute value when parameter `value` is `null`.
+     *	@return: 
+     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *	@parameter: {
+     *		@name: value
+     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+     *	}: 
+     *	@inherit: false
+     } */ 
+    on_context_menu(callback) {
+        if (callback == null) { return this.element.oncontextmenu; }
+    	const e = this;
+    	this.element.oncontextmenu = () => callback(e);
+    	return this;
+    }
+
+    // Fires the moment when the element gets focus.
+    /*	@docs: {
+     *	@title: On focus
+     *	@description: 
+     *		Fires the moment when the element gets focus.
+     *		The equivalent of HTML attribute `onfocus`.
+     *		
+     *		The first parameter of the callback is the `Element` object.
+     *		
+     *		Returns the attribute value when parameter `value` is `null`.
+     *	@return: 
+     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *	@parameter: {
+     *		@name: value
+     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+     *	}: 
+     *	@inherit: false
+     } */ 
+    on_focus(callback) {
+        if (callback == null) { return this.element.onfocus; }
+    	const e = this;
+    	this.element.onfocus = () => callback(e);
+    	return this;
+    }
+
+    // Script to be run when an element gets user input.
+    /*	@docs: {
+     *	@title: On input
+     *	@description: 
+     *		Script to be run when an element gets user input.
+     *		The equivalent of HTML attribute `oninput`.
+     *		
+     *		The first parameter of the callback is the `Element` object.
+     *		
+     *		Returns the attribute value when parameter `value` is `null`.
+     *	@return: 
+     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *	@parameter: {
+     *		@name: value
+     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+     *	}: 
+     *	@inherit: false
+     } */ 
+    on_input(callback) {
+        if (callback == null) { return this.element.oninput; }
+    	const e = this;
+    	this.element.oninput = () => callback(e);
+    	return this;
+    }
+
+    // Script to be run when an element is invalid.
+    /*	@docs: {
+     *	@title: On invalid
+     *	@description: 
+     *		Script to be run when an element is invalid.
+     *		The equivalent of HTML attribute `oninvalid`.
+     *		
+     *		The first parameter of the callback is the `Element` object.
+     *		
+     *		Returns the attribute value when parameter `value` is `null`.
+     *	@return: 
+     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *	@parameter: {
+     *		@name: value
+     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+     *	}: 
+     *	@inherit: false
+     } */ 
+    on_invalid(callback) {
+        if (callback == null) { return this.element.oninvalid; }
+    	const e = this;
+    	this.element.oninvalid = () => callback(e);
+    	return this;
+    }
+
+    // Fires when the Reset button in a form is clicked.
+    /*	@docs: {
+     *	@title: On reset
+     *	@description: 
+     *		Fires when the Reset button in a form is clicked.
+     *		The equivalent of HTML attribute `onreset`.
+     *		
+     *		The first parameter of the callback is the `Element` object.
+     *		
+     *		Returns the attribute value when parameter `value` is `null`.
+     *	@return: 
+     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *	@parameter: {
+     *		@name: value
+     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+     *	}: 
+     *	@inherit: false
+     } */ 
+    on_reset(callback) {
+        if (callback == null) { return this.element.onreset; }
+    	const e = this;
+    	this.element.onreset = () => callback(e);
+    	return this;
+    }
+
+    // Fires when the user writes something in a search field (for <input="search">).
+    /*	@docs: {
+     *	@title: On search
+     *	@description: 
+     *		Fires when the user writes something in a search field (for <input="search">).
+     *		The equivalent of HTML attribute `onsearch`.
+     *		
+     *		The first parameter of the callback is the `Element` object.
+     *		
+     *		Returns the attribute value when parameter `value` is `null`.
+     *	@return: 
+     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *	@parameter: {
+     *		@name: value
+     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+     *	}: 
+     *	@inherit: false
+     } */ 
+    on_search(callback) {
+        if (callback == null) { return this.element.onsearch; }
+    	const e = this;
+    	this.element.onsearch = () => callback(e);
+    	return this;
+    }
+
+    // Fires after some text has been selected in an element.
+    /*	@docs: {
+     *	@title: On select
+     *	@description: 
+     *		Fires after some text has been selected in an element.
+     *		The equivalent of HTML attribute `onselect`.
+     *		
+     *		The first parameter of the callback is the `Element` object.
+     *		
+     *		Returns the attribute value when parameter `value` is `null`.
+     *	@return: 
+     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *	@parameter: {
+     *		@name: value
+     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+     *	}: 
+     *	@inherit: false
+     } */ 
+    on_select(callback) {
+        if (callback == null) { return this.element.onselect; }
+    	const e = this;
+    	this.element.onselect = () => callback(e);
+    	return this;
+    }
+
+    // Fires when a form is submitted.
+    /*	@docs: {
+     *	@title: On submit
+     *	@description: 
+     *		Fires when a form is submitted.
+     *		The equivalent of HTML attribute `onsubmit`.
+     *		
+     *		The first parameter of the callback is the `Element` object.
+     *		
+     *		Returns the attribute value when parameter `value` is `null`.
+     *	@return: 
+     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *	@parameter: {
+     *		@name: value
+     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+     *	}: 
+     *	@inherit: false
+     } */ 
+    on_submit(callback) {
+        if (callback == null) { return this.element.onsubmit; }
+    	const e = this;
+    	this.element.onsubmit = () => callback(e);
+    	return this;
+    }
+
+    // Fires when a user is pressing a key.
+    /*	@docs: {
+     *	@title: On key down
+     *	@description: 
+     *		Fires when a user is pressing a key.
+     *		The equivalent of HTML attribute `onkeydown`.
+     *		
+     *		The first parameter of the callback is the `Element` object.
+     *		
+     *		Returns the attribute value when parameter `value` is `null`.
+     *	@return: 
+     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *	@parameter: {
+     *		@name: value
+     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+     *	}: 
+     *	@inherit: false
+     } */ 
+    on_key_down(callback) {
+        if (callback == null) { return this.element.onkeydown; }
+    	const e = this;
+    	this.element.onkeydown = () => callback(e);
+    	return this;
+    }
+
+    // Fires when a user presses a key.
+    /*	@docs: {
+     *	@title: On key press
+     *	@description: 
+     *		Fires when a user presses a key.
+     *		The equivalent of HTML attribute `onkeypress`.
+     *		
+     *		The first parameter of the callback is the `Element` object.
+     *		
+     *		Returns the attribute value when parameter `value` is `null`.
+     *	@return: 
+     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *	@parameter: {
+     *		@name: value
+     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+     *	}: 
+     *	@inherit: false
+     } */ 
+    on_key_press(callback) {
+        if (callback == null) { return this.element.onkeypress; }
+    	const e = this;
+    	this.element.onkeypress = () => callback(e);
+    	return this;
+    }
+
+    // Fires when a user releases a key.
+    /*	@docs: {
+     *	@title: On key up
+     *	@description: 
+     *		Fires when a user releases a key.
+     *		The equivalent of HTML attribute `onkeyup`.
+     *		
+     *		The first parameter of the callback is the `Element` object.
+     *		
+     *		Returns the attribute value when parameter `value` is `null`.
+     *	@return: 
+     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *	@parameter: {
+     *		@name: value
+     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+     *	}: 
+     *	@inherit: false
+     } */ 
+    on_key_up(callback) {
+        if (callback == null) { return this.element.onkeyup; }
+    	const e = this;
+    	this.element.onkeyup = () => callback(e);
+    	return this;
+    }
+
+    // Fires on a mouse click on the element.
+    // on_click(callback) {
+    //     if (callback == null) { return this.element.onclick; }
+    // 	const e = this;
+    // 	this.element.onclick = () => callback(e);
+    // 	return this;
+    // }
+
+    // Fires on a mouse double-click on the element.
+    /*	@docs: {
+     *	@title: On dbl click
+     *	@description: 
+     *		Fires on a mouse double-click on the element.
+     *		The equivalent of HTML attribute `ondblclick`.
+     *		
+     *		The first parameter of the callback is the `Element` object.
+     *		
+     *		Returns the attribute value when parameter `value` is `null`.
+     *	@return: 
+     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *	@parameter: {
+     *		@name: value
+     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+     *	}: 
+     *	@inherit: false
+     } */ 
+    on_dbl_click(callback) {
+        if (callback == null) { return this.element.ondblclick; }
+    	const e = this;
+    	this.element.ondblclick = () => callback(e);
+    	return this;
+    }
+
+    // Fires when a mouse button is pressed down on an element.
+    /*	@docs: {
+     *	@title: On mouse down
+     *	@description: 
+     *		Fires when a mouse button is pressed down on an element.
+     *		The equivalent of HTML attribute `onmousedown`.
+     *		
+     *		The first parameter of the callback is the `Element` object.
+     *		
+     *		Returns the attribute value when parameter `value` is `null`.
+     *	@return: 
+     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *	@parameter: {
+     *		@name: value
+     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+     *	}: 
+     *	@inherit: false
+     } */ 
+    on_mouse_down(callback) {
+        if (callback == null) { return this.element.onmousedown; }
+    	const e = this;
+    	this.element.onmousedown = () => callback(e);
+    	return this;
+    }
+
+    // Fires when the mouse pointer is moving while it is over an element.
+    /*	@docs: {
+     *	@title: On mouse move
+     *	@description: 
+     *		Fires when the mouse pointer is moving while it is over an element.
+     *		The equivalent of HTML attribute `onmousemove`.
+     *		
+     *		The first parameter of the callback is the `Element` object.
+     *		
+     *		Returns the attribute value when parameter `value` is `null`.
+     *	@return: 
+     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *	@parameter: {
+     *		@name: value
+     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+     *	}: 
+     *	@inherit: false
+     } */ 
+    on_mouse_move(callback) {
+        if (callback == null) { return this.element.onmousemove; }
+    	const e = this;
+    	this.element.onmousemove = () => callback(e);
+    	return this;
+    }
+
+    // Fires when the mouse pointer moves out of an element.
+    /*	@docs: {
+     *	@title: On mouse out
+     *	@description: 
+     *		Fires when the mouse pointer moves out of an element.
+     *		The equivalent of HTML attribute `onmouseout`.
+     *		
+     *		The first parameter of the callback is the `Element` object.
+     *		
+     *		Returns the attribute value when parameter `value` is `null`.
+     *	@return: 
+     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *	@parameter: {
+     *		@name: value
+     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+     *	}: 
+     *	@inherit: false
+     } */ 
+    on_mouse_out(callback) {
+        if (callback == null) { return this.element.onmouseout; }
+    	const e = this;
+    	this.element.onmouseout = () => callback(e);
+    	return this;
+    }
+
+    // Fires when the mouse pointer moves over an element.
+    /*	@docs: {
+     *	@title: On mouse over
+     *	@description: 
+     *		Fires when the mouse pointer moves over an element.
+     *		The equivalent of HTML attribute `onmouseover`.
+     *		
+     *		The first parameter of the callback is the `Element` object.
+     *		
+     *		Returns the attribute value when parameter `value` is `null`.
+     *	@return: 
+     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *	@parameter: {
+     *		@name: value
+     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+     *	}: 
+     *	@inherit: false
+     } */ 
+    on_mouse_over(callback) {
+        if (callback == null) { return this.element.onmouseover; }
+    	const e = this;
+    	this.element.onmouseover = () => callback(e);
+    	return this;
+    }
+
+    // Fires when a mouse button is released over an element.
+    /*	@docs: {
+     *	@title: On mouse up
+     *	@description: 
+     *		Fires when a mouse button is released over an element.
+     *		The equivalent of HTML attribute `onmouseup`.
+     *		
+     *		The first parameter of the callback is the `Element` object.
+     *		
+     *		Returns the attribute value when parameter `value` is `null`.
+     *	@return: 
+     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *	@parameter: {
+     *		@name: value
+     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+     *	}: 
+     *	@inherit: false
+     } */ 
+    on_mouse_up(callback) {
+        if (callback == null) { return this.element.onmouseup; }
+    	const e = this;
+    	this.element.onmouseup = () => callback(e);
+    	return this;
+    }
+
+    // Deprecated. Use the onwheel attribute instead.
+    /*	@docs: {
+     *	@title: On mouse wheel
+     *	@description: 
+     *		Deprecated. Use the onwheel attribute instead.
+     *		The equivalent of HTML attribute `onmousewheel`.
+     *		
+     *		The first parameter of the callback is the `Element` object.
+     *		
+     *		Returns the attribute value when parameter `value` is `null`.
+     *	@return: 
+     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *	@parameter: {
+     *		@name: value
+     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+     *	}: 
+     *	@inherit: false
+     } */ 
+    on_mouse_wheel(callback) {
+        if (callback == null) { return this.element.onmousewheel; }
+    	const e = this;
+    	this.element.onmousewheel = () => callback(e);
+    	return this;
+    }
+
+    // Fires when the mouse wheel rolls up or down over an element.
+    /*	@docs: {
+     *	@title: On wheel
+     *	@description: 
+     *		Fires when the mouse wheel rolls up or down over an element.
+     *		The equivalent of HTML attribute `onwheel`.
+     *		
+     *		The first parameter of the callback is the `Element` object.
+     *		
+     *		Returns the attribute value when parameter `value` is `null`.
+     *	@return: 
+     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *	@parameter: {
+     *		@name: value
+     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+     *	}: 
+     *	@inherit: false
+     } */ 
+    on_wheel(callback) {
+        if (callback == null) { return this.element.onwheel; }
+    	const e = this;
+    	this.element.onwheel = () => callback(e);
+    	return this;
+    }
+
+    // Script to be run when an element is dragged.
+    /*	@docs: {
+     *	@title: On drag
+     *	@description: 
+     *		Script to be run when an element is dragged.
+     *		The equivalent of HTML attribute `ondrag`.
+     *		
+     *		The first parameter of the callback is the `Element` object.
+     *		
+     *		Returns the attribute value when parameter `value` is `null`.
+     *	@return: 
+     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *	@parameter: {
+     *		@name: value
+     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+     *	}: 
+     *	@inherit: false
+     } */ 
+    on_drag(callback) {
+        if (callback == null) { return this.element.ondrag; }
+    	const e = this;
+    	this.element.ondrag = () => callback(e);
+    	return this;
+    }
+
+    // Script to be run at the end of a drag operation.
+    /*	@docs: {
+     *	@title: On drag end
+     *	@description: 
+     *		Script to be run at the end of a drag operation.
+     *		The equivalent of HTML attribute `ondragend`.
+     *		
+     *		The first parameter of the callback is the `Element` object.
+     *		
+     *		Returns the attribute value when parameter `value` is `null`.
+     *	@return: 
+     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *	@parameter: {
+     *		@name: value
+     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+     *	}: 
+     *	@inherit: false
+     } */ 
+    on_drag_end(callback) {
+        if (callback == null) { return this.element.ondragend; }
+    	const e = this;
+    	this.element.ondragend = () => callback(e);
+    	return this;
+    }
+
+    // Script to be run when an element has been dragged to a valid drop target.
+    /*	@docs: {
+     *	@title: On drag enter
+     *	@description: 
+     *		Script to be run when an element has been dragged to a valid drop target.
+     *		The equivalent of HTML attribute `ondragenter`.
+     *		
+     *		The first parameter of the callback is the `Element` object.
+     *		
+     *		Returns the attribute value when parameter `value` is `null`.
+     *	@return: 
+     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *	@parameter: {
+     *		@name: value
+     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+     *	}: 
+     *	@inherit: false
+     } */ 
+    on_drag_enter(callback) {
+        if (callback == null) { return this.element.ondragenter; }
+    	const e = this;
+    	this.element.ondragenter = () => callback(e);
+    	return this;
+    }
+
+    // Script to be run when an element leaves a valid drop target.
+    /*	@docs: {
+     *	@title: On drag leave
+     *	@description: 
+     *		Script to be run when an element leaves a valid drop target.
+     *		The equivalent of HTML attribute `ondragleave`.
+     *		
+     *		The first parameter of the callback is the `Element` object.
+     *		
+     *		Returns the attribute value when parameter `value` is `null`.
+     *	@return: 
+     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *	@parameter: {
+     *		@name: value
+     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+     *	}: 
+     *	@inherit: false
+     } */ 
+    on_drag_leave(callback) {
+        if (callback == null) { return this.element.ondragleave; }
+    	const e = this;
+    	this.element.ondragleave = () => callback(e);
+    	return this;
+    }
+
+    // Script to be run when an element is being dragged over a valid drop target.
+    /*	@docs: {
+     *	@title: On drag over
+     *	@description: 
+     *		Script to be run when an element is being dragged over a valid drop target.
+     *		The equivalent of HTML attribute `ondragover`.
+     *		
+     *		The first parameter of the callback is the `Element` object.
+     *		
+     *		Returns the attribute value when parameter `value` is `null`.
+     *	@return: 
+     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *	@parameter: {
+     *		@name: value
+     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+     *	}: 
+     *	@inherit: false
+     } */ 
+    on_drag_over(callback) {
+        if (callback == null) { return this.element.ondragover; }
+    	const e = this;
+    	this.element.ondragover = () => callback(e);
+    	return this;
+    }
+
+    // Script to be run at the start of a drag operation.
+    /*	@docs: {
+     *	@title: On drag start
+     *	@description: 
+     *		Script to be run at the start of a drag operation.
+     *		The equivalent of HTML attribute `ondragstart`.
+     *		
+     *		The first parameter of the callback is the `Element` object.
+     *		
+     *		Returns the attribute value when parameter `value` is `null`.
+     *	@return: 
+     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *	@parameter: {
+     *		@name: value
+     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+     *	}: 
+     *	@inherit: false
+     } */ 
+    on_drag_start(callback) {
+        if (callback == null) { return this.element.ondragstart; }
+    	const e = this;
+    	this.element.ondragstart = () => callback(e);
+    	return this;
+    }
+
+    // Script to be run when dragged element is being dropped.
+    /*	@docs: {
+     *	@title: On drop
+     *	@description: 
+     *		Script to be run when dragged element is being dropped.
+     *		The equivalent of HTML attribute `ondrop`.
+     *		
+     *		The first parameter of the callback is the `Element` object.
+     *		
+     *		Returns the attribute value when parameter `value` is `null`.
+     *	@return: 
+     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *	@parameter: {
+     *		@name: value
+     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+     *	}: 
+     *	@inherit: false
+     } */ 
+    on_drop(callback) {
+        if (callback == null) { return this.element.ondrop; }
+    	const e = this;
+    	this.element.ondrop = () => callback(e);
+    	return this;
+    }
+
+    // Script to be run when an element's scrollbar is being scrolled.
+    /*	@docs: {
+     *	@title: On scroll
+     *	@description: 
+     *		Script to be run when an element's scrollbar is being scrolled.
+     *		The equivalent of HTML attribute `onscroll`.
+     *		
+     *		The first parameter of the callback is the `Element` object.
+     *		
+     *		Returns the attribute value when parameter `value` is `null`.
+     *	@return: 
+     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *	@parameter: {
+     *		@name: value
+     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+     *	}: 
+     *	@inherit: false
+     } */ 
+    on_scroll(callback) {
+        if (callback == null) { return this.element.onscroll; }
+    	const e = this;
+    	this.element.onscroll = () => callback(e);
+    	return this;
+    }
+
+    // Fires when the user copies the content of an element.
+    /*	@docs: {
+     *	@title: On copy
+     *	@description: 
+     *		Fires when the user copies the content of an element.
+     *		The equivalent of HTML attribute `oncopy`.
+     *		
+     *		The first parameter of the callback is the `Element` object.
+     *		
+     *		Returns the attribute value when parameter `value` is `null`.
+     *	@return: 
+     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *	@parameter: {
+     *		@name: value
+     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+     *	}: 
+     *	@inherit: false
+     } */ 
+    on_copy(callback) {
+        if (callback == null) { return this.element.oncopy; }
+    	const e = this;
+    	this.element.oncopy = () => callback(e);
+    	return this;
+    }
+
+    // Fires when the user cuts the content of an element.
+    /*	@docs: {
+     *	@title: On cut
+     *	@description: 
+     *		Fires when the user cuts the content of an element.
+     *		The equivalent of HTML attribute `oncut`.
+     *		
+     *		The first parameter of the callback is the `Element` object.
+     *		
+     *		Returns the attribute value when parameter `value` is `null`.
+     *	@return: 
+     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *	@parameter: {
+     *		@name: value
+     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+     *	}: 
+     *	@inherit: false
+     } */ 
+    on_cut(callback) {
+        if (callback == null) { return this.element.oncut; }
+    	const e = this;
+    	this.element.oncut = () => callback(e);
+    	return this;
+    }
+
+    // Fires when the user pastes some content in an element.
+    /*	@docs: {
+     *	@title: On paste
+     *	@description: 
+     *		Fires when the user pastes some content in an element.
+     *		The equivalent of HTML attribute `onpaste`.
+     *		
+     *		The first parameter of the callback is the `Element` object.
+     *		
+     *		Returns the attribute value when parameter `value` is `null`.
+     *	@return: 
+     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *	@parameter: {
+     *		@name: value
+     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+     *	}: 
+     *	@inherit: false
+     } */ 
+    on_paste(callback) {
+        if (callback == null) { return this.element.onpaste; }
+    	const e = this;
+    	this.element.onpaste = () => callback(e);
+    	return this;
+    }
+
+    // Script to be run on abort.
+    /*	@docs: {
+     *	@title: On abort
+     *	@description: 
+     *		Script to be run on abort.
+     *		The equivalent of HTML attribute `onabort`.
+     *		
+     *		The first parameter of the callback is the `Element` object.
+     *		
+     *		Returns the attribute value when parameter `value` is `null`.
+     *	@return: 
+     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *	@parameter: {
+     *		@name: value
+     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+     *	}: 
+     *	@inherit: false
+     } */ 
+    on_abort(callback) {
+        if (callback == null) { return this.element.onabort; }
+    	const e = this;
+    	this.element.onabort = () => callback(e);
+    	return this;
+    }
+
+    // Script to be run when a file is ready to start playing (when it has buffered enough to begin).
+    /*	@docs: {
+     *	@title: On canplay
+     *	@description: 
+     *		Script to be run when a file is ready to start playing (when it has buffered enough to begin).
+     *		The equivalent of HTML attribute `oncanplay`.
+     *		
+     *		The first parameter of the callback is the `Element` object.
+     *		
+     *		Returns the attribute value when parameter `value` is `null`.
+     *	@return: 
+     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *	@parameter: {
+     *		@name: value
+     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+     *	}: 
+     *	@inherit: false
+     } */ 
+    on_canplay(callback) {
+        if (callback == null) { return this.element.oncanplay; }
+    	const e = this;
+    	this.element.oncanplay = () => callback(e);
+    	return this;
+    }
+
+    // Script to be run when a file can be played all the way to the end without pausing for buffering.
+    /*	@docs: {
+     *	@title: On canplay through
+     *	@description: 
+     *		Script to be run when a file can be played all the way to the end without pausing for buffering.
+     *		The equivalent of HTML attribute `oncanplaythrough`.
+     *		
+     *		The first parameter of the callback is the `Element` object.
+     *		
+     *		Returns the attribute value when parameter `value` is `null`.
+     *	@return: 
+     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *	@parameter: {
+     *		@name: value
+     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+     *	}: 
+     *	@inherit: false
+     } */ 
+    on_canplay_through(callback) {
+        if (callback == null) { return this.element.oncanplaythrough; }
+    	const e = this;
+    	this.element.oncanplaythrough = () => callback(e);
+    	return this;
+    }
+
+    // Script to be run when the cue changes in a <track> element.
+    /*	@docs: {
+     *	@title: On cue change
+     *	@description: 
+     *		Script to be run when the cue changes in a <track> element.
+     *		The equivalent of HTML attribute `oncuechange`.
+     *		
+     *		The first parameter of the callback is the `Element` object.
+     *		
+     *		Returns the attribute value when parameter `value` is `null`.
+     *	@return: 
+     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *	@parameter: {
+     *		@name: value
+     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+     *	}: 
+     *	@inherit: false
+     } */ 
+    on_cue_change(callback) {
+        if (callback == null) { return this.element.oncuechange; }
+    	const e = this;
+    	this.element.oncuechange = () => callback(e);
+    	return this;
+    }
+
+    // Script to be run when the length of the media changes.
+    /*	@docs: {
+     *	@title: On duration change
+     *	@description: 
+     *		Script to be run when the length of the media changes.
+     *		The equivalent of HTML attribute `ondurationchange`.
+     *		
+     *		The first parameter of the callback is the `Element` object.
+     *		
+     *		Returns the attribute value when parameter `value` is `null`.
+     *	@return: 
+     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *	@parameter: {
+     *		@name: value
+     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+     *	}: 
+     *	@inherit: false
+     } */ 
+    on_duration_change(callback) {
+        if (callback == null) { return this.element.ondurationchange; }
+    	const e = this;
+    	this.element.ondurationchange = () => callback(e);
+    	return this;
+    }
+
+    // Script to be run when something bad happens and the file is suddenly unavailable (like unexpectedly disconnects).
+    /*	@docs: {
+     *	@title: On emptied
+     *	@description: 
+     *		Script to be run when something bad happens and the file is suddenly unavailable (like unexpectedly disconnects).
+     *		The equivalent of HTML attribute `onemptied`.
+     *		
+     *		The first parameter of the callback is the `Element` object.
+     *		
+     *		Returns the attribute value when parameter `value` is `null`.
+     *	@return: 
+     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *	@parameter: {
+     *		@name: value
+     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+     *	}: 
+     *	@inherit: false
+     } */ 
+    on_emptied(callback) {
+        if (callback == null) { return this.element.onemptied; }
+    	const e = this;
+    	this.element.onemptied = () => callback(e);
+    	return this;
+    }
+
+    // Script to be run when the media has reach the end (a useful event for messages like "thanks for listening").
+    /*	@docs: {
+     *	@title: On ended
+     *	@description: 
+     *		Script to be run when the media has reach the end (a useful event for messages like "thanks for listening").
+     *		The equivalent of HTML attribute `onended`.
+     *		
+     *		The first parameter of the callback is the `Element` object.
+     *		
+     *		Returns the attribute value when parameter `value` is `null`.
+     *	@return: 
+     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *	@parameter: {
+     *		@name: value
+     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+     *	}: 
+     *	@inherit: false
+     } */ 
+    on_ended(callback) {
+        if (callback == null) { return this.element.onended; }
+    	const e = this;
+    	this.element.onended = () => callback(e);
+    	return this;
+    }
+
+    // Script to be run when an error occurs when the file is being loaded.
+    /*	@docs: {
+     *	@title: On error
+     *	@description: 
+     *		Script to be run when an error occurs when the file is being loaded.
+     *		The equivalent of HTML attribute `onerror`.
+     *		
+     *		The first parameter of the callback is the `Element` object.
+     *		
+     *		Returns the attribute value when parameter `value` is `null`.
+     *	@return: 
+     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *	@parameter: {
+     *		@name: value
+     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+     *	}: 
+     *	@inherit: false
+     } */ 
+    on_error(callback) {
+        if (callback == null) { return this.element.onerror; }
+    	const e = this;
+    	this.element.onerror = () => callback(e);
+    	return this;
+    }
+
+    // Script to be run when media data is loaded.
+    /*	@docs: {
+     *	@title: On loaded data
+     *	@description: 
+     *		Script to be run when media data is loaded.
+     *		The equivalent of HTML attribute `onloadeddata`.
+     *		
+     *		The first parameter of the callback is the `Element` object.
+     *		
+     *		Returns the attribute value when parameter `value` is `null`.
+     *	@return: 
+     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *	@parameter: {
+     *		@name: value
+     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+     *	}: 
+     *	@inherit: false
+     } */ 
+    on_loaded_data(callback) {
+        if (callback == null) { return this.element.onloadeddata; }
+    	const e = this;
+    	this.element.onloadeddata = () => callback(e);
+    	return this;
+    }
+
+    // Script to be run when meta data (like dimensions and duration) are loaded.
+    /*	@docs: {
+     *	@title: On loaded metadata
+     *	@description: 
+     *		Script to be run when meta data (like dimensions and duration) are loaded.
+     *		The equivalent of HTML attribute `onloadedmetadata`.
+     *		
+     *		The first parameter of the callback is the `Element` object.
+     *		
+     *		Returns the attribute value when parameter `value` is `null`.
+     *	@return: 
+     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *	@parameter: {
+     *		@name: value
+     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+     *	}: 
+     *	@inherit: false
+     } */ 
+    on_loaded_metadata(callback) {
+        if (callback == null) { return this.element.onloadedmetadata; }
+    	const e = this;
+    	this.element.onloadedmetadata = () => callback(e);
+    	return this;
+    }
+
+    // Script to be run just as the file begins to load before anything is actually loaded.
+    /*	@docs: {
+     *	@title: On load start
+     *	@description: 
+     *		Script to be run just as the file begins to load before anything is actually loaded.
+     *		The equivalent of HTML attribute `onloadstart`.
+     *		
+     *		The first parameter of the callback is the `Element` object.
+     *		
+     *		Returns the attribute value when parameter `value` is `null`.
+     *	@return: 
+     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *	@parameter: {
+     *		@name: value
+     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+     *	}: 
+     *	@inherit: false
+     } */ 
+    on_load_start(callback) {
+        if (callback == null) { return this.element.onloadstart; }
+    	const e = this;
+    	this.element.onloadstart = () => callback(e);
+    	return this;
+    }
+
+    // Script to be run when the media is paused either by the user or programmatically.
+    /*	@docs: {
+     *	@title: On pause
+     *	@description: 
+     *		Script to be run when the media is paused either by the user or programmatically.
+     *		The equivalent of HTML attribute `onpause`.
+     *		
+     *		The first parameter of the callback is the `Element` object.
+     *		
+     *		Returns the attribute value when parameter `value` is `null`.
+     *	@return: 
+     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *	@parameter: {
+     *		@name: value
+     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+     *	}: 
+     *	@inherit: false
+     } */ 
+    on_pause(callback) {
+        if (callback == null) { return this.element.onpause; }
+    	const e = this;
+    	this.element.onpause = () => callback(e);
+    	return this;
+    }
+
+    // Script to be run when the media is ready to start playing.
+    /*	@docs: {
+     *	@title: On play
+     *	@description: 
+     *		Script to be run when the media is ready to start playing.
+     *		The equivalent of HTML attribute `onplay`.
+     *		
+     *		The first parameter of the callback is the `Element` object.
+     *		
+     *		Returns the attribute value when parameter `value` is `null`.
+     *	@return: 
+     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *	@parameter: {
+     *		@name: value
+     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+     *	}: 
+     *	@inherit: false
+     } */ 
+    on_play(callback) {
+        if (callback == null) { return this.element.onplay; }
+    	const e = this;
+    	this.element.onplay = () => callback(e);
+    	return this;
+    }
+
+    // Script to be run when the media actually has started playing.
+    /*	@docs: {
+     *	@title: On playing
+     *	@description: 
+     *		Script to be run when the media actually has started playing.
+     *		The equivalent of HTML attribute `onplaying`.
+     *		
+     *		The first parameter of the callback is the `Element` object.
+     *		
+     *		Returns the attribute value when parameter `value` is `null`.
+     *	@return: 
+     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *	@parameter: {
+     *		@name: value
+     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+     *	}: 
+     *	@inherit: false
+     } */ 
+    on_playing(callback) {
+        if (callback == null) { return this.element.onplaying; }
+    	const e = this;
+    	this.element.onplaying = () => callback(e);
+    	return this;
+    }
+
+    // Script to be run when the browser is in the process of getting the media data.
+    /*	@docs: {
+     *	@title: Onprogress
+     *	@description: 
+     *		Script to be run when the browser is in the process of getting the media data.
+     *		The equivalent of HTML attribute `onprogress`.
+     *		
+     *		The first parameter of the callback is the `Element` object.
+     *		
+     *		Returns the attribute value when parameter `value` is `null`.
+     *	@return: 
+     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *	@parameter: {
+     *		@name: value
+     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+     *	}: 
+     *	@inherit: false
+     } */ 
+    onprogress(callback) {
+        if (callback == null) { return this.element.onprogress; }
+    	const e = this;
+    	this.element.onprogress = () => callback(e);
+    	return this;
+    }
+
+    // Script to be run each time the playback rate changes (like when a user switches to a slow motion or fast forward mode).
+    /*	@docs: {
+     *	@title: On rate change
+     *	@description: 
+     *		Script to be run each time the playback rate changes (like when a user switches to a slow motion or fast forward mode).
+     *		The equivalent of HTML attribute `onratechange`.
+     *		
+     *		The first parameter of the callback is the `Element` object.
+     *		
+     *		Returns the attribute value when parameter `value` is `null`.
+     *	@return: 
+     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *	@parameter: {
+     *		@name: value
+     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+     *	}: 
+     *	@inherit: false
+     } */ 
+    on_rate_change(callback) {
+        if (callback == null) { return this.element.onratechange; }
+    	const e = this;
+    	this.element.onratechange = () => callback(e);
+    	return this;
+    }
+
+    // Script to be run when the seeking attribute is set to false indicating that seeking has ended.
+    /*	@docs: {
+     *	@title: On seeked
+     *	@description: 
+     *		Script to be run when the seeking attribute is set to false indicating that seeking has ended.
+     *		The equivalent of HTML attribute `onseeked`.
+     *		
+     *		The first parameter of the callback is the `Element` object.
+     *		
+     *		Returns the attribute value when parameter `value` is `null`.
+     *	@return: 
+     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *	@parameter: {
+     *		@name: value
+     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+     *	}: 
+     *	@inherit: false
+     } */ 
+    on_seeked(callback) {
+        if (callback == null) { return this.element.onseeked; }
+    	const e = this;
+    	this.element.onseeked = () => callback(e);
+    	return this;
+    }
+
+    // Script to be run when the seeking attribute is set to true indicating that seeking is active.
+    /*	@docs: {
+     *	@title: On seeking
+     *	@description: 
+     *		Script to be run when the seeking attribute is set to true indicating that seeking is active.
+     *		The equivalent of HTML attribute `onseeking`.
+     *		
+     *		The first parameter of the callback is the `Element` object.
+     *		
+     *		Returns the attribute value when parameter `value` is `null`.
+     *	@return: 
+     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *	@parameter: {
+     *		@name: value
+     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+     *	}: 
+     *	@inherit: false
+     } */ 
+    on_seeking(callback) {
+        if (callback == null) { return this.element.onseeking; }
+    	const e = this;
+    	this.element.onseeking = () => callback(e);
+    	return this;
+    }
+
+    // Script to be run when the browser is unable to fetch the media data for whatever reason.
+    /*	@docs: {
+     *	@title: On stalled
+     *	@description: 
+     *		Script to be run when the browser is unable to fetch the media data for whatever reason.
+     *		The equivalent of HTML attribute `onstalled`.
+     *		
+     *		The first parameter of the callback is the `Element` object.
+     *		
+     *		Returns the attribute value when parameter `value` is `null`.
+     *	@return: 
+     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *	@parameter: {
+     *		@name: value
+     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+     *	}: 
+     *	@inherit: false
+     } */ 
+    on_stalled(callback) {
+        if (callback == null) { return this.element.onstalled; }
+    	const e = this;
+    	this.element.onstalled = () => callback(e);
+    	return this;
+    }
+
+    // Script to be run when fetching the media data is stopped before it is completely loaded for whatever reason.
+    /*	@docs: {
+     *	@title: On suspend
+     *	@description: 
+     *		Script to be run when fetching the media data is stopped before it is completely loaded for whatever reason.
+     *		The equivalent of HTML attribute `onsuspend`.
+     *		
+     *		The first parameter of the callback is the `Element` object.
+     *		
+     *		Returns the attribute value when parameter `value` is `null`.
+     *	@return: 
+     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *	@parameter: {
+     *		@name: value
+     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+     *	}: 
+     *	@inherit: false
+     } */ 
+    on_suspend(callback) {
+        if (callback == null) { return this.element.onsuspend; }
+    	const e = this;
+    	this.element.onsuspend = () => callback(e);
+    	return this;
+    }
+
+    // Script to be run when the playing position has changed (like when the user fast forwards to a different point in the media).
+    /*	@docs: {
+     *	@title: On time update
+     *	@description: 
+     *		Script to be run when the playing position has changed (like when the user fast forwards to a different point in the media).
+     *		The equivalent of HTML attribute `ontimeupdate`.
+     *		
+     *		The first parameter of the callback is the `Element` object.
+     *		
+     *		Returns the attribute value when parameter `value` is `null`.
+     *	@return: 
+     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *	@parameter: {
+     *		@name: value
+     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+     *	}: 
+     *	@inherit: false
+     } */ 
+    on_time_update(callback) {
+        if (callback == null) { return this.element.ontimeupdate; }
+    	const e = this;
+    	this.element.ontimeupdate = () => callback(e);
+    	return this;
+    }
+
+    // Script to be run each time the volume is changed which (includes setting the volume to "mute").
+    /*	@docs: {
+     *	@title: On volume change
+     *	@description: 
+     *		Script to be run each time the volume is changed which (includes setting the volume to "mute").
+     *		The equivalent of HTML attribute `onvolumechange`.
+     *		
+     *		The first parameter of the callback is the `Element` object.
+     *		
+     *		Returns the attribute value when parameter `value` is `null`.
+     *	@return: 
+     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *	@parameter: {
+     *		@name: value
+     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+     *	}: 
+     *	@inherit: false
+     } */ 
+    on_volume_change(callback) {
+        if (callback == null) { return this.element.onvolumechange; }
+    	const e = this;
+    	this.element.onvolumechange = () => callback(e);
+    	return this;
+    }
+
+    // Script to be run when the media has paused but is expected to resume (like when the media pauses to buffer more data).
+    /*	@docs: {
+     *	@title: On waiting
+     *	@description: 
+     *		Script to be run when the media has paused but is expected to resume (like when the media pauses to buffer more data).
+     *		The equivalent of HTML attribute `onwaiting`.
+     *		
+     *		The first parameter of the callback is the `Element` object.
+     *		
+     *		Returns the attribute value when parameter `value` is `null`.
+     *	@return: 
+     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *	@parameter: {
+     *		@name: value
+     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+     *	}: 
+     *	@inherit: false
+     } */ 
+    on_waiting(callback) {
+        if (callback == null) { return this.element.onwaiting; }
+    	const e = this;
+    	this.element.onwaiting = () => callback(e);
+    	return this;
+    }
+
+    // Fires when the user opens or closes the <details> element.
+    /*	@docs: {
+     *	@title: On toggle
+     *	@description: 
+     *		Fires when the user opens or closes the <details> element.
+     *		The equivalent of HTML attribute `ontoggle`.
+     *		
+     *		The first parameter of the callback is the `Element` object.
+     *		
+     *		Returns the attribute value when parameter `value` is `null`.
+     *	@return: 
+     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *	@parameter: {
+     *		@name: value
+     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+     *	}: 
+     *	@inherit: false
+     } */ 
+    on_toggle(callback) {
+        if (callback == null) { return this.element.ontoggle; }
+    	const e = this;
+    	this.element.ontoggle = () => callback(e);
+    	return this;
+    }
+
 };

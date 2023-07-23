@@ -5,6 +5,7 @@
 
 // Utils module.
 vweb.utils = {};
+// vweb.utils.vendor_prefix_cache = {};
 	
 // Is string.
 vweb.utils.is_string = function(value) {
@@ -28,7 +29,17 @@ vweb.utils.is_float = function(value) {
 
 // Is function.
 vweb.utils.is_func = function(value) {
-	return typeof myVariable === 'function';
+	return typeof value === 'function';
+}
+
+// Is array.
+vweb.utils.is_array = function(value) {
+	return Array.isArray(value);
+}
+
+// Is object.
+vweb.utils.is_obj = function(value) {
+	return typeof value === 'object';
 }
 
 // Equals.
@@ -56,19 +67,24 @@ vweb.utils.lt_eq = function(x, y) {
 }
 
 // Get device width.
-vweb.utils.get_device_width = function() {
+vweb.utils.device_width = function() {
 	return (window.innerWidth > 0) ? window.innerWidth : screen.width;
 }
 
+// Get device height.
+vweb.utils.device_height = function() {
+	return (window.innerHeight > 0) ? window.innerHeight : screen.height;
+}
+
 // Get endpoint sub url.
-vweb.utils.get_endpoint = function() {
+vweb.utils.endpoint = function() {
 	endpoint = window.location.href.replace("https://", "").replace("http://", "");
 	endpoint = endpoint.substr(endpoint.indexOf('/'), endpoint.length);
 	return endpoint;
 }
 
 // Get a cookie value by name.
-vweb.utils.get_cookie = function(name) {
+vweb.utils.cookie = function(name) {
 	let index = document.cookie.indexOf(name + "=");
 	if (index == -1) {
 		return null;
@@ -83,9 +99,29 @@ vweb.utils.get_cookie = function(name) {
 	return value.substr(0, index);
 }
 
+// Get style name for vendor prefix.
+// vweb.utils.get_vendor_prefix_property = function(property, style) {
+// 	if (vweb.utils.vendor_prefix_cache[property]) {
+// 		return vweb.utils.vendor_prefix_cache[property];
+// 	}
+// 	const vendors = ['webkit', 'moz', 'ms', 'o'];
+// 	for (let i = 0; i < vendors.length; i++) {
+// 		let vendor_property = "-";
+// 		vendor_property += vendors[i];
+// 		vendor_property += "-";
+// 		vendor_property += property;
+// 		if (property in style) {
+// 			vweb.utils.vendor_prefix_cache[property] = vendor_property;
+// 			return vendor_property;
+// 		}
+// 	}
+// 	vweb.utils.vendor_prefix_cache[property] = property;
+// 	return property;
+// }
+
 // Redirect.
 vweb.utils.redirect = function(url, forced = false) {
-	if (forced || vweb.utils.get_endpoint() != url) {
+	if (forced || vweb.utils.endpoint() != url) {
 		window.location.href = url;
 	}
 }
@@ -167,4 +203,21 @@ vweb.utils.on_load = function(func) {
 		}
 	});
 }
-	
+
+// Compress.
+vweb.utils.compress = function(data, options = {level: 9}) {
+	if (vweb.utils.is_array(data) || vweb.utils.is_obj(data)) {
+		data = JSON.stringify(data);
+	}
+	return pako.gzip(data, options);
+};
+
+// Decompress.
+// Valid types are: [string, array, object].
+vweb.utils.decompress = function(data, type = "string") {
+	let decompressed = pako.gzip(data, opts);
+	if (type == "array" || type == "object") {
+		return JSON.parse(decompressed);
+	}
+	return decompressed;
+};

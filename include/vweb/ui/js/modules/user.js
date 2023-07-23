@@ -8,7 +8,7 @@ vweb.user = {};
 
 // Get user id from cookie.
 vweb.user.uid = function() {
-	const i = vweb.utils.get_cookie("UserID");
+	const i = vweb.utils.cookie("UserID");
 	if (i == -1) {
 		return null;
 	}
@@ -17,7 +17,7 @@ vweb.user.uid = function() {
 
 // Get username from cookie.
 vweb.user.username = function() {
-	const i = vweb.utils.get_cookie("UserName");
+	const i = vweb.utils.cookie("UserName");
 	if (i == "") {
 		return null;
 	}
@@ -26,7 +26,7 @@ vweb.user.username = function() {
 
 // Get email from cookie.
 vweb.user.email = function() {
-	const i = vweb.utils.get_cookie("UserEmail");
+	const i = vweb.utils.cookie("UserEmail");
 	if (i == "") {
 		return null;
 	}
@@ -35,7 +35,7 @@ vweb.user.email = function() {
 
 // Get first name from cookie.
 vweb.user.first_name = function() {
-	const i = vweb.utils.get_cookie("UserFirstName");
+	const i = vweb.utils.cookie("UserFirstName");
 	if (i == "") {
 		return null;
 	}
@@ -44,7 +44,7 @@ vweb.user.first_name = function() {
 
 // Get last name from cookie.
 vweb.user.last_name = function() {
-	const i = vweb.utils.get_cookie("UserLastName");
+	const i = vweb.utils.cookie("UserLastName");
 	if (i == "") {
 		return null;
 	}
@@ -58,7 +58,7 @@ vweb.user.authenticated = function() {
 
 // Get the is user activated boolean.
 vweb.user.activated = function() {
-	if (vweb.utils.get_cookie("UserActivated") == "true") {
+	if (vweb.utils.cookie("UserActivated") == "true") {
 		return true;
 	}
 	return false;
@@ -125,7 +125,7 @@ vweb.user.change_password = function({
 	before = null
 }) {
 	return vweb.utils.request({
-		method: "GET",
+		method: "POST",
 		url: "/backend/user/change_password",
 		data: {
 			current_password: current_password,

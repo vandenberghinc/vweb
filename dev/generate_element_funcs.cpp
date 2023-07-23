@@ -616,6 +616,80 @@ int main() {
 	"onwaiting 	script 	Script to be run when the media has paused but is expected to resume (like when the media pauses to buffer more data)" "\n"
 	"ontoggle 	script 	Fires when the user opens or closes the <details> element" "\n"
 	;
+	Array<String> event_names = {
+		"onafterprint",
+		"onbeforeprint",
+		"onbeforeunload",
+		"onerror",
+		"onhashchange",
+		"onload",
+		"onmessage",
+		"onoffline",
+		"ononline",
+		"onpagehide",
+		"onpageshow",
+		"onpopstate",
+		"onresize",
+		"onstorage",
+		"onunload",
+		"onblur",
+		"onchange",
+		"oncontextmenu",
+		"onfocus",
+		"oninput",
+		"oninvalid",
+		"onreset",
+		"onsearch",
+		"onselect",
+		"onsubmit",
+		"onkeydown",
+		"onkeypress",
+		"onkeyup",
+		"onclick",
+		"ondblclick",
+		"onmousedown",
+		"onmousemove",
+		"onmouseout",
+		"onmouseover",
+		"onmouseup",
+		"onmousewheel",
+		"onwheel",
+		"ondrag",
+		"ondragend",
+		"ondragenter",
+		"ondragleave",
+		"ondragover",
+		"ondragstart",
+		"ondrop",
+		"onscroll",
+		"oncopy",
+		"oncut",
+		"onpaste",
+		"onabort",
+		"oncanplay",
+		"oncanplaythrough",
+		"oncuechange",
+		"ondurationchange",
+		"onemptied",
+		"onended",
+		"onerror",
+		"onloadeddata",
+		"onloadedmetadata",
+		"onloadstart",
+		"onpause",
+		"onplay",
+		"onplaying",
+		"onprogress",
+		"onratechange",
+		"onseeked",
+		"onseeking",
+		"onstalled",
+		"onsuspend",
+		"ontimeupdate",
+		"onvolumechange",
+		"onwaiting",
+		"ontoggle",
+	};
 	
 	// Names to convert from joined to joiner by _.
 	Dict<String, String> convert_names {
@@ -753,6 +827,60 @@ int main() {
 		"_size",
 	};
 	
+	// Platform specific css attributes.
+	Array<String> vendor_prefix_styles {
+		"mask",
+		"mask-composite",
+		"align-content",
+		"align-items",
+		"align-self",
+		"animation",
+		"animation-delay",
+		"animation-direction",
+		"animation-duration",
+		"animation-fill-mode",
+		"animation-iteration-count",
+		"animation-name",
+		"animation-play-state",
+		"animation-timing-function",
+		"backface-visibility",
+		"background-clip",
+		"background-origin",
+		"background-size",
+		"border-image",
+		"border-radius",
+		"box-shadow",
+		"box-sizing",
+		"column-count",
+		"column-gap",
+		"column-rule",
+		"column-rule-color",
+		"column-rule-style",
+		"column-rule-width",
+		"column-width",
+		"filter",
+		"flex",
+		"flex-basis",
+		"flex-direction",
+		"flex-flow",
+		"flex-grow",
+		"flex-shrink",
+		"flex-wrap",
+		"justify-content",
+		"order",
+		"perspective",
+		"perspective-origin",
+		"transform",
+		"transform-origin",
+		"transform-style",
+		"transition",
+		"transition-delay",
+		"transition-duration",
+		"transition-property",
+		"transition-timing-function",
+		"user-select",
+	};
+	
 	// Create js.
 	String js;
 	
@@ -771,6 +899,7 @@ int main() {
 				return ;
 			}
 			String name (data, space);
+			String raw_name = name;
 			name.replace_r('-', '_');
 			
 			// JS name for style.
@@ -824,7 +953,7 @@ int main() {
 			if (commented_out.is_undefined()) {
 				docs <<
 				"    /*	@docs: {" << "\n" <<
-				"     *	@name: " << docs_name << "\n" <<
+				"     *	@title: " << docs_name << "\n" <<
 				"     *	@description: " << "\n" <<
 				"     *		" << comment << "\n" <<
 				"     *		The equivalent of CSS attribute `" << jsname << "`." << "\n" <<
@@ -843,9 +972,24 @@ int main() {
 			// Create func.
 			js << "    // " << comment << "\n" <<
 			docs <<
-			"    " << commented_out << name << "(value) {" << "\n" <<
-			"    " << commented_out << "    if (value == null) { return this.element.style." << jsname << "; }" << "\n" <<
-			"    " << commented_out << "    this.element.style." << jsname << " = " << padded_value << ";" << "\n" <<
+			"    " << commented_out << name << "(value) {" << "\n";
+			
+			if (vendor_prefix_styles.contains(raw_name)) {
+				const String vendor_suffix = String() << vlib::uppercase(jsname[0]) << jsname.slice(1);
+				js <<
+				"    " << commented_out << "    if (value == null) { return this.element.style." << jsname << "; }" << "\n" <<
+				"    " << commented_out << "    this.element.style." << jsname << " = " << padded_value << ";" << "\n" <<
+				"    " << commented_out << "    this.element.style.ms" << vendor_suffix << " = " << padded_value << ";" << "\n" <<
+				"    " << commented_out << "    this.element.style.webkit" << vendor_suffix << " = " << padded_value << ";" << "\n" <<
+				"    " << commented_out << "    this.element.style.Moz" << vendor_suffix << " = " << padded_value << ";" << "\n" <<
+				"    " << commented_out << "    this.element.style.O" << vendor_suffix << " = " << padded_value << ";" << "\n";
+			} else {
+				js <<
+				"    " << commented_out << "    if (value == null) { return this.element.style." << jsname << "; }" << "\n" <<
+				"    " << commented_out << "    this.element.style." << jsname << " = " << padded_value << ";" << "\n";
+			}
+			
+			js <<
 			"    " << commented_out << "    return this;" << "\n" <<
 			"    " << commented_out << "}" << "\n" << "\n";
 		}
@@ -916,6 +1060,11 @@ int main() {
 			}
 		}
 		
+		// Skip events.
+		if (event_names.contains(html_name)) {
+			return ;
+		}
+		
 		// Docs name.
 		String docs_name = converted_name;
 		docs_name.replace_r('_', ' ');
@@ -924,7 +1073,7 @@ int main() {
 		if (commented_out.is_undefined()) {
 			docs <<
 			"    /*	@docs: {" << "\n" <<
-			"     *	@name: " << docs_name << "\n" <<
+			"     *	@title: " << docs_name << "\n" <<
 			"     *	@description: " << "\n" <<
 			"     *		" << comment << "\n" <<
 			"     *		The equivalent of HTML attribute `" << html_name << "`." << "\n" <<
@@ -1001,19 +1150,7 @@ int main() {
 			commented_out = "// ";
 		}
 		
-		// Padded value.
-		String padded_value = "value";
-		if (pad_numeric_funcs.contains(converted_name)) {
-			padded_value = "this.pad_numeric(value)";
-		} else {
-			for (auto& i: pad_numeric_funcs_eq_last) {
-				if (converted_name.eq_last(i)) {
-					padded_value = "this.pad_numeric(value)";
-					break;
-				}
-			}
-		}
-		
+		// Already done.
 		if (funcs.contains(converted_name)) {
 			return ;
 		}
@@ -1026,10 +1163,12 @@ int main() {
 		if (commented_out.is_undefined()) {
 			docs <<
 			"    /*	@docs: {" << "\n" <<
-			"     *	@name: " << docs_name << "\n" <<
+			"     *	@title: " << docs_name << "\n" <<
 			"     *	@description: " << "\n" <<
 			"     *		" << comment << "\n" <<
 			"     *		The equivalent of HTML attribute `" << html_name << "`." << "\n" <<
+			"     *		" << "\n" <<
+			"     *		The first parameter of the callback is the `Element` object." << "\n" <<
 			"     *		" << "\n" <<
 			"     *		Returns the attribute value when parameter `value` is `null`." << "\n" <<
 			"     *	@return: " << "\n" <<
@@ -1045,9 +1184,11 @@ int main() {
 		// Create func.
 		js << "    // " << comment << "\n" <<
 		docs <<
-		"    " << commented_out << converted_name << "(value) {" << "\n" <<
-		"    " << commented_out << "    if (value == null) { return this.element." << html_name << "; }" << "\n" <<
-		"    " << commented_out << "	this.element." << html_name << " = " << padded_value << ";" << "\n" <<
+		"    " << commented_out << converted_name << "(callback) {" << "\n" <<
+		"    " << commented_out << "    if (callback == null) { return this.element." << html_name << "; }" << "\n" <<
+		// "    " << commented_out << "	this.element." << html_name << " = " << padded_value << ";" << "\n" <<
+		"    " << commented_out << "	const e = this;" << "\n" <<
+		"    " << commented_out << "	this.element." << html_name << " = () => callback(e);" << "\n" <<
 		"    " << commented_out << "	return this;" << "\n" <<
 		"    " << commented_out << "}" << "\n" << "\n";
 

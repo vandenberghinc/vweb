@@ -157,13 +157,6 @@ public:
 	void    close() {
 		SESLOG(0, to_str(m_conn->info.ip, ": ", "Closing connected peer."));
 		m_conn->connected = false;
-		if (m_conn->ctx == NULL) {
-			TCP::close(m_conn->fd);
-		} else {
-			TLS::close(m_conn->ctx);
-			m_conn->ctx = NULL;
-		}
-		m_conn->fd = -1;
 	}
 	
 	// Reset all attributes.

@@ -24,7 +24,8 @@ int main() {
 			"ui/element.js",
 		},
 		.exclude = {
-			"vweb.js"
+			"vweb.js",
+			// "libs/pako.min.js",
 		},
 		.header = to_str(
 			"/*" "\n"

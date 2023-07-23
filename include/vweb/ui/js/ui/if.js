@@ -10,7 +10,9 @@ class If extends Element {
 	static default_styling = {};
 	
 	// Constructor.
-	constructor(boolean, child_or_func) {
+	// The first value of the args should be the true or false boolean ...
+	// All others will be the children which will be visible when the boolean is true.
+	constructor(...args) {
 		
 		// Initialize base class.
 		super("If", "section");
@@ -19,16 +21,18 @@ class If extends Element {
 		this.style(View.default_styling);
 		
 		// Execute.
-		if (boolean) {
+		if (args[0] == true) {
+			for (let i = 0; i < args.length; i++) {
 
-			// Is function.
-			if (vweb.utils.is_func(child_or_func)) {
-				child_or_func();
-			}
+				// Is function.
+				if (vweb.utils.is_func(args[i])) {
+					args[i]();
+				}
 
-			// Is child.
-			else {
-				this.append(child_or_func);
+				// Is child.
+				else {
+					this.append(args[i]);
+				}
 			}
 		}
 	}
@@ -36,30 +40,33 @@ class If extends Element {
 }
 
 // IfDeviceWith.
+// Deprecated: use Element.media instead.
 // @TODO update on resize etc.
-class IfDeviceWith extends Element {
+// class IfDeviceWith extends Element {
 	
-	// Default styling.
-	static default_styling = {};
+// 	// Default styling.
+// 	static default_styling = {};
 	
-	// Constructor.
-	constructor(comparison, value, child) {
+// 	// Constructor.
+// 	// The first value of the args should be the true or false boolean ...
+// 	// All others will be the children which will be visible when the boolean is true.
+// 	constructor(comparison, value, child) {
 		
-		// Initialize base class.
-		super("IfDeviceWith", "section");
+// 		// Initialize base class.
+// 		super("IfDeviceWith", "section");
 		
-		// Attributes.
-		this.comparison = comparison;
-		this.value = value;
-		this.child = child;
+// 		// Attributes.
+// 		this.comparison = comparison;
+// 		this.value = value;
+// 		this.child = child;
 		
-		// Set default styling
-		this.style(View.default_styling);
+// 		// Set default styling
+// 		this.style(View.default_styling);
 		
-		// Add child.
-		if (comparison(vweb.utils.get_device_width(), this.value)) {
-			this.append(this.child);
-		}
-	}
+// 		// Add child.
+// 		if (comparison(vweb.utils.device_width(), this.value)) {
+// 			this.append(this.child);
+// 		}
+// 	}
 	
-}
+// }

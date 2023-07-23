@@ -3,17 +3,35 @@
  * Copyright: © 2022 - 2023 Daan van den Bergh.
  */
 const vhighlight={};
-vhighlight.highlight=function(element){
-const language=element.getAttribute("language");
-if(language==""){
+vhighlight.highlight=function({
+element=null,language=null,line_numbers=null,animate=false,delay=25,is_func=false	}){
+if(language==null){
+language=element.getAttribute("language");
+}
+if(language==""||language==null){
 return;
 }
-const code=element.textContent;
-element.innerHTML="";
+if(line_numbers==null){
+line_numbers=element.getAttribute('line_numbers')=="true";
+}
+if(delay==null){
+delay=25;
+}
+let code;
+let loader;
+let line_numbers_div;
+let line_numbers_divider;
+let code_pre;
+if(element.children.length<=1){
 element.style.display='flex';
-element.style.justifyContent="center";
-element.style.alignItems="center";
-let loader=document.createElement("div");
+element.style.height="auto";
+if(element.style.fontFamily==""){
+element.style.fontFamily="'Menlo', 'Consolas', monospace";
+}
+code=element.textContent;
+element.innerHTML="";
+loader=document.createElement("div");
+loader.style.display="flex";
 loader.className="vhighlight_loader";
 for(let i=0;i<4;i++){
 let child=document.createElement("div");
@@ -22,39 +40,142 @@ child.style.borderColor=element.style.color+" transparent transparent transparen
 loader.appendChild(child);
 }
 element.appendChild(loader);
-setTimeout(()=>{
-if(element.style.fontFamily==""){
-element.style.fontFamily="'Menlo', 'Consolas', monospace";
-}
-let highlighted_code;
-if(language=="cpp"){
-highlighted_code=vhighlight.cpp.highlight(code);
-}else if(language=="markdown"){
-highlighted_code=vhighlight.md.highlight(code);
-}else if(language=="js"){
-highlighted_code=vhighlight.js.highlight(code);
-}else if(language=="python"){
-highlighted_code=vhighlight.python.highlight(code);
-}else{
-console.error("Unsupported language \""+language+"\" for syntax highlighting.");
-element.innerHTML="<p style='color: red;'>Error: Unsupported language \""+language+"\" for syntax highlighting.</p>";
-return;
-}
-if(element.getAttribute('line_numbers')!="true"){
-let code_pre=document.createElement("pre");
+line_numbers_div=document.createElement("pre");
+line_numbers_div.style.padding='0px';
+line_numbers_div.style.margin='0px';
+element.appendChild(line_numbers_div);
+line_numbers_divider=document.createElement("div");
+line_numbers_divider.className="token_line_number_divider";
+line_numbers_divider.style.minWidth="0.5px";
+line_numbers_divider.style.width="0.5px";
+line_numbers_divider.style.padding='0px';
+line_numbers_divider.style.margin="0px 10px 0px 10px";
+element.appendChild(line_numbers_divider);
+code_pre=document.createElement("pre");
 code_pre.style.padding="0px";
 code_pre.style.margin="0px";
 code_pre.style.whiteSpace="pre";
 code_pre.style.overflowX="auto";
-code_pre.innerHTML=highlighted_code;
+element.appendChild(code_pre);
+}
+else{
+console.log(element.children);
+loader=element.children[0];
+line_numbers_div=element.children[1];
+line_numbers_divider=element.children[2];
+code_pre=element.children[3];
+code=code_pre.textContent;
+console.log("CODE PRE: ",code_pre);
+console.log("CODE: ",code);
+}
+function show_loader(){
+element.style.justifyContent="center";
+element.style.alignItems="center";
+loader.style.display="flex";
+line_numbers_div.style.display="none";
+line_numbers_divider.style.display="none";
+code_pre.style.display="none";
+}
+function hide_loader(){
 element.style.justifyContent="start";
 element.style.alignItems="stretch";
-element.innerHTML="";
-element.appendChild(code_pre);
+loader.style.display="none";
+if(line_numbers){
+line_numbers_div.style.display="block";
+line_numbers_divider.style.display="block";
+}
+code_pre.style.display="block";
+}
+function animate_writing(highlighted_code){
+code_pre.innerHTML="";
+function add_char(index){
+if(index<highlighted_code.length){
+if(highlighted_code[index]=='<'){
+let span_index;
+let span_open="";
+let span_close="";
+let span_code="";
+let open=true;
+let first=true;
+for(span_index=index;span_index<highlighted_code.length;span_index++){
+const char=highlighted_code[span_index];
+if(char=='<'||open){
+open=true;
+if(first){
+span_open+=char;
+}else{
+span_close+=char;
+}
+if(char=='>'){
+open=false;
+if(first){
+first=false;
+continue;
+}
+let before=code_pre.innerHTML;
+let added_span_code="";
+function add_span_code(index){
+if(index<span_code.length){
+added_span_code+=span_code[index]
+let add=before;
+add+=span_open;
+add+=added_span_code;
+add+=span_close;
+code_pre.innerHTML=add;
+setTimeout(()=>add_span_code(index+1),delay);
+}else{
+setTimeout(()=>add_char(span_index+1),delay);
+}
+}
+add_span_code(0)
+break;
+}
+}
+else{
+span_code+=char;
+}
+}
+}
+else{
+code_pre.innerHTML+=highlighted_code.charAt(index);
+setTimeout(()=>add_char(index+1),delay);
+}
+}
+else{
+code_pre.innerHTML=highlighted_code;
+}
+}
+add_char(0);
+}
+show_loader();
+setTimeout(()=>{
+let highlighted_code;
+if(language=="cpp"||language=="c++"||language=="c"){
+highlighted_code=vhighlight.cpp.highlight(code,{is_func:is_func});
+}else if(language=="markdown"||language=="md"){
+highlighted_code=vhighlight.md.highlight(code);
+}else if(language=="js"||language=="javascript"){
+highlighted_code=vhighlight.js.highlight(code);
+}else if(language=="json"){
+highlighted_code=vhighlight.json.highlight(code);
+}else if(language=="python"){
+highlighted_code=vhighlight.python.highlight(code);
+}else{
+console.error("Unsupported language \""+language+"\" for syntax highlighting.");
 return;
 }
+if(line_numbers==false){
+hide_loader();
+if(animate==true){
+animate_writing(highlighted_code);
+}else{
+code_pre.innerHTML=highlighted_code;
+}
+return;
+}
+element.style.justifyContent="start";
 element.style.alignItems='stretch';
-if(element.style.height==='undefined' || element.style.height=="100%"){
+if(element.style.height==='undefined'||element.style.height=="100%"){
 element.style.height='auto';
 }
 if(element.style.tabSize==='undefined'){
@@ -72,38 +193,19 @@ const pre_height=pre.clientHeight;
 const line_height=parseFloat(element.style.lineHeight);
 document.body.removeChild(pre);
 const lines=Math.floor(pre_height/line_height);
-let line_div=document.createElement("div");
-line_div.style.display="flex";
-line_div.style.padding='0px';
-line_div.style.margin='0px';
-let line_numbers=document.createElement("pre");
-line_numbers.style.padding='0px';
-line_numbers.style.margin='0px';
+line_numbers_div.innerHTML="";
 for(var i=0;i<lines;i++){
 let span=document.createElement("span");
 span.className="token_line_number";
 span.textContent=(i+1)+"\n";
-line_numbers.appendChild(span);
+line_numbers_div.appendChild(span);
 }
-let divider=document.createElement("div");
-divider.className="token_line_number_divider";
-divider.style.minWidth="0.5px";
-divider.style.width="0.5px";
-divider.style.padding='0px';
-divider.style.margin="0px 10px 0px 10px";
-let code_pre=document.createElement("pre");
-code_pre.style.padding="0px";
-code_pre.style.margin="0px";
-code_pre.style.whiteSpace="pre";
-code_pre.style.overflowX="auto";
+hide_loader();
+if(animate==true){
+animate_writing(highlighted_code);
+}else{
 code_pre.innerHTML=highlighted_code;
-element.style.height="auto";
-element.style.justifyContent="start";
-element.style.alignItems="stretch";
-element.innerHTML="";
-element.appendChild(line_numbers);
-element.appendChild(divider);
-element.appendChild(code_pre);
+}
 },50);
 }
 vhighlight.js={};
@@ -196,7 +298,7 @@ function replace_parameters(regex,replacement=null){
 let match;
 while((match=regex.exec(code))!==null){
 const head=vhighlight.utils.slice_parentheses(code,match.index);
-if(head !=null){
+if(head!=null){
 code=vhighlight.utils.replace_by_index(code,head.start,head.end,head.data.replace(vhighlight.js.parameter_regex,"$1<span class='token_parameter'>$2</span>"));
 regex.lastIndex=head.end+1;
 }
@@ -210,7 +312,7 @@ let match;
 const regex=vhighlight.js.type_def_body_regex;
 while((match=regex.exec(code))!==null){
 const body=vhighlight.utils.slice_curly_brackets(code,match.index);
-if(body !=null){
+if(body!=null){
 code=vhighlight.utils.replace_by_index(code,body.start,body.end,vhighlight.js.highlight(body.data,true,false));
 regex.lastIndex=body.end+1;
 }
@@ -351,13 +453,13 @@ vhighlight.cpp.call_regex=new RegExp(`${vhighlight.cpp.exclude_span}\\b([A-Za-z0
 vhighlight.cpp.type_regex=new RegExp(`${vhighlight.cpp.exclude_span}${vhighlight.cpp.html_open}(?<=\\b)(${vhighlight.cpp.keywords.join('\\s+|') + '\\s+'})*([A-Za-z0-9_]+${vhighlight.cpp.template_params})([&*]*\\s+(?!&gt;|&lt;)[A-Za-z0-9_&*]+)${vhighlight.cpp.html_close}`,'gm');
 vhighlight.cpp.namespace_regex=new RegExp(`${vhighlight.cpp.exclude_span}([A-Za-z0-9_]*)(::)([A-Za-z0-9_]+${vhighlight.cpp.template_params})`,'g');
 vhighlight.cpp.recorrect_regex=/(<span class="token_type">[^$2|<]*)(,|::|&lt;|&gt;)([^<]*<\/span>)/g;
-vhighlight.cpp.highlight=function(code,is_func=false,reformat=true){
-if(reformat){code=code.replaceAll("<","&lt;");
+vhighlight.cpp.highlight=function(code,options={is_func:false,reformat:true}){
+if(options.reformat){code=code.replaceAll("<","&lt;");
 code=code.replaceAll(">","&gt;");
 }
-if(!is_func){code=code.replace(vhighlight.cpp.comment_regex,'<span class="token_comment">$&</span>');code=code.replace(vhighlight.cpp.string_regex,'<span class="token_string">$&</span>');}
+if(!options.is_func){code=code.replace(vhighlight.cpp.comment_regex,'<span class="token_comment">$&</span>');code=code.replace(vhighlight.cpp.string_regex,'<span class="token_string">$&</span>');}
 let code_blocks=[];
-if(!is_func){
+if(!options.is_func){
 let match;
 const regex=vhighlight.cpp.func_regex;
 while((match=regex.exec(code))!==null){
@@ -373,7 +475,7 @@ let bend=0;
 let depth=0;
 let last_space=match.index;
 for(let index=match.index;index<code.length;index++){
-if(pstart==0 &&(code[index]==" " || code[index]=="\t")&& code[index+1] !="(" && code[index+1] !=" "){
+if(pstart==0&&(code[index]==" "||code[index]=="\t")&&code[index+1]!="("&&code[index+1]!=" "){
 last_space=index;
 }
 if(pend==0){
@@ -386,7 +488,7 @@ depth++;
 else if(code[index]==")"){
 depth--;
 }
-if(pstart !=0 && depth==0){
+if(pstart!=0&&depth==0){
 pend=index+1;
 depth=0;
 func_type=code.substr(match.index,last_space-match.index).trim();
@@ -397,7 +499,7 @@ break;
 }
 }
 }
-else if(bstart==0 && code[index]==";"){
+else if(bstart==0&&code[index]==";"){
 end_index=index+1;
 break;
 }
@@ -411,7 +513,7 @@ depth++;
 else if(code[index]=="}"){
 depth--;
 }
-if(bstart !=0 && depth==0){
+if(bstart!=0&&depth==0){
 bend=index+1;
 end_index=index+1;
 depth=0;
@@ -447,9 +549,9 @@ highlighted+="<span class='token_type_def'>";
 highlighted+=func_name;
 highlighted+="</span>";
 highlighted+=vhighlight.cpp.highlight_params(func_params);
-if(bend !=0){
+if(bend!=0){
 highlighted+=" ";
-highlighted+=this.highlight(func_code,true,false);
+highlighted+=this.highlight(func_code,{is_func:true,reformat:false});
 }else{
 highlighted+=";";
 }
@@ -465,7 +567,7 @@ code=code.replace(vhighlight.cpp.sys_include_regex,'$1<span class="token_string"
 code=code.replace(vhighlight.cpp.bool_regex,'<span class="token_bool">$&</span>');
 code=code.replace(vhighlight.cpp.typedef_regex,'<span class="token_keyword">$1</span><span class="token_type_def">$2</span>$3');
 code=code.replace(vhighlight.cpp.namespace_regex,'<span class="token_type">$1</span>$2<span class="token_type">$3</span>');code=code.replace(vhighlight.cpp.preprocessor_regex,'<span class="token_preprocessor">$&</span>');code=code.replace(vhighlight.cpp.keyword_regex,'<span class="token_keyword">$&</span>');
-if(is_func){
+if(options.is_func){
 code=code.replace(vhighlight.cpp.constructor_regex,'<span class="token_type">$1</span><span class="type_no">$2</span>$3');code=code.replace(vhighlight.cpp.call_regex,'<span class="token_type">$1</span>$2');
 }
 code=code.replace(vhighlight.cpp.type_regex,'$1<span class="token_type">$2</span>$3');
@@ -489,6 +591,78 @@ code=code.replace(vhighlight.cpp.param_type_regex,'$1$2<span class="token_type">
 code=code.replace(vhighlight.cpp.call_regex,'<span class="token_type">$1</span>$2');
 return code;
 }
+vhighlight.cpp.highlight_type=function(block){
+highlighted="";
+batch="";
+function append_batch(highlight=true){
+if(highlight&&keywords.includes(batch)){
+highlighted+="<span class='token_keyword'>";
+highlighted+=batch;
+highlighted+="</span>";
+}
+else if(highlight&&batch!='&'&&batch!='*'&&batch!='.'&&batch!=':'){
+highlighted+="<span class='token_type'>";
+highlighted+=batch;
+highlighted+="</span>";
+}
+else{
+highlighted+=batch;
+}
+batch="";
+};
+for(let i=0;i<block.length;i++){
+c=block[i];
+switch(c){
+case '*':
+case '&':
+case '.':
+case ':':
+append_batch();
+batch+=c;
+append_batch(false);
+break;
+case '<':
+append_batch();
+batch+="&lt;";
+append_batch(false);
+break;
+case '>':
+append_batch();
+batch+="&gt;";
+append_batch(false);
+break;
+case ' ':
+append_batch();
+batch+=c;
+append_batch(false);
+break;
+default:
+batch+=c;
+break;
+}
+}
+append_batch();
+return highlighted;
+}
+vhighlight.json={};
+vhighlight.json.keywords=[
+"true",
+"false",
+"null",
+];
+vhighlight.json.exclude_span="(?!(?:[^<]|<(?!/?span[^>]*>))*?<\\/span>)";vhighlight.json.html_open="(?<!<[^>]*)";vhighlight.json.html_close="(?![^<]*>)";
+vhighlight.json.comment_regex=/(\/\/.*|\/\*[\s\S]*?\*\/)(?!\S)/g;
+vhighlight.json.string_regex=new RegExp(`(${vhighlight.json.exclude_span}${vhighlight.json.html_open})(['"\`/]{1})(.*?)\\2${vhighlight.json.html_close}`,'gms');
+vhighlight.json.numeric_regex=new RegExp(`${vhighlight.json.exclude_span}\\b-?\\d+(?:\\.\\d+)?\\b`,'g');
+vhighlight.json.keyword_regex=new RegExp(`${vhighlight.json.exclude_span}\\b(${vhighlight.json.keywords.join('|')})\\b`,'gm');
+vhighlight.json.highlight=function(code){
+code=code.replaceAll("<","&lt;");
+code=code.replaceAll(">","&gt;");
+code=code.replace(vhighlight.json.comment_regex,'<span class="token_comment">$&</span>');
+code=code.replace(vhighlight.json.string_regex,'<span class="token_string">$&</span>');
+code=code.replace(vhighlight.json.keyword_regex,'<span class="token_keyword">$&</span>');code=code.replace(vhighlight.json.numeric_regex,'<span class="token_numeric">$&</span>');
+return code;
+}
 vhighlight.utils={};
 vhighlight.utils.replace_by_index=function(str,start,end,substr){
 let replaced=str.substr(0,start);
@@ -503,10 +677,10 @@ let end=-1;
 let sliced="";
 let string_char=null;
 for(let index=start_index;index<code.length;index++){
-if(string_char==null &&(code[index]=='"' || code[index]=="'" || code[index]=='`')){
+if(string_char==null&&(code[index]=='"'||code[index]=="'"||code[index]=='`')){
 string_char=code[index];
 }
-else if(string_char !=null && code[index]==string_char){
+else if(string_char!=null&&code[index]==string_char){
 string_char=null;
 }
 else if(string_char==null){
@@ -526,9 +700,9 @@ end=index;
 }
 if(start==end){return null;}
 return{
-"start": start,
-"end": end,
-"data": code.substr(start,end-start),
+"start":start,
+"end":end,
+"data":code.substr(start,end-start),
 }
 }
 }
@@ -600,7 +774,7 @@ let match;
 const regex=func_regex;
 while((match=regex.exec(code))!==null){
 let result=vhighlight.utils.slice_parentheses(code,match.index,false);
-if(result !=null){
+if(result!=null){
 code=vhighlight.utils.replace_by_index(code,result.start,result.end,result.data.replace(replace_regex,replace_with));
 regex.lastIndex=result.start+1;
 }

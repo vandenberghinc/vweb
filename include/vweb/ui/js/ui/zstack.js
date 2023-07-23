@@ -11,7 +11,7 @@ class ZStack extends Element {
 		"position": "relative",
 		"margin": "0px",
 		"padding": "0px",
-		"display": "block",
+		"display": "grid",
 		"text-align": "start",
 	};
 	
