@@ -4,8 +4,12 @@
  */
 
 // CodeBlock.
-class CodeBlock extends Element {
+class CodeBlock extends VElement {
 	
+	// Default vars.
+	static s_type = "CodeBlock";
+	static s_tag = "code";
+
 	// Default styling.
 	static default_styling = {
 		"margin": "0px 0px 0px 0px",
@@ -26,10 +30,7 @@ class CodeBlock extends Element {
 	constructor(code) {
 		
 		// Initialize base class.
-		super("CodeBlock", "code");
-		
-		// Set default styling
-		this.style(CodeBlock.default_styling);
+		super(CodeBlock.s_type, CodeBlock.s_tag, CodeBlock.default_styling);
 
 		// Set code.
 		if (code != null) {
@@ -82,9 +83,16 @@ class CodeBlock extends Element {
 	
 }
 
+// Register custom type.
+vweb.utils.register_custom_type(CodeBlock);
+
 // CodeLine.
-class CodeLine extends Element {
+class CodeLine extends VElement {
 	
+	// Default vars.
+	static s_type = "CodeLine";
+	static s_tag = "span";
+
 	// Default styling.
 	static default_styling = {
 		"font-family": "\"Menlo\", \"Consolas\", monospace",
@@ -100,10 +108,7 @@ class CodeLine extends Element {
 	constructor(text, href) {
 		
 		// Initialize base class.
-		super("CodeLine", "span");
-		
-		// Set default styling.
-		this.style(CodeLine.default_styling);
+		super(CodeLine.s_type, CodeLine.s_tag, CodeLine.default_styling);
 		
 		// Set text.
 		this.text(text);
@@ -111,3 +116,6 @@ class CodeLine extends Element {
 	}
 		
 }
+
+// Register custom type.
+vweb.utils.register_custom_type(CodeLine);

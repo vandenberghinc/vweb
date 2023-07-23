@@ -4,8 +4,12 @@
  */
 
 // Scroller.
-class VStack extends Element {
+class VStack extends VElement {
 	
+	// Default vars.
+	static s_type = "VStack";
+	static s_tag = "div";
+
 	// Default styling.
 	static default_styling = {
 		"position": "relative",
@@ -24,13 +28,13 @@ class VStack extends Element {
 	constructor(...children) {
 		
 		// Initialize base class.
-		super("VStack", "div");
-		
-		// Set default styling
-		this.style(VStack.default_styling);
+		super(VStack.s_type, VStack.s_tag, VStack.default_styling);
 		
 		// Add children.
 		this.append(...children);
 	}
 	
 }
+
+// Register custom type.
+vweb.utils.register_custom_type(VStack);

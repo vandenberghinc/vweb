@@ -5,8 +5,12 @@
 
 // RingLoader.
 // - The width and height must be in pixels.
-class RingLoader extends Element {
+class RingLoader extends VElement {
 	
+	// Default vars.
+	static s_type = "RingLoader";
+	static s_tag = "div";
+
 	// Default styling.
 	static default_styling = {
 		"width": "80px",
@@ -20,10 +24,7 @@ class RingLoader extends Element {
 	constructor() {
 		
 		// Initialize base class.
-		super("RingLoader", "div");
-
-		// Set default styling.
-		this.style(RingLoader.default_styling);
+		super(RingLoader.s_type, RingLoader.s_tag, RingLoader.default_styling);
 		
 		// Set default.
 		this.update();
@@ -74,3 +75,6 @@ class RingLoader extends Element {
 	}
 		
 }
+
+// Register custom type.
+vweb.utils.register_custom_type(RingLoader);

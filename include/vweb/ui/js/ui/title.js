@@ -4,8 +4,12 @@
  */
 
 // Title.
-class Title extends Element {
+class Title extends VElement {
 	
+	// Default vars.
+	static s_type = "Title";
+	static s_tag = "h1";
+
 	// Default styling.
 	static default_styling = {
 		"margin": "0px 0px 0px 0px",
@@ -19,13 +23,13 @@ class Title extends Element {
 	constructor(text) {
 		
 		// Initialize base class.
-		super("Title", "h1");
-		
-		// Set default styling.
-		this.style(Title.default_styling);
+		super(Title.s_type, Title.s_tag, Title.default_styling);
 		
 		// Set text.
 		this.inner_html(text);
 	}
 		
 }
+
+// Register custom type.
+vweb.utils.register_custom_type(Title);

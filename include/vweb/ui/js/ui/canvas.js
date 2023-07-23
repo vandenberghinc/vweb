@@ -12,13 +12,20 @@
  *	@warning:
  *		This class is still experimental and may be subjec to future change.
  } */
-class Canvas extends Element {
+class Canvas extends VElement {
 	
+	// Default vars.
+	static s_type = "Canvas";
+	static s_tag = "canvas";
+
+	// Default styling.
+	static default_styling = {};
+
 	// ---------------------------------------------------------
 	// Constructors.
 	
 	constructor() {
-		super("Canvas", "canvas");
+		super(Canvas.s_type, Canvas.s_tag, Canvas.default_styling);
 		this.ctx_2d = this.element.getContext("2d");
 	}
 
@@ -227,3 +234,6 @@ class Canvas extends Element {
     	return this;
     }
 };
+
+// Register custom type.
+vweb.utils.register_custom_type(Canvas);

@@ -10,17 +10,34 @@
  *	@description:
  *		Base class Element for derived classes.
  } */
-class Element {
+class VElement extends HTMLElement {
 	
+	// Default vars.
+	static s_type = "VElement";
+	static s_tag = "div";
+
 	// ---------------------------------------------------------
 	// Constructors.
 	
-	constructor(type, tag) {
+	constructor(type, tag, style) {
+		
+		// Inherit.
+	 	super()
+
+	    // Type.
 		this.element_type = type;
+
+		// Tag.
 		this.element_tag = tag;
+
+		// Display.
 		this.element_display = "block";
-		this.element = document.createElement(this.element_tag);
-		vweb.elements.all_elements.push(this);
+
+		// Default style.
+		if (style != null) {
+			this.styles(style);
+		}
+
 	}
 	
 	// ---------------------------------------------------------
@@ -96,7 +113,7 @@ class Element {
 					) {
 						child.append_children_to(this.element);
 					} else {
-						this.element.appendChild(child.element);
+						this.appendChild(child.element);
 					}
 				}
 
@@ -107,12 +124,12 @@ class Element {
 
 				// Node element.
 				else if (child instanceof Node) {
-					this.element.appendChild(child);
+					this.appendChild(child);
 				}
 
 				// Append text.
 				else if (vweb.utils.is_string(child)) {
-					this.element.appendChild(document.createTextNode(child));	
+					this.appendChild(document.createTextNode(child));	
 				}
 
 				// else {
@@ -139,7 +156,7 @@ class Element {
 					) {
 						child.append_children_to(this.element);
 					} else {
-						this.element.appendChild(child.element);
+						this.appendChild(child.element);
 					}
 				}
 
@@ -152,12 +169,12 @@ class Element {
 				else if (child instanceof Node) {
 					// child.element.style.position = "absolute";
 					child.element.style.gridArea = "1 / 1 / 2 / 2";
-					this.element.appendChild(child);
+					this.appendChild(child);
 				}
 
 				// Append text.
 				else if (vweb.utils.is_string(child)) {
-					this.element.appendChild(document.createTextNode(child));	
+					this.appendChild(document.createTextNode(child));	
 				}
 
 			}
@@ -173,8 +190,8 @@ class Element {
 
 	// Append the children to parent element.
 	append_children_to(parent) {
-		while (this.element.firstChild) {
-			parent.appendChild(this.element.firstChild)
+		while (this.firstChild) {
+			parent.appendChild(this.firstChild)
 		}
 		return this;
 	}
@@ -183,11 +200,11 @@ class Element {
 	// Can either be a Node object an Element derived object or an id.
 	remove_child(child) {
 		if (child.element != null) {
-			this.element.removeChild(child.element);
+			this.removeChild(child.element);
 		} else if (child instanceof Node) {
-			this.element.removeChild(child);
+			this.removeChild(child);
 		} else if (vweb.utils.is_string(child)) {
-			this.element.removeChild(document.getElementById(child));
+			this.removeChild(document.getElementById(child));
 		} else {
 			console.error("Invalid parameter type for function \"remove_child()\".");
 		}
@@ -196,8 +213,8 @@ class Element {
 
 	// Remove children.
 	remove_children() {
-		while (this.element.firstChild) {
-			this.element.removeChild(this.element.firstChild);
+		while (this.firstChild) {
+			this.removeChild(this.firstChild);
 		}
 		return this;
 	}
@@ -209,9 +226,9 @@ class Element {
 	// Leave value "null" to get the text.
 	text(value) {
 		if (value == null) {
-			return this.element.textContent;	
+			return this.textContent;	
 		}
-		this.element.textContent = value;
+		this.textContent = value;
 		return this;
 	}
 
@@ -219,9 +236,9 @@ class Element {
 	// Leave value "null" to get the value.
 	value(val) {
 		if (val == null) {
-			return this.element.value;	
+			return this.value;	
 		}
-		this.element.value = val;
+		this.value = val;
 		return this;
 	}
 
@@ -242,36 +259,36 @@ class Element {
 	width(value, check_attribute = true) {
 		if (check_attribute && Element.elements_with_width_attribute.includes(this.element_tag)) {
 			if (value == null) {
-				return this.element.width;
+				return this.width;
 			}
-			this.element.width = value;
+			this.width = value;
 		} else {
 			if (value == null) {
-				return this.element.style.width;
+				return this.style.width;
 			}
-			this.element.style.width = this.pad_numeric(value);
+			this.style.width = this.pad_numeric(value);
 		}
 		return this;
 	}
 	height(value) {
 		if (Element.elements_with_width_attribute.includes(this.element_tag)) {
 			if (value == null) {
-				return this.element.height;
+				return this.height;
 			}
-			this.element.height = value;
+			this.height = value;
 		} else {
 			if (value == null) {
-				return this.element.style.height;
+				return this.style.height;
 			}
-			this.element.style.height = this.pad_numeric(value);
+			this.style.height = this.pad_numeric(value);
 		}
 		return this;
 	}
 
 	// Set width by columns for HStack children.
 	width_by_columns(columns) {
-		let margin_left = this.element.style.marginLeft;
-        let margin_right = this.element.style.marginRight;
+		let margin_left = this.style.marginLeft;
+        let margin_right = this.style.marginRight;
 		if (margin_left == null) {
 			margin_left = "0px";
 		}
@@ -281,27 +298,27 @@ class Element {
 		if (columns == null) {
 			columns = 1;
 		}
-		this.element.style.flexBasis = "calc(100% / " + columns + " - (" + margin_left + " + " + margin_right + "))";
+		this.style.flexBasis = "calc(100% / " + columns + " - (" + margin_left + " + " + margin_right + "))";
 		// overflow needs to be set to hidden since it can cause the flex box ...
 		// calculations by the js template to fail.
-		this.element.style.overflow = "hidden";
+		this.style.overflow = "hidden";
 		return this;
 	}
 
 	// Get the offset width and height.
 	offset_width() {
-		return this.element.offsetWidth;
+		return this.offsetWidth;
 	}
 	offset_height() {
-		return this.element.offsetHeight;
+		return this.offsetHeight;
 	}
 
 	// Get the x and y offset
 	x() {
-		return this.element.offsetLeft;
+		return this.offsetLeft;
 	}
 	y() {
-		return this.element.offsetTop;
+		return this.offsetTop;
 	}
 
 	// Frame.
@@ -314,19 +331,19 @@ class Element {
 	// Padding, 1 or 4 args.
 	padding(...values) {
 		if (values.length === 0) {
-			return this.element.style.padding;
+			return this.style.padding;
 		} else if (values.length === 1) {
-			this.element.style.padding = this.pad_numeric(values[0]);
+			this.style.padding = this.pad_numeric(values[0]);
 		} else if (values.length === 2) {	
-			this.element.style.paddingTop = this.pad_numeric(values[0]);
-			this.element.style.paddingRight = this.pad_numeric(values[1]);
-			this.element.style.paddingBottom = this.pad_numeric(values[0]);
-			this.element.style.paddingLeft = this.pad_numeric(values[1]);
+			this.style.paddingTop = this.pad_numeric(values[0]);
+			this.style.paddingRight = this.pad_numeric(values[1]);
+			this.style.paddingBottom = this.pad_numeric(values[0]);
+			this.style.paddingLeft = this.pad_numeric(values[1]);
 		} else if (values.length === 4) {
-			this.element.style.paddingTop = this.pad_numeric(values[0]);
-			this.element.style.paddingRight = this.pad_numeric(values[1]);
-			this.element.style.paddingBottom = this.pad_numeric(values[2]);
-			this.element.style.paddingLeft = this.pad_numeric(values[3]);
+			this.style.paddingTop = this.pad_numeric(values[0]);
+			this.style.paddingRight = this.pad_numeric(values[1]);
+			this.style.paddingBottom = this.pad_numeric(values[2]);
+			this.style.paddingLeft = this.pad_numeric(values[3]);
 		} else {
 			console.error("Invalid number of arguments for function \"padding()\".");
 		}
@@ -336,19 +353,19 @@ class Element {
 	// Margin, 1 or 4 args.
 	margin(...values) {
 		if (values.length === 0) {
-			return this.element.style.margin;
+			return this.style.margin;
 		} else if (values.length === 1) {
-			this.element.style.margin = this.pad_numeric(values[0]);
+			this.style.margin = this.pad_numeric(values[0]);
 		} else if (values.length === 2) {		
-			this.element.style.marginTop = this.pad_numeric(values[0]);
-			this.element.style.marginRight = this.pad_numeric(values[1]);
-			this.element.style.marginBottom = this.pad_numeric(values[0]);
-			this.element.style.marginLeft = this.pad_numeric(values[1]);
+			this.style.marginTop = this.pad_numeric(values[0]);
+			this.style.marginRight = this.pad_numeric(values[1]);
+			this.style.marginBottom = this.pad_numeric(values[0]);
+			this.style.marginLeft = this.pad_numeric(values[1]);
 		} else if (values.length === 4) {
-			this.element.style.marginTop = this.pad_numeric(values[0]);
-			this.element.style.marginRight = this.pad_numeric(values[1]);
-			this.element.style.marginBottom = this.pad_numeric(values[2]);
-			this.element.style.marginLeft = this.pad_numeric(values[3]);
+			this.style.marginTop = this.pad_numeric(values[0]);
+			this.style.marginRight = this.pad_numeric(values[1]);
+			this.style.marginBottom = this.pad_numeric(values[2]);
+			this.style.marginLeft = this.pad_numeric(values[3]);
 		} else {
 			console.error("Invalid number of arguments for function \"margin()\".");
 		}
@@ -358,15 +375,15 @@ class Element {
 	// Position, 1 or 4 args.
 	position(...values) {
 		if (values.length === 0) {
-			return this.element.style.position;
+			return this.style.position;
 		} else if (values.length === 1) {
-			this.element.style.position = values[0];
+			this.style.position = values[0];
 		} else if (values.length === 4) {
-			this.element.style.position = "absolute";
-			this.element.style.top = this.pad_numeric(values[0]);
-			this.element.style.right = this.pad_numeric(values[1]);
-			this.element.style.bottom = this.pad_numeric(values[2]);
-			this.element.style.left = this.pad_numeric(values[3]);
+			this.style.position = "absolute";
+			this.style.top = this.pad_numeric(values[0]);
+			this.style.right = this.pad_numeric(values[1]);
+			this.style.bottom = this.pad_numeric(values[2]);
+			this.style.left = this.pad_numeric(values[3]);
 		} else {
 			console.error("Invalid number of arguments for function \"position()\".");
 		}
@@ -376,9 +393,9 @@ class Element {
 	// Stretch (flex).
 	stretch(value) {
 		if (value == true) {
-			this.element.style.flex = 1;
+			this.style.flex = 1;
 		} else {
-			this.element.style.flex = 0;
+			this.style.flex = 0;
 		}
 		return this;
 	}
@@ -386,29 +403,29 @@ class Element {
 	// Wrap.
 	wrap(value) {
 		if (value == true) {
-			this.element.style.whiteSpace = "wrap";
+			this.style.whiteSpace = "wrap";
 		} else if (value == false) {
-			this.element.style.whiteSpace = "nowrap";
+			this.style.whiteSpace = "nowrap";
 		} else {
-			this.element.style.whiteSpace = value;
+			this.style.whiteSpace = value;
 		}
 		switch (this.element_tag) {
 			case "div":
 				if (value == true) {
-					this.element.style.flexFlow = "wrap";
+					this.style.flexFlow = "wrap";
 				} else if (value == false) {
-					this.element.style.flexFlow = "nowrap";
+					this.style.flexFlow = "nowrap";
 				} else {
-					this.element.style.flexFlow = value;
+					this.style.flexFlow = value;
 				}
 				break;
 			default:
 				if (value == true) {
-					this.element.style.textWrap = "wrap";
+					this.style.textWrap = "wrap";
 				} else if (value == false) {
-					this.element.style.textWrap = "nowrap";
+					this.style.textWrap = "nowrap";
 				} else {
-					this.element.style.textWrap = value;
+					this.style.textWrap = value;
 				}
 				break;
 		}
@@ -417,7 +434,7 @@ class Element {
 
 	// Z Index.
 	z_index(value) {
-		this.element.style["z-index"] = value;
+		this.style["z-index"] = value;
 		return this;
 	}
 
@@ -429,14 +446,14 @@ class Element {
 		switch (this.element_type) {
 			case "HStack":
 			case "ZStack":
-				this.element.style.justifyContent = value;
+				this.style.justifyContent = value;
 				return this;
 			case "VStack":
 			case "Scroller":
-				this.element.style.alignItems = value;
+				this.style.alignItems = value;
 				return this;
 			default:
-				this.element.style.textAlign = value;
+				this.style.textAlign = value;
 				return this;
 		}
 	}
@@ -455,14 +472,14 @@ class Element {
 		switch (this.element_type) {
 			case "HStack":
 			case "ZStack":
-				this.element.style.alignItems = value;
+				this.style.alignItems = value;
 				return this;
 			case "VStack":
 			case "Scroller":
-				this.element.style.justifyContent = value;
+				this.style.justifyContent = value;
 				return this;
 			default:
-				this.element.style.textAlign = value;
+				this.style.textAlign = value;
 				return this;
 		}
 	}
@@ -505,7 +522,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. 
+     *		Returns the `VElement` object. 
      *		Unless parameter `value` is `null`, then the attribute's value is returned. 
      *		When the value is `null` and the color has been set using a `Gradient`, `transparent` will be returned.
      *	@parameter: {
@@ -515,14 +532,14 @@ class Element {
      *	@inherit: false
      } */ 
     color(value) {
-        if (value == null) { return this.element.style.color; }
+        if (value == null) { return this.style.color; }
         if (value instanceof Gradient) {
-        	this.element.style.backgroundImage = value.gradient;
-        	this.element.style.backgroundClip = "text";
-        	this.element.style["-webkit-background-clip"] = "text";
-        	this.element.style.color = "transparent";
+        	this.style.backgroundImage = value.gradient;
+        	this.style.backgroundClip = "text";
+        	this.style["-webkit-background-clip"] = "text";
+        	this.style.color = "transparent";
         } else {
-        	this.element.style.color = value;
+        	this.style.color = value;
         }
         return this;
     }
@@ -530,11 +547,11 @@ class Element {
 	// Border, 1 till 3 args.
 	border(...values) {
 		if (values.length === 1) {
-			this.element.style.border = values[0];
+			this.style.border = values[0];
 		} else if (values.length === 2) {
-			this.element.style.border = this.pad_numeric(values[0]) + " solid " + values[1];
+			this.style.border = this.pad_numeric(values[0]) + " solid " + values[1];
 		} else if (values.length === 3) {
-			this.element.style.border = this.pad_numeric(values[0]) + " ", values[1] + " " + values[2];
+			this.style.border = this.pad_numeric(values[0]) + " ", values[1] + " " + values[2];
 		} else {
 			console.error("Invalid number of arguments for function \"border()\".");
 		}
@@ -544,9 +561,9 @@ class Element {
 	// Adds shadow to the object, 1 or 4 args.
 	shadow(...values) {
 		if (values.length === 1) {
-			this.element.style.boxShadow = this.pad_numeric(values[0]);
+			this.style.boxShadow = this.pad_numeric(values[0]);
 		} else if (values.length === 4) {
-			this.element.style.boxShadow =
+			this.style.boxShadow =
 				this.pad_numeric(values[0]) + " " +
 				this.pad_numeric(values[1]) + " " +
 				this.pad_numeric(values[2]) + " " +
@@ -560,19 +577,19 @@ class Element {
 	// Adds drop shadow to the object, 0 or 4 args.
 	drop_shadow(...values) {
 		if (values.length === 0) {
-			this.element.style.filter = "";
-			this.element.style["-webkit-filter"] = "";
+			this.style.filter = "";
+			this.style["-webkit-filter"] = "";
 		} else if (values.length === 1) {
-			this.element.style.filter = "drop-shadow(" + this.pad_numeric(values[0]) + ") ";
-			this.element.style["-webkit-filter"] = this.element.style.filter;
+			this.style.filter = "drop-shadow(" + this.pad_numeric(values[0]) + ") ";
+			this.style["-webkit-filter"] = this.style.filter;
 		} else if (values.length === 4) {
-			this.element.style.filter =
+			this.style.filter =
 				"drop-shadow(" + 
 				this.pad_numeric(values[0]) + " " +
 				this.pad_numeric(values[1]) + " " +
 				this.pad_numeric(values[2]) + " " +
 				values[3] + ") ";
-			this.element.style["-webkit-filter"] = this.element.style.filter;
+			this.style["-webkit-filter"] = this.style.filter;
 		} else {
 			console.error("Invalid number of arguments for function \"drop_shadow()\".");
 		}
@@ -582,28 +599,28 @@ class Element {
 	// Greyscale.
 	greyscale(value) {
 		if (value == null) {
-			this.element.style.filter = "";
-			this.element.style["-webkit-filter"] = "";
+			this.style.filter = "";
+			this.style["-webkit-filter"] = "";
 		} else {
-			this.element.style.filter += "grayscale(" + this.pad_percentage(value, "") + ") ";
-			this.element.style["-webkit-filter"] += "grayscale(" + this.pad_percentage(value, "") + ") ";
+			this.style.filter += "grayscale(" + this.pad_percentage(value, "") + ") ";
+			this.style["-webkit-filter"] += "grayscale(" + this.pad_percentage(value, "") + ") ";
 		}
 		return this;
 	}
 
 	// Opacity.
 	opacity(value) {
-		this.element.style.opacity = value;
+		this.style.opacity = value;
 		return this;
 	}
 
 	// Toggle opacity.
 	// Can be used to darken and normalize a view.
     toggle_opacity(value = 0.25) {
-		if (typeof this.element.style.opacity === "undefined" || this.element.style.opacity == "" || this.element.style.opacity == 1.0) {
-			this.element.style.opacity = value;
+		if (typeof this.style.opacity === "undefined" || this.style.opacity == "" || this.style.opacity == 1.0) {
+			this.style.opacity = value;
 		} else {
-			this.element.style.opacity = 1.0;
+			this.style.opacity = 1.0;
 		}
 		return this;
     }
@@ -611,72 +628,72 @@ class Element {
 	// Blur.
 	blur(value) {
 		if (value == null) {
-			this.element.style.filter = this.edit_filter_wrapper(this.element.style.filter, "blur", value);
+			this.style.filter = this.edit_filter_wrapper(this.style.filter, "blur", value);
 		} else {
-			this.element.style.filter = this.edit_filter_wrapper(this.element.style.filter, "blur", "blur(" + this.pad_numeric(value) + ") ");
+			this.style.filter = this.edit_filter_wrapper(this.style.filter, "blur", "blur(" + this.pad_numeric(value) + ") ");
 		}
-		this.element.style["-webkit-filter"] = this.element.style.filter;
+		this.style["-webkit-filter"] = this.style.filter;
 		return this;
 	}
 
 	// Toggle blur.
 	toggle_blur(value = 10) {
-		this.element.style.filter = this.toggle_filter_wrapper(this.element.style.filter, "blur", "blur(" + this.pad_numeric(value) + ") ");
-		this.element.style["-webkit-filter"] = this.element.style.filter;
+		this.style.filter = this.toggle_filter_wrapper(this.style.filter, "blur", "blur(" + this.pad_numeric(value) + ") ");
+		this.style["-webkit-filter"] = this.style.filter;
 		return this;
 	}
 	
 	// Background blur.
 	background_blur(value) {
 		if (value == null) {
-			this.element.style.backdropFilter = this.edit_filter_wrapper(this.element.style.backdropFilter, "blur", value);
+			this.style.backdropFilter = this.edit_filter_wrapper(this.style.backdropFilter, "blur", value);
 		} else {
-			this.element.style.backdropFilter =this.edit_filter_wrapper(this.element.style.backdropFilter, "blur", "blur(" + this.pad_numeric(value) + ") ");
+			this.style.backdropFilter =this.edit_filter_wrapper(this.style.backdropFilter, "blur", "blur(" + this.pad_numeric(value) + ") ");
 		}
-		this.element.style["-webkit-backdrop-filter"] = this.element.style.backdropFilter;
+		this.style["-webkit-backdrop-filter"] = this.style.backdropFilter;
 		return this;
 	}
 
 	// Toggle background blur.
 	toggle_background_blur(value = 10) {
-		this.element.style.backdropFilter = this.toggle_filter_wrapper(this.element.style.backdropFilter, "blur", "blur(" + this.pad_numeric(value) + ") ");
-		this.element.style["-webkit-backdrop-filter"] = this.element.style.backdropFilter;
+		this.style.backdropFilter = this.toggle_filter_wrapper(this.style.backdropFilter, "blur", "blur(" + this.pad_numeric(value) + ") ");
+		this.style["-webkit-backdrop-filter"] = this.style.backdropFilter;
 		return this;
 	}
 
 	// Brightness.
 	brightness(value) {
 		if (value == null) {
-			this.element.style.filter = this.edit_filter_wrapper(this.element.style.filter, "brightness", value);
+			this.style.filter = this.edit_filter_wrapper(this.style.filter, "brightness", value);
 		} else {
-			this.element.style.filter = this.edit_filter_wrapper(this.element.style.filter, "brightness", "brightness(" + this.pad_percentage(value, "%") + ") ");
+			this.style.filter = this.edit_filter_wrapper(this.style.filter, "brightness", "brightness(" + this.pad_percentage(value, "%") + ") ");
 		}
-		this.element.style["-webkit-filter"] = this.element.style.filter;
+		this.style["-webkit-filter"] = this.style.filter;
 		return this;
 	}
 
 	// Toggle brightness.
 	toggle_brightness(value = 0.5) {
-		this.element.style.filter = this.toggle_filter_wrapper(this.element.style.filter, "brightness", "brightness(" + this.pad_percentage(value, "%") + ") ");
-		this.element.style["-webkit-filter"] = this.element.style.filter;
+		this.style.filter = this.toggle_filter_wrapper(this.style.filter, "brightness", "brightness(" + this.pad_percentage(value, "%") + ") ");
+		this.style["-webkit-filter"] = this.style.filter;
 		return this;
 	}
 
 	// Background brightness.
 	background_brightness(value) {
 		if (value == null) {
-			this.element.style.backdropFilter = this.edit_filter_wrapper(this.element.style.backdropFilter, "brightness", value);
+			this.style.backdropFilter = this.edit_filter_wrapper(this.style.backdropFilter, "brightness", value);
 		} else {
-			this.element.style.backdropFilter = this.edit_filter_wrapper(this.element.style.backdropFilter, "brightness", "brightness(" + this.pad_percentage(value, "%") + ") ");
+			this.style.backdropFilter = this.edit_filter_wrapper(this.style.backdropFilter, "brightness", "brightness(" + this.pad_percentage(value, "%") + ") ");
 		}
-		this.element.style["-webkit-backdrop-filter"] = this.element.style.backdropFilter;
+		this.style["-webkit-backdrop-filter"] = this.style.backdropFilter;
 		return this;
 	}
 
 	// Toggle brightness.
 	toggle_background_brightness(value = 10) {
-		this.element.style.backdropFilter = this.toggle_filter_wrapper(this.element.style.backdropFilter, "brightness", "brightness(" + this.pad_percentage(value, "%") + ") ");
-		this.element.style["-webkit-backdrop-filter"] = this.element.style.backdropFilter;
+		this.style.backdropFilter = this.toggle_filter_wrapper(this.style.backdropFilter, "brightness", "brightness(" + this.pad_percentage(value, "%") + ") ");
+		this.style["-webkit-backdrop-filter"] = this.style.backdropFilter;
 		return this;
 	}
 
@@ -688,19 +705,19 @@ class Element {
     	if (value != null && value != "none") {
     		this.element_display = value;
     	}
-        this.element.style.display = value;
+        this.style.display = value;
         return this;
     }
 
     // Hide the element.
     hide() {
-    	this.element.style.display = "none";
+    	this.style.display = "none";
     	return this;
     }
 
     // Show.
     show() {
-    	this.element.style.display = this.element_display;
+    	this.style.display = this.element_display;
     	return this;
     }
 
@@ -709,7 +726,7 @@ class Element {
     // When no argument is passed it returns the visibility boolean.
     is_hidden(...args) {
     	if (args.length === 0) {
-    		return this.element.style.display == "none" || typeof this.element.style.display === "undefined";
+    		return this.style.display == "none" || typeof this.style.display === "undefined";
     	}
     	console.error("Function \"hidden()\" should not be used with arguments, use \"hide()\" and \"show()\" instead.");
     }
@@ -730,40 +747,40 @@ class Element {
 	// Inner html.
 	inner_html(value) {
 		if (value == null) {
-			return this.element.innerHTML;
+			return this.innerHTML;
 		}
-		this.element.innerHTML = value;
+		this.innerHTML = value;
 		return this;
 	}
 
 	// Outer html.
 	outer_html(value) {
 		if (value == null) {
-			return this.element.outerHTML;
+			return this.outerHTML;
 		}
-		this.element.outerHTML = value;
+		this.outerHTML = value;
 		return this;
 	}
 	
 	// Style dictionary.
 	// - Returns the css attributes when param css_attr is null.
-	style(css_attr) {
+	styles(css_attr) {
 		if (css_attr == null) {
 			let dict = {};
-			for (let property in this.element.style) {
-				if (this.element.style.hasOwnProperty(property)) {
+			for (let property in this.style) {
+				if (this.style.hasOwnProperty(property)) {
 
 					// Custom css styles will be a direct key instead of the string index.
 					// if (property[0] == "-") { 
-					if (!(/^\d+$/).test(property) && this.element.style[property] != '' && typeof this.element.style[property] !== 'function') { 
+					if (!(/^\d+$/).test(property) && this.style[property] != '' && typeof this.style[property] !== 'function') { 
 						// console.log(property);
-						dict[property] = this.element.style[property];
+						dict[property] = this.style[property];
 					}
 
 					// Default styles will be an index string instead of the key.
 					else { 
-						const key = this.element.style[property];
-						const value = this.element.style[key];
+						const key = this.style[property];
+						const value = this.style[key];
 						if (
 							key !== '' && key !== undefined && typeof key !== 'function' &&
 							value !== '' && value !== undefined && typeof value !== 'function'
@@ -781,7 +798,7 @@ class Element {
 			if (i === "display" && value != null && value !== "none") {
 				this.element_display = value;
 			}
-			this.element.style[i] = value;
+			this.style[i] = value;
 		}	
 		return this;
 	}
@@ -831,7 +848,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -839,8 +856,8 @@ class Element {
      *	@inherit: false
      } */ 
     class(value) {
-        if (value == null) { return this.element.class; }
-    	this.element.className = value;
+        if (value == null) { return this.class; }
+    	this.className = value;
     	return this;
     }
 
@@ -964,7 +981,7 @@ class Element {
 			if (options.iterations == "infinite") {
 				options.iterations = Infinity;
 			}
-			const animation = this.element.animate(keyframes, options);
+			const animation = this.animate(keyframes, options);
 			if (on_finish !== null) {
 				const e = this;
 				animation.onfinish = function() {
@@ -1050,12 +1067,12 @@ class Element {
 		            			padding = "px";
 		            		}
 			                const current = (to - from) * progress + from;
-							this.element.style[property] = current + padding;
+							this.style[property] = current + padding;
 						}
 
 						// Apply non-numeric animation directly.
 						else if (progress >= 1){
-							this.element.style[property] = to;
+							this.style[property] = to;
 						}
 
 		            }
@@ -1082,8 +1099,8 @@ class Element {
 
 	// Script to be run when the element is being clicked
     on_click(value) {
-    	this.element.style.cursor = "pointer";
-    	this.element.onclick = value;
+    	this.style.cursor = "pointer";
+    	this.onclick = value;
     	return this;
     }
 
@@ -1093,9 +1110,9 @@ class Element {
      *	@description: 
      *		Script to be run when the browser window is being resized.
      *		
-     *		The first parameter of the callback is the `Element` object.
+     *		The first parameter of the callback is the `VElement` object.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -1169,7 +1186,7 @@ class Element {
 	// Returns style object of the pseudo-element.
 	before() {
 		const pseudo = getComputedStyle(this.element, '::before');
-		const e = new Element();
+		const e = new VElement();
 		e.element = pseudo;
 		return e;
 	}
@@ -1178,7 +1195,7 @@ class Element {
 	// Returns style object of the pseudo-element.
 	after() {
 		const pseudo = getComputedStyle(this.element, '::after');
-		const e = new Element();
+		const e = new VElement();
 		e.element = pseudo;
 		return e;
 	}
@@ -1188,17 +1205,22 @@ class Element {
 
 	// Get the children.
 	children() {
-		return this.element.children;
+		return this.children;
+	}
+
+	// Get a child by index.
+	child(index) {
+		return this.children[index];
 	}
 
 	// Get the first child.
 	first_child() {
-		return this.element.firstChild;
+		return this.firstChild;
 	}
 
 	// Get the last child.
 	last_child() {
-		return this.element.lastChild;
+		return this.lastChild;
 	}
 
 	// ---------------------------------------------------------
@@ -1219,7 +1241,7 @@ class Element {
 	
 	// Cast to string.
 	toString() {
-		return this.element.outerHTML;
+		return this.outerHTML;
 		// The outer html is not defined if the element is not added to the body.
 		// const serializer = new XMLSerializer();
 		// const html = serializer.serializeToString(this.element);
@@ -1240,7 +1262,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -1248,8 +1270,8 @@ class Element {
      *	@inherit: false
      } */ 
     accent_color(value) {
-        if (value == null) { return this.element.style.accentColor; }
-        this.element.style.accentColor = value;
+        if (value == null) { return this.style.accentColor; }
+        this.style.accentColor = value;
         return this;
     }
 
@@ -1262,7 +1284,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -1270,12 +1292,12 @@ class Element {
      *	@inherit: false
      } */ 
     align_content(value) {
-        if (value == null) { return this.element.style.alignContent; }
-        this.element.style.alignContent = value;
-        this.element.style.msAlignContent = value;
-        this.element.style.webkitAlignContent = value;
-        this.element.style.MozAlignContent = value;
-        this.element.style.OAlignContent = value;
+        if (value == null) { return this.style.alignContent; }
+        this.style.alignContent = value;
+        this.style.msAlignContent = value;
+        this.style.webkitAlignContent = value;
+        this.style.MozAlignContent = value;
+        this.style.OAlignContent = value;
         return this;
     }
 
@@ -1288,7 +1310,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -1296,12 +1318,12 @@ class Element {
      *	@inherit: false
      } */ 
     align_items(value) {
-        if (value == null) { return this.element.style.alignItems; }
-        this.element.style.alignItems = value;
-        this.element.style.msAlignItems = value;
-        this.element.style.webkitAlignItems = value;
-        this.element.style.MozAlignItems = value;
-        this.element.style.OAlignItems = value;
+        if (value == null) { return this.style.alignItems; }
+        this.style.alignItems = value;
+        this.style.msAlignItems = value;
+        this.style.webkitAlignItems = value;
+        this.style.MozAlignItems = value;
+        this.style.OAlignItems = value;
         return this;
     }
 
@@ -1314,7 +1336,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -1322,12 +1344,12 @@ class Element {
      *	@inherit: false
      } */ 
     align_self(value) {
-        if (value == null) { return this.element.style.alignSelf; }
-        this.element.style.alignSelf = value;
-        this.element.style.msAlignSelf = value;
-        this.element.style.webkitAlignSelf = value;
-        this.element.style.MozAlignSelf = value;
-        this.element.style.OAlignSelf = value;
+        if (value == null) { return this.style.alignSelf; }
+        this.style.alignSelf = value;
+        this.style.msAlignSelf = value;
+        this.style.webkitAlignSelf = value;
+        this.style.MozAlignSelf = value;
+        this.style.OAlignSelf = value;
         return this;
     }
 
@@ -1340,7 +1362,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -1348,8 +1370,8 @@ class Element {
      *	@inherit: false
      } */ 
     all(value) {
-        if (value == null) { return this.element.style.all; }
-        this.element.style.all = value;
+        if (value == null) { return this.style.all; }
+        this.style.all = value;
         return this;
     }
 
@@ -1362,7 +1384,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -1370,12 +1392,12 @@ class Element {
      *	@inherit: false
      } */ 
     animation(value) {
-        if (value == null) { return this.element.style.animation; }
-        this.element.style.animation = value;
-        this.element.style.msAnimation = value;
-        this.element.style.webkitAnimation = value;
-        this.element.style.MozAnimation = value;
-        this.element.style.OAnimation = value;
+        if (value == null) { return this.style.animation; }
+        this.style.animation = value;
+        this.style.msAnimation = value;
+        this.style.webkitAnimation = value;
+        this.style.MozAnimation = value;
+        this.style.OAnimation = value;
         return this;
     }
 
@@ -1388,7 +1410,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -1396,12 +1418,12 @@ class Element {
      *	@inherit: false
      } */ 
     animation_delay(value) {
-        if (value == null) { return this.element.style.animationDelay; }
-        this.element.style.animationDelay = value;
-        this.element.style.msAnimationDelay = value;
-        this.element.style.webkitAnimationDelay = value;
-        this.element.style.MozAnimationDelay = value;
-        this.element.style.OAnimationDelay = value;
+        if (value == null) { return this.style.animationDelay; }
+        this.style.animationDelay = value;
+        this.style.msAnimationDelay = value;
+        this.style.webkitAnimationDelay = value;
+        this.style.MozAnimationDelay = value;
+        this.style.OAnimationDelay = value;
         return this;
     }
 
@@ -1414,7 +1436,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -1422,12 +1444,12 @@ class Element {
      *	@inherit: false
      } */ 
     animation_direction(value) {
-        if (value == null) { return this.element.style.animationDirection; }
-        this.element.style.animationDirection = value;
-        this.element.style.msAnimationDirection = value;
-        this.element.style.webkitAnimationDirection = value;
-        this.element.style.MozAnimationDirection = value;
-        this.element.style.OAnimationDirection = value;
+        if (value == null) { return this.style.animationDirection; }
+        this.style.animationDirection = value;
+        this.style.msAnimationDirection = value;
+        this.style.webkitAnimationDirection = value;
+        this.style.MozAnimationDirection = value;
+        this.style.OAnimationDirection = value;
         return this;
     }
 
@@ -1440,7 +1462,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -1448,12 +1470,12 @@ class Element {
      *	@inherit: false
      } */ 
     animation_duration(value) {
-        if (value == null) { return this.element.style.animationDuration; }
-        this.element.style.animationDuration = value;
-        this.element.style.msAnimationDuration = value;
-        this.element.style.webkitAnimationDuration = value;
-        this.element.style.MozAnimationDuration = value;
-        this.element.style.OAnimationDuration = value;
+        if (value == null) { return this.style.animationDuration; }
+        this.style.animationDuration = value;
+        this.style.msAnimationDuration = value;
+        this.style.webkitAnimationDuration = value;
+        this.style.MozAnimationDuration = value;
+        this.style.OAnimationDuration = value;
         return this;
     }
 
@@ -1466,7 +1488,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -1474,12 +1496,12 @@ class Element {
      *	@inherit: false
      } */ 
     animation_fill_mode(value) {
-        if (value == null) { return this.element.style.animationFillMode; }
-        this.element.style.animationFillMode = value;
-        this.element.style.msAnimationFillMode = value;
-        this.element.style.webkitAnimationFillMode = value;
-        this.element.style.MozAnimationFillMode = value;
-        this.element.style.OAnimationFillMode = value;
+        if (value == null) { return this.style.animationFillMode; }
+        this.style.animationFillMode = value;
+        this.style.msAnimationFillMode = value;
+        this.style.webkitAnimationFillMode = value;
+        this.style.MozAnimationFillMode = value;
+        this.style.OAnimationFillMode = value;
         return this;
     }
 
@@ -1492,7 +1514,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -1500,12 +1522,12 @@ class Element {
      *	@inherit: false
      } */ 
     animation_iteration_count(value) {
-        if (value == null) { return this.element.style.animationIterationCount; }
-        this.element.style.animationIterationCount = value;
-        this.element.style.msAnimationIterationCount = value;
-        this.element.style.webkitAnimationIterationCount = value;
-        this.element.style.MozAnimationIterationCount = value;
-        this.element.style.OAnimationIterationCount = value;
+        if (value == null) { return this.style.animationIterationCount; }
+        this.style.animationIterationCount = value;
+        this.style.msAnimationIterationCount = value;
+        this.style.webkitAnimationIterationCount = value;
+        this.style.MozAnimationIterationCount = value;
+        this.style.OAnimationIterationCount = value;
         return this;
     }
 
@@ -1518,7 +1540,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -1526,12 +1548,12 @@ class Element {
      *	@inherit: false
      } */ 
     animation_name(value) {
-        if (value == null) { return this.element.style.animationName; }
-        this.element.style.animationName = value;
-        this.element.style.msAnimationName = value;
-        this.element.style.webkitAnimationName = value;
-        this.element.style.MozAnimationName = value;
-        this.element.style.OAnimationName = value;
+        if (value == null) { return this.style.animationName; }
+        this.style.animationName = value;
+        this.style.msAnimationName = value;
+        this.style.webkitAnimationName = value;
+        this.style.MozAnimationName = value;
+        this.style.OAnimationName = value;
         return this;
     }
 
@@ -1544,7 +1566,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -1552,12 +1574,12 @@ class Element {
      *	@inherit: false
      } */ 
     animation_play_state(value) {
-        if (value == null) { return this.element.style.animationPlayState; }
-        this.element.style.animationPlayState = value;
-        this.element.style.msAnimationPlayState = value;
-        this.element.style.webkitAnimationPlayState = value;
-        this.element.style.MozAnimationPlayState = value;
-        this.element.style.OAnimationPlayState = value;
+        if (value == null) { return this.style.animationPlayState; }
+        this.style.animationPlayState = value;
+        this.style.msAnimationPlayState = value;
+        this.style.webkitAnimationPlayState = value;
+        this.style.MozAnimationPlayState = value;
+        this.style.OAnimationPlayState = value;
         return this;
     }
 
@@ -1570,7 +1592,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -1578,12 +1600,12 @@ class Element {
      *	@inherit: false
      } */ 
     animation_timing_function(value) {
-        if (value == null) { return this.element.style.animationTimingFunction; }
-        this.element.style.animationTimingFunction = value;
-        this.element.style.msAnimationTimingFunction = value;
-        this.element.style.webkitAnimationTimingFunction = value;
-        this.element.style.MozAnimationTimingFunction = value;
-        this.element.style.OAnimationTimingFunction = value;
+        if (value == null) { return this.style.animationTimingFunction; }
+        this.style.animationTimingFunction = value;
+        this.style.msAnimationTimingFunction = value;
+        this.style.webkitAnimationTimingFunction = value;
+        this.style.MozAnimationTimingFunction = value;
+        this.style.OAnimationTimingFunction = value;
         return this;
     }
 
@@ -1596,7 +1618,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -1604,8 +1626,8 @@ class Element {
      *	@inherit: false
      } */ 
     aspect_ratio(value) {
-        if (value == null) { return this.element.style.aspectRatio; }
-        this.element.style.aspectRatio = value;
+        if (value == null) { return this.style.aspectRatio; }
+        this.style.aspectRatio = value;
         return this;
     }
 
@@ -1618,7 +1640,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -1626,8 +1648,8 @@ class Element {
      *	@inherit: false
      } */ 
     backdrop_filter(value) {
-        if (value == null) { return this.element.style.backdropFilter; }
-        this.element.style.backdropFilter = value;
+        if (value == null) { return this.style.backdropFilter; }
+        this.style.backdropFilter = value;
         return this;
     }
 
@@ -1640,7 +1662,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -1648,12 +1670,12 @@ class Element {
      *	@inherit: false
      } */ 
     backface_visibility(value) {
-        if (value == null) { return this.element.style.backfaceVisibility; }
-        this.element.style.backfaceVisibility = value;
-        this.element.style.msBackfaceVisibility = value;
-        this.element.style.webkitBackfaceVisibility = value;
-        this.element.style.MozBackfaceVisibility = value;
-        this.element.style.OBackfaceVisibility = value;
+        if (value == null) { return this.style.backfaceVisibility; }
+        this.style.backfaceVisibility = value;
+        this.style.msBackfaceVisibility = value;
+        this.style.webkitBackfaceVisibility = value;
+        this.style.MozBackfaceVisibility = value;
+        this.style.OBackfaceVisibility = value;
         return this;
     }
 
@@ -1666,7 +1688,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -1674,8 +1696,8 @@ class Element {
      *	@inherit: false
      } */ 
     background(value) {
-        if (value == null) { return this.element.style.background; }
-        this.element.style.background = value;
+        if (value == null) { return this.style.background; }
+        this.style.background = value;
         return this;
     }
 
@@ -1688,7 +1710,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -1696,8 +1718,8 @@ class Element {
      *	@inherit: false
      } */ 
     background_attachment(value) {
-        if (value == null) { return this.element.style.backgroundAttachment; }
-        this.element.style.backgroundAttachment = value;
+        if (value == null) { return this.style.backgroundAttachment; }
+        this.style.backgroundAttachment = value;
         return this;
     }
 
@@ -1710,7 +1732,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -1718,8 +1740,8 @@ class Element {
      *	@inherit: false
      } */ 
     background_blend_mode(value) {
-        if (value == null) { return this.element.style.backgroundBlendMode; }
-        this.element.style.backgroundBlendMode = value;
+        if (value == null) { return this.style.backgroundBlendMode; }
+        this.style.backgroundBlendMode = value;
         return this;
     }
 
@@ -1732,7 +1754,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -1740,12 +1762,12 @@ class Element {
      *	@inherit: false
      } */ 
     background_clip(value) {
-        if (value == null) { return this.element.style.backgroundClip; }
-        this.element.style.backgroundClip = value;
-        this.element.style.msBackgroundClip = value;
-        this.element.style.webkitBackgroundClip = value;
-        this.element.style.MozBackgroundClip = value;
-        this.element.style.OBackgroundClip = value;
+        if (value == null) { return this.style.backgroundClip; }
+        this.style.backgroundClip = value;
+        this.style.msBackgroundClip = value;
+        this.style.webkitBackgroundClip = value;
+        this.style.MozBackgroundClip = value;
+        this.style.OBackgroundClip = value;
         return this;
     }
 
@@ -1758,7 +1780,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -1766,8 +1788,8 @@ class Element {
      *	@inherit: false
      } */ 
     background_color(value) {
-        if (value == null) { return this.element.style.backgroundColor; }
-        this.element.style.backgroundColor = value;
+        if (value == null) { return this.style.backgroundColor; }
+        this.style.backgroundColor = value;
         return this;
     }
 
@@ -1780,7 +1802,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -1788,8 +1810,8 @@ class Element {
      *	@inherit: false
      } */ 
     background_image(value) {
-        if (value == null) { return this.element.style.backgroundImage; }
-        this.element.style.backgroundImage = value;
+        if (value == null) { return this.style.backgroundImage; }
+        this.style.backgroundImage = value;
         return this;
     }
 
@@ -1802,7 +1824,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -1810,12 +1832,12 @@ class Element {
      *	@inherit: false
      } */ 
     background_origin(value) {
-        if (value == null) { return this.element.style.backgroundOrigin; }
-        this.element.style.backgroundOrigin = value;
-        this.element.style.msBackgroundOrigin = value;
-        this.element.style.webkitBackgroundOrigin = value;
-        this.element.style.MozBackgroundOrigin = value;
-        this.element.style.OBackgroundOrigin = value;
+        if (value == null) { return this.style.backgroundOrigin; }
+        this.style.backgroundOrigin = value;
+        this.style.msBackgroundOrigin = value;
+        this.style.webkitBackgroundOrigin = value;
+        this.style.MozBackgroundOrigin = value;
+        this.style.OBackgroundOrigin = value;
         return this;
     }
 
@@ -1828,7 +1850,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -1836,8 +1858,8 @@ class Element {
      *	@inherit: false
      } */ 
     background_position(value) {
-        if (value == null) { return this.element.style.backgroundPosition; }
-        this.element.style.backgroundPosition = value;
+        if (value == null) { return this.style.backgroundPosition; }
+        this.style.backgroundPosition = value;
         return this;
     }
 
@@ -1850,7 +1872,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -1858,8 +1880,8 @@ class Element {
      *	@inherit: false
      } */ 
     background_position_x(value) {
-        if (value == null) { return this.element.style.backgroundPositionX; }
-        this.element.style.backgroundPositionX = value;
+        if (value == null) { return this.style.backgroundPositionX; }
+        this.style.backgroundPositionX = value;
         return this;
     }
 
@@ -1872,7 +1894,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -1880,8 +1902,8 @@ class Element {
      *	@inherit: false
      } */ 
     background_position_y(value) {
-        if (value == null) { return this.element.style.backgroundPositionY; }
-        this.element.style.backgroundPositionY = value;
+        if (value == null) { return this.style.backgroundPositionY; }
+        this.style.backgroundPositionY = value;
         return this;
     }
 
@@ -1894,7 +1916,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -1902,8 +1924,8 @@ class Element {
      *	@inherit: false
      } */ 
     background_repeat(value) {
-        if (value == null) { return this.element.style.backgroundRepeat; }
-        this.element.style.backgroundRepeat = value;
+        if (value == null) { return this.style.backgroundRepeat; }
+        this.style.backgroundRepeat = value;
         return this;
     }
 
@@ -1916,7 +1938,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -1924,12 +1946,12 @@ class Element {
      *	@inherit: false
      } */ 
     background_size(value) {
-        if (value == null) { return this.element.style.backgroundSize; }
-        this.element.style.backgroundSize = this.pad_numeric(value);
-        this.element.style.msBackgroundSize = this.pad_numeric(value);
-        this.element.style.webkitBackgroundSize = this.pad_numeric(value);
-        this.element.style.MozBackgroundSize = this.pad_numeric(value);
-        this.element.style.OBackgroundSize = this.pad_numeric(value);
+        if (value == null) { return this.style.backgroundSize; }
+        this.style.backgroundSize = this.pad_numeric(value);
+        this.style.msBackgroundSize = this.pad_numeric(value);
+        this.style.webkitBackgroundSize = this.pad_numeric(value);
+        this.style.MozBackgroundSize = this.pad_numeric(value);
+        this.style.OBackgroundSize = this.pad_numeric(value);
         return this;
     }
 
@@ -1942,7 +1964,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -1950,15 +1972,15 @@ class Element {
      *	@inherit: false
      } */ 
     block_size(value) {
-        if (value == null) { return this.element.style.blockSize; }
-        this.element.style.blockSize = this.pad_numeric(value);
+        if (value == null) { return this.style.blockSize; }
+        this.style.blockSize = this.pad_numeric(value);
         return this;
     }
 
     // A shorthand property for border-width, border-style and border-color.
     // border(value) {
-    //     if (value == null) { return this.element.style.border; }
-    //     this.element.style.border = value;
+    //     if (value == null) { return this.style.border; }
+    //     this.style.border = value;
     //     return this;
     // }
 
@@ -1971,7 +1993,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -1979,8 +2001,8 @@ class Element {
      *	@inherit: false
      } */ 
     border_block(value) {
-        if (value == null) { return this.element.style.borderBlock; }
-        this.element.style.borderBlock = value;
+        if (value == null) { return this.style.borderBlock; }
+        this.style.borderBlock = value;
         return this;
     }
 
@@ -1993,7 +2015,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -2001,8 +2023,8 @@ class Element {
      *	@inherit: false
      } */ 
     border_block_color(value) {
-        if (value == null) { return this.element.style.borderBlockColor; }
-        this.element.style.borderBlockColor = value;
+        if (value == null) { return this.style.borderBlockColor; }
+        this.style.borderBlockColor = value;
         return this;
     }
 
@@ -2015,7 +2037,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -2023,8 +2045,8 @@ class Element {
      *	@inherit: false
      } */ 
     border_block_end_color(value) {
-        if (value == null) { return this.element.style.borderBlockEndColor; }
-        this.element.style.borderBlockEndColor = value;
+        if (value == null) { return this.style.borderBlockEndColor; }
+        this.style.borderBlockEndColor = value;
         return this;
     }
 
@@ -2037,7 +2059,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -2045,8 +2067,8 @@ class Element {
      *	@inherit: false
      } */ 
     border_block_end_style(value) {
-        if (value == null) { return this.element.style.borderBlockEndStyle; }
-        this.element.style.borderBlockEndStyle = value;
+        if (value == null) { return this.style.borderBlockEndStyle; }
+        this.style.borderBlockEndStyle = value;
         return this;
     }
 
@@ -2059,7 +2081,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -2067,8 +2089,8 @@ class Element {
      *	@inherit: false
      } */ 
     border_block_end_width(value) {
-        if (value == null) { return this.element.style.borderBlockEndWidth; }
-        this.element.style.borderBlockEndWidth = this.pad_numeric(value);
+        if (value == null) { return this.style.borderBlockEndWidth; }
+        this.style.borderBlockEndWidth = this.pad_numeric(value);
         return this;
     }
 
@@ -2081,7 +2103,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -2089,8 +2111,8 @@ class Element {
      *	@inherit: false
      } */ 
     border_block_start_color(value) {
-        if (value == null) { return this.element.style.borderBlockStartColor; }
-        this.element.style.borderBlockStartColor = value;
+        if (value == null) { return this.style.borderBlockStartColor; }
+        this.style.borderBlockStartColor = value;
         return this;
     }
 
@@ -2103,7 +2125,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -2111,8 +2133,8 @@ class Element {
      *	@inherit: false
      } */ 
     border_block_start_style(value) {
-        if (value == null) { return this.element.style.borderBlockStartStyle; }
-        this.element.style.borderBlockStartStyle = value;
+        if (value == null) { return this.style.borderBlockStartStyle; }
+        this.style.borderBlockStartStyle = value;
         return this;
     }
 
@@ -2125,7 +2147,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -2133,8 +2155,8 @@ class Element {
      *	@inherit: false
      } */ 
     border_block_start_width(value) {
-        if (value == null) { return this.element.style.borderBlockStartWidth; }
-        this.element.style.borderBlockStartWidth = this.pad_numeric(value);
+        if (value == null) { return this.style.borderBlockStartWidth; }
+        this.style.borderBlockStartWidth = this.pad_numeric(value);
         return this;
     }
 
@@ -2147,7 +2169,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -2155,8 +2177,8 @@ class Element {
      *	@inherit: false
      } */ 
     border_block_style(value) {
-        if (value == null) { return this.element.style.borderBlockStyle; }
-        this.element.style.borderBlockStyle = value;
+        if (value == null) { return this.style.borderBlockStyle; }
+        this.style.borderBlockStyle = value;
         return this;
     }
 
@@ -2169,7 +2191,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -2177,8 +2199,8 @@ class Element {
      *	@inherit: false
      } */ 
     border_block_width(value) {
-        if (value == null) { return this.element.style.borderBlockWidth; }
-        this.element.style.borderBlockWidth = this.pad_numeric(value);
+        if (value == null) { return this.style.borderBlockWidth; }
+        this.style.borderBlockWidth = this.pad_numeric(value);
         return this;
     }
 
@@ -2191,7 +2213,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -2199,8 +2221,8 @@ class Element {
      *	@inherit: false
      } */ 
     border_bottom(value) {
-        if (value == null) { return this.element.style.borderBottom; }
-        this.element.style.borderBottom = this.pad_numeric(value);
+        if (value == null) { return this.style.borderBottom; }
+        this.style.borderBottom = this.pad_numeric(value);
         return this;
     }
 
@@ -2213,7 +2235,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -2221,8 +2243,8 @@ class Element {
      *	@inherit: false
      } */ 
     border_bottom_color(value) {
-        if (value == null) { return this.element.style.borderBottomColor; }
-        this.element.style.borderBottomColor = value;
+        if (value == null) { return this.style.borderBottomColor; }
+        this.style.borderBottomColor = value;
         return this;
     }
 
@@ -2235,7 +2257,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -2243,8 +2265,8 @@ class Element {
      *	@inherit: false
      } */ 
     border_bottom_left_radius(value) {
-        if (value == null) { return this.element.style.borderBottomLeftRadius; }
-        this.element.style.borderBottomLeftRadius = this.pad_numeric(value);
+        if (value == null) { return this.style.borderBottomLeftRadius; }
+        this.style.borderBottomLeftRadius = this.pad_numeric(value);
         return this;
     }
 
@@ -2257,7 +2279,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -2265,8 +2287,8 @@ class Element {
      *	@inherit: false
      } */ 
     border_bottom_right_radius(value) {
-        if (value == null) { return this.element.style.borderBottomRightRadius; }
-        this.element.style.borderBottomRightRadius = this.pad_numeric(value);
+        if (value == null) { return this.style.borderBottomRightRadius; }
+        this.style.borderBottomRightRadius = this.pad_numeric(value);
         return this;
     }
 
@@ -2279,7 +2301,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -2287,8 +2309,8 @@ class Element {
      *	@inherit: false
      } */ 
     border_bottom_style(value) {
-        if (value == null) { return this.element.style.borderBottomStyle; }
-        this.element.style.borderBottomStyle = value;
+        if (value == null) { return this.style.borderBottomStyle; }
+        this.style.borderBottomStyle = value;
         return this;
     }
 
@@ -2301,7 +2323,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -2309,8 +2331,8 @@ class Element {
      *	@inherit: false
      } */ 
     border_bottom_width(value) {
-        if (value == null) { return this.element.style.borderBottomWidth; }
-        this.element.style.borderBottomWidth = this.pad_numeric(value);
+        if (value == null) { return this.style.borderBottomWidth; }
+        this.style.borderBottomWidth = this.pad_numeric(value);
         return this;
     }
 
@@ -2323,7 +2345,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -2331,8 +2353,8 @@ class Element {
      *	@inherit: false
      } */ 
     border_collapse(value) {
-        if (value == null) { return this.element.style.borderCollapse; }
-        this.element.style.borderCollapse = value;
+        if (value == null) { return this.style.borderCollapse; }
+        this.style.borderCollapse = value;
         return this;
     }
 
@@ -2345,7 +2367,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -2353,8 +2375,8 @@ class Element {
      *	@inherit: false
      } */ 
     border_color(value) {
-        if (value == null) { return this.element.style.borderColor; }
-        this.element.style.borderColor = value;
+        if (value == null) { return this.style.borderColor; }
+        this.style.borderColor = value;
         return this;
     }
 
@@ -2367,7 +2389,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -2375,12 +2397,12 @@ class Element {
      *	@inherit: false
      } */ 
     border_image(value) {
-        if (value == null) { return this.element.style.borderImage; }
-        this.element.style.borderImage = value;
-        this.element.style.msBorderImage = value;
-        this.element.style.webkitBorderImage = value;
-        this.element.style.MozBorderImage = value;
-        this.element.style.OBorderImage = value;
+        if (value == null) { return this.style.borderImage; }
+        this.style.borderImage = value;
+        this.style.msBorderImage = value;
+        this.style.webkitBorderImage = value;
+        this.style.MozBorderImage = value;
+        this.style.OBorderImage = value;
         return this;
     }
 
@@ -2393,7 +2415,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -2401,8 +2423,8 @@ class Element {
      *	@inherit: false
      } */ 
     border_image_outset(value) {
-        if (value == null) { return this.element.style.borderImageOutset; }
-        this.element.style.borderImageOutset = value;
+        if (value == null) { return this.style.borderImageOutset; }
+        this.style.borderImageOutset = value;
         return this;
     }
 
@@ -2415,7 +2437,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -2423,8 +2445,8 @@ class Element {
      *	@inherit: false
      } */ 
     border_image_repeat(value) {
-        if (value == null) { return this.element.style.borderImageRepeat; }
-        this.element.style.borderImageRepeat = value;
+        if (value == null) { return this.style.borderImageRepeat; }
+        this.style.borderImageRepeat = value;
         return this;
     }
 
@@ -2437,7 +2459,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -2445,8 +2467,8 @@ class Element {
      *	@inherit: false
      } */ 
     border_image_slice(value) {
-        if (value == null) { return this.element.style.borderImageSlice; }
-        this.element.style.borderImageSlice = value;
+        if (value == null) { return this.style.borderImageSlice; }
+        this.style.borderImageSlice = value;
         return this;
     }
 
@@ -2459,7 +2481,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -2467,8 +2489,8 @@ class Element {
      *	@inherit: false
      } */ 
     border_image_source(value) {
-        if (value == null) { return this.element.style.borderImageSource; }
-        this.element.style.borderImageSource = value;
+        if (value == null) { return this.style.borderImageSource; }
+        this.style.borderImageSource = value;
         return this;
     }
 
@@ -2481,7 +2503,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -2489,8 +2511,8 @@ class Element {
      *	@inherit: false
      } */ 
     border_image_width(value) {
-        if (value == null) { return this.element.style.borderImageWidth; }
-        this.element.style.borderImageWidth = this.pad_numeric(value);
+        if (value == null) { return this.style.borderImageWidth; }
+        this.style.borderImageWidth = this.pad_numeric(value);
         return this;
     }
 
@@ -2503,7 +2525,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -2511,8 +2533,8 @@ class Element {
      *	@inherit: false
      } */ 
     border_inline(value) {
-        if (value == null) { return this.element.style.borderInline; }
-        this.element.style.borderInline = value;
+        if (value == null) { return this.style.borderInline; }
+        this.style.borderInline = value;
         return this;
     }
 
@@ -2525,7 +2547,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -2533,8 +2555,8 @@ class Element {
      *	@inherit: false
      } */ 
     border_inline_color(value) {
-        if (value == null) { return this.element.style.borderInlineColor; }
-        this.element.style.borderInlineColor = value;
+        if (value == null) { return this.style.borderInlineColor; }
+        this.style.borderInlineColor = value;
         return this;
     }
 
@@ -2547,7 +2569,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -2555,8 +2577,8 @@ class Element {
      *	@inherit: false
      } */ 
     border_inline_end_color(value) {
-        if (value == null) { return this.element.style.borderInlineEndColor; }
-        this.element.style.borderInlineEndColor = value;
+        if (value == null) { return this.style.borderInlineEndColor; }
+        this.style.borderInlineEndColor = value;
         return this;
     }
 
@@ -2569,7 +2591,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -2577,8 +2599,8 @@ class Element {
      *	@inherit: false
      } */ 
     border_inline_end_style(value) {
-        if (value == null) { return this.element.style.borderInlineEndStyle; }
-        this.element.style.borderInlineEndStyle = value;
+        if (value == null) { return this.style.borderInlineEndStyle; }
+        this.style.borderInlineEndStyle = value;
         return this;
     }
 
@@ -2591,7 +2613,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -2599,8 +2621,8 @@ class Element {
      *	@inherit: false
      } */ 
     border_inline_end_width(value) {
-        if (value == null) { return this.element.style.borderInlineEndWidth; }
-        this.element.style.borderInlineEndWidth = this.pad_numeric(value);
+        if (value == null) { return this.style.borderInlineEndWidth; }
+        this.style.borderInlineEndWidth = this.pad_numeric(value);
         return this;
     }
 
@@ -2613,7 +2635,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -2621,8 +2643,8 @@ class Element {
      *	@inherit: false
      } */ 
     border_inline_start_color(value) {
-        if (value == null) { return this.element.style.borderInlineStartColor; }
-        this.element.style.borderInlineStartColor = value;
+        if (value == null) { return this.style.borderInlineStartColor; }
+        this.style.borderInlineStartColor = value;
         return this;
     }
 
@@ -2635,7 +2657,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -2643,8 +2665,8 @@ class Element {
      *	@inherit: false
      } */ 
     border_inline_start_style(value) {
-        if (value == null) { return this.element.style.borderInlineStartStyle; }
-        this.element.style.borderInlineStartStyle = value;
+        if (value == null) { return this.style.borderInlineStartStyle; }
+        this.style.borderInlineStartStyle = value;
         return this;
     }
 
@@ -2657,7 +2679,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -2665,8 +2687,8 @@ class Element {
      *	@inherit: false
      } */ 
     border_inline_start_width(value) {
-        if (value == null) { return this.element.style.borderInlineStartWidth; }
-        this.element.style.borderInlineStartWidth = this.pad_numeric(value);
+        if (value == null) { return this.style.borderInlineStartWidth; }
+        this.style.borderInlineStartWidth = this.pad_numeric(value);
         return this;
     }
 
@@ -2679,7 +2701,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -2687,8 +2709,8 @@ class Element {
      *	@inherit: false
      } */ 
     border_inline_style(value) {
-        if (value == null) { return this.element.style.borderInlineStyle; }
-        this.element.style.borderInlineStyle = value;
+        if (value == null) { return this.style.borderInlineStyle; }
+        this.style.borderInlineStyle = value;
         return this;
     }
 
@@ -2701,7 +2723,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -2709,8 +2731,8 @@ class Element {
      *	@inherit: false
      } */ 
     border_inline_width(value) {
-        if (value == null) { return this.element.style.borderInlineWidth; }
-        this.element.style.borderInlineWidth = this.pad_numeric(value);
+        if (value == null) { return this.style.borderInlineWidth; }
+        this.style.borderInlineWidth = this.pad_numeric(value);
         return this;
     }
 
@@ -2723,7 +2745,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -2731,8 +2753,8 @@ class Element {
      *	@inherit: false
      } */ 
     border_left(value) {
-        if (value == null) { return this.element.style.borderLeft; }
-        this.element.style.borderLeft = this.pad_numeric(value);
+        if (value == null) { return this.style.borderLeft; }
+        this.style.borderLeft = this.pad_numeric(value);
         return this;
     }
 
@@ -2745,7 +2767,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -2753,8 +2775,8 @@ class Element {
      *	@inherit: false
      } */ 
     border_left_color(value) {
-        if (value == null) { return this.element.style.borderLeftColor; }
-        this.element.style.borderLeftColor = value;
+        if (value == null) { return this.style.borderLeftColor; }
+        this.style.borderLeftColor = value;
         return this;
     }
 
@@ -2767,7 +2789,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -2775,8 +2797,8 @@ class Element {
      *	@inherit: false
      } */ 
     border_left_style(value) {
-        if (value == null) { return this.element.style.borderLeftStyle; }
-        this.element.style.borderLeftStyle = value;
+        if (value == null) { return this.style.borderLeftStyle; }
+        this.style.borderLeftStyle = value;
         return this;
     }
 
@@ -2789,7 +2811,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -2797,8 +2819,8 @@ class Element {
      *	@inherit: false
      } */ 
     border_left_width(value) {
-        if (value == null) { return this.element.style.borderLeftWidth; }
-        this.element.style.borderLeftWidth = this.pad_numeric(value);
+        if (value == null) { return this.style.borderLeftWidth; }
+        this.style.borderLeftWidth = this.pad_numeric(value);
         return this;
     }
 
@@ -2811,7 +2833,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -2819,12 +2841,12 @@ class Element {
      *	@inherit: false
      } */ 
     border_radius(value) {
-        if (value == null) { return this.element.style.borderRadius; }
-        this.element.style.borderRadius = this.pad_numeric(value);
-        this.element.style.msBorderRadius = this.pad_numeric(value);
-        this.element.style.webkitBorderRadius = this.pad_numeric(value);
-        this.element.style.MozBorderRadius = this.pad_numeric(value);
-        this.element.style.OBorderRadius = this.pad_numeric(value);
+        if (value == null) { return this.style.borderRadius; }
+        this.style.borderRadius = this.pad_numeric(value);
+        this.style.msBorderRadius = this.pad_numeric(value);
+        this.style.webkitBorderRadius = this.pad_numeric(value);
+        this.style.MozBorderRadius = this.pad_numeric(value);
+        this.style.OBorderRadius = this.pad_numeric(value);
         return this;
     }
 
@@ -2837,7 +2859,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -2845,8 +2867,8 @@ class Element {
      *	@inherit: false
      } */ 
     border_right(value) {
-        if (value == null) { return this.element.style.borderRight; }
-        this.element.style.borderRight = this.pad_numeric(value);
+        if (value == null) { return this.style.borderRight; }
+        this.style.borderRight = this.pad_numeric(value);
         return this;
     }
 
@@ -2859,7 +2881,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -2867,8 +2889,8 @@ class Element {
      *	@inherit: false
      } */ 
     border_right_color(value) {
-        if (value == null) { return this.element.style.borderRightColor; }
-        this.element.style.borderRightColor = value;
+        if (value == null) { return this.style.borderRightColor; }
+        this.style.borderRightColor = value;
         return this;
     }
 
@@ -2881,7 +2903,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -2889,8 +2911,8 @@ class Element {
      *	@inherit: false
      } */ 
     border_right_style(value) {
-        if (value == null) { return this.element.style.borderRightStyle; }
-        this.element.style.borderRightStyle = value;
+        if (value == null) { return this.style.borderRightStyle; }
+        this.style.borderRightStyle = value;
         return this;
     }
 
@@ -2903,7 +2925,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -2911,8 +2933,8 @@ class Element {
      *	@inherit: false
      } */ 
     border_right_width(value) {
-        if (value == null) { return this.element.style.borderRightWidth; }
-        this.element.style.borderRightWidth = this.pad_numeric(value);
+        if (value == null) { return this.style.borderRightWidth; }
+        this.style.borderRightWidth = this.pad_numeric(value);
         return this;
     }
 
@@ -2925,7 +2947,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -2933,8 +2955,8 @@ class Element {
      *	@inherit: false
      } */ 
     border_spacing(value) {
-        if (value == null) { return this.element.style.borderSpacing; }
-        this.element.style.borderSpacing = value;
+        if (value == null) { return this.style.borderSpacing; }
+        this.style.borderSpacing = value;
         return this;
     }
 
@@ -2947,7 +2969,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -2955,8 +2977,8 @@ class Element {
      *	@inherit: false
      } */ 
     border_style(value) {
-        if (value == null) { return this.element.style.borderStyle; }
-        this.element.style.borderStyle = value;
+        if (value == null) { return this.style.borderStyle; }
+        this.style.borderStyle = value;
         return this;
     }
 
@@ -2969,7 +2991,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -2977,8 +2999,8 @@ class Element {
      *	@inherit: false
      } */ 
     border_top(value) {
-        if (value == null) { return this.element.style.borderTop; }
-        this.element.style.borderTop = this.pad_numeric(value);
+        if (value == null) { return this.style.borderTop; }
+        this.style.borderTop = this.pad_numeric(value);
         return this;
     }
 
@@ -2991,7 +3013,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -2999,8 +3021,8 @@ class Element {
      *	@inherit: false
      } */ 
     border_top_color(value) {
-        if (value == null) { return this.element.style.borderTopColor; }
-        this.element.style.borderTopColor = value;
+        if (value == null) { return this.style.borderTopColor; }
+        this.style.borderTopColor = value;
         return this;
     }
 
@@ -3013,7 +3035,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -3021,8 +3043,8 @@ class Element {
      *	@inherit: false
      } */ 
     border_top_left_radius(value) {
-        if (value == null) { return this.element.style.borderTopLeftRadius; }
-        this.element.style.borderTopLeftRadius = this.pad_numeric(value);
+        if (value == null) { return this.style.borderTopLeftRadius; }
+        this.style.borderTopLeftRadius = this.pad_numeric(value);
         return this;
     }
 
@@ -3035,7 +3057,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -3043,8 +3065,8 @@ class Element {
      *	@inherit: false
      } */ 
     border_top_right_radius(value) {
-        if (value == null) { return this.element.style.borderTopRightRadius; }
-        this.element.style.borderTopRightRadius = this.pad_numeric(value);
+        if (value == null) { return this.style.borderTopRightRadius; }
+        this.style.borderTopRightRadius = this.pad_numeric(value);
         return this;
     }
 
@@ -3057,7 +3079,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -3065,8 +3087,8 @@ class Element {
      *	@inherit: false
      } */ 
     border_top_style(value) {
-        if (value == null) { return this.element.style.borderTopStyle; }
-        this.element.style.borderTopStyle = value;
+        if (value == null) { return this.style.borderTopStyle; }
+        this.style.borderTopStyle = value;
         return this;
     }
 
@@ -3079,7 +3101,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -3087,8 +3109,8 @@ class Element {
      *	@inherit: false
      } */ 
     border_top_width(value) {
-        if (value == null) { return this.element.style.borderTopWidth; }
-        this.element.style.borderTopWidth = this.pad_numeric(value);
+        if (value == null) { return this.style.borderTopWidth; }
+        this.style.borderTopWidth = this.pad_numeric(value);
         return this;
     }
 
@@ -3101,7 +3123,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -3109,8 +3131,8 @@ class Element {
      *	@inherit: false
      } */ 
     border_width(value) {
-        if (value == null) { return this.element.style.borderWidth; }
-        this.element.style.borderWidth = this.pad_numeric(value);
+        if (value == null) { return this.style.borderWidth; }
+        this.style.borderWidth = this.pad_numeric(value);
         return this;
     }
 
@@ -3123,7 +3145,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -3131,8 +3153,8 @@ class Element {
      *	@inherit: false
      } */ 
     bottom(value) {
-        if (value == null) { return this.element.style.bottom; }
-        this.element.style.bottom = this.pad_numeric(value);
+        if (value == null) { return this.style.bottom; }
+        this.style.bottom = this.pad_numeric(value);
         return this;
     }
 
@@ -3145,7 +3167,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -3153,8 +3175,8 @@ class Element {
      *	@inherit: false
      } */ 
     box_decoration_break(value) {
-        if (value == null) { return this.element.style.boxDecorationBreak; }
-        this.element.style.boxDecorationBreak = value;
+        if (value == null) { return this.style.boxDecorationBreak; }
+        this.style.boxDecorationBreak = value;
         return this;
     }
 
@@ -3167,7 +3189,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -3175,8 +3197,8 @@ class Element {
      *	@inherit: false
      } */ 
     box_reflect(value) {
-        if (value == null) { return this.element.style.boxReflect; }
-        this.element.style.boxReflect = value;
+        if (value == null) { return this.style.boxReflect; }
+        this.style.boxReflect = value;
         return this;
     }
 
@@ -3189,7 +3211,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -3197,12 +3219,12 @@ class Element {
      *	@inherit: false
      } */ 
     box_shadow(value) {
-        if (value == null) { return this.element.style.boxShadow; }
-        this.element.style.boxShadow = value;
-        this.element.style.msBoxShadow = value;
-        this.element.style.webkitBoxShadow = value;
-        this.element.style.MozBoxShadow = value;
-        this.element.style.OBoxShadow = value;
+        if (value == null) { return this.style.boxShadow; }
+        this.style.boxShadow = value;
+        this.style.msBoxShadow = value;
+        this.style.webkitBoxShadow = value;
+        this.style.MozBoxShadow = value;
+        this.style.OBoxShadow = value;
         return this;
     }
 
@@ -3215,7 +3237,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -3223,12 +3245,12 @@ class Element {
      *	@inherit: false
      } */ 
     box_sizing(value) {
-        if (value == null) { return this.element.style.boxSizing; }
-        this.element.style.boxSizing = value;
-        this.element.style.msBoxSizing = value;
-        this.element.style.webkitBoxSizing = value;
-        this.element.style.MozBoxSizing = value;
-        this.element.style.OBoxSizing = value;
+        if (value == null) { return this.style.boxSizing; }
+        this.style.boxSizing = value;
+        this.style.msBoxSizing = value;
+        this.style.webkitBoxSizing = value;
+        this.style.MozBoxSizing = value;
+        this.style.OBoxSizing = value;
         return this;
     }
 
@@ -3241,7 +3263,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -3249,8 +3271,8 @@ class Element {
      *	@inherit: false
      } */ 
     break_after(value) {
-        if (value == null) { return this.element.style.breakAfter; }
-        this.element.style.breakAfter = value;
+        if (value == null) { return this.style.breakAfter; }
+        this.style.breakAfter = value;
         return this;
     }
 
@@ -3263,7 +3285,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -3271,8 +3293,8 @@ class Element {
      *	@inherit: false
      } */ 
     break_before(value) {
-        if (value == null) { return this.element.style.breakBefore; }
-        this.element.style.breakBefore = value;
+        if (value == null) { return this.style.breakBefore; }
+        this.style.breakBefore = value;
         return this;
     }
 
@@ -3285,7 +3307,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -3293,8 +3315,8 @@ class Element {
      *	@inherit: false
      } */ 
     break_inside(value) {
-        if (value == null) { return this.element.style.breakInside; }
-        this.element.style.breakInside = value;
+        if (value == null) { return this.style.breakInside; }
+        this.style.breakInside = value;
         return this;
     }
 
@@ -3307,7 +3329,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -3315,8 +3337,8 @@ class Element {
      *	@inherit: false
      } */ 
     caption_side(value) {
-        if (value == null) { return this.element.style.captionSide; }
-        this.element.style.captionSide = value;
+        if (value == null) { return this.style.captionSide; }
+        this.style.captionSide = value;
         return this;
     }
 
@@ -3329,7 +3351,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -3337,8 +3359,8 @@ class Element {
      *	@inherit: false
      } */ 
     caret_color(value) {
-        if (value == null) { return this.element.style.caretColor; }
-        this.element.style.caretColor = value;
+        if (value == null) { return this.style.caretColor; }
+        this.style.caretColor = value;
         return this;
     }
 
@@ -3351,7 +3373,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -3359,8 +3381,8 @@ class Element {
      *	@inherit: false
      } */ 
     clear(value) {
-        if (value == null) { return this.element.style.clear; }
-        this.element.style.clear = value;
+        if (value == null) { return this.style.clear; }
+        this.style.clear = value;
         return this;
     }
 
@@ -3373,7 +3395,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -3381,15 +3403,15 @@ class Element {
      *	@inherit: false
      } */ 
     clip(value) {
-        if (value == null) { return this.element.style.clip; }
-        this.element.style.clip = value;
+        if (value == null) { return this.style.clip; }
+        this.style.clip = value;
         return this;
     }
 
     // Sets the color of text.
     // color(value) {
-    //     if (value == null) { return this.element.style.color; }
-    //     this.element.style.color = value;
+    //     if (value == null) { return this.style.color; }
+    //     this.style.color = value;
     //     return this;
     // }
 
@@ -3402,7 +3424,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -3410,12 +3432,12 @@ class Element {
      *	@inherit: false
      } */ 
     column_count(value) {
-        if (value == null) { return this.element.style.columnCount; }
-        this.element.style.columnCount = value;
-        this.element.style.msColumnCount = value;
-        this.element.style.webkitColumnCount = value;
-        this.element.style.MozColumnCount = value;
-        this.element.style.OColumnCount = value;
+        if (value == null) { return this.style.columnCount; }
+        this.style.columnCount = value;
+        this.style.msColumnCount = value;
+        this.style.webkitColumnCount = value;
+        this.style.MozColumnCount = value;
+        this.style.OColumnCount = value;
         return this;
     }
 
@@ -3428,7 +3450,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -3436,8 +3458,8 @@ class Element {
      *	@inherit: false
      } */ 
     column_fill(value) {
-        if (value == null) { return this.element.style.columnFill; }
-        this.element.style.columnFill = value;
+        if (value == null) { return this.style.columnFill; }
+        this.style.columnFill = value;
         return this;
     }
 
@@ -3450,7 +3472,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -3458,12 +3480,12 @@ class Element {
      *	@inherit: false
      } */ 
     column_gap(value) {
-        if (value == null) { return this.element.style.columnGap; }
-        this.element.style.columnGap = value;
-        this.element.style.msColumnGap = value;
-        this.element.style.webkitColumnGap = value;
-        this.element.style.MozColumnGap = value;
-        this.element.style.OColumnGap = value;
+        if (value == null) { return this.style.columnGap; }
+        this.style.columnGap = value;
+        this.style.msColumnGap = value;
+        this.style.webkitColumnGap = value;
+        this.style.MozColumnGap = value;
+        this.style.OColumnGap = value;
         return this;
     }
 
@@ -3476,7 +3498,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -3484,12 +3506,12 @@ class Element {
      *	@inherit: false
      } */ 
     column_rule(value) {
-        if (value == null) { return this.element.style.columnRule; }
-        this.element.style.columnRule = value;
-        this.element.style.msColumnRule = value;
-        this.element.style.webkitColumnRule = value;
-        this.element.style.MozColumnRule = value;
-        this.element.style.OColumnRule = value;
+        if (value == null) { return this.style.columnRule; }
+        this.style.columnRule = value;
+        this.style.msColumnRule = value;
+        this.style.webkitColumnRule = value;
+        this.style.MozColumnRule = value;
+        this.style.OColumnRule = value;
         return this;
     }
 
@@ -3502,7 +3524,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -3510,12 +3532,12 @@ class Element {
      *	@inherit: false
      } */ 
     column_rule_color(value) {
-        if (value == null) { return this.element.style.columnRuleColor; }
-        this.element.style.columnRuleColor = value;
-        this.element.style.msColumnRuleColor = value;
-        this.element.style.webkitColumnRuleColor = value;
-        this.element.style.MozColumnRuleColor = value;
-        this.element.style.OColumnRuleColor = value;
+        if (value == null) { return this.style.columnRuleColor; }
+        this.style.columnRuleColor = value;
+        this.style.msColumnRuleColor = value;
+        this.style.webkitColumnRuleColor = value;
+        this.style.MozColumnRuleColor = value;
+        this.style.OColumnRuleColor = value;
         return this;
     }
 
@@ -3528,7 +3550,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -3536,12 +3558,12 @@ class Element {
      *	@inherit: false
      } */ 
     column_rule_style(value) {
-        if (value == null) { return this.element.style.columnRuleStyle; }
-        this.element.style.columnRuleStyle = value;
-        this.element.style.msColumnRuleStyle = value;
-        this.element.style.webkitColumnRuleStyle = value;
-        this.element.style.MozColumnRuleStyle = value;
-        this.element.style.OColumnRuleStyle = value;
+        if (value == null) { return this.style.columnRuleStyle; }
+        this.style.columnRuleStyle = value;
+        this.style.msColumnRuleStyle = value;
+        this.style.webkitColumnRuleStyle = value;
+        this.style.MozColumnRuleStyle = value;
+        this.style.OColumnRuleStyle = value;
         return this;
     }
 
@@ -3554,7 +3576,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -3562,12 +3584,12 @@ class Element {
      *	@inherit: false
      } */ 
     column_rule_width(value) {
-        if (value == null) { return this.element.style.columnRuleWidth; }
-        this.element.style.columnRuleWidth = this.pad_numeric(value);
-        this.element.style.msColumnRuleWidth = this.pad_numeric(value);
-        this.element.style.webkitColumnRuleWidth = this.pad_numeric(value);
-        this.element.style.MozColumnRuleWidth = this.pad_numeric(value);
-        this.element.style.OColumnRuleWidth = this.pad_numeric(value);
+        if (value == null) { return this.style.columnRuleWidth; }
+        this.style.columnRuleWidth = this.pad_numeric(value);
+        this.style.msColumnRuleWidth = this.pad_numeric(value);
+        this.style.webkitColumnRuleWidth = this.pad_numeric(value);
+        this.style.MozColumnRuleWidth = this.pad_numeric(value);
+        this.style.OColumnRuleWidth = this.pad_numeric(value);
         return this;
     }
 
@@ -3580,7 +3602,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -3588,8 +3610,8 @@ class Element {
      *	@inherit: false
      } */ 
     column_span(value) {
-        if (value == null) { return this.element.style.columnSpan; }
-        this.element.style.columnSpan = value;
+        if (value == null) { return this.style.columnSpan; }
+        this.style.columnSpan = value;
         return this;
     }
 
@@ -3602,7 +3624,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -3610,12 +3632,12 @@ class Element {
      *	@inherit: false
      } */ 
     column_width(value) {
-        if (value == null) { return this.element.style.columnWidth; }
-        this.element.style.columnWidth = this.pad_numeric(value);
-        this.element.style.msColumnWidth = this.pad_numeric(value);
-        this.element.style.webkitColumnWidth = this.pad_numeric(value);
-        this.element.style.MozColumnWidth = this.pad_numeric(value);
-        this.element.style.OColumnWidth = this.pad_numeric(value);
+        if (value == null) { return this.style.columnWidth; }
+        this.style.columnWidth = this.pad_numeric(value);
+        this.style.msColumnWidth = this.pad_numeric(value);
+        this.style.webkitColumnWidth = this.pad_numeric(value);
+        this.style.MozColumnWidth = this.pad_numeric(value);
+        this.style.OColumnWidth = this.pad_numeric(value);
         return this;
     }
 
@@ -3628,7 +3650,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -3636,8 +3658,8 @@ class Element {
      *	@inherit: false
      } */ 
     columns(value) {
-        if (value == null) { return this.element.style.columns; }
-        this.element.style.columns = value;
+        if (value == null) { return this.style.columns; }
+        this.style.columns = value;
         return this;
     }
 
@@ -3650,7 +3672,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -3658,8 +3680,8 @@ class Element {
      *	@inherit: false
      } */ 
     content(value) {
-        if (value == null) { return this.element.style.content; }
-        this.element.style.content = value;
+        if (value == null) { return this.style.content; }
+        this.style.content = value;
         return this;
     }
 
@@ -3672,7 +3694,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -3680,8 +3702,8 @@ class Element {
      *	@inherit: false
      } */ 
     counter_increment(value) {
-        if (value == null) { return this.element.style.counterIncrement; }
-        this.element.style.counterIncrement = value;
+        if (value == null) { return this.style.counterIncrement; }
+        this.style.counterIncrement = value;
         return this;
     }
 
@@ -3694,7 +3716,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -3702,8 +3724,8 @@ class Element {
      *	@inherit: false
      } */ 
     counter_reset(value) {
-        if (value == null) { return this.element.style.counterReset; }
-        this.element.style.counterReset = value;
+        if (value == null) { return this.style.counterReset; }
+        this.style.counterReset = value;
         return this;
     }
 
@@ -3716,7 +3738,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -3724,8 +3746,8 @@ class Element {
      *	@inherit: false
      } */ 
     cursor(value) {
-        if (value == null) { return this.element.style.cursor; }
-        this.element.style.cursor = value;
+        if (value == null) { return this.style.cursor; }
+        this.style.cursor = value;
         return this;
     }
 
@@ -3738,7 +3760,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -3746,15 +3768,15 @@ class Element {
      *	@inherit: false
      } */ 
     direction(value) {
-        if (value == null) { return this.element.style.direction; }
-        this.element.style.direction = value;
+        if (value == null) { return this.style.direction; }
+        this.style.direction = value;
         return this;
     }
 
     // Specifies how a certain HTML element should be displayed.
     // display(value) {
-    //     if (value == null) { return this.element.style.display; }
-    //     this.element.style.display = value;
+    //     if (value == null) { return this.style.display; }
+    //     this.style.display = value;
     //     return this;
     // }
 
@@ -3767,7 +3789,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -3775,8 +3797,8 @@ class Element {
      *	@inherit: false
      } */ 
     empty_cells(value) {
-        if (value == null) { return this.element.style.emptyCells; }
-        this.element.style.emptyCells = value;
+        if (value == null) { return this.style.emptyCells; }
+        this.style.emptyCells = value;
         return this;
     }
 
@@ -3789,7 +3811,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -3797,12 +3819,12 @@ class Element {
      *	@inherit: false
      } */ 
     filter(value) {
-        if (value == null) { return this.element.style.filter; }
-        this.element.style.filter = value;
-        this.element.style.msFilter = value;
-        this.element.style.webkitFilter = value;
-        this.element.style.MozFilter = value;
-        this.element.style.OFilter = value;
+        if (value == null) { return this.style.filter; }
+        this.style.filter = value;
+        this.style.msFilter = value;
+        this.style.webkitFilter = value;
+        this.style.MozFilter = value;
+        this.style.OFilter = value;
         return this;
     }
 
@@ -3815,7 +3837,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -3823,12 +3845,12 @@ class Element {
      *	@inherit: false
      } */ 
     flex(value) {
-        if (value == null) { return this.element.style.flex; }
-        this.element.style.flex = value;
-        this.element.style.msFlex = value;
-        this.element.style.webkitFlex = value;
-        this.element.style.MozFlex = value;
-        this.element.style.OFlex = value;
+        if (value == null) { return this.style.flex; }
+        this.style.flex = value;
+        this.style.msFlex = value;
+        this.style.webkitFlex = value;
+        this.style.MozFlex = value;
+        this.style.OFlex = value;
         return this;
     }
 
@@ -3841,7 +3863,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -3849,12 +3871,12 @@ class Element {
      *	@inherit: false
      } */ 
     flex_basis(value) {
-        if (value == null) { return this.element.style.flexBasis; }
-        this.element.style.flexBasis = value;
-        this.element.style.msFlexBasis = value;
-        this.element.style.webkitFlexBasis = value;
-        this.element.style.MozFlexBasis = value;
-        this.element.style.OFlexBasis = value;
+        if (value == null) { return this.style.flexBasis; }
+        this.style.flexBasis = value;
+        this.style.msFlexBasis = value;
+        this.style.webkitFlexBasis = value;
+        this.style.MozFlexBasis = value;
+        this.style.OFlexBasis = value;
         return this;
     }
 
@@ -3867,7 +3889,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -3875,12 +3897,12 @@ class Element {
      *	@inherit: false
      } */ 
     flex_direction(value) {
-        if (value == null) { return this.element.style.flexDirection; }
-        this.element.style.flexDirection = value;
-        this.element.style.msFlexDirection = value;
-        this.element.style.webkitFlexDirection = value;
-        this.element.style.MozFlexDirection = value;
-        this.element.style.OFlexDirection = value;
+        if (value == null) { return this.style.flexDirection; }
+        this.style.flexDirection = value;
+        this.style.msFlexDirection = value;
+        this.style.webkitFlexDirection = value;
+        this.style.MozFlexDirection = value;
+        this.style.OFlexDirection = value;
         return this;
     }
 
@@ -3893,7 +3915,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -3901,12 +3923,12 @@ class Element {
      *	@inherit: false
      } */ 
     flex_flow(value) {
-        if (value == null) { return this.element.style.flexFlow; }
-        this.element.style.flexFlow = value;
-        this.element.style.msFlexFlow = value;
-        this.element.style.webkitFlexFlow = value;
-        this.element.style.MozFlexFlow = value;
-        this.element.style.OFlexFlow = value;
+        if (value == null) { return this.style.flexFlow; }
+        this.style.flexFlow = value;
+        this.style.msFlexFlow = value;
+        this.style.webkitFlexFlow = value;
+        this.style.MozFlexFlow = value;
+        this.style.OFlexFlow = value;
         return this;
     }
 
@@ -3919,7 +3941,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -3927,12 +3949,12 @@ class Element {
      *	@inherit: false
      } */ 
     flex_grow(value) {
-        if (value == null) { return this.element.style.flexGrow; }
-        this.element.style.flexGrow = value;
-        this.element.style.msFlexGrow = value;
-        this.element.style.webkitFlexGrow = value;
-        this.element.style.MozFlexGrow = value;
-        this.element.style.OFlexGrow = value;
+        if (value == null) { return this.style.flexGrow; }
+        this.style.flexGrow = value;
+        this.style.msFlexGrow = value;
+        this.style.webkitFlexGrow = value;
+        this.style.MozFlexGrow = value;
+        this.style.OFlexGrow = value;
         return this;
     }
 
@@ -3945,7 +3967,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -3953,12 +3975,12 @@ class Element {
      *	@inherit: false
      } */ 
     flex_shrink(value) {
-        if (value == null) { return this.element.style.flexShrink; }
-        this.element.style.flexShrink = value;
-        this.element.style.msFlexShrink = value;
-        this.element.style.webkitFlexShrink = value;
-        this.element.style.MozFlexShrink = value;
-        this.element.style.OFlexShrink = value;
+        if (value == null) { return this.style.flexShrink; }
+        this.style.flexShrink = value;
+        this.style.msFlexShrink = value;
+        this.style.webkitFlexShrink = value;
+        this.style.MozFlexShrink = value;
+        this.style.OFlexShrink = value;
         return this;
     }
 
@@ -3971,7 +3993,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -3979,12 +4001,12 @@ class Element {
      *	@inherit: false
      } */ 
     flex_wrap(value) {
-        if (value == null) { return this.element.style.flexWrap; }
-        this.element.style.flexWrap = value;
-        this.element.style.msFlexWrap = value;
-        this.element.style.webkitFlexWrap = value;
-        this.element.style.MozFlexWrap = value;
-        this.element.style.OFlexWrap = value;
+        if (value == null) { return this.style.flexWrap; }
+        this.style.flexWrap = value;
+        this.style.msFlexWrap = value;
+        this.style.webkitFlexWrap = value;
+        this.style.MozFlexWrap = value;
+        this.style.OFlexWrap = value;
         return this;
     }
 
@@ -3997,7 +4019,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -4005,8 +4027,8 @@ class Element {
      *	@inherit: false
      } */ 
     float(value) {
-        if (value == null) { return this.element.style.float; }
-        this.element.style.float = value;
+        if (value == null) { return this.style.float; }
+        this.style.float = value;
         return this;
     }
 
@@ -4019,7 +4041,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -4027,8 +4049,8 @@ class Element {
      *	@inherit: false
      } */ 
     font(value) {
-        if (value == null) { return this.element.style.font; }
-        this.element.style.font = value;
+        if (value == null) { return this.style.font; }
+        this.style.font = value;
         return this;
     }
 
@@ -4041,7 +4063,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -4049,8 +4071,8 @@ class Element {
      *	@inherit: false
      } */ 
     font_family(value) {
-        if (value == null) { return this.element.style.fontFamily; }
-        this.element.style.fontFamily = value;
+        if (value == null) { return this.style.fontFamily; }
+        this.style.fontFamily = value;
         return this;
     }
 
@@ -4063,7 +4085,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -4071,8 +4093,8 @@ class Element {
      *	@inherit: false
      } */ 
     font_feature_settings(value) {
-        if (value == null) { return this.element.style.fontFeatureSettings; }
-        this.element.style.fontFeatureSettings = value;
+        if (value == null) { return this.style.fontFeatureSettings; }
+        this.style.fontFeatureSettings = value;
         return this;
     }
 
@@ -4085,7 +4107,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -4093,8 +4115,8 @@ class Element {
      *	@inherit: false
      } */ 
     font_kerning(value) {
-        if (value == null) { return this.element.style.fontKerning; }
-        this.element.style.fontKerning = value;
+        if (value == null) { return this.style.fontKerning; }
+        this.style.fontKerning = value;
         return this;
     }
 
@@ -4107,7 +4129,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -4115,8 +4137,8 @@ class Element {
      *	@inherit: false
      } */ 
     font_language_override(value) {
-        if (value == null) { return this.element.style.fontLanguageOverride; }
-        this.element.style.fontLanguageOverride = value;
+        if (value == null) { return this.style.fontLanguageOverride; }
+        this.style.fontLanguageOverride = value;
         return this;
     }
 
@@ -4129,7 +4151,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -4137,8 +4159,8 @@ class Element {
      *	@inherit: false
      } */ 
     font_size(value) {
-        if (value == null) { return this.element.style.fontSize; }
-        this.element.style.fontSize = this.pad_numeric(value);
+        if (value == null) { return this.style.fontSize; }
+        this.style.fontSize = this.pad_numeric(value);
         return this;
     }
 
@@ -4151,7 +4173,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -4159,8 +4181,8 @@ class Element {
      *	@inherit: false
      } */ 
     font_size_adjust(value) {
-        if (value == null) { return this.element.style.fontSizeAdjust; }
-        this.element.style.fontSizeAdjust = value;
+        if (value == null) { return this.style.fontSizeAdjust; }
+        this.style.fontSizeAdjust = value;
         return this;
     }
 
@@ -4173,7 +4195,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -4181,8 +4203,8 @@ class Element {
      *	@inherit: false
      } */ 
     font_stretch(value) {
-        if (value == null) { return this.element.style.fontStretch; }
-        this.element.style.fontStretch = value;
+        if (value == null) { return this.style.fontStretch; }
+        this.style.fontStretch = value;
         return this;
     }
 
@@ -4195,7 +4217,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -4203,8 +4225,8 @@ class Element {
      *	@inherit: false
      } */ 
     font_style(value) {
-        if (value == null) { return this.element.style.fontStyle; }
-        this.element.style.fontStyle = value;
+        if (value == null) { return this.style.fontStyle; }
+        this.style.fontStyle = value;
         return this;
     }
 
@@ -4217,7 +4239,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -4225,8 +4247,8 @@ class Element {
      *	@inherit: false
      } */ 
     font_synthesis(value) {
-        if (value == null) { return this.element.style.fontSynthesis; }
-        this.element.style.fontSynthesis = value;
+        if (value == null) { return this.style.fontSynthesis; }
+        this.style.fontSynthesis = value;
         return this;
     }
 
@@ -4239,7 +4261,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -4247,8 +4269,8 @@ class Element {
      *	@inherit: false
      } */ 
     font_variant(value) {
-        if (value == null) { return this.element.style.fontVariant; }
-        this.element.style.fontVariant = value;
+        if (value == null) { return this.style.fontVariant; }
+        this.style.fontVariant = value;
         return this;
     }
 
@@ -4261,7 +4283,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -4269,8 +4291,8 @@ class Element {
      *	@inherit: false
      } */ 
     font_variant_alternates(value) {
-        if (value == null) { return this.element.style.fontVariantAlternates; }
-        this.element.style.fontVariantAlternates = value;
+        if (value == null) { return this.style.fontVariantAlternates; }
+        this.style.fontVariantAlternates = value;
         return this;
     }
 
@@ -4283,7 +4305,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -4291,8 +4313,8 @@ class Element {
      *	@inherit: false
      } */ 
     font_variant_caps(value) {
-        if (value == null) { return this.element.style.fontVariantCaps; }
-        this.element.style.fontVariantCaps = value;
+        if (value == null) { return this.style.fontVariantCaps; }
+        this.style.fontVariantCaps = value;
         return this;
     }
 
@@ -4305,7 +4327,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -4313,8 +4335,8 @@ class Element {
      *	@inherit: false
      } */ 
     font_variant_east_asian(value) {
-        if (value == null) { return this.element.style.fontVariantEastAsian; }
-        this.element.style.fontVariantEastAsian = value;
+        if (value == null) { return this.style.fontVariantEastAsian; }
+        this.style.fontVariantEastAsian = value;
         return this;
     }
 
@@ -4327,7 +4349,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -4335,8 +4357,8 @@ class Element {
      *	@inherit: false
      } */ 
     font_variant_ligatures(value) {
-        if (value == null) { return this.element.style.fontVariantLigatures; }
-        this.element.style.fontVariantLigatures = value;
+        if (value == null) { return this.style.fontVariantLigatures; }
+        this.style.fontVariantLigatures = value;
         return this;
     }
 
@@ -4349,7 +4371,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -4357,8 +4379,8 @@ class Element {
      *	@inherit: false
      } */ 
     font_variant_numeric(value) {
-        if (value == null) { return this.element.style.fontVariantNumeric; }
-        this.element.style.fontVariantNumeric = value;
+        if (value == null) { return this.style.fontVariantNumeric; }
+        this.style.fontVariantNumeric = value;
         return this;
     }
 
@@ -4371,7 +4393,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -4379,8 +4401,8 @@ class Element {
      *	@inherit: false
      } */ 
     font_variant_position(value) {
-        if (value == null) { return this.element.style.fontVariantPosition; }
-        this.element.style.fontVariantPosition = value;
+        if (value == null) { return this.style.fontVariantPosition; }
+        this.style.fontVariantPosition = value;
         return this;
     }
 
@@ -4393,7 +4415,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -4401,8 +4423,8 @@ class Element {
      *	@inherit: false
      } */ 
     font_weight(value) {
-        if (value == null) { return this.element.style.fontWeight; }
-        this.element.style.fontWeight = value;
+        if (value == null) { return this.style.fontWeight; }
+        this.style.fontWeight = value;
         return this;
     }
 
@@ -4415,7 +4437,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -4423,8 +4445,8 @@ class Element {
      *	@inherit: false
      } */ 
     gap(value) {
-        if (value == null) { return this.element.style.gap; }
-        this.element.style.gap = value;
+        if (value == null) { return this.style.gap; }
+        this.style.gap = value;
         return this;
     }
 
@@ -4437,7 +4459,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -4445,8 +4467,8 @@ class Element {
      *	@inherit: false
      } */ 
     grid(value) {
-        if (value == null) { return this.element.style.grid; }
-        this.element.style.grid = value;
+        if (value == null) { return this.style.grid; }
+        this.style.grid = value;
         return this;
     }
 
@@ -4459,7 +4481,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -4467,8 +4489,8 @@ class Element {
      *	@inherit: false
      } */ 
     grid_area(value) {
-        if (value == null) { return this.element.style.gridArea; }
-        this.element.style.gridArea = value;
+        if (value == null) { return this.style.gridArea; }
+        this.style.gridArea = value;
         return this;
     }
 
@@ -4481,7 +4503,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -4489,8 +4511,8 @@ class Element {
      *	@inherit: false
      } */ 
     grid_auto_columns(value) {
-        if (value == null) { return this.element.style.gridAutoColumns; }
-        this.element.style.gridAutoColumns = value;
+        if (value == null) { return this.style.gridAutoColumns; }
+        this.style.gridAutoColumns = value;
         return this;
     }
 
@@ -4503,7 +4525,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -4511,8 +4533,8 @@ class Element {
      *	@inherit: false
      } */ 
     grid_auto_flow(value) {
-        if (value == null) { return this.element.style.gridAutoFlow; }
-        this.element.style.gridAutoFlow = value;
+        if (value == null) { return this.style.gridAutoFlow; }
+        this.style.gridAutoFlow = value;
         return this;
     }
 
@@ -4525,7 +4547,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -4533,8 +4555,8 @@ class Element {
      *	@inherit: false
      } */ 
     grid_auto_rows(value) {
-        if (value == null) { return this.element.style.gridAutoRows; }
-        this.element.style.gridAutoRows = value;
+        if (value == null) { return this.style.gridAutoRows; }
+        this.style.gridAutoRows = value;
         return this;
     }
 
@@ -4547,7 +4569,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -4555,8 +4577,8 @@ class Element {
      *	@inherit: false
      } */ 
     grid_column(value) {
-        if (value == null) { return this.element.style.gridColumn; }
-        this.element.style.gridColumn = value;
+        if (value == null) { return this.style.gridColumn; }
+        this.style.gridColumn = value;
         return this;
     }
 
@@ -4569,7 +4591,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -4577,8 +4599,8 @@ class Element {
      *	@inherit: false
      } */ 
     grid_column_end(value) {
-        if (value == null) { return this.element.style.gridColumnEnd; }
-        this.element.style.gridColumnEnd = value;
+        if (value == null) { return this.style.gridColumnEnd; }
+        this.style.gridColumnEnd = value;
         return this;
     }
 
@@ -4591,7 +4613,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -4599,8 +4621,8 @@ class Element {
      *	@inherit: false
      } */ 
     grid_column_gap(value) {
-        if (value == null) { return this.element.style.gridColumnGap; }
-        this.element.style.gridColumnGap = value;
+        if (value == null) { return this.style.gridColumnGap; }
+        this.style.gridColumnGap = value;
         return this;
     }
 
@@ -4613,7 +4635,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -4621,8 +4643,8 @@ class Element {
      *	@inherit: false
      } */ 
     grid_column_start(value) {
-        if (value == null) { return this.element.style.gridColumnStart; }
-        this.element.style.gridColumnStart = value;
+        if (value == null) { return this.style.gridColumnStart; }
+        this.style.gridColumnStart = value;
         return this;
     }
 
@@ -4635,7 +4657,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -4643,8 +4665,8 @@ class Element {
      *	@inherit: false
      } */ 
     grid_gap(value) {
-        if (value == null) { return this.element.style.gridGap; }
-        this.element.style.gridGap = value;
+        if (value == null) { return this.style.gridGap; }
+        this.style.gridGap = value;
         return this;
     }
 
@@ -4657,7 +4679,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -4665,8 +4687,8 @@ class Element {
      *	@inherit: false
      } */ 
     grid_row(value) {
-        if (value == null) { return this.element.style.gridRow; }
-        this.element.style.gridRow = value;
+        if (value == null) { return this.style.gridRow; }
+        this.style.gridRow = value;
         return this;
     }
 
@@ -4679,7 +4701,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -4687,8 +4709,8 @@ class Element {
      *	@inherit: false
      } */ 
     grid_row_end(value) {
-        if (value == null) { return this.element.style.gridRowEnd; }
-        this.element.style.gridRowEnd = value;
+        if (value == null) { return this.style.gridRowEnd; }
+        this.style.gridRowEnd = value;
         return this;
     }
 
@@ -4701,7 +4723,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -4709,8 +4731,8 @@ class Element {
      *	@inherit: false
      } */ 
     grid_row_gap(value) {
-        if (value == null) { return this.element.style.gridRowGap; }
-        this.element.style.gridRowGap = value;
+        if (value == null) { return this.style.gridRowGap; }
+        this.style.gridRowGap = value;
         return this;
     }
 
@@ -4723,7 +4745,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -4731,8 +4753,8 @@ class Element {
      *	@inherit: false
      } */ 
     grid_row_start(value) {
-        if (value == null) { return this.element.style.gridRowStart; }
-        this.element.style.gridRowStart = value;
+        if (value == null) { return this.style.gridRowStart; }
+        this.style.gridRowStart = value;
         return this;
     }
 
@@ -4745,7 +4767,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -4753,8 +4775,8 @@ class Element {
      *	@inherit: false
      } */ 
     grid_template(value) {
-        if (value == null) { return this.element.style.gridTemplate; }
-        this.element.style.gridTemplate = value;
+        if (value == null) { return this.style.gridTemplate; }
+        this.style.gridTemplate = value;
         return this;
     }
 
@@ -4767,7 +4789,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -4775,8 +4797,8 @@ class Element {
      *	@inherit: false
      } */ 
     grid_template_areas(value) {
-        if (value == null) { return this.element.style.gridTemplateAreas; }
-        this.element.style.gridTemplateAreas = value;
+        if (value == null) { return this.style.gridTemplateAreas; }
+        this.style.gridTemplateAreas = value;
         return this;
     }
 
@@ -4789,7 +4811,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -4797,8 +4819,8 @@ class Element {
      *	@inherit: false
      } */ 
     grid_template_columns(value) {
-        if (value == null) { return this.element.style.gridTemplateColumns; }
-        this.element.style.gridTemplateColumns = value;
+        if (value == null) { return this.style.gridTemplateColumns; }
+        this.style.gridTemplateColumns = value;
         return this;
     }
 
@@ -4811,7 +4833,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -4819,8 +4841,8 @@ class Element {
      *	@inherit: false
      } */ 
     grid_template_rows(value) {
-        if (value == null) { return this.element.style.gridTemplateRows; }
-        this.element.style.gridTemplateRows = value;
+        if (value == null) { return this.style.gridTemplateRows; }
+        this.style.gridTemplateRows = value;
         return this;
     }
 
@@ -4833,7 +4855,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -4841,15 +4863,15 @@ class Element {
      *	@inherit: false
      } */ 
     hanging_punctuation(value) {
-        if (value == null) { return this.element.style.hangingPunctuation; }
-        this.element.style.hangingPunctuation = value;
+        if (value == null) { return this.style.hangingPunctuation; }
+        this.style.hangingPunctuation = value;
         return this;
     }
 
     // Sets the height of an element.
     // height(value) {
-    //     if (value == null) { return this.element.style.height; }
-    //     this.element.style.height = this.pad_numeric(value);
+    //     if (value == null) { return this.style.height; }
+    //     this.style.height = this.pad_numeric(value);
     //     return this;
     // }
 
@@ -4862,7 +4884,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -4870,8 +4892,8 @@ class Element {
      *	@inherit: false
      } */ 
     hyphens(value) {
-        if (value == null) { return this.element.style.hyphens; }
-        this.element.style.hyphens = value;
+        if (value == null) { return this.style.hyphens; }
+        this.style.hyphens = value;
         return this;
     }
 
@@ -4884,7 +4906,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -4892,8 +4914,8 @@ class Element {
      *	@inherit: false
      } */ 
     image_rendering(value) {
-        if (value == null) { return this.element.style.imageRendering; }
-        this.element.style.imageRendering = value;
+        if (value == null) { return this.style.imageRendering; }
+        this.style.imageRendering = value;
         return this;
     }
 
@@ -4906,7 +4928,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -4914,8 +4936,8 @@ class Element {
      *	@inherit: false
      } */ 
     inline_size(value) {
-        if (value == null) { return this.element.style.inlineSize; }
-        this.element.style.inlineSize = this.pad_numeric(value);
+        if (value == null) { return this.style.inlineSize; }
+        this.style.inlineSize = this.pad_numeric(value);
         return this;
     }
 
@@ -4928,7 +4950,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -4936,8 +4958,8 @@ class Element {
      *	@inherit: false
      } */ 
     inset(value) {
-        if (value == null) { return this.element.style.inset; }
-        this.element.style.inset = value;
+        if (value == null) { return this.style.inset; }
+        this.style.inset = value;
         return this;
     }
 
@@ -4950,7 +4972,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -4958,8 +4980,8 @@ class Element {
      *	@inherit: false
      } */ 
     inset_block(value) {
-        if (value == null) { return this.element.style.insetBlock; }
-        this.element.style.insetBlock = value;
+        if (value == null) { return this.style.insetBlock; }
+        this.style.insetBlock = value;
         return this;
     }
 
@@ -4972,7 +4994,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -4980,8 +5002,8 @@ class Element {
      *	@inherit: false
      } */ 
     inset_block_end(value) {
-        if (value == null) { return this.element.style.insetBlockEnd; }
-        this.element.style.insetBlockEnd = value;
+        if (value == null) { return this.style.insetBlockEnd; }
+        this.style.insetBlockEnd = value;
         return this;
     }
 
@@ -4994,7 +5016,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -5002,8 +5024,8 @@ class Element {
      *	@inherit: false
      } */ 
     inset_block_start(value) {
-        if (value == null) { return this.element.style.insetBlockStart; }
-        this.element.style.insetBlockStart = value;
+        if (value == null) { return this.style.insetBlockStart; }
+        this.style.insetBlockStart = value;
         return this;
     }
 
@@ -5016,7 +5038,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -5024,8 +5046,8 @@ class Element {
      *	@inherit: false
      } */ 
     inset_inline(value) {
-        if (value == null) { return this.element.style.insetInline; }
-        this.element.style.insetInline = value;
+        if (value == null) { return this.style.insetInline; }
+        this.style.insetInline = value;
         return this;
     }
 
@@ -5038,7 +5060,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -5046,8 +5068,8 @@ class Element {
      *	@inherit: false
      } */ 
     inset_inline_end(value) {
-        if (value == null) { return this.element.style.insetInlineEnd; }
-        this.element.style.insetInlineEnd = value;
+        if (value == null) { return this.style.insetInlineEnd; }
+        this.style.insetInlineEnd = value;
         return this;
     }
 
@@ -5060,7 +5082,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -5068,8 +5090,8 @@ class Element {
      *	@inherit: false
      } */ 
     inset_inline_start(value) {
-        if (value == null) { return this.element.style.insetInlineStart; }
-        this.element.style.insetInlineStart = value;
+        if (value == null) { return this.style.insetInlineStart; }
+        this.style.insetInlineStart = value;
         return this;
     }
 
@@ -5082,7 +5104,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -5090,8 +5112,8 @@ class Element {
      *	@inherit: false
      } */ 
     isolation(value) {
-        if (value == null) { return this.element.style.isolation; }
-        this.element.style.isolation = value;
+        if (value == null) { return this.style.isolation; }
+        this.style.isolation = value;
         return this;
     }
 
@@ -5104,7 +5126,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -5112,12 +5134,12 @@ class Element {
      *	@inherit: false
      } */ 
     justify_content(value) {
-        if (value == null) { return this.element.style.justifyContent; }
-        this.element.style.justifyContent = value;
-        this.element.style.msJustifyContent = value;
-        this.element.style.webkitJustifyContent = value;
-        this.element.style.MozJustifyContent = value;
-        this.element.style.OJustifyContent = value;
+        if (value == null) { return this.style.justifyContent; }
+        this.style.justifyContent = value;
+        this.style.msJustifyContent = value;
+        this.style.webkitJustifyContent = value;
+        this.style.MozJustifyContent = value;
+        this.style.OJustifyContent = value;
         return this;
     }
 
@@ -5130,7 +5152,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -5138,8 +5160,8 @@ class Element {
      *	@inherit: false
      } */ 
     justify_items(value) {
-        if (value == null) { return this.element.style.justifyItems; }
-        this.element.style.justifyItems = value;
+        if (value == null) { return this.style.justifyItems; }
+        this.style.justifyItems = value;
         return this;
     }
 
@@ -5152,7 +5174,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -5160,8 +5182,8 @@ class Element {
      *	@inherit: false
      } */ 
     justify_self(value) {
-        if (value == null) { return this.element.style.justifySelf; }
-        this.element.style.justifySelf = value;
+        if (value == null) { return this.style.justifySelf; }
+        this.style.justifySelf = value;
         return this;
     }
 
@@ -5174,7 +5196,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -5182,8 +5204,8 @@ class Element {
      *	@inherit: false
      } */ 
     left(value) {
-        if (value == null) { return this.element.style.left; }
-        this.element.style.left = this.pad_numeric(value);
+        if (value == null) { return this.style.left; }
+        this.style.left = this.pad_numeric(value);
         return this;
     }
 
@@ -5196,7 +5218,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -5204,8 +5226,8 @@ class Element {
      *	@inherit: false
      } */ 
     letter_spacing(value) {
-        if (value == null) { return this.element.style.letterSpacing; }
-        this.element.style.letterSpacing = value;
+        if (value == null) { return this.style.letterSpacing; }
+        this.style.letterSpacing = value;
         return this;
     }
 
@@ -5218,7 +5240,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -5226,8 +5248,8 @@ class Element {
      *	@inherit: false
      } */ 
     line_break(value) {
-        if (value == null) { return this.element.style.lineBreak; }
-        this.element.style.lineBreak = value;
+        if (value == null) { return this.style.lineBreak; }
+        this.style.lineBreak = value;
         return this;
     }
 
@@ -5240,7 +5262,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -5248,8 +5270,8 @@ class Element {
      *	@inherit: false
      } */ 
     line_height(value) {
-        if (value == null) { return this.element.style.lineHeight; }
-        this.element.style.lineHeight = this.pad_numeric(value);
+        if (value == null) { return this.style.lineHeight; }
+        this.style.lineHeight = this.pad_numeric(value);
         return this;
     }
 
@@ -5262,7 +5284,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -5270,8 +5292,8 @@ class Element {
      *	@inherit: false
      } */ 
     list_style(value) {
-        if (value == null) { return this.element.style.listStyle; }
-        this.element.style.listStyle = value;
+        if (value == null) { return this.style.listStyle; }
+        this.style.listStyle = value;
         return this;
     }
 
@@ -5284,7 +5306,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -5292,8 +5314,8 @@ class Element {
      *	@inherit: false
      } */ 
     list_style_image(value) {
-        if (value == null) { return this.element.style.listStyleImage; }
-        this.element.style.listStyleImage = value;
+        if (value == null) { return this.style.listStyleImage; }
+        this.style.listStyleImage = value;
         return this;
     }
 
@@ -5306,7 +5328,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -5314,8 +5336,8 @@ class Element {
      *	@inherit: false
      } */ 
     list_style_position(value) {
-        if (value == null) { return this.element.style.listStylePosition; }
-        this.element.style.listStylePosition = value;
+        if (value == null) { return this.style.listStylePosition; }
+        this.style.listStylePosition = value;
         return this;
     }
 
@@ -5328,7 +5350,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -5336,15 +5358,15 @@ class Element {
      *	@inherit: false
      } */ 
     list_style_type(value) {
-        if (value == null) { return this.element.style.listStyleType; }
-        this.element.style.listStyleType = value;
+        if (value == null) { return this.style.listStyleType; }
+        this.style.listStyleType = value;
         return this;
     }
 
     // Sets all the margin properties in one declaration.
     // margin(value) {
-    //     if (value == null) { return this.element.style.margin; }
-    //     this.element.style.margin = value;
+    //     if (value == null) { return this.style.margin; }
+    //     this.style.margin = value;
     //     return this;
     // }
 
@@ -5357,7 +5379,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -5365,8 +5387,8 @@ class Element {
      *	@inherit: false
      } */ 
     margin_block(value) {
-        if (value == null) { return this.element.style.marginBlock; }
-        this.element.style.marginBlock = value;
+        if (value == null) { return this.style.marginBlock; }
+        this.style.marginBlock = value;
         return this;
     }
 
@@ -5379,7 +5401,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -5387,8 +5409,8 @@ class Element {
      *	@inherit: false
      } */ 
     margin_block_end(value) {
-        if (value == null) { return this.element.style.marginBlockEnd; }
-        this.element.style.marginBlockEnd = value;
+        if (value == null) { return this.style.marginBlockEnd; }
+        this.style.marginBlockEnd = value;
         return this;
     }
 
@@ -5401,7 +5423,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -5409,8 +5431,8 @@ class Element {
      *	@inherit: false
      } */ 
     margin_block_start(value) {
-        if (value == null) { return this.element.style.marginBlockStart; }
-        this.element.style.marginBlockStart = value;
+        if (value == null) { return this.style.marginBlockStart; }
+        this.style.marginBlockStart = value;
         return this;
     }
 
@@ -5423,7 +5445,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -5431,8 +5453,8 @@ class Element {
      *	@inherit: false
      } */ 
     margin_bottom(value) {
-        if (value == null) { return this.element.style.marginBottom; }
-        this.element.style.marginBottom = this.pad_numeric(value);
+        if (value == null) { return this.style.marginBottom; }
+        this.style.marginBottom = this.pad_numeric(value);
         return this;
     }
 
@@ -5445,7 +5467,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -5453,8 +5475,8 @@ class Element {
      *	@inherit: false
      } */ 
     margin_inline(value) {
-        if (value == null) { return this.element.style.marginInline; }
-        this.element.style.marginInline = value;
+        if (value == null) { return this.style.marginInline; }
+        this.style.marginInline = value;
         return this;
     }
 
@@ -5467,7 +5489,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -5475,8 +5497,8 @@ class Element {
      *	@inherit: false
      } */ 
     margin_inline_end(value) {
-        if (value == null) { return this.element.style.marginInlineEnd; }
-        this.element.style.marginInlineEnd = value;
+        if (value == null) { return this.style.marginInlineEnd; }
+        this.style.marginInlineEnd = value;
         return this;
     }
 
@@ -5489,7 +5511,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -5497,8 +5519,8 @@ class Element {
      *	@inherit: false
      } */ 
     margin_inline_start(value) {
-        if (value == null) { return this.element.style.marginInlineStart; }
-        this.element.style.marginInlineStart = value;
+        if (value == null) { return this.style.marginInlineStart; }
+        this.style.marginInlineStart = value;
         return this;
     }
 
@@ -5511,7 +5533,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -5519,8 +5541,8 @@ class Element {
      *	@inherit: false
      } */ 
     margin_left(value) {
-        if (value == null) { return this.element.style.marginLeft; }
-        this.element.style.marginLeft = this.pad_numeric(value);
+        if (value == null) { return this.style.marginLeft; }
+        this.style.marginLeft = this.pad_numeric(value);
         return this;
     }
 
@@ -5533,7 +5555,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -5541,8 +5563,8 @@ class Element {
      *	@inherit: false
      } */ 
     margin_right(value) {
-        if (value == null) { return this.element.style.marginRight; }
-        this.element.style.marginRight = this.pad_numeric(value);
+        if (value == null) { return this.style.marginRight; }
+        this.style.marginRight = this.pad_numeric(value);
         return this;
     }
 
@@ -5555,7 +5577,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -5563,8 +5585,8 @@ class Element {
      *	@inherit: false
      } */ 
     margin_top(value) {
-        if (value == null) { return this.element.style.marginTop; }
-        this.element.style.marginTop = this.pad_numeric(value);
+        if (value == null) { return this.style.marginTop; }
+        this.style.marginTop = this.pad_numeric(value);
         return this;
     }
 
@@ -5577,7 +5599,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -5585,12 +5607,12 @@ class Element {
      *	@inherit: false
      } */ 
     mask(value) {
-        if (value == null) { return this.element.style.mask; }
-        this.element.style.mask = value;
-        this.element.style.msMask = value;
-        this.element.style.webkitMask = value;
-        this.element.style.MozMask = value;
-        this.element.style.OMask = value;
+        if (value == null) { return this.style.mask; }
+        this.style.mask = value;
+        this.style.msMask = value;
+        this.style.webkitMask = value;
+        this.style.MozMask = value;
+        this.style.OMask = value;
         return this;
     }
 
@@ -5603,7 +5625,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -5611,8 +5633,8 @@ class Element {
      *	@inherit: false
      } */ 
     mask_clip(value) {
-        if (value == null) { return this.element.style.maskClip; }
-        this.element.style.maskClip = value;
+        if (value == null) { return this.style.maskClip; }
+        this.style.maskClip = value;
         return this;
     }
 
@@ -5625,7 +5647,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -5633,12 +5655,12 @@ class Element {
      *	@inherit: false
      } */ 
     mask_composite(value) {
-        if (value == null) { return this.element.style.maskComposite; }
-        this.element.style.maskComposite = value;
-        this.element.style.msMaskComposite = value;
-        this.element.style.webkitMaskComposite = value;
-        this.element.style.MozMaskComposite = value;
-        this.element.style.OMaskComposite = value;
+        if (value == null) { return this.style.maskComposite; }
+        this.style.maskComposite = value;
+        this.style.msMaskComposite = value;
+        this.style.webkitMaskComposite = value;
+        this.style.MozMaskComposite = value;
+        this.style.OMaskComposite = value;
         return this;
     }
 
@@ -5651,7 +5673,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -5659,8 +5681,8 @@ class Element {
      *	@inherit: false
      } */ 
     mask_image(value) {
-        if (value == null) { return this.element.style.maskImage; }
-        this.element.style.maskImage = value;
+        if (value == null) { return this.style.maskImage; }
+        this.style.maskImage = value;
         return this;
     }
 
@@ -5673,7 +5695,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -5681,8 +5703,8 @@ class Element {
      *	@inherit: false
      } */ 
     mask_mode(value) {
-        if (value == null) { return this.element.style.maskMode; }
-        this.element.style.maskMode = value;
+        if (value == null) { return this.style.maskMode; }
+        this.style.maskMode = value;
         return this;
     }
 
@@ -5695,7 +5717,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -5703,8 +5725,8 @@ class Element {
      *	@inherit: false
      } */ 
     mask_origin(value) {
-        if (value == null) { return this.element.style.maskOrigin; }
-        this.element.style.maskOrigin = value;
+        if (value == null) { return this.style.maskOrigin; }
+        this.style.maskOrigin = value;
         return this;
     }
 
@@ -5717,7 +5739,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -5725,8 +5747,8 @@ class Element {
      *	@inherit: false
      } */ 
     mask_position(value) {
-        if (value == null) { return this.element.style.maskPosition; }
-        this.element.style.maskPosition = value;
+        if (value == null) { return this.style.maskPosition; }
+        this.style.maskPosition = value;
         return this;
     }
 
@@ -5739,7 +5761,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -5747,8 +5769,8 @@ class Element {
      *	@inherit: false
      } */ 
     mask_repeat(value) {
-        if (value == null) { return this.element.style.maskRepeat; }
-        this.element.style.maskRepeat = value;
+        if (value == null) { return this.style.maskRepeat; }
+        this.style.maskRepeat = value;
         return this;
     }
 
@@ -5761,7 +5783,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -5769,8 +5791,8 @@ class Element {
      *	@inherit: false
      } */ 
     mask_size(value) {
-        if (value == null) { return this.element.style.maskSize; }
-        this.element.style.maskSize = this.pad_numeric(value);
+        if (value == null) { return this.style.maskSize; }
+        this.style.maskSize = this.pad_numeric(value);
         return this;
     }
 
@@ -5783,7 +5805,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -5791,8 +5813,8 @@ class Element {
      *	@inherit: false
      } */ 
     mask_type(value) {
-        if (value == null) { return this.element.style.maskType; }
-        this.element.style.maskType = value;
+        if (value == null) { return this.style.maskType; }
+        this.style.maskType = value;
         return this;
     }
 
@@ -5805,7 +5827,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -5813,8 +5835,8 @@ class Element {
      *	@inherit: false
      } */ 
     max_height(value) {
-        if (value == null) { return this.element.style.maxHeight; }
-        this.element.style.maxHeight = this.pad_numeric(value);
+        if (value == null) { return this.style.maxHeight; }
+        this.style.maxHeight = this.pad_numeric(value);
         return this;
     }
 
@@ -5827,7 +5849,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -5835,8 +5857,8 @@ class Element {
      *	@inherit: false
      } */ 
     max_width(value) {
-        if (value == null) { return this.element.style.maxWidth; }
-        this.element.style.maxWidth = this.pad_numeric(value);
+        if (value == null) { return this.style.maxWidth; }
+        this.style.maxWidth = this.pad_numeric(value);
         return this;
     }
 
@@ -5849,7 +5871,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -5857,8 +5879,8 @@ class Element {
      *	@inherit: false
      } */ 
     max_block_size(value) {
-        if (value == null) { return this.element.style.maxBlockSize; }
-        this.element.style.maxBlockSize = this.pad_numeric(value);
+        if (value == null) { return this.style.maxBlockSize; }
+        this.style.maxBlockSize = this.pad_numeric(value);
         return this;
     }
 
@@ -5871,7 +5893,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -5879,8 +5901,8 @@ class Element {
      *	@inherit: false
      } */ 
     max_inline_size(value) {
-        if (value == null) { return this.element.style.maxInlineSize; }
-        this.element.style.maxInlineSize = this.pad_numeric(value);
+        if (value == null) { return this.style.maxInlineSize; }
+        this.style.maxInlineSize = this.pad_numeric(value);
         return this;
     }
 
@@ -5893,7 +5915,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -5901,8 +5923,8 @@ class Element {
      *	@inherit: false
      } */ 
     min_block_size(value) {
-        if (value == null) { return this.element.style.minBlockSize; }
-        this.element.style.minBlockSize = this.pad_numeric(value);
+        if (value == null) { return this.style.minBlockSize; }
+        this.style.minBlockSize = this.pad_numeric(value);
         return this;
     }
 
@@ -5915,7 +5937,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -5923,8 +5945,8 @@ class Element {
      *	@inherit: false
      } */ 
     min_inline_size(value) {
-        if (value == null) { return this.element.style.minInlineSize; }
-        this.element.style.minInlineSize = this.pad_numeric(value);
+        if (value == null) { return this.style.minInlineSize; }
+        this.style.minInlineSize = this.pad_numeric(value);
         return this;
     }
 
@@ -5937,7 +5959,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -5945,8 +5967,8 @@ class Element {
      *	@inherit: false
      } */ 
     min_height(value) {
-        if (value == null) { return this.element.style.minHeight; }
-        this.element.style.minHeight = this.pad_numeric(value);
+        if (value == null) { return this.style.minHeight; }
+        this.style.minHeight = this.pad_numeric(value);
         return this;
     }
 
@@ -5959,7 +5981,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -5967,8 +5989,8 @@ class Element {
      *	@inherit: false
      } */ 
     min_width(value) {
-        if (value == null) { return this.element.style.minWidth; }
-        this.element.style.minWidth = this.pad_numeric(value);
+        if (value == null) { return this.style.minWidth; }
+        this.style.minWidth = this.pad_numeric(value);
         return this;
     }
 
@@ -5981,7 +6003,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -5989,8 +6011,8 @@ class Element {
      *	@inherit: false
      } */ 
     mix_blend_mode(value) {
-        if (value == null) { return this.element.style.mixBlendMode; }
-        this.element.style.mixBlendMode = value;
+        if (value == null) { return this.style.mixBlendMode; }
+        this.style.mixBlendMode = value;
         return this;
     }
 
@@ -6003,7 +6025,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -6011,8 +6033,8 @@ class Element {
      *	@inherit: false
      } */ 
     object_fit(value) {
-        if (value == null) { return this.element.style.objectFit; }
-        this.element.style.objectFit = value;
+        if (value == null) { return this.style.objectFit; }
+        this.style.objectFit = value;
         return this;
     }
 
@@ -6025,7 +6047,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -6033,8 +6055,8 @@ class Element {
      *	@inherit: false
      } */ 
     object_position(value) {
-        if (value == null) { return this.element.style.objectPosition; }
-        this.element.style.objectPosition = value;
+        if (value == null) { return this.style.objectPosition; }
+        this.style.objectPosition = value;
         return this;
     }
 
@@ -6047,7 +6069,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -6055,8 +6077,8 @@ class Element {
      *	@inherit: false
      } */ 
     offset(value) {
-        if (value == null) { return this.element.style.offset; }
-        this.element.style.offset = value;
+        if (value == null) { return this.style.offset; }
+        this.style.offset = value;
         return this;
     }
 
@@ -6069,7 +6091,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -6077,8 +6099,8 @@ class Element {
      *	@inherit: false
      } */ 
     offset_anchor(value) {
-        if (value == null) { return this.element.style.offsetAnchor; }
-        this.element.style.offsetAnchor = value;
+        if (value == null) { return this.style.offsetAnchor; }
+        this.style.offsetAnchor = value;
         return this;
     }
 
@@ -6091,7 +6113,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -6099,8 +6121,8 @@ class Element {
      *	@inherit: false
      } */ 
     offset_distance(value) {
-        if (value == null) { return this.element.style.offsetDistance; }
-        this.element.style.offsetDistance = value;
+        if (value == null) { return this.style.offsetDistance; }
+        this.style.offsetDistance = value;
         return this;
     }
 
@@ -6113,7 +6135,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -6121,8 +6143,8 @@ class Element {
      *	@inherit: false
      } */ 
     offset_path(value) {
-        if (value == null) { return this.element.style.offsetPath; }
-        this.element.style.offsetPath = value;
+        if (value == null) { return this.style.offsetPath; }
+        this.style.offsetPath = value;
         return this;
     }
 
@@ -6135,7 +6157,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -6143,8 +6165,8 @@ class Element {
      *	@inherit: false
      } */ 
     offset_rotate(value) {
-        if (value == null) { return this.element.style.offsetRotate; }
-        this.element.style.offsetRotate = value;
+        if (value == null) { return this.style.offsetRotate; }
+        this.style.offsetRotate = value;
         return this;
     }
 
@@ -6157,7 +6179,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -6165,8 +6187,8 @@ class Element {
      *	@inherit: false
      } */ 
     opacity(value) {
-        if (value == null) { return this.element.style.opacity; }
-        this.element.style.opacity = value;
+        if (value == null) { return this.style.opacity; }
+        this.style.opacity = value;
         return this;
     }
 
@@ -6179,7 +6201,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -6187,12 +6209,12 @@ class Element {
      *	@inherit: false
      } */ 
     order(value) {
-        if (value == null) { return this.element.style.order; }
-        this.element.style.order = value;
-        this.element.style.msOrder = value;
-        this.element.style.webkitOrder = value;
-        this.element.style.MozOrder = value;
-        this.element.style.OOrder = value;
+        if (value == null) { return this.style.order; }
+        this.style.order = value;
+        this.style.msOrder = value;
+        this.style.webkitOrder = value;
+        this.style.MozOrder = value;
+        this.style.OOrder = value;
         return this;
     }
 
@@ -6205,7 +6227,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -6213,8 +6235,8 @@ class Element {
      *	@inherit: false
      } */ 
     orphans(value) {
-        if (value == null) { return this.element.style.orphans; }
-        this.element.style.orphans = value;
+        if (value == null) { return this.style.orphans; }
+        this.style.orphans = value;
         return this;
     }
 
@@ -6227,7 +6249,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -6235,8 +6257,8 @@ class Element {
      *	@inherit: false
      } */ 
     outline(value) {
-        if (value == null) { return this.element.style.outline; }
-        this.element.style.outline = value;
+        if (value == null) { return this.style.outline; }
+        this.style.outline = value;
         return this;
     }
 
@@ -6249,7 +6271,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -6257,8 +6279,8 @@ class Element {
      *	@inherit: false
      } */ 
     outline_color(value) {
-        if (value == null) { return this.element.style.outlineColor; }
-        this.element.style.outlineColor = value;
+        if (value == null) { return this.style.outlineColor; }
+        this.style.outlineColor = value;
         return this;
     }
 
@@ -6271,7 +6293,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -6279,8 +6301,8 @@ class Element {
      *	@inherit: false
      } */ 
     outline_offset(value) {
-        if (value == null) { return this.element.style.outlineOffset; }
-        this.element.style.outlineOffset = value;
+        if (value == null) { return this.style.outlineOffset; }
+        this.style.outlineOffset = value;
         return this;
     }
 
@@ -6293,7 +6315,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -6301,8 +6323,8 @@ class Element {
      *	@inherit: false
      } */ 
     outline_style(value) {
-        if (value == null) { return this.element.style.outlineStyle; }
-        this.element.style.outlineStyle = value;
+        if (value == null) { return this.style.outlineStyle; }
+        this.style.outlineStyle = value;
         return this;
     }
 
@@ -6315,7 +6337,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -6323,8 +6345,8 @@ class Element {
      *	@inherit: false
      } */ 
     outline_width(value) {
-        if (value == null) { return this.element.style.outlineWidth; }
-        this.element.style.outlineWidth = this.pad_numeric(value);
+        if (value == null) { return this.style.outlineWidth; }
+        this.style.outlineWidth = this.pad_numeric(value);
         return this;
     }
 
@@ -6337,7 +6359,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -6345,8 +6367,8 @@ class Element {
      *	@inherit: false
      } */ 
     overflow(value) {
-        if (value == null) { return this.element.style.overflow; }
-        this.element.style.overflow = value;
+        if (value == null) { return this.style.overflow; }
+        this.style.overflow = value;
         return this;
     }
 
@@ -6359,7 +6381,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -6367,8 +6389,8 @@ class Element {
      *	@inherit: false
      } */ 
     overflow_anchor(value) {
-        if (value == null) { return this.element.style.overflowAnchor; }
-        this.element.style.overflowAnchor = value;
+        if (value == null) { return this.style.overflowAnchor; }
+        this.style.overflowAnchor = value;
         return this;
     }
 
@@ -6381,7 +6403,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -6389,8 +6411,8 @@ class Element {
      *	@inherit: false
      } */ 
     overflow_wrap(value) {
-        if (value == null) { return this.element.style.overflowWrap; }
-        this.element.style.overflowWrap = value;
+        if (value == null) { return this.style.overflowWrap; }
+        this.style.overflowWrap = value;
         return this;
     }
 
@@ -6403,7 +6425,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -6411,8 +6433,8 @@ class Element {
      *	@inherit: false
      } */ 
     overflow_x(value) {
-        if (value == null) { return this.element.style.overflowX; }
-        this.element.style.overflowX = value;
+        if (value == null) { return this.style.overflowX; }
+        this.style.overflowX = value;
         return this;
     }
 
@@ -6425,7 +6447,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -6433,8 +6455,8 @@ class Element {
      *	@inherit: false
      } */ 
     overflow_y(value) {
-        if (value == null) { return this.element.style.overflowY; }
-        this.element.style.overflowY = value;
+        if (value == null) { return this.style.overflowY; }
+        this.style.overflowY = value;
         return this;
     }
 
@@ -6447,7 +6469,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -6455,8 +6477,8 @@ class Element {
      *	@inherit: false
      } */ 
     overscroll_behavior(value) {
-        if (value == null) { return this.element.style.overscrollBehavior; }
-        this.element.style.overscrollBehavior = value;
+        if (value == null) { return this.style.overscrollBehavior; }
+        this.style.overscrollBehavior = value;
         return this;
     }
 
@@ -6469,7 +6491,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -6477,8 +6499,8 @@ class Element {
      *	@inherit: false
      } */ 
     overscroll_behavior_block(value) {
-        if (value == null) { return this.element.style.overscrollBehaviorBlock; }
-        this.element.style.overscrollBehaviorBlock = value;
+        if (value == null) { return this.style.overscrollBehaviorBlock; }
+        this.style.overscrollBehaviorBlock = value;
         return this;
     }
 
@@ -6491,7 +6513,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -6499,8 +6521,8 @@ class Element {
      *	@inherit: false
      } */ 
     overscroll_behavior_inline(value) {
-        if (value == null) { return this.element.style.overscrollBehaviorInline; }
-        this.element.style.overscrollBehaviorInline = value;
+        if (value == null) { return this.style.overscrollBehaviorInline; }
+        this.style.overscrollBehaviorInline = value;
         return this;
     }
 
@@ -6513,7 +6535,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -6521,8 +6543,8 @@ class Element {
      *	@inherit: false
      } */ 
     overscroll_behavior_x(value) {
-        if (value == null) { return this.element.style.overscrollBehaviorX; }
-        this.element.style.overscrollBehaviorX = value;
+        if (value == null) { return this.style.overscrollBehaviorX; }
+        this.style.overscrollBehaviorX = value;
         return this;
     }
 
@@ -6535,7 +6557,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -6543,15 +6565,15 @@ class Element {
      *	@inherit: false
      } */ 
     overscroll_behavior_y(value) {
-        if (value == null) { return this.element.style.overscrollBehaviorY; }
-        this.element.style.overscrollBehaviorY = value;
+        if (value == null) { return this.style.overscrollBehaviorY; }
+        this.style.overscrollBehaviorY = value;
         return this;
     }
 
     // A shorthand property for all the padding-* properties.
     // padding(value) {
-    //     if (value == null) { return this.element.style.padding; }
-    //     this.element.style.padding = value;
+    //     if (value == null) { return this.style.padding; }
+    //     this.style.padding = value;
     //     return this;
     // }
 
@@ -6564,7 +6586,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -6572,8 +6594,8 @@ class Element {
      *	@inherit: false
      } */ 
     padding_block(value) {
-        if (value == null) { return this.element.style.paddingBlock; }
-        this.element.style.paddingBlock = value;
+        if (value == null) { return this.style.paddingBlock; }
+        this.style.paddingBlock = value;
         return this;
     }
 
@@ -6586,7 +6608,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -6594,8 +6616,8 @@ class Element {
      *	@inherit: false
      } */ 
     padding_block_end(value) {
-        if (value == null) { return this.element.style.paddingBlockEnd; }
-        this.element.style.paddingBlockEnd = value;
+        if (value == null) { return this.style.paddingBlockEnd; }
+        this.style.paddingBlockEnd = value;
         return this;
     }
 
@@ -6608,7 +6630,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -6616,8 +6638,8 @@ class Element {
      *	@inherit: false
      } */ 
     padding_block_start(value) {
-        if (value == null) { return this.element.style.paddingBlockStart; }
-        this.element.style.paddingBlockStart = value;
+        if (value == null) { return this.style.paddingBlockStart; }
+        this.style.paddingBlockStart = value;
         return this;
     }
 
@@ -6630,7 +6652,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -6638,8 +6660,8 @@ class Element {
      *	@inherit: false
      } */ 
     padding_bottom(value) {
-        if (value == null) { return this.element.style.paddingBottom; }
-        this.element.style.paddingBottom = this.pad_numeric(value);
+        if (value == null) { return this.style.paddingBottom; }
+        this.style.paddingBottom = this.pad_numeric(value);
         return this;
     }
 
@@ -6652,7 +6674,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -6660,8 +6682,8 @@ class Element {
      *	@inherit: false
      } */ 
     padding_inline(value) {
-        if (value == null) { return this.element.style.paddingInline; }
-        this.element.style.paddingInline = value;
+        if (value == null) { return this.style.paddingInline; }
+        this.style.paddingInline = value;
         return this;
     }
 
@@ -6674,7 +6696,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -6682,8 +6704,8 @@ class Element {
      *	@inherit: false
      } */ 
     padding_inline_end(value) {
-        if (value == null) { return this.element.style.paddingInlineEnd; }
-        this.element.style.paddingInlineEnd = value;
+        if (value == null) { return this.style.paddingInlineEnd; }
+        this.style.paddingInlineEnd = value;
         return this;
     }
 
@@ -6696,7 +6718,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -6704,8 +6726,8 @@ class Element {
      *	@inherit: false
      } */ 
     padding_inline_start(value) {
-        if (value == null) { return this.element.style.paddingInlineStart; }
-        this.element.style.paddingInlineStart = value;
+        if (value == null) { return this.style.paddingInlineStart; }
+        this.style.paddingInlineStart = value;
         return this;
     }
 
@@ -6718,7 +6740,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -6726,8 +6748,8 @@ class Element {
      *	@inherit: false
      } */ 
     padding_left(value) {
-        if (value == null) { return this.element.style.paddingLeft; }
-        this.element.style.paddingLeft = this.pad_numeric(value);
+        if (value == null) { return this.style.paddingLeft; }
+        this.style.paddingLeft = this.pad_numeric(value);
         return this;
     }
 
@@ -6740,7 +6762,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -6748,8 +6770,8 @@ class Element {
      *	@inherit: false
      } */ 
     padding_right(value) {
-        if (value == null) { return this.element.style.paddingRight; }
-        this.element.style.paddingRight = this.pad_numeric(value);
+        if (value == null) { return this.style.paddingRight; }
+        this.style.paddingRight = this.pad_numeric(value);
         return this;
     }
 
@@ -6762,7 +6784,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -6770,8 +6792,8 @@ class Element {
      *	@inherit: false
      } */ 
     padding_top(value) {
-        if (value == null) { return this.element.style.paddingTop; }
-        this.element.style.paddingTop = this.pad_numeric(value);
+        if (value == null) { return this.style.paddingTop; }
+        this.style.paddingTop = this.pad_numeric(value);
         return this;
     }
 
@@ -6784,7 +6806,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -6792,8 +6814,8 @@ class Element {
      *	@inherit: false
      } */ 
     page_break_after(value) {
-        if (value == null) { return this.element.style.pageBreakAfter; }
-        this.element.style.pageBreakAfter = value;
+        if (value == null) { return this.style.pageBreakAfter; }
+        this.style.pageBreakAfter = value;
         return this;
     }
 
@@ -6806,7 +6828,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -6814,8 +6836,8 @@ class Element {
      *	@inherit: false
      } */ 
     page_break_before(value) {
-        if (value == null) { return this.element.style.pageBreakBefore; }
-        this.element.style.pageBreakBefore = value;
+        if (value == null) { return this.style.pageBreakBefore; }
+        this.style.pageBreakBefore = value;
         return this;
     }
 
@@ -6828,7 +6850,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -6836,8 +6858,8 @@ class Element {
      *	@inherit: false
      } */ 
     page_break_inside(value) {
-        if (value == null) { return this.element.style.pageBreakInside; }
-        this.element.style.pageBreakInside = value;
+        if (value == null) { return this.style.pageBreakInside; }
+        this.style.pageBreakInside = value;
         return this;
     }
 
@@ -6850,7 +6872,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -6858,8 +6880,8 @@ class Element {
      *	@inherit: false
      } */ 
     paint_order(value) {
-        if (value == null) { return this.element.style.paintOrder; }
-        this.element.style.paintOrder = value;
+        if (value == null) { return this.style.paintOrder; }
+        this.style.paintOrder = value;
         return this;
     }
 
@@ -6872,7 +6894,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -6880,12 +6902,12 @@ class Element {
      *	@inherit: false
      } */ 
     perspective(value) {
-        if (value == null) { return this.element.style.perspective; }
-        this.element.style.perspective = value;
-        this.element.style.msPerspective = value;
-        this.element.style.webkitPerspective = value;
-        this.element.style.MozPerspective = value;
-        this.element.style.OPerspective = value;
+        if (value == null) { return this.style.perspective; }
+        this.style.perspective = value;
+        this.style.msPerspective = value;
+        this.style.webkitPerspective = value;
+        this.style.MozPerspective = value;
+        this.style.OPerspective = value;
         return this;
     }
 
@@ -6898,7 +6920,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -6906,12 +6928,12 @@ class Element {
      *	@inherit: false
      } */ 
     perspective_origin(value) {
-        if (value == null) { return this.element.style.perspectiveOrigin; }
-        this.element.style.perspectiveOrigin = value;
-        this.element.style.msPerspectiveOrigin = value;
-        this.element.style.webkitPerspectiveOrigin = value;
-        this.element.style.MozPerspectiveOrigin = value;
-        this.element.style.OPerspectiveOrigin = value;
+        if (value == null) { return this.style.perspectiveOrigin; }
+        this.style.perspectiveOrigin = value;
+        this.style.msPerspectiveOrigin = value;
+        this.style.webkitPerspectiveOrigin = value;
+        this.style.MozPerspectiveOrigin = value;
+        this.style.OPerspectiveOrigin = value;
         return this;
     }
 
@@ -6924,7 +6946,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -6932,8 +6954,8 @@ class Element {
      *	@inherit: false
      } */ 
     place_content(value) {
-        if (value == null) { return this.element.style.placeContent; }
-        this.element.style.placeContent = value;
+        if (value == null) { return this.style.placeContent; }
+        this.style.placeContent = value;
         return this;
     }
 
@@ -6946,7 +6968,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -6954,8 +6976,8 @@ class Element {
      *	@inherit: false
      } */ 
     place_items(value) {
-        if (value == null) { return this.element.style.placeItems; }
-        this.element.style.placeItems = value;
+        if (value == null) { return this.style.placeItems; }
+        this.style.placeItems = value;
         return this;
     }
 
@@ -6968,7 +6990,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -6976,8 +6998,8 @@ class Element {
      *	@inherit: false
      } */ 
     place_self(value) {
-        if (value == null) { return this.element.style.placeSelf; }
-        this.element.style.placeSelf = value;
+        if (value == null) { return this.style.placeSelf; }
+        this.style.placeSelf = value;
         return this;
     }
 
@@ -6990,7 +7012,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -6998,15 +7020,15 @@ class Element {
      *	@inherit: false
      } */ 
     pointer_events(value) {
-        if (value == null) { return this.element.style.pointerEvents; }
-        this.element.style.pointerEvents = value;
+        if (value == null) { return this.style.pointerEvents; }
+        this.style.pointerEvents = value;
         return this;
     }
 
     // Specifies the type of positioning method used for an element (static, relative, absolute or fixed).
     // position(value) {
-    //     if (value == null) { return this.element.style.position; }
-    //     this.element.style.position = value;
+    //     if (value == null) { return this.style.position; }
+    //     this.style.position = value;
     //     return this;
     // }
 
@@ -7019,7 +7041,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -7027,8 +7049,8 @@ class Element {
      *	@inherit: false
      } */ 
     quotes(value) {
-        if (value == null) { return this.element.style.quotes; }
-        this.element.style.quotes = value;
+        if (value == null) { return this.style.quotes; }
+        this.style.quotes = value;
         return this;
     }
 
@@ -7041,7 +7063,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -7049,8 +7071,8 @@ class Element {
      *	@inherit: false
      } */ 
     resize(value) {
-        if (value == null) { return this.element.style.resize; }
-        this.element.style.resize = value;
+        if (value == null) { return this.style.resize; }
+        this.style.resize = value;
         return this;
     }
 
@@ -7063,7 +7085,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -7071,8 +7093,8 @@ class Element {
      *	@inherit: false
      } */ 
     right(value) {
-        if (value == null) { return this.element.style.right; }
-        this.element.style.right = this.pad_numeric(value);
+        if (value == null) { return this.style.right; }
+        this.style.right = this.pad_numeric(value);
         return this;
     }
 
@@ -7085,7 +7107,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -7093,8 +7115,8 @@ class Element {
      *	@inherit: false
      } */ 
     rotate(value) {
-        if (value == null) { return this.element.style.rotate; }
-        this.element.style.rotate = value;
+        if (value == null) { return this.style.rotate; }
+        this.style.rotate = value;
         return this;
     }
 
@@ -7107,7 +7129,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -7115,8 +7137,8 @@ class Element {
      *	@inherit: false
      } */ 
     row_gap(value) {
-        if (value == null) { return this.element.style.rowGap; }
-        this.element.style.rowGap = value;
+        if (value == null) { return this.style.rowGap; }
+        this.style.rowGap = value;
         return this;
     }
 
@@ -7129,7 +7151,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -7137,8 +7159,8 @@ class Element {
      *	@inherit: false
      } */ 
     scale(value) {
-        if (value == null) { return this.element.style.scale; }
-        this.element.style.scale = value;
+        if (value == null) { return this.style.scale; }
+        this.style.scale = value;
         return this;
     }
 
@@ -7151,7 +7173,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -7159,8 +7181,8 @@ class Element {
      *	@inherit: false
      } */ 
     scroll_behavior(value) {
-        if (value == null) { return this.element.style.scrollBehavior; }
-        this.element.style.scrollBehavior = value;
+        if (value == null) { return this.style.scrollBehavior; }
+        this.style.scrollBehavior = value;
         return this;
     }
 
@@ -7173,7 +7195,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -7181,8 +7203,8 @@ class Element {
      *	@inherit: false
      } */ 
     scroll_margin(value) {
-        if (value == null) { return this.element.style.scrollMargin; }
-        this.element.style.scrollMargin = value;
+        if (value == null) { return this.style.scrollMargin; }
+        this.style.scrollMargin = value;
         return this;
     }
 
@@ -7195,7 +7217,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -7203,8 +7225,8 @@ class Element {
      *	@inherit: false
      } */ 
     scroll_margin_block(value) {
-        if (value == null) { return this.element.style.scrollMarginBlock; }
-        this.element.style.scrollMarginBlock = value;
+        if (value == null) { return this.style.scrollMarginBlock; }
+        this.style.scrollMarginBlock = value;
         return this;
     }
 
@@ -7217,7 +7239,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -7225,8 +7247,8 @@ class Element {
      *	@inherit: false
      } */ 
     scroll_margin_block_end(value) {
-        if (value == null) { return this.element.style.scrollMarginBlockEnd; }
-        this.element.style.scrollMarginBlockEnd = value;
+        if (value == null) { return this.style.scrollMarginBlockEnd; }
+        this.style.scrollMarginBlockEnd = value;
         return this;
     }
 
@@ -7239,7 +7261,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -7247,8 +7269,8 @@ class Element {
      *	@inherit: false
      } */ 
     scroll_margin_block_start(value) {
-        if (value == null) { return this.element.style.scrollMarginBlockStart; }
-        this.element.style.scrollMarginBlockStart = value;
+        if (value == null) { return this.style.scrollMarginBlockStart; }
+        this.style.scrollMarginBlockStart = value;
         return this;
     }
 
@@ -7261,7 +7283,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -7269,8 +7291,8 @@ class Element {
      *	@inherit: false
      } */ 
     scroll_margin_bottom(value) {
-        if (value == null) { return this.element.style.scrollMarginBottom; }
-        this.element.style.scrollMarginBottom = this.pad_numeric(value);
+        if (value == null) { return this.style.scrollMarginBottom; }
+        this.style.scrollMarginBottom = this.pad_numeric(value);
         return this;
     }
 
@@ -7283,7 +7305,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -7291,8 +7313,8 @@ class Element {
      *	@inherit: false
      } */ 
     scroll_margin_inline(value) {
-        if (value == null) { return this.element.style.scrollMarginInline; }
-        this.element.style.scrollMarginInline = value;
+        if (value == null) { return this.style.scrollMarginInline; }
+        this.style.scrollMarginInline = value;
         return this;
     }
 
@@ -7305,7 +7327,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -7313,8 +7335,8 @@ class Element {
      *	@inherit: false
      } */ 
     scroll_margin_inline_end(value) {
-        if (value == null) { return this.element.style.scrollMarginInlineEnd; }
-        this.element.style.scrollMarginInlineEnd = value;
+        if (value == null) { return this.style.scrollMarginInlineEnd; }
+        this.style.scrollMarginInlineEnd = value;
         return this;
     }
 
@@ -7327,7 +7349,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -7335,8 +7357,8 @@ class Element {
      *	@inherit: false
      } */ 
     scroll_margin_inline_start(value) {
-        if (value == null) { return this.element.style.scrollMarginInlineStart; }
-        this.element.style.scrollMarginInlineStart = value;
+        if (value == null) { return this.style.scrollMarginInlineStart; }
+        this.style.scrollMarginInlineStart = value;
         return this;
     }
 
@@ -7349,7 +7371,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -7357,8 +7379,8 @@ class Element {
      *	@inherit: false
      } */ 
     scroll_margin_left(value) {
-        if (value == null) { return this.element.style.scrollMarginLeft; }
-        this.element.style.scrollMarginLeft = this.pad_numeric(value);
+        if (value == null) { return this.style.scrollMarginLeft; }
+        this.style.scrollMarginLeft = this.pad_numeric(value);
         return this;
     }
 
@@ -7371,7 +7393,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -7379,8 +7401,8 @@ class Element {
      *	@inherit: false
      } */ 
     scroll_margin_right(value) {
-        if (value == null) { return this.element.style.scrollMarginRight; }
-        this.element.style.scrollMarginRight = this.pad_numeric(value);
+        if (value == null) { return this.style.scrollMarginRight; }
+        this.style.scrollMarginRight = this.pad_numeric(value);
         return this;
     }
 
@@ -7393,7 +7415,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -7401,8 +7423,8 @@ class Element {
      *	@inherit: false
      } */ 
     scroll_margin_top(value) {
-        if (value == null) { return this.element.style.scrollMarginTop; }
-        this.element.style.scrollMarginTop = this.pad_numeric(value);
+        if (value == null) { return this.style.scrollMarginTop; }
+        this.style.scrollMarginTop = this.pad_numeric(value);
         return this;
     }
 
@@ -7415,7 +7437,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -7423,8 +7445,8 @@ class Element {
      *	@inherit: false
      } */ 
     scroll_padding(value) {
-        if (value == null) { return this.element.style.scrollPadding; }
-        this.element.style.scrollPadding = value;
+        if (value == null) { return this.style.scrollPadding; }
+        this.style.scrollPadding = value;
         return this;
     }
 
@@ -7437,7 +7459,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -7445,8 +7467,8 @@ class Element {
      *	@inherit: false
      } */ 
     scroll_padding_block(value) {
-        if (value == null) { return this.element.style.scrollPaddingBlock; }
-        this.element.style.scrollPaddingBlock = value;
+        if (value == null) { return this.style.scrollPaddingBlock; }
+        this.style.scrollPaddingBlock = value;
         return this;
     }
 
@@ -7459,7 +7481,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -7467,8 +7489,8 @@ class Element {
      *	@inherit: false
      } */ 
     scroll_padding_block_end(value) {
-        if (value == null) { return this.element.style.scrollPaddingBlockEnd; }
-        this.element.style.scrollPaddingBlockEnd = value;
+        if (value == null) { return this.style.scrollPaddingBlockEnd; }
+        this.style.scrollPaddingBlockEnd = value;
         return this;
     }
 
@@ -7481,7 +7503,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -7489,8 +7511,8 @@ class Element {
      *	@inherit: false
      } */ 
     scroll_padding_block_start(value) {
-        if (value == null) { return this.element.style.scrollPaddingBlockStart; }
-        this.element.style.scrollPaddingBlockStart = value;
+        if (value == null) { return this.style.scrollPaddingBlockStart; }
+        this.style.scrollPaddingBlockStart = value;
         return this;
     }
 
@@ -7503,7 +7525,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -7511,8 +7533,8 @@ class Element {
      *	@inherit: false
      } */ 
     scroll_padding_bottom(value) {
-        if (value == null) { return this.element.style.scrollPaddingBottom; }
-        this.element.style.scrollPaddingBottom = this.pad_numeric(value);
+        if (value == null) { return this.style.scrollPaddingBottom; }
+        this.style.scrollPaddingBottom = this.pad_numeric(value);
         return this;
     }
 
@@ -7525,7 +7547,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -7533,8 +7555,8 @@ class Element {
      *	@inherit: false
      } */ 
     scroll_padding_inline(value) {
-        if (value == null) { return this.element.style.scrollPaddingInline; }
-        this.element.style.scrollPaddingInline = value;
+        if (value == null) { return this.style.scrollPaddingInline; }
+        this.style.scrollPaddingInline = value;
         return this;
     }
 
@@ -7547,7 +7569,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -7555,8 +7577,8 @@ class Element {
      *	@inherit: false
      } */ 
     scroll_padding_inline_end(value) {
-        if (value == null) { return this.element.style.scrollPaddingInlineEnd; }
-        this.element.style.scrollPaddingInlineEnd = value;
+        if (value == null) { return this.style.scrollPaddingInlineEnd; }
+        this.style.scrollPaddingInlineEnd = value;
         return this;
     }
 
@@ -7569,7 +7591,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -7577,8 +7599,8 @@ class Element {
      *	@inherit: false
      } */ 
     scroll_padding_inline_start(value) {
-        if (value == null) { return this.element.style.scrollPaddingInlineStart; }
-        this.element.style.scrollPaddingInlineStart = value;
+        if (value == null) { return this.style.scrollPaddingInlineStart; }
+        this.style.scrollPaddingInlineStart = value;
         return this;
     }
 
@@ -7591,7 +7613,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -7599,8 +7621,8 @@ class Element {
      *	@inherit: false
      } */ 
     scroll_padding_left(value) {
-        if (value == null) { return this.element.style.scrollPaddingLeft; }
-        this.element.style.scrollPaddingLeft = this.pad_numeric(value);
+        if (value == null) { return this.style.scrollPaddingLeft; }
+        this.style.scrollPaddingLeft = this.pad_numeric(value);
         return this;
     }
 
@@ -7613,7 +7635,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -7621,8 +7643,8 @@ class Element {
      *	@inherit: false
      } */ 
     scroll_padding_right(value) {
-        if (value == null) { return this.element.style.scrollPaddingRight; }
-        this.element.style.scrollPaddingRight = this.pad_numeric(value);
+        if (value == null) { return this.style.scrollPaddingRight; }
+        this.style.scrollPaddingRight = this.pad_numeric(value);
         return this;
     }
 
@@ -7635,7 +7657,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -7643,8 +7665,8 @@ class Element {
      *	@inherit: false
      } */ 
     scroll_padding_top(value) {
-        if (value == null) { return this.element.style.scrollPaddingTop; }
-        this.element.style.scrollPaddingTop = this.pad_numeric(value);
+        if (value == null) { return this.style.scrollPaddingTop; }
+        this.style.scrollPaddingTop = this.pad_numeric(value);
         return this;
     }
 
@@ -7657,7 +7679,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -7665,8 +7687,8 @@ class Element {
      *	@inherit: false
      } */ 
     scroll_snap_align(value) {
-        if (value == null) { return this.element.style.scrollSnapAlign; }
-        this.element.style.scrollSnapAlign = value;
+        if (value == null) { return this.style.scrollSnapAlign; }
+        this.style.scrollSnapAlign = value;
         return this;
     }
 
@@ -7679,7 +7701,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -7687,8 +7709,8 @@ class Element {
      *	@inherit: false
      } */ 
     scroll_snap_stop(value) {
-        if (value == null) { return this.element.style.scrollSnapStop; }
-        this.element.style.scrollSnapStop = value;
+        if (value == null) { return this.style.scrollSnapStop; }
+        this.style.scrollSnapStop = value;
         return this;
     }
 
@@ -7701,7 +7723,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -7709,8 +7731,8 @@ class Element {
      *	@inherit: false
      } */ 
     scroll_snap_type(value) {
-        if (value == null) { return this.element.style.scrollSnapType; }
-        this.element.style.scrollSnapType = value;
+        if (value == null) { return this.style.scrollSnapType; }
+        this.style.scrollSnapType = value;
         return this;
     }
 
@@ -7723,7 +7745,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -7731,8 +7753,8 @@ class Element {
      *	@inherit: false
      } */ 
     scrollbar_color(value) {
-        if (value == null) { return this.element.style.scrollbarColor; }
-        this.element.style.scrollbarColor = value;
+        if (value == null) { return this.style.scrollbarColor; }
+        this.style.scrollbarColor = value;
         return this;
     }
 
@@ -7745,7 +7767,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -7753,8 +7775,8 @@ class Element {
      *	@inherit: false
      } */ 
     tab_size(value) {
-        if (value == null) { return this.element.style.tabSize; }
-        this.element.style.tabSize = this.pad_numeric(value);
+        if (value == null) { return this.style.tabSize; }
+        this.style.tabSize = this.pad_numeric(value);
         return this;
     }
 
@@ -7767,7 +7789,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -7775,8 +7797,8 @@ class Element {
      *	@inherit: false
      } */ 
     table_layout(value) {
-        if (value == null) { return this.element.style.tableLayout; }
-        this.element.style.tableLayout = value;
+        if (value == null) { return this.style.tableLayout; }
+        this.style.tableLayout = value;
         return this;
     }
 
@@ -7789,7 +7811,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -7797,8 +7819,8 @@ class Element {
      *	@inherit: false
      } */ 
     text_align(value) {
-        if (value == null) { return this.element.style.textAlign; }
-        this.element.style.textAlign = value;
+        if (value == null) { return this.style.textAlign; }
+        this.style.textAlign = value;
         return this;
     }
 
@@ -7811,7 +7833,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -7819,8 +7841,8 @@ class Element {
      *	@inherit: false
      } */ 
     text_align_last(value) {
-        if (value == null) { return this.element.style.textAlignLast; }
-        this.element.style.textAlignLast = value;
+        if (value == null) { return this.style.textAlignLast; }
+        this.style.textAlignLast = value;
         return this;
     }
 
@@ -7833,7 +7855,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -7841,8 +7863,8 @@ class Element {
      *	@inherit: false
      } */ 
     text_combine_upright(value) {
-        if (value == null) { return this.element.style.textCombineUpright; }
-        this.element.style.textCombineUpright = value;
+        if (value == null) { return this.style.textCombineUpright; }
+        this.style.textCombineUpright = value;
         return this;
     }
 
@@ -7855,7 +7877,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -7863,8 +7885,8 @@ class Element {
      *	@inherit: false
      } */ 
     text_decoration(value) {
-        if (value == null) { return this.element.style.textDecoration; }
-        this.element.style.textDecoration = value;
+        if (value == null) { return this.style.textDecoration; }
+        this.style.textDecoration = value;
         return this;
     }
 
@@ -7877,7 +7899,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -7885,8 +7907,8 @@ class Element {
      *	@inherit: false
      } */ 
     text_decoration_color(value) {
-        if (value == null) { return this.element.style.textDecorationColor; }
-        this.element.style.textDecorationColor = value;
+        if (value == null) { return this.style.textDecorationColor; }
+        this.style.textDecorationColor = value;
         return this;
     }
 
@@ -7899,7 +7921,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -7907,8 +7929,8 @@ class Element {
      *	@inherit: false
      } */ 
     text_decoration_line(value) {
-        if (value == null) { return this.element.style.textDecorationLine; }
-        this.element.style.textDecorationLine = value;
+        if (value == null) { return this.style.textDecorationLine; }
+        this.style.textDecorationLine = value;
         return this;
     }
 
@@ -7921,7 +7943,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -7929,8 +7951,8 @@ class Element {
      *	@inherit: false
      } */ 
     text_decoration_style(value) {
-        if (value == null) { return this.element.style.textDecorationStyle; }
-        this.element.style.textDecorationStyle = value;
+        if (value == null) { return this.style.textDecorationStyle; }
+        this.style.textDecorationStyle = value;
         return this;
     }
 
@@ -7943,7 +7965,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -7951,8 +7973,8 @@ class Element {
      *	@inherit: false
      } */ 
     text_decoration_thickness(value) {
-        if (value == null) { return this.element.style.textDecorationThickness; }
-        this.element.style.textDecorationThickness = value;
+        if (value == null) { return this.style.textDecorationThickness; }
+        this.style.textDecorationThickness = value;
         return this;
     }
 
@@ -7965,7 +7987,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -7973,8 +7995,8 @@ class Element {
      *	@inherit: false
      } */ 
     text_emphasis(value) {
-        if (value == null) { return this.element.style.textEmphasis; }
-        this.element.style.textEmphasis = value;
+        if (value == null) { return this.style.textEmphasis; }
+        this.style.textEmphasis = value;
         return this;
     }
 
@@ -7987,7 +8009,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -7995,8 +8017,8 @@ class Element {
      *	@inherit: false
      } */ 
     text_indent(value) {
-        if (value == null) { return this.element.style.textIndent; }
-        this.element.style.textIndent = value;
+        if (value == null) { return this.style.textIndent; }
+        this.style.textIndent = value;
         return this;
     }
 
@@ -8009,7 +8031,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -8017,8 +8039,8 @@ class Element {
      *	@inherit: false
      } */ 
     text_justify(value) {
-        if (value == null) { return this.element.style.textJustify; }
-        this.element.style.textJustify = value;
+        if (value == null) { return this.style.textJustify; }
+        this.style.textJustify = value;
         return this;
     }
 
@@ -8031,7 +8053,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -8039,8 +8061,8 @@ class Element {
      *	@inherit: false
      } */ 
     text_orientation(value) {
-        if (value == null) { return this.element.style.textOrientation; }
-        this.element.style.textOrientation = value;
+        if (value == null) { return this.style.textOrientation; }
+        this.style.textOrientation = value;
         return this;
     }
 
@@ -8053,7 +8075,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -8061,8 +8083,8 @@ class Element {
      *	@inherit: false
      } */ 
     text_overflow(value) {
-        if (value == null) { return this.element.style.textOverflow; }
-        this.element.style.textOverflow = value;
+        if (value == null) { return this.style.textOverflow; }
+        this.style.textOverflow = value;
         return this;
     }
 
@@ -8075,7 +8097,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -8083,8 +8105,8 @@ class Element {
      *	@inherit: false
      } */ 
     text_shadow(value) {
-        if (value == null) { return this.element.style.textShadow; }
-        this.element.style.textShadow = value;
+        if (value == null) { return this.style.textShadow; }
+        this.style.textShadow = value;
         return this;
     }
 
@@ -8097,7 +8119,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -8105,8 +8127,8 @@ class Element {
      *	@inherit: false
      } */ 
     text_transform(value) {
-        if (value == null) { return this.element.style.textTransform; }
-        this.element.style.textTransform = value;
+        if (value == null) { return this.style.textTransform; }
+        this.style.textTransform = value;
         return this;
     }
 
@@ -8119,7 +8141,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -8127,8 +8149,8 @@ class Element {
      *	@inherit: false
      } */ 
     text_underline_position(value) {
-        if (value == null) { return this.element.style.textUnderlinePosition; }
-        this.element.style.textUnderlinePosition = value;
+        if (value == null) { return this.style.textUnderlinePosition; }
+        this.style.textUnderlinePosition = value;
         return this;
     }
 
@@ -8141,7 +8163,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -8149,8 +8171,8 @@ class Element {
      *	@inherit: false
      } */ 
     top(value) {
-        if (value == null) { return this.element.style.top; }
-        this.element.style.top = this.pad_numeric(value);
+        if (value == null) { return this.style.top; }
+        this.style.top = this.pad_numeric(value);
         return this;
     }
 
@@ -8163,7 +8185,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -8171,12 +8193,12 @@ class Element {
      *	@inherit: false
      } */ 
     transform(value) {
-        if (value == null) { return this.element.style.transform; }
-        this.element.style.transform = value;
-        this.element.style.msTransform = value;
-        this.element.style.webkitTransform = value;
-        this.element.style.MozTransform = value;
-        this.element.style.OTransform = value;
+        if (value == null) { return this.style.transform; }
+        this.style.transform = value;
+        this.style.msTransform = value;
+        this.style.webkitTransform = value;
+        this.style.MozTransform = value;
+        this.style.OTransform = value;
         return this;
     }
 
@@ -8189,7 +8211,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -8197,12 +8219,12 @@ class Element {
      *	@inherit: false
      } */ 
     transform_origin(value) {
-        if (value == null) { return this.element.style.transformOrigin; }
-        this.element.style.transformOrigin = value;
-        this.element.style.msTransformOrigin = value;
-        this.element.style.webkitTransformOrigin = value;
-        this.element.style.MozTransformOrigin = value;
-        this.element.style.OTransformOrigin = value;
+        if (value == null) { return this.style.transformOrigin; }
+        this.style.transformOrigin = value;
+        this.style.msTransformOrigin = value;
+        this.style.webkitTransformOrigin = value;
+        this.style.MozTransformOrigin = value;
+        this.style.OTransformOrigin = value;
         return this;
     }
 
@@ -8215,7 +8237,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -8223,12 +8245,12 @@ class Element {
      *	@inherit: false
      } */ 
     transform_style(value) {
-        if (value == null) { return this.element.style.transformStyle; }
-        this.element.style.transformStyle = value;
-        this.element.style.msTransformStyle = value;
-        this.element.style.webkitTransformStyle = value;
-        this.element.style.MozTransformStyle = value;
-        this.element.style.OTransformStyle = value;
+        if (value == null) { return this.style.transformStyle; }
+        this.style.transformStyle = value;
+        this.style.msTransformStyle = value;
+        this.style.webkitTransformStyle = value;
+        this.style.MozTransformStyle = value;
+        this.style.OTransformStyle = value;
         return this;
     }
 
@@ -8241,7 +8263,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -8249,12 +8271,12 @@ class Element {
      *	@inherit: false
      } */ 
     transition(value) {
-        if (value == null) { return this.element.style.transition; }
-        this.element.style.transition = value;
-        this.element.style.msTransition = value;
-        this.element.style.webkitTransition = value;
-        this.element.style.MozTransition = value;
-        this.element.style.OTransition = value;
+        if (value == null) { return this.style.transition; }
+        this.style.transition = value;
+        this.style.msTransition = value;
+        this.style.webkitTransition = value;
+        this.style.MozTransition = value;
+        this.style.OTransition = value;
         return this;
     }
 
@@ -8267,7 +8289,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -8275,12 +8297,12 @@ class Element {
      *	@inherit: false
      } */ 
     transition_delay(value) {
-        if (value == null) { return this.element.style.transitionDelay; }
-        this.element.style.transitionDelay = value;
-        this.element.style.msTransitionDelay = value;
-        this.element.style.webkitTransitionDelay = value;
-        this.element.style.MozTransitionDelay = value;
-        this.element.style.OTransitionDelay = value;
+        if (value == null) { return this.style.transitionDelay; }
+        this.style.transitionDelay = value;
+        this.style.msTransitionDelay = value;
+        this.style.webkitTransitionDelay = value;
+        this.style.MozTransitionDelay = value;
+        this.style.OTransitionDelay = value;
         return this;
     }
 
@@ -8293,7 +8315,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -8301,12 +8323,12 @@ class Element {
      *	@inherit: false
      } */ 
     transition_duration(value) {
-        if (value == null) { return this.element.style.transitionDuration; }
-        this.element.style.transitionDuration = value;
-        this.element.style.msTransitionDuration = value;
-        this.element.style.webkitTransitionDuration = value;
-        this.element.style.MozTransitionDuration = value;
-        this.element.style.OTransitionDuration = value;
+        if (value == null) { return this.style.transitionDuration; }
+        this.style.transitionDuration = value;
+        this.style.msTransitionDuration = value;
+        this.style.webkitTransitionDuration = value;
+        this.style.MozTransitionDuration = value;
+        this.style.OTransitionDuration = value;
         return this;
     }
 
@@ -8319,7 +8341,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -8327,12 +8349,12 @@ class Element {
      *	@inherit: false
      } */ 
     transition_property(value) {
-        if (value == null) { return this.element.style.transitionProperty; }
-        this.element.style.transitionProperty = value;
-        this.element.style.msTransitionProperty = value;
-        this.element.style.webkitTransitionProperty = value;
-        this.element.style.MozTransitionProperty = value;
-        this.element.style.OTransitionProperty = value;
+        if (value == null) { return this.style.transitionProperty; }
+        this.style.transitionProperty = value;
+        this.style.msTransitionProperty = value;
+        this.style.webkitTransitionProperty = value;
+        this.style.MozTransitionProperty = value;
+        this.style.OTransitionProperty = value;
         return this;
     }
 
@@ -8345,7 +8367,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -8353,12 +8375,12 @@ class Element {
      *	@inherit: false
      } */ 
     transition_timing_function(value) {
-        if (value == null) { return this.element.style.transitionTimingFunction; }
-        this.element.style.transitionTimingFunction = value;
-        this.element.style.msTransitionTimingFunction = value;
-        this.element.style.webkitTransitionTimingFunction = value;
-        this.element.style.MozTransitionTimingFunction = value;
-        this.element.style.OTransitionTimingFunction = value;
+        if (value == null) { return this.style.transitionTimingFunction; }
+        this.style.transitionTimingFunction = value;
+        this.style.msTransitionTimingFunction = value;
+        this.style.webkitTransitionTimingFunction = value;
+        this.style.MozTransitionTimingFunction = value;
+        this.style.OTransitionTimingFunction = value;
         return this;
     }
 
@@ -8371,7 +8393,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -8379,8 +8401,8 @@ class Element {
      *	@inherit: false
      } */ 
     translate(value) {
-        if (value == null) { return this.element.style.translate; }
-        this.element.style.translate = value;
+        if (value == null) { return this.style.translate; }
+        this.style.translate = value;
         return this;
     }
 
@@ -8393,7 +8415,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -8401,8 +8423,8 @@ class Element {
      *	@inherit: false
      } */ 
     unicode_bidi(value) {
-        if (value == null) { return this.element.style.unicodeBidi; }
-        this.element.style.unicodeBidi = value;
+        if (value == null) { return this.style.unicodeBidi; }
+        this.style.unicodeBidi = value;
         return this;
     }
 
@@ -8415,7 +8437,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -8423,19 +8445,19 @@ class Element {
      *	@inherit: false
      } */ 
     user_select(value) {
-        if (value == null) { return this.element.style.userSelect; }
-        this.element.style.userSelect = value;
-        this.element.style.msUserSelect = value;
-        this.element.style.webkitUserSelect = value;
-        this.element.style.MozUserSelect = value;
-        this.element.style.OUserSelect = value;
+        if (value == null) { return this.style.userSelect; }
+        this.style.userSelect = value;
+        this.style.msUserSelect = value;
+        this.style.webkitUserSelect = value;
+        this.style.MozUserSelect = value;
+        this.style.OUserSelect = value;
         return this;
     }
 
     // Sets the vertical alignment of an element.
     // vertical_align(value) {
-    //     if (value == null) { return this.element.style.verticalAlign; }
-    //     this.element.style.verticalAlign = value;
+    //     if (value == null) { return this.style.verticalAlign; }
+    //     this.style.verticalAlign = value;
     //     return this;
     // }
 
@@ -8448,7 +8470,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -8456,8 +8478,8 @@ class Element {
      *	@inherit: false
      } */ 
     visibility(value) {
-        if (value == null) { return this.element.style.visibility; }
-        this.element.style.visibility = value;
+        if (value == null) { return this.style.visibility; }
+        this.style.visibility = value;
         return this;
     }
 
@@ -8470,7 +8492,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -8478,8 +8500,8 @@ class Element {
      *	@inherit: false
      } */ 
     white_space(value) {
-        if (value == null) { return this.element.style.whiteSpace; }
-        this.element.style.whiteSpace = value;
+        if (value == null) { return this.style.whiteSpace; }
+        this.style.whiteSpace = value;
         return this;
     }
 
@@ -8492,7 +8514,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -8500,15 +8522,15 @@ class Element {
      *	@inherit: false
      } */ 
     widows(value) {
-        if (value == null) { return this.element.style.widows; }
-        this.element.style.widows = value;
+        if (value == null) { return this.style.widows; }
+        this.style.widows = value;
         return this;
     }
 
     // Sets the width of an element.
     // width(value) {
-    //     if (value == null) { return this.element.style.width; }
-    //     this.element.style.width = this.pad_numeric(value);
+    //     if (value == null) { return this.style.width; }
+    //     this.style.width = this.pad_numeric(value);
     //     return this;
     // }
 
@@ -8521,7 +8543,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -8529,8 +8551,8 @@ class Element {
      *	@inherit: false
      } */ 
     word_break(value) {
-        if (value == null) { return this.element.style.wordBreak; }
-        this.element.style.wordBreak = value;
+        if (value == null) { return this.style.wordBreak; }
+        this.style.wordBreak = value;
         return this;
     }
 
@@ -8543,7 +8565,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -8551,8 +8573,8 @@ class Element {
      *	@inherit: false
      } */ 
     word_spacing(value) {
-        if (value == null) { return this.element.style.wordSpacing; }
-        this.element.style.wordSpacing = value;
+        if (value == null) { return this.style.wordSpacing; }
+        this.style.wordSpacing = value;
         return this;
     }
 
@@ -8565,7 +8587,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -8573,8 +8595,8 @@ class Element {
      *	@inherit: false
      } */ 
     word_wrap(value) {
-        if (value == null) { return this.element.style.wordWrap; }
-        this.element.style.wordWrap = value;
+        if (value == null) { return this.style.wordWrap; }
+        this.style.wordWrap = value;
         return this;
     }
 
@@ -8587,7 +8609,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -8595,8 +8617,8 @@ class Element {
      *	@inherit: false
      } */ 
     writing_mode(value) {
-        if (value == null) { return this.element.style.writingMode; }
-        this.element.style.writingMode = value;
+        if (value == null) { return this.style.writingMode; }
+        this.style.writingMode = value;
         return this;
     }
 
@@ -8613,7 +8635,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -8621,8 +8643,8 @@ class Element {
      *	@inherit: false
      } */ 
     accept(value) {
-        if (value == null) { return this.element.accept; }
-    	this.element.accept = value;
+        if (value == null) { return this.accept; }
+    	this.accept = value;
     	return this;
     }
 
@@ -8635,7 +8657,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -8643,8 +8665,8 @@ class Element {
      *	@inherit: false
      } */ 
     accept_charset(value) {
-        if (value == null) { return this.element.accept_charset; }
-    	this.element.accept_charset = value;
+        if (value == null) { return this.accept_charset; }
+    	this.accept_charset = value;
     	return this;
     }
 
@@ -8657,7 +8679,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -8665,8 +8687,8 @@ class Element {
      *	@inherit: false
      } */ 
     action(value) {
-        if (value == null) { return this.element.action; }
-    	this.element.action = value;
+        if (value == null) { return this.action; }
+    	this.action = value;
     	return this;
     }
 
@@ -8679,7 +8701,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -8687,8 +8709,8 @@ class Element {
      *	@inherit: false
      } */ 
     alt(value) {
-        if (value == null) { return this.element.alt; }
-    	this.element.alt = value;
+        if (value == null) { return this.alt; }
+    	this.alt = value;
     	return this;
     }
 
@@ -8701,7 +8723,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -8709,8 +8731,8 @@ class Element {
      *	@inherit: false
      } */ 
     async(value) {
-        if (value == null) { return this.element.async; }
-    	this.element.async = value;
+        if (value == null) { return this.async; }
+    	this.async = value;
     	return this;
     }
 
@@ -8723,7 +8745,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -8731,8 +8753,8 @@ class Element {
      *	@inherit: false
      } */ 
     auto_complete(value) {
-        if (value == null) { return this.element.autocomplete; }
-    	this.element.autocomplete = value;
+        if (value == null) { return this.autocomplete; }
+    	this.autocomplete = value;
     	return this;
     }
 
@@ -8745,7 +8767,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -8753,8 +8775,8 @@ class Element {
      *	@inherit: false
      } */ 
     auto_focus(value) {
-        if (value == null) { return this.element.autofocus; }
-    	this.element.autofocus = value;
+        if (value == null) { return this.autofocus; }
+    	this.autofocus = value;
     	return this;
     }
 
@@ -8767,7 +8789,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -8775,8 +8797,8 @@ class Element {
      *	@inherit: false
      } */ 
     auto_play(value) {
-        if (value == null) { return this.element.autoplay; }
-    	this.element.autoplay = value;
+        if (value == null) { return this.autoplay; }
+    	this.autoplay = value;
     	return this;
     }
 
@@ -8789,7 +8811,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -8797,8 +8819,8 @@ class Element {
      *	@inherit: false
      } */ 
     charset(value) {
-        if (value == null) { return this.element.charset; }
-    	this.element.charset = value;
+        if (value == null) { return this.charset; }
+    	this.charset = value;
     	return this;
     }
 
@@ -8811,7 +8833,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -8819,8 +8841,8 @@ class Element {
      *	@inherit: false
      } */ 
     checked(value) {
-        if (value == null) { return this.element.checked; }
-    	this.element.checked = value;
+        if (value == null) { return this.checked; }
+    	this.checked = value;
     	return this;
     }
 
@@ -8833,7 +8855,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -8841,15 +8863,15 @@ class Element {
      *	@inherit: false
      } */ 
     cite(value) {
-        if (value == null) { return this.element.cite; }
-    	this.element.cite = value;
+        if (value == null) { return this.cite; }
+    	this.cite = value;
     	return this;
     }
 
     // Specifies one or more classnames for an element (refers to a class in a style sheet).
     // class(value) {
-    //     if (value == null) { return this.element.class; }
-    // 	this.element.class = value;
+    //     if (value == null) { return this.class; }
+    // 	this.class = value;
     // 	return this;
     // }
 
@@ -8862,7 +8884,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -8870,8 +8892,8 @@ class Element {
      *	@inherit: false
      } */ 
     cols(value) {
-        if (value == null) { return this.element.cols; }
-    	this.element.cols = value;
+        if (value == null) { return this.cols; }
+    	this.cols = value;
     	return this;
     }
 
@@ -8884,7 +8906,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -8892,8 +8914,8 @@ class Element {
      *	@inherit: false
      } */ 
     colspan(value) {
-        if (value == null) { return this.element.colspan; }
-    	this.element.colspan = value;
+        if (value == null) { return this.colspan; }
+    	this.colspan = value;
     	return this;
     }
 
@@ -8906,7 +8928,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -8914,8 +8936,8 @@ class Element {
      *	@inherit: false
      } */ 
     content(value) {
-        if (value == null) { return this.element.content; }
-    	this.element.content = value;
+        if (value == null) { return this.content; }
+    	this.content = value;
     	return this;
     }
 
@@ -8928,7 +8950,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -8936,8 +8958,8 @@ class Element {
      *	@inherit: false
      } */ 
     content_editable(value) {
-        if (value == null) { return this.element.contenteditable; }
-    	this.element.contenteditable = value;
+        if (value == null) { return this.contenteditable; }
+    	this.contenteditable = value;
     	return this;
     }
 
@@ -8950,7 +8972,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -8958,8 +8980,8 @@ class Element {
      *	@inherit: false
      } */ 
     controls(value) {
-        if (value == null) { return this.element.controls; }
-    	this.element.controls = value;
+        if (value == null) { return this.controls; }
+    	this.controls = value;
     	return this;
     }
 
@@ -8972,7 +8994,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -8980,8 +9002,8 @@ class Element {
      *	@inherit: false
      } */ 
     coords(value) {
-        if (value == null) { return this.element.coords; }
-    	this.element.coords = value;
+        if (value == null) { return this.coords; }
+    	this.coords = value;
     	return this;
     }
 
@@ -8994,7 +9016,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -9002,8 +9024,8 @@ class Element {
      *	@inherit: false
      } */ 
     data(value) {
-        if (value == null) { return this.element.data; }
-    	this.element.data = value;
+        if (value == null) { return this.data; }
+    	this.data = value;
     	return this;
     }
 
@@ -9016,7 +9038,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -9024,8 +9046,8 @@ class Element {
      *	@inherit: false
      } */ 
     datetime(value) {
-        if (value == null) { return this.element.datetime; }
-    	this.element.datetime = value;
+        if (value == null) { return this.datetime; }
+    	this.datetime = value;
     	return this;
     }
 
@@ -9038,7 +9060,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -9046,8 +9068,8 @@ class Element {
      *	@inherit: false
      } */ 
     default(value) {
-        if (value == null) { return this.element.default; }
-    	this.element.default = value;
+        if (value == null) { return this.default; }
+    	this.default = value;
     	return this;
     }
 
@@ -9060,7 +9082,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -9068,8 +9090,8 @@ class Element {
      *	@inherit: false
      } */ 
     defer(value) {
-        if (value == null) { return this.element.defer; }
-    	this.element.defer = value;
+        if (value == null) { return this.defer; }
+    	this.defer = value;
     	return this;
     }
 
@@ -9082,7 +9104,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -9090,8 +9112,8 @@ class Element {
      *	@inherit: false
      } */ 
     dir(value) {
-        if (value == null) { return this.element.dir; }
-    	this.element.dir = value;
+        if (value == null) { return this.dir; }
+    	this.dir = value;
     	return this;
     }
 
@@ -9104,7 +9126,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -9112,8 +9134,8 @@ class Element {
      *	@inherit: false
      } */ 
     dirname(value) {
-        if (value == null) { return this.element.dirname; }
-    	this.element.dirname = value;
+        if (value == null) { return this.dirname; }
+    	this.dirname = value;
     	return this;
     }
 
@@ -9126,7 +9148,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -9134,8 +9156,8 @@ class Element {
      *	@inherit: false
      } */ 
     disabled(value) {
-        if (value == null) { return this.element.disabled; }
-    	this.element.disabled = value;
+        if (value == null) { return this.disabled; }
+    	this.disabled = value;
     	return this;
     }
 
@@ -9148,7 +9170,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -9156,8 +9178,8 @@ class Element {
      *	@inherit: false
      } */ 
     download(value) {
-        if (value == null) { return this.element.download; }
-    	this.element.download = value;
+        if (value == null) { return this.download; }
+    	this.download = value;
     	return this;
     }
 
@@ -9170,7 +9192,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -9178,8 +9200,8 @@ class Element {
      *	@inherit: false
      } */ 
     draggable(value) {
-        if (value == null) { return this.element.draggable; }
-    	this.element.draggable = value;
+        if (value == null) { return this.draggable; }
+    	this.draggable = value;
     	return this;
     }
 
@@ -9192,7 +9214,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -9200,8 +9222,8 @@ class Element {
      *	@inherit: false
      } */ 
     enctype(value) {
-        if (value == null) { return this.element.enctype; }
-    	this.element.enctype = value;
+        if (value == null) { return this.enctype; }
+    	this.enctype = value;
     	return this;
     }
 
@@ -9214,7 +9236,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -9222,8 +9244,8 @@ class Element {
      *	@inherit: false
      } */ 
     for(value) {
-        if (value == null) { return this.element.for; }
-    	this.element.for = value;
+        if (value == null) { return this.for; }
+    	this.for = value;
     	return this;
     }
 
@@ -9236,7 +9258,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -9244,8 +9266,8 @@ class Element {
      *	@inherit: false
      } */ 
     form(value) {
-        if (value == null) { return this.element.form; }
-    	this.element.form = value;
+        if (value == null) { return this.form; }
+    	this.form = value;
     	return this;
     }
 
@@ -9258,7 +9280,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -9266,8 +9288,8 @@ class Element {
      *	@inherit: false
      } */ 
     form_action(value) {
-        if (value == null) { return this.element.formaction; }
-    	this.element.formaction = value;
+        if (value == null) { return this.formaction; }
+    	this.formaction = value;
     	return this;
     }
 
@@ -9280,7 +9302,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -9288,22 +9310,22 @@ class Element {
      *	@inherit: false
      } */ 
     headers(value) {
-        if (value == null) { return this.element.headers; }
-    	this.element.headers = value;
+        if (value == null) { return this.headers; }
+    	this.headers = value;
     	return this;
     }
 
     // Specifies the height of the element.
     // height(value) {
-    //     if (value == null) { return this.element.height; }
-    // 	this.element.height = this.pad_numeric(value);
+    //     if (value == null) { return this.height; }
+    // 	this.height = this.pad_numeric(value);
     // 	return this;
     // }
 
     // Specifies that an element is not yet, or is no longer, relevant.
     // hidden(value) {
-    //     if (value == null) { return this.element.hidden; }
-    // 	this.element.hidden = value;
+    //     if (value == null) { return this.hidden; }
+    // 	this.hidden = value;
     // 	return this;
     // }
 
@@ -9316,7 +9338,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -9324,8 +9346,8 @@ class Element {
      *	@inherit: false
      } */ 
     high(value) {
-        if (value == null) { return this.element.high; }
-    	this.element.high = value;
+        if (value == null) { return this.high; }
+    	this.high = value;
     	return this;
     }
 
@@ -9338,7 +9360,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -9346,8 +9368,8 @@ class Element {
      *	@inherit: false
      } */ 
     href(value) {
-        if (value == null) { return this.element.href; }
-    	this.element.href = value;
+        if (value == null) { return this.href; }
+    	this.href = value;
     	return this;
     }
 
@@ -9360,7 +9382,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -9368,8 +9390,8 @@ class Element {
      *	@inherit: false
      } */ 
     href_lang(value) {
-        if (value == null) { return this.element.hreflang; }
-    	this.element.hreflang = value;
+        if (value == null) { return this.hreflang; }
+    	this.hreflang = value;
     	return this;
     }
 
@@ -9382,7 +9404,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -9390,8 +9412,8 @@ class Element {
      *	@inherit: false
      } */ 
     http_equiv(value) {
-        if (value == null) { return this.element.http_equiv; }
-    	this.element.http_equiv = value;
+        if (value == null) { return this.http_equiv; }
+    	this.http_equiv = value;
     	return this;
     }
 
@@ -9404,7 +9426,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -9412,8 +9434,8 @@ class Element {
      *	@inherit: false
      } */ 
     id(value) {
-        if (value == null) { return this.element.id; }
-    	this.element.id = value;
+        if (value == null) { return this.id; }
+    	this.id = value;
     	return this;
     }
 
@@ -9426,7 +9448,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -9434,8 +9456,8 @@ class Element {
      *	@inherit: false
      } */ 
     is_map(value) {
-        if (value == null) { return this.element.ismap; }
-    	this.element.ismap = value;
+        if (value == null) { return this.ismap; }
+    	this.ismap = value;
     	return this;
     }
 
@@ -9448,7 +9470,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -9456,8 +9478,8 @@ class Element {
      *	@inherit: false
      } */ 
     kind(value) {
-        if (value == null) { return this.element.kind; }
-    	this.element.kind = value;
+        if (value == null) { return this.kind; }
+    	this.kind = value;
     	return this;
     }
 
@@ -9470,7 +9492,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -9478,8 +9500,8 @@ class Element {
      *	@inherit: false
      } */ 
     label(value) {
-        if (value == null) { return this.element.label; }
-    	this.element.label = value;
+        if (value == null) { return this.label; }
+    	this.label = value;
     	return this;
     }
 
@@ -9492,7 +9514,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -9500,8 +9522,8 @@ class Element {
      *	@inherit: false
      } */ 
     lang(value) {
-        if (value == null) { return this.element.lang; }
-    	this.element.lang = value;
+        if (value == null) { return this.lang; }
+    	this.lang = value;
     	return this;
     }
 
@@ -9514,7 +9536,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -9522,8 +9544,8 @@ class Element {
      *	@inherit: false
      } */ 
     list(value) {
-        if (value == null) { return this.element.list; }
-    	this.element.list = value;
+        if (value == null) { return this.list; }
+    	this.list = value;
     	return this;
     }
 
@@ -9536,7 +9558,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -9544,8 +9566,8 @@ class Element {
      *	@inherit: false
      } */ 
     loop(value) {
-        if (value == null) { return this.element.loop; }
-    	this.element.loop = value;
+        if (value == null) { return this.loop; }
+    	this.loop = value;
     	return this;
     }
 
@@ -9558,7 +9580,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -9566,8 +9588,8 @@ class Element {
      *	@inherit: false
      } */ 
     low(value) {
-        if (value == null) { return this.element.low; }
-    	this.element.low = value;
+        if (value == null) { return this.low; }
+    	this.low = value;
     	return this;
     }
 
@@ -9580,7 +9602,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -9588,8 +9610,8 @@ class Element {
      *	@inherit: false
      } */ 
     max(value) {
-        if (value == null) { return this.element.max; }
-    	this.element.max = value;
+        if (value == null) { return this.max; }
+    	this.max = value;
     	return this;
     }
 
@@ -9602,7 +9624,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -9610,15 +9632,15 @@ class Element {
      *	@inherit: false
      } */ 
     max_length(value) {
-        if (value == null) { return this.element.maxlength; }
-    	this.element.maxlength = value;
+        if (value == null) { return this.maxlength; }
+    	this.maxlength = value;
     	return this;
     }
 
     // Specifies what media/device the linked document is optimized for.
     // media(value) {
-    //     if (value == null) { return this.element.media; }
-    // 	this.element.media = value;
+    //     if (value == null) { return this.media; }
+    // 	this.media = value;
     // 	return this;
     // }
 
@@ -9631,7 +9653,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -9639,8 +9661,8 @@ class Element {
      *	@inherit: false
      } */ 
     method(value) {
-        if (value == null) { return this.element.method; }
-    	this.element.method = value;
+        if (value == null) { return this.method; }
+    	this.method = value;
     	return this;
     }
 
@@ -9653,7 +9675,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -9661,8 +9683,8 @@ class Element {
      *	@inherit: false
      } */ 
     min(value) {
-        if (value == null) { return this.element.min; }
-    	this.element.min = value;
+        if (value == null) { return this.min; }
+    	this.min = value;
     	return this;
     }
 
@@ -9675,7 +9697,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -9683,8 +9705,8 @@ class Element {
      *	@inherit: false
      } */ 
     multiple(value) {
-        if (value == null) { return this.element.multiple; }
-    	this.element.multiple = value;
+        if (value == null) { return this.multiple; }
+    	this.multiple = value;
     	return this;
     }
 
@@ -9697,7 +9719,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -9705,8 +9727,8 @@ class Element {
      *	@inherit: false
      } */ 
     muted(value) {
-        if (value == null) { return this.element.muted; }
-    	this.element.muted = value;
+        if (value == null) { return this.muted; }
+    	this.muted = value;
     	return this;
     }
 
@@ -9719,7 +9741,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -9727,8 +9749,8 @@ class Element {
      *	@inherit: false
      } */ 
     name(value) {
-        if (value == null) { return this.element.name; }
-    	this.element.name = value;
+        if (value == null) { return this.name; }
+    	this.name = value;
     	return this;
     }
 
@@ -9741,7 +9763,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -9749,8 +9771,8 @@ class Element {
      *	@inherit: false
      } */ 
     no_validate(value) {
-        if (value == null) { return this.element.novalidate; }
-    	this.element.novalidate = value;
+        if (value == null) { return this.novalidate; }
+    	this.novalidate = value;
     	return this;
     }
 
@@ -9763,7 +9785,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -9771,8 +9793,8 @@ class Element {
      *	@inherit: false
      } */ 
     open(value) {
-        if (value == null) { return this.element.open; }
-    	this.element.open = value;
+        if (value == null) { return this.open; }
+    	this.open = value;
     	return this;
     }
 
@@ -9785,7 +9807,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -9793,8 +9815,8 @@ class Element {
      *	@inherit: false
      } */ 
     optimum(value) {
-        if (value == null) { return this.element.optimum; }
-    	this.element.optimum = value;
+        if (value == null) { return this.optimum; }
+    	this.optimum = value;
     	return this;
     }
 
@@ -9807,7 +9829,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -9815,8 +9837,8 @@ class Element {
      *	@inherit: false
      } */ 
     pattern(value) {
-        if (value == null) { return this.element.pattern; }
-    	this.element.pattern = value;
+        if (value == null) { return this.pattern; }
+    	this.pattern = value;
     	return this;
     }
 
@@ -9829,7 +9851,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -9837,8 +9859,8 @@ class Element {
      *	@inherit: false
      } */ 
     placeholder(value) {
-        if (value == null) { return this.element.placeholder; }
-    	this.element.placeholder = value;
+        if (value == null) { return this.placeholder; }
+    	this.placeholder = value;
     	return this;
     }
 
@@ -9851,7 +9873,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -9859,8 +9881,8 @@ class Element {
      *	@inherit: false
      } */ 
     poster(value) {
-        if (value == null) { return this.element.poster; }
-    	this.element.poster = value;
+        if (value == null) { return this.poster; }
+    	this.poster = value;
     	return this;
     }
 
@@ -9873,7 +9895,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -9881,8 +9903,8 @@ class Element {
      *	@inherit: false
      } */ 
     preload(value) {
-        if (value == null) { return this.element.preload; }
-    	this.element.preload = value;
+        if (value == null) { return this.preload; }
+    	this.preload = value;
     	return this;
     }
 
@@ -9895,7 +9917,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -9903,8 +9925,8 @@ class Element {
      *	@inherit: false
      } */ 
     readonly(value) {
-        if (value == null) { return this.element.readonly; }
-    	this.element.readonly = value;
+        if (value == null) { return this.readonly; }
+    	this.readonly = value;
     	return this;
     }
 
@@ -9917,7 +9939,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -9925,8 +9947,8 @@ class Element {
      *	@inherit: false
      } */ 
     rel(value) {
-        if (value == null) { return this.element.rel; }
-    	this.element.rel = value;
+        if (value == null) { return this.rel; }
+    	this.rel = value;
     	return this;
     }
 
@@ -9939,7 +9961,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -9947,8 +9969,8 @@ class Element {
      *	@inherit: false
      } */ 
     required(value) {
-        if (value == null) { return this.element.required; }
-    	this.element.required = value;
+        if (value == null) { return this.required; }
+    	this.required = value;
     	return this;
     }
 
@@ -9961,7 +9983,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -9969,8 +9991,8 @@ class Element {
      *	@inherit: false
      } */ 
     reversed(value) {
-        if (value == null) { return this.element.reversed; }
-    	this.element.reversed = value;
+        if (value == null) { return this.reversed; }
+    	this.reversed = value;
     	return this;
     }
 
@@ -9983,7 +10005,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -9991,8 +10013,8 @@ class Element {
      *	@inherit: false
      } */ 
     rows(value) {
-        if (value == null) { return this.element.rows; }
-    	this.element.rows = value;
+        if (value == null) { return this.rows; }
+    	this.rows = value;
     	return this;
     }
 
@@ -10005,7 +10027,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -10013,8 +10035,8 @@ class Element {
      *	@inherit: false
      } */ 
     row_span(value) {
-        if (value == null) { return this.element.rowspan; }
-    	this.element.rowspan = value;
+        if (value == null) { return this.rowspan; }
+    	this.rowspan = value;
     	return this;
     }
 
@@ -10027,7 +10049,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -10035,8 +10057,8 @@ class Element {
      *	@inherit: false
      } */ 
     sandbox(value) {
-        if (value == null) { return this.element.sandbox; }
-    	this.element.sandbox = value;
+        if (value == null) { return this.sandbox; }
+    	this.sandbox = value;
     	return this;
     }
 
@@ -10049,7 +10071,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -10057,8 +10079,8 @@ class Element {
      *	@inherit: false
      } */ 
     scope(value) {
-        if (value == null) { return this.element.scope; }
-    	this.element.scope = value;
+        if (value == null) { return this.scope; }
+    	this.scope = value;
     	return this;
     }
 
@@ -10071,7 +10093,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -10079,8 +10101,8 @@ class Element {
      *	@inherit: false
      } */ 
     selected(value) {
-        if (value == null) { return this.element.selected; }
-    	this.element.selected = value;
+        if (value == null) { return this.selected; }
+    	this.selected = value;
     	return this;
     }
 
@@ -10093,7 +10115,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -10101,8 +10123,8 @@ class Element {
      *	@inherit: false
      } */ 
     shape(value) {
-        if (value == null) { return this.element.shape; }
-    	this.element.shape = value;
+        if (value == null) { return this.shape; }
+    	this.shape = value;
     	return this;
     }
 
@@ -10115,7 +10137,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -10123,8 +10145,8 @@ class Element {
      *	@inherit: false
      } */ 
     size(value) {
-        if (value == null) { return this.element.size; }
-    	this.element.size = value;
+        if (value == null) { return this.size; }
+    	this.size = value;
     	return this;
     }
 
@@ -10137,7 +10159,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -10145,8 +10167,8 @@ class Element {
      *	@inherit: false
      } */ 
     sizes(value) {
-        if (value == null) { return this.element.sizes; }
-    	this.element.sizes = value;
+        if (value == null) { return this.sizes; }
+    	this.sizes = value;
     	return this;
     }
 
@@ -10159,7 +10181,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -10167,8 +10189,8 @@ class Element {
      *	@inherit: false
      } */ 
     span(value) {
-        if (value == null) { return this.element.span; }
-    	this.element.span = value;
+        if (value == null) { return this.span; }
+    	this.span = value;
     	return this;
     }
 
@@ -10181,7 +10203,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -10189,8 +10211,8 @@ class Element {
      *	@inherit: false
      } */ 
     spell_check(value) {
-        if (value == null) { return this.element.spellcheck; }
-    	this.element.spellcheck = value;
+        if (value == null) { return this.spellcheck; }
+    	this.spellcheck = value;
     	return this;
     }
 
@@ -10203,7 +10225,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -10211,8 +10233,8 @@ class Element {
      *	@inherit: false
      } */ 
     src(value) {
-        if (value == null) { return this.element.src; }
-    	this.element.src = value;
+        if (value == null) { return this.src; }
+    	this.src = value;
     	return this;
     }
 
@@ -10225,7 +10247,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -10233,8 +10255,8 @@ class Element {
      *	@inherit: false
      } */ 
     src_doc(value) {
-        if (value == null) { return this.element.srcdoc; }
-    	this.element.srcdoc = value;
+        if (value == null) { return this.srcdoc; }
+    	this.srcdoc = value;
     	return this;
     }
 
@@ -10247,7 +10269,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -10255,8 +10277,8 @@ class Element {
      *	@inherit: false
      } */ 
     src_lang(value) {
-        if (value == null) { return this.element.srclang; }
-    	this.element.srclang = value;
+        if (value == null) { return this.srclang; }
+    	this.srclang = value;
     	return this;
     }
 
@@ -10269,7 +10291,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -10277,8 +10299,8 @@ class Element {
      *	@inherit: false
      } */ 
     rrsrc_set(value) {
-        if (value == null) { return this.element.srcset; }
-    	this.element.srcset = value;
+        if (value == null) { return this.srcset; }
+    	this.srcset = value;
     	return this;
     }
 
@@ -10291,7 +10313,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -10299,8 +10321,8 @@ class Element {
      *	@inherit: false
      } */ 
     start(value) {
-        if (value == null) { return this.element.start; }
-    	this.element.start = value;
+        if (value == null) { return this.start; }
+    	this.start = value;
     	return this;
     }
 
@@ -10313,7 +10335,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -10321,15 +10343,15 @@ class Element {
      *	@inherit: false
      } */ 
     step(value) {
-        if (value == null) { return this.element.step; }
-    	this.element.step = value;
+        if (value == null) { return this.step; }
+    	this.step = value;
     	return this;
     }
 
     // Specifies an inline CSS style for an element.
     // style(value) {
-    //     if (value == null) { return this.element.style; }
-    // 	this.element.style = value;
+    //     if (value == null) { return this.style; }
+    // 	this.style = value;
     // 	return this;
     // }
 
@@ -10342,7 +10364,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -10350,8 +10372,8 @@ class Element {
      *	@inherit: false
      } */ 
     tab_index(value) {
-        if (value == null) { return this.element.tabindex; }
-    	this.element.tabindex = value;
+        if (value == null) { return this.tabindex; }
+    	this.tabindex = value;
     	return this;
     }
 
@@ -10364,7 +10386,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -10372,8 +10394,8 @@ class Element {
      *	@inherit: false
      } */ 
     target(value) {
-        if (value == null) { return this.element.target; }
-    	this.element.target = value;
+        if (value == null) { return this.target; }
+    	this.target = value;
     	return this;
     }
 
@@ -10386,7 +10408,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -10394,8 +10416,8 @@ class Element {
      *	@inherit: false
      } */ 
     title(value) {
-        if (value == null) { return this.element.title; }
-    	this.element.title = value;
+        if (value == null) { return this.title; }
+    	this.title = value;
     	return this;
     }
 
@@ -10408,7 +10430,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -10416,8 +10438,8 @@ class Element {
      *	@inherit: false
      } */ 
     translate(value) {
-        if (value == null) { return this.element.translate; }
-    	this.element.translate = value;
+        if (value == null) { return this.translate; }
+    	this.translate = value;
     	return this;
     }
 
@@ -10430,7 +10452,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -10438,8 +10460,8 @@ class Element {
      *	@inherit: false
      } */ 
     type(value) {
-        if (value == null) { return this.element.type; }
-    	this.element.type = value;
+        if (value == null) { return this.type; }
+    	this.type = value;
     	return this;
     }
 
@@ -10452,7 +10474,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -10460,8 +10482,8 @@ class Element {
      *	@inherit: false
      } */ 
     use_map(value) {
-        if (value == null) { return this.element.usemap; }
-    	this.element.usemap = value;
+        if (value == null) { return this.usemap; }
+    	this.usemap = value;
     	return this;
     }
 
@@ -10474,7 +10496,7 @@ class Element {
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -10482,22 +10504,22 @@ class Element {
      *	@inherit: false
      } */ 
     value(value) {
-        if (value == null) { return this.element.value; }
-    	this.element.value = value;
+        if (value == null) { return this.value; }
+    	this.value = value;
     	return this;
     }
 
     // Specifies the width of the element.
     // width(value) {
-    //     if (value == null) { return this.element.width; }
-    // 	this.element.width = this.pad_numeric(value);
+    //     if (value == null) { return this.width; }
+    // 	this.width = this.pad_numeric(value);
     // 	return this;
     // }
 
     // Specifies how the text in a text area is to be wrapped when submitted in a form.
     // wrap(value) {
-    //     if (value == null) { return this.element.wrap; }
-    // 	this.element.wrap = value;
+    //     if (value == null) { return this.wrap; }
+    // 	this.wrap = value;
     // 	return this;
     // }
 
@@ -10508,11 +10530,11 @@ class Element {
      *		Script to be run after the document is printed.
      *		The equivalent of HTML attribute `onafterprint`.
      *		
-     *		The first parameter of the callback is the `Element` object.
+     *		The first parameter of the callback is the `VElement` object.
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -10520,9 +10542,9 @@ class Element {
      *	@inherit: false
      } */ 
     on_after_print(callback) {
-        if (callback == null) { return this.element.onafterprint; }
+        if (callback == null) { return this.onafterprint; }
     	const e = this;
-    	this.element.onafterprint = () => callback(e);
+    	this.onafterprint = () => callback(e);
     	return this;
     }
 
@@ -10533,11 +10555,11 @@ class Element {
      *		Script to be run before the document is printed.
      *		The equivalent of HTML attribute `onbeforeprint`.
      *		
-     *		The first parameter of the callback is the `Element` object.
+     *		The first parameter of the callback is the `VElement` object.
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -10545,9 +10567,9 @@ class Element {
      *	@inherit: false
      } */ 
     on_before_print(callback) {
-        if (callback == null) { return this.element.onbeforeprint; }
+        if (callback == null) { return this.onbeforeprint; }
     	const e = this;
-    	this.element.onbeforeprint = () => callback(e);
+    	this.onbeforeprint = () => callback(e);
     	return this;
     }
 
@@ -10558,11 +10580,11 @@ class Element {
      *		Script to be run when the document is about to be unloaded.
      *		The equivalent of HTML attribute `onbeforeunload`.
      *		
-     *		The first parameter of the callback is the `Element` object.
+     *		The first parameter of the callback is the `VElement` object.
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -10570,9 +10592,9 @@ class Element {
      *	@inherit: false
      } */ 
     on_before_unload(callback) {
-        if (callback == null) { return this.element.onbeforeunload; }
+        if (callback == null) { return this.onbeforeunload; }
     	const e = this;
-    	this.element.onbeforeunload = () => callback(e);
+    	this.onbeforeunload = () => callback(e);
     	return this;
     }
 
@@ -10583,11 +10605,11 @@ class Element {
      *		Script to be run when an error occurs.
      *		The equivalent of HTML attribute `onerror`.
      *		
-     *		The first parameter of the callback is the `Element` object.
+     *		The first parameter of the callback is the `VElement` object.
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -10595,9 +10617,9 @@ class Element {
      *	@inherit: false
      } */ 
     on_error(callback) {
-        if (callback == null) { return this.element.onerror; }
+        if (callback == null) { return this.onerror; }
     	const e = this;
-    	this.element.onerror = () => callback(e);
+    	this.onerror = () => callback(e);
     	return this;
     }
 
@@ -10608,11 +10630,11 @@ class Element {
      *		Script to be run when there has been changes to the anchor part of the a URL.
      *		The equivalent of HTML attribute `onhashchange`.
      *		
-     *		The first parameter of the callback is the `Element` object.
+     *		The first parameter of the callback is the `VElement` object.
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -10620,9 +10642,9 @@ class Element {
      *	@inherit: false
      } */ 
     on_hash_change(callback) {
-        if (callback == null) { return this.element.onhashchange; }
+        if (callback == null) { return this.onhashchange; }
     	const e = this;
-    	this.element.onhashchange = () => callback(e);
+    	this.onhashchange = () => callback(e);
     	return this;
     }
 
@@ -10633,11 +10655,11 @@ class Element {
      *		Fires after the page is finished loading.
      *		The equivalent of HTML attribute `onload`.
      *		
-     *		The first parameter of the callback is the `Element` object.
+     *		The first parameter of the callback is the `VElement` object.
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -10645,9 +10667,9 @@ class Element {
      *	@inherit: false
      } */ 
     on_load(callback) {
-        if (callback == null) { return this.element.onload; }
+        if (callback == null) { return this.onload; }
     	const e = this;
-    	this.element.onload = () => callback(e);
+    	this.onload = () => callback(e);
     	return this;
     }
 
@@ -10658,11 +10680,11 @@ class Element {
      *		Script to be run when the message is triggered.
      *		The equivalent of HTML attribute `onmessage`.
      *		
-     *		The first parameter of the callback is the `Element` object.
+     *		The first parameter of the callback is the `VElement` object.
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -10670,9 +10692,9 @@ class Element {
      *	@inherit: false
      } */ 
     on_message(callback) {
-        if (callback == null) { return this.element.onmessage; }
+        if (callback == null) { return this.onmessage; }
     	const e = this;
-    	this.element.onmessage = () => callback(e);
+    	this.onmessage = () => callback(e);
     	return this;
     }
 
@@ -10683,11 +10705,11 @@ class Element {
      *		Script to be run when the browser starts to work offline.
      *		The equivalent of HTML attribute `onoffline`.
      *		
-     *		The first parameter of the callback is the `Element` object.
+     *		The first parameter of the callback is the `VElement` object.
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -10695,9 +10717,9 @@ class Element {
      *	@inherit: false
      } */ 
     on_offline(callback) {
-        if (callback == null) { return this.element.onoffline; }
+        if (callback == null) { return this.onoffline; }
     	const e = this;
-    	this.element.onoffline = () => callback(e);
+    	this.onoffline = () => callback(e);
     	return this;
     }
 
@@ -10708,11 +10730,11 @@ class Element {
      *		Script to be run when the browser starts to work online.
      *		The equivalent of HTML attribute `ononline`.
      *		
-     *		The first parameter of the callback is the `Element` object.
+     *		The first parameter of the callback is the `VElement` object.
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -10720,9 +10742,9 @@ class Element {
      *	@inherit: false
      } */ 
     on_online(callback) {
-        if (callback == null) { return this.element.ononline; }
+        if (callback == null) { return this.ononline; }
     	const e = this;
-    	this.element.ononline = () => callback(e);
+    	this.ononline = () => callback(e);
     	return this;
     }
 
@@ -10733,11 +10755,11 @@ class Element {
      *		Script to be run when a user navigates away from a page.
      *		The equivalent of HTML attribute `onpagehide`.
      *		
-     *		The first parameter of the callback is the `Element` object.
+     *		The first parameter of the callback is the `VElement` object.
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -10745,9 +10767,9 @@ class Element {
      *	@inherit: false
      } */ 
     on_page_hide(callback) {
-        if (callback == null) { return this.element.onpagehide; }
+        if (callback == null) { return this.onpagehide; }
     	const e = this;
-    	this.element.onpagehide = () => callback(e);
+    	this.onpagehide = () => callback(e);
     	return this;
     }
 
@@ -10758,11 +10780,11 @@ class Element {
      *		Script to be run when a user navigates to a page.
      *		The equivalent of HTML attribute `onpageshow`.
      *		
-     *		The first parameter of the callback is the `Element` object.
+     *		The first parameter of the callback is the `VElement` object.
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -10770,9 +10792,9 @@ class Element {
      *	@inherit: false
      } */ 
     on_page_show(callback) {
-        if (callback == null) { return this.element.onpageshow; }
+        if (callback == null) { return this.onpageshow; }
     	const e = this;
-    	this.element.onpageshow = () => callback(e);
+    	this.onpageshow = () => callback(e);
     	return this;
     }
 
@@ -10783,11 +10805,11 @@ class Element {
      *		Script to be run when the window's history changes.
      *		The equivalent of HTML attribute `onpopstate`.
      *		
-     *		The first parameter of the callback is the `Element` object.
+     *		The first parameter of the callback is the `VElement` object.
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -10795,9 +10817,9 @@ class Element {
      *	@inherit: false
      } */ 
     on_popstate(callback) {
-        if (callback == null) { return this.element.onpopstate; }
+        if (callback == null) { return this.onpopstate; }
     	const e = this;
-    	this.element.onpopstate = () => callback(e);
+    	this.onpopstate = () => callback(e);
     	return this;
     }
 
@@ -10808,11 +10830,11 @@ class Element {
      *		Fires when the browser window is resized.
      *		The equivalent of HTML attribute `onresize`.
      *		
-     *		The first parameter of the callback is the `Element` object.
+     *		The first parameter of the callback is the `VElement` object.
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -10820,9 +10842,9 @@ class Element {
      *	@inherit: false
      } */ 
     on_resize(callback) {
-        if (callback == null) { return this.element.onresize; }
+        if (callback == null) { return this.onresize; }
     	const e = this;
-    	this.element.onresize = () => callback(e);
+    	this.onresize = () => callback(e);
     	return this;
     }
 
@@ -10833,11 +10855,11 @@ class Element {
      *		Script to be run when a Web Storage area is updated.
      *		The equivalent of HTML attribute `onstorage`.
      *		
-     *		The first parameter of the callback is the `Element` object.
+     *		The first parameter of the callback is the `VElement` object.
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -10845,9 +10867,9 @@ class Element {
      *	@inherit: false
      } */ 
     on_storage(callback) {
-        if (callback == null) { return this.element.onstorage; }
+        if (callback == null) { return this.onstorage; }
     	const e = this;
-    	this.element.onstorage = () => callback(e);
+    	this.onstorage = () => callback(e);
     	return this;
     }
 
@@ -10858,11 +10880,11 @@ class Element {
      *		Fires once a page has unloaded (or the browser window has been closed).
      *		The equivalent of HTML attribute `onunload`.
      *		
-     *		The first parameter of the callback is the `Element` object.
+     *		The first parameter of the callback is the `VElement` object.
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -10870,9 +10892,9 @@ class Element {
      *	@inherit: false
      } */ 
     on_unload(callback) {
-        if (callback == null) { return this.element.onunload; }
+        if (callback == null) { return this.onunload; }
     	const e = this;
-    	this.element.onunload = () => callback(e);
+    	this.onunload = () => callback(e);
     	return this;
     }
 
@@ -10883,11 +10905,11 @@ class Element {
      *		Fires the moment that the element loses focus.
      *		The equivalent of HTML attribute `onblur`.
      *		
-     *		The first parameter of the callback is the `Element` object.
+     *		The first parameter of the callback is the `VElement` object.
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -10895,9 +10917,9 @@ class Element {
      *	@inherit: false
      } */ 
     on_blur(callback) {
-        if (callback == null) { return this.element.onblur; }
+        if (callback == null) { return this.onblur; }
     	const e = this;
-    	this.element.onblur = () => callback(e);
+    	this.onblur = () => callback(e);
     	return this;
     }
 
@@ -10908,11 +10930,11 @@ class Element {
      *		Fires the moment when the value of the element is changed.
      *		The equivalent of HTML attribute `onchange`.
      *		
-     *		The first parameter of the callback is the `Element` object.
+     *		The first parameter of the callback is the `VElement` object.
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -10920,9 +10942,9 @@ class Element {
      *	@inherit: false
      } */ 
     on_change(callback) {
-        if (callback == null) { return this.element.onchange; }
+        if (callback == null) { return this.onchange; }
     	const e = this;
-    	this.element.onchange = () => callback(e);
+    	this.onchange = () => callback(e);
     	return this;
     }
 
@@ -10933,11 +10955,11 @@ class Element {
      *		Script to be run when a context menu is triggered.
      *		The equivalent of HTML attribute `oncontextmenu`.
      *		
-     *		The first parameter of the callback is the `Element` object.
+     *		The first parameter of the callback is the `VElement` object.
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -10945,9 +10967,9 @@ class Element {
      *	@inherit: false
      } */ 
     on_context_menu(callback) {
-        if (callback == null) { return this.element.oncontextmenu; }
+        if (callback == null) { return this.oncontextmenu; }
     	const e = this;
-    	this.element.oncontextmenu = () => callback(e);
+    	this.oncontextmenu = () => callback(e);
     	return this;
     }
 
@@ -10958,11 +10980,11 @@ class Element {
      *		Fires the moment when the element gets focus.
      *		The equivalent of HTML attribute `onfocus`.
      *		
-     *		The first parameter of the callback is the `Element` object.
+     *		The first parameter of the callback is the `VElement` object.
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -10970,9 +10992,9 @@ class Element {
      *	@inherit: false
      } */ 
     on_focus(callback) {
-        if (callback == null) { return this.element.onfocus; }
+        if (callback == null) { return this.onfocus; }
     	const e = this;
-    	this.element.onfocus = () => callback(e);
+    	this.onfocus = () => callback(e);
     	return this;
     }
 
@@ -10983,11 +11005,11 @@ class Element {
      *		Script to be run when an element gets user input.
      *		The equivalent of HTML attribute `oninput`.
      *		
-     *		The first parameter of the callback is the `Element` object.
+     *		The first parameter of the callback is the `VElement` object.
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -10995,9 +11017,9 @@ class Element {
      *	@inherit: false
      } */ 
     on_input(callback) {
-        if (callback == null) { return this.element.oninput; }
+        if (callback == null) { return this.oninput; }
     	const e = this;
-    	this.element.oninput = () => callback(e);
+    	this.oninput = () => callback(e);
     	return this;
     }
 
@@ -11008,11 +11030,11 @@ class Element {
      *		Script to be run when an element is invalid.
      *		The equivalent of HTML attribute `oninvalid`.
      *		
-     *		The first parameter of the callback is the `Element` object.
+     *		The first parameter of the callback is the `VElement` object.
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -11020,9 +11042,9 @@ class Element {
      *	@inherit: false
      } */ 
     on_invalid(callback) {
-        if (callback == null) { return this.element.oninvalid; }
+        if (callback == null) { return this.oninvalid; }
     	const e = this;
-    	this.element.oninvalid = () => callback(e);
+    	this.oninvalid = () => callback(e);
     	return this;
     }
 
@@ -11033,11 +11055,11 @@ class Element {
      *		Fires when the Reset button in a form is clicked.
      *		The equivalent of HTML attribute `onreset`.
      *		
-     *		The first parameter of the callback is the `Element` object.
+     *		The first parameter of the callback is the `VElement` object.
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -11045,9 +11067,9 @@ class Element {
      *	@inherit: false
      } */ 
     on_reset(callback) {
-        if (callback == null) { return this.element.onreset; }
+        if (callback == null) { return this.onreset; }
     	const e = this;
-    	this.element.onreset = () => callback(e);
+    	this.onreset = () => callback(e);
     	return this;
     }
 
@@ -11058,11 +11080,11 @@ class Element {
      *		Fires when the user writes something in a search field (for <input="search">).
      *		The equivalent of HTML attribute `onsearch`.
      *		
-     *		The first parameter of the callback is the `Element` object.
+     *		The first parameter of the callback is the `VElement` object.
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -11070,9 +11092,9 @@ class Element {
      *	@inherit: false
      } */ 
     on_search(callback) {
-        if (callback == null) { return this.element.onsearch; }
+        if (callback == null) { return this.onsearch; }
     	const e = this;
-    	this.element.onsearch = () => callback(e);
+    	this.onsearch = () => callback(e);
     	return this;
     }
 
@@ -11083,11 +11105,11 @@ class Element {
      *		Fires after some text has been selected in an element.
      *		The equivalent of HTML attribute `onselect`.
      *		
-     *		The first parameter of the callback is the `Element` object.
+     *		The first parameter of the callback is the `VElement` object.
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -11095,9 +11117,9 @@ class Element {
      *	@inherit: false
      } */ 
     on_select(callback) {
-        if (callback == null) { return this.element.onselect; }
+        if (callback == null) { return this.onselect; }
     	const e = this;
-    	this.element.onselect = () => callback(e);
+    	this.onselect = () => callback(e);
     	return this;
     }
 
@@ -11108,11 +11130,11 @@ class Element {
      *		Fires when a form is submitted.
      *		The equivalent of HTML attribute `onsubmit`.
      *		
-     *		The first parameter of the callback is the `Element` object.
+     *		The first parameter of the callback is the `VElement` object.
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -11120,9 +11142,9 @@ class Element {
      *	@inherit: false
      } */ 
     on_submit(callback) {
-        if (callback == null) { return this.element.onsubmit; }
+        if (callback == null) { return this.onsubmit; }
     	const e = this;
-    	this.element.onsubmit = () => callback(e);
+    	this.onsubmit = () => callback(e);
     	return this;
     }
 
@@ -11133,11 +11155,11 @@ class Element {
      *		Fires when a user is pressing a key.
      *		The equivalent of HTML attribute `onkeydown`.
      *		
-     *		The first parameter of the callback is the `Element` object.
+     *		The first parameter of the callback is the `VElement` object.
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -11145,9 +11167,9 @@ class Element {
      *	@inherit: false
      } */ 
     on_key_down(callback) {
-        if (callback == null) { return this.element.onkeydown; }
+        if (callback == null) { return this.onkeydown; }
     	const e = this;
-    	this.element.onkeydown = () => callback(e);
+    	this.onkeydown = () => callback(e);
     	return this;
     }
 
@@ -11158,11 +11180,11 @@ class Element {
      *		Fires when a user presses a key.
      *		The equivalent of HTML attribute `onkeypress`.
      *		
-     *		The first parameter of the callback is the `Element` object.
+     *		The first parameter of the callback is the `VElement` object.
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -11170,9 +11192,9 @@ class Element {
      *	@inherit: false
      } */ 
     on_key_press(callback) {
-        if (callback == null) { return this.element.onkeypress; }
+        if (callback == null) { return this.onkeypress; }
     	const e = this;
-    	this.element.onkeypress = () => callback(e);
+    	this.onkeypress = () => callback(e);
     	return this;
     }
 
@@ -11183,11 +11205,11 @@ class Element {
      *		Fires when a user releases a key.
      *		The equivalent of HTML attribute `onkeyup`.
      *		
-     *		The first parameter of the callback is the `Element` object.
+     *		The first parameter of the callback is the `VElement` object.
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -11195,17 +11217,17 @@ class Element {
      *	@inherit: false
      } */ 
     on_key_up(callback) {
-        if (callback == null) { return this.element.onkeyup; }
+        if (callback == null) { return this.onkeyup; }
     	const e = this;
-    	this.element.onkeyup = () => callback(e);
+    	this.onkeyup = () => callback(e);
     	return this;
     }
 
     // Fires on a mouse click on the element.
     // on_click(callback) {
-    //     if (callback == null) { return this.element.onclick; }
+    //     if (callback == null) { return this.onclick; }
     // 	const e = this;
-    // 	this.element.onclick = () => callback(e);
+    // 	this.onclick = () => callback(e);
     // 	return this;
     // }
 
@@ -11216,11 +11238,11 @@ class Element {
      *		Fires on a mouse double-click on the element.
      *		The equivalent of HTML attribute `ondblclick`.
      *		
-     *		The first parameter of the callback is the `Element` object.
+     *		The first parameter of the callback is the `VElement` object.
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -11228,9 +11250,9 @@ class Element {
      *	@inherit: false
      } */ 
     on_dbl_click(callback) {
-        if (callback == null) { return this.element.ondblclick; }
+        if (callback == null) { return this.ondblclick; }
     	const e = this;
-    	this.element.ondblclick = () => callback(e);
+    	this.ondblclick = () => callback(e);
     	return this;
     }
 
@@ -11241,11 +11263,11 @@ class Element {
      *		Fires when a mouse button is pressed down on an element.
      *		The equivalent of HTML attribute `onmousedown`.
      *		
-     *		The first parameter of the callback is the `Element` object.
+     *		The first parameter of the callback is the `VElement` object.
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -11253,9 +11275,9 @@ class Element {
      *	@inherit: false
      } */ 
     on_mouse_down(callback) {
-        if (callback == null) { return this.element.onmousedown; }
+        if (callback == null) { return this.onmousedown; }
     	const e = this;
-    	this.element.onmousedown = () => callback(e);
+    	this.onmousedown = () => callback(e);
     	return this;
     }
 
@@ -11266,11 +11288,11 @@ class Element {
      *		Fires when the mouse pointer is moving while it is over an element.
      *		The equivalent of HTML attribute `onmousemove`.
      *		
-     *		The first parameter of the callback is the `Element` object.
+     *		The first parameter of the callback is the `VElement` object.
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -11278,9 +11300,9 @@ class Element {
      *	@inherit: false
      } */ 
     on_mouse_move(callback) {
-        if (callback == null) { return this.element.onmousemove; }
+        if (callback == null) { return this.onmousemove; }
     	const e = this;
-    	this.element.onmousemove = () => callback(e);
+    	this.onmousemove = () => callback(e);
     	return this;
     }
 
@@ -11291,11 +11313,11 @@ class Element {
      *		Fires when the mouse pointer moves out of an element.
      *		The equivalent of HTML attribute `onmouseout`.
      *		
-     *		The first parameter of the callback is the `Element` object.
+     *		The first parameter of the callback is the `VElement` object.
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -11303,9 +11325,9 @@ class Element {
      *	@inherit: false
      } */ 
     on_mouse_out(callback) {
-        if (callback == null) { return this.element.onmouseout; }
+        if (callback == null) { return this.onmouseout; }
     	const e = this;
-    	this.element.onmouseout = () => callback(e);
+    	this.onmouseout = () => callback(e);
     	return this;
     }
 
@@ -11316,11 +11338,11 @@ class Element {
      *		Fires when the mouse pointer moves over an element.
      *		The equivalent of HTML attribute `onmouseover`.
      *		
-     *		The first parameter of the callback is the `Element` object.
+     *		The first parameter of the callback is the `VElement` object.
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -11328,9 +11350,9 @@ class Element {
      *	@inherit: false
      } */ 
     on_mouse_over(callback) {
-        if (callback == null) { return this.element.onmouseover; }
+        if (callback == null) { return this.onmouseover; }
     	const e = this;
-    	this.element.onmouseover = () => callback(e);
+    	this.onmouseover = () => callback(e);
     	return this;
     }
 
@@ -11341,11 +11363,11 @@ class Element {
      *		Fires when a mouse button is released over an element.
      *		The equivalent of HTML attribute `onmouseup`.
      *		
-     *		The first parameter of the callback is the `Element` object.
+     *		The first parameter of the callback is the `VElement` object.
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -11353,9 +11375,9 @@ class Element {
      *	@inherit: false
      } */ 
     on_mouse_up(callback) {
-        if (callback == null) { return this.element.onmouseup; }
+        if (callback == null) { return this.onmouseup; }
     	const e = this;
-    	this.element.onmouseup = () => callback(e);
+    	this.onmouseup = () => callback(e);
     	return this;
     }
 
@@ -11366,11 +11388,11 @@ class Element {
      *		Deprecated. Use the onwheel attribute instead.
      *		The equivalent of HTML attribute `onmousewheel`.
      *		
-     *		The first parameter of the callback is the `Element` object.
+     *		The first parameter of the callback is the `VElement` object.
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -11378,9 +11400,9 @@ class Element {
      *	@inherit: false
      } */ 
     on_mouse_wheel(callback) {
-        if (callback == null) { return this.element.onmousewheel; }
+        if (callback == null) { return this.onmousewheel; }
     	const e = this;
-    	this.element.onmousewheel = () => callback(e);
+    	this.onmousewheel = () => callback(e);
     	return this;
     }
 
@@ -11391,11 +11413,11 @@ class Element {
      *		Fires when the mouse wheel rolls up or down over an element.
      *		The equivalent of HTML attribute `onwheel`.
      *		
-     *		The first parameter of the callback is the `Element` object.
+     *		The first parameter of the callback is the `VElement` object.
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -11403,9 +11425,9 @@ class Element {
      *	@inherit: false
      } */ 
     on_wheel(callback) {
-        if (callback == null) { return this.element.onwheel; }
+        if (callback == null) { return this.onwheel; }
     	const e = this;
-    	this.element.onwheel = () => callback(e);
+    	this.onwheel = () => callback(e);
     	return this;
     }
 
@@ -11416,11 +11438,11 @@ class Element {
      *		Script to be run when an element is dragged.
      *		The equivalent of HTML attribute `ondrag`.
      *		
-     *		The first parameter of the callback is the `Element` object.
+     *		The first parameter of the callback is the `VElement` object.
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -11428,9 +11450,9 @@ class Element {
      *	@inherit: false
      } */ 
     on_drag(callback) {
-        if (callback == null) { return this.element.ondrag; }
+        if (callback == null) { return this.ondrag; }
     	const e = this;
-    	this.element.ondrag = () => callback(e);
+    	this.ondrag = () => callback(e);
     	return this;
     }
 
@@ -11441,11 +11463,11 @@ class Element {
      *		Script to be run at the end of a drag operation.
      *		The equivalent of HTML attribute `ondragend`.
      *		
-     *		The first parameter of the callback is the `Element` object.
+     *		The first parameter of the callback is the `VElement` object.
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -11453,9 +11475,9 @@ class Element {
      *	@inherit: false
      } */ 
     on_drag_end(callback) {
-        if (callback == null) { return this.element.ondragend; }
+        if (callback == null) { return this.ondragend; }
     	const e = this;
-    	this.element.ondragend = () => callback(e);
+    	this.ondragend = () => callback(e);
     	return this;
     }
 
@@ -11466,11 +11488,11 @@ class Element {
      *		Script to be run when an element has been dragged to a valid drop target.
      *		The equivalent of HTML attribute `ondragenter`.
      *		
-     *		The first parameter of the callback is the `Element` object.
+     *		The first parameter of the callback is the `VElement` object.
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -11478,9 +11500,9 @@ class Element {
      *	@inherit: false
      } */ 
     on_drag_enter(callback) {
-        if (callback == null) { return this.element.ondragenter; }
+        if (callback == null) { return this.ondragenter; }
     	const e = this;
-    	this.element.ondragenter = () => callback(e);
+    	this.ondragenter = () => callback(e);
     	return this;
     }
 
@@ -11491,11 +11513,11 @@ class Element {
      *		Script to be run when an element leaves a valid drop target.
      *		The equivalent of HTML attribute `ondragleave`.
      *		
-     *		The first parameter of the callback is the `Element` object.
+     *		The first parameter of the callback is the `VElement` object.
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -11503,9 +11525,9 @@ class Element {
      *	@inherit: false
      } */ 
     on_drag_leave(callback) {
-        if (callback == null) { return this.element.ondragleave; }
+        if (callback == null) { return this.ondragleave; }
     	const e = this;
-    	this.element.ondragleave = () => callback(e);
+    	this.ondragleave = () => callback(e);
     	return this;
     }
 
@@ -11516,11 +11538,11 @@ class Element {
      *		Script to be run when an element is being dragged over a valid drop target.
      *		The equivalent of HTML attribute `ondragover`.
      *		
-     *		The first parameter of the callback is the `Element` object.
+     *		The first parameter of the callback is the `VElement` object.
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -11528,9 +11550,9 @@ class Element {
      *	@inherit: false
      } */ 
     on_drag_over(callback) {
-        if (callback == null) { return this.element.ondragover; }
+        if (callback == null) { return this.ondragover; }
     	const e = this;
-    	this.element.ondragover = () => callback(e);
+    	this.ondragover = () => callback(e);
     	return this;
     }
 
@@ -11541,11 +11563,11 @@ class Element {
      *		Script to be run at the start of a drag operation.
      *		The equivalent of HTML attribute `ondragstart`.
      *		
-     *		The first parameter of the callback is the `Element` object.
+     *		The first parameter of the callback is the `VElement` object.
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -11553,9 +11575,9 @@ class Element {
      *	@inherit: false
      } */ 
     on_drag_start(callback) {
-        if (callback == null) { return this.element.ondragstart; }
+        if (callback == null) { return this.ondragstart; }
     	const e = this;
-    	this.element.ondragstart = () => callback(e);
+    	this.ondragstart = () => callback(e);
     	return this;
     }
 
@@ -11566,11 +11588,11 @@ class Element {
      *		Script to be run when dragged element is being dropped.
      *		The equivalent of HTML attribute `ondrop`.
      *		
-     *		The first parameter of the callback is the `Element` object.
+     *		The first parameter of the callback is the `VElement` object.
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -11578,9 +11600,9 @@ class Element {
      *	@inherit: false
      } */ 
     on_drop(callback) {
-        if (callback == null) { return this.element.ondrop; }
+        if (callback == null) { return this.ondrop; }
     	const e = this;
-    	this.element.ondrop = () => callback(e);
+    	this.ondrop = () => callback(e);
     	return this;
     }
 
@@ -11591,11 +11613,11 @@ class Element {
      *		Script to be run when an element's scrollbar is being scrolled.
      *		The equivalent of HTML attribute `onscroll`.
      *		
-     *		The first parameter of the callback is the `Element` object.
+     *		The first parameter of the callback is the `VElement` object.
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -11603,9 +11625,9 @@ class Element {
      *	@inherit: false
      } */ 
     on_scroll(callback) {
-        if (callback == null) { return this.element.onscroll; }
+        if (callback == null) { return this.onscroll; }
     	const e = this;
-    	this.element.onscroll = () => callback(e);
+    	this.onscroll = () => callback(e);
     	return this;
     }
 
@@ -11616,11 +11638,11 @@ class Element {
      *		Fires when the user copies the content of an element.
      *		The equivalent of HTML attribute `oncopy`.
      *		
-     *		The first parameter of the callback is the `Element` object.
+     *		The first parameter of the callback is the `VElement` object.
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -11628,9 +11650,9 @@ class Element {
      *	@inherit: false
      } */ 
     on_copy(callback) {
-        if (callback == null) { return this.element.oncopy; }
+        if (callback == null) { return this.oncopy; }
     	const e = this;
-    	this.element.oncopy = () => callback(e);
+    	this.oncopy = () => callback(e);
     	return this;
     }
 
@@ -11641,11 +11663,11 @@ class Element {
      *		Fires when the user cuts the content of an element.
      *		The equivalent of HTML attribute `oncut`.
      *		
-     *		The first parameter of the callback is the `Element` object.
+     *		The first parameter of the callback is the `VElement` object.
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -11653,9 +11675,9 @@ class Element {
      *	@inherit: false
      } */ 
     on_cut(callback) {
-        if (callback == null) { return this.element.oncut; }
+        if (callback == null) { return this.oncut; }
     	const e = this;
-    	this.element.oncut = () => callback(e);
+    	this.oncut = () => callback(e);
     	return this;
     }
 
@@ -11666,11 +11688,11 @@ class Element {
      *		Fires when the user pastes some content in an element.
      *		The equivalent of HTML attribute `onpaste`.
      *		
-     *		The first parameter of the callback is the `Element` object.
+     *		The first parameter of the callback is the `VElement` object.
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -11678,9 +11700,9 @@ class Element {
      *	@inherit: false
      } */ 
     on_paste(callback) {
-        if (callback == null) { return this.element.onpaste; }
+        if (callback == null) { return this.onpaste; }
     	const e = this;
-    	this.element.onpaste = () => callback(e);
+    	this.onpaste = () => callback(e);
     	return this;
     }
 
@@ -11691,11 +11713,11 @@ class Element {
      *		Script to be run on abort.
      *		The equivalent of HTML attribute `onabort`.
      *		
-     *		The first parameter of the callback is the `Element` object.
+     *		The first parameter of the callback is the `VElement` object.
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -11703,9 +11725,9 @@ class Element {
      *	@inherit: false
      } */ 
     on_abort(callback) {
-        if (callback == null) { return this.element.onabort; }
+        if (callback == null) { return this.onabort; }
     	const e = this;
-    	this.element.onabort = () => callback(e);
+    	this.onabort = () => callback(e);
     	return this;
     }
 
@@ -11716,11 +11738,11 @@ class Element {
      *		Script to be run when a file is ready to start playing (when it has buffered enough to begin).
      *		The equivalent of HTML attribute `oncanplay`.
      *		
-     *		The first parameter of the callback is the `Element` object.
+     *		The first parameter of the callback is the `VElement` object.
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -11728,9 +11750,9 @@ class Element {
      *	@inherit: false
      } */ 
     on_canplay(callback) {
-        if (callback == null) { return this.element.oncanplay; }
+        if (callback == null) { return this.oncanplay; }
     	const e = this;
-    	this.element.oncanplay = () => callback(e);
+    	this.oncanplay = () => callback(e);
     	return this;
     }
 
@@ -11741,11 +11763,11 @@ class Element {
      *		Script to be run when a file can be played all the way to the end without pausing for buffering.
      *		The equivalent of HTML attribute `oncanplaythrough`.
      *		
-     *		The first parameter of the callback is the `Element` object.
+     *		The first parameter of the callback is the `VElement` object.
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -11753,9 +11775,9 @@ class Element {
      *	@inherit: false
      } */ 
     on_canplay_through(callback) {
-        if (callback == null) { return this.element.oncanplaythrough; }
+        if (callback == null) { return this.oncanplaythrough; }
     	const e = this;
-    	this.element.oncanplaythrough = () => callback(e);
+    	this.oncanplaythrough = () => callback(e);
     	return this;
     }
 
@@ -11766,11 +11788,11 @@ class Element {
      *		Script to be run when the cue changes in a <track> element.
      *		The equivalent of HTML attribute `oncuechange`.
      *		
-     *		The first parameter of the callback is the `Element` object.
+     *		The first parameter of the callback is the `VElement` object.
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -11778,9 +11800,9 @@ class Element {
      *	@inherit: false
      } */ 
     on_cue_change(callback) {
-        if (callback == null) { return this.element.oncuechange; }
+        if (callback == null) { return this.oncuechange; }
     	const e = this;
-    	this.element.oncuechange = () => callback(e);
+    	this.oncuechange = () => callback(e);
     	return this;
     }
 
@@ -11791,11 +11813,11 @@ class Element {
      *		Script to be run when the length of the media changes.
      *		The equivalent of HTML attribute `ondurationchange`.
      *		
-     *		The first parameter of the callback is the `Element` object.
+     *		The first parameter of the callback is the `VElement` object.
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -11803,9 +11825,9 @@ class Element {
      *	@inherit: false
      } */ 
     on_duration_change(callback) {
-        if (callback == null) { return this.element.ondurationchange; }
+        if (callback == null) { return this.ondurationchange; }
     	const e = this;
-    	this.element.ondurationchange = () => callback(e);
+    	this.ondurationchange = () => callback(e);
     	return this;
     }
 
@@ -11816,11 +11838,11 @@ class Element {
      *		Script to be run when something bad happens and the file is suddenly unavailable (like unexpectedly disconnects).
      *		The equivalent of HTML attribute `onemptied`.
      *		
-     *		The first parameter of the callback is the `Element` object.
+     *		The first parameter of the callback is the `VElement` object.
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -11828,9 +11850,9 @@ class Element {
      *	@inherit: false
      } */ 
     on_emptied(callback) {
-        if (callback == null) { return this.element.onemptied; }
+        if (callback == null) { return this.onemptied; }
     	const e = this;
-    	this.element.onemptied = () => callback(e);
+    	this.onemptied = () => callback(e);
     	return this;
     }
 
@@ -11841,11 +11863,11 @@ class Element {
      *		Script to be run when the media has reach the end (a useful event for messages like "thanks for listening").
      *		The equivalent of HTML attribute `onended`.
      *		
-     *		The first parameter of the callback is the `Element` object.
+     *		The first parameter of the callback is the `VElement` object.
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -11853,9 +11875,9 @@ class Element {
      *	@inherit: false
      } */ 
     on_ended(callback) {
-        if (callback == null) { return this.element.onended; }
+        if (callback == null) { return this.onended; }
     	const e = this;
-    	this.element.onended = () => callback(e);
+    	this.onended = () => callback(e);
     	return this;
     }
 
@@ -11866,11 +11888,11 @@ class Element {
      *		Script to be run when an error occurs when the file is being loaded.
      *		The equivalent of HTML attribute `onerror`.
      *		
-     *		The first parameter of the callback is the `Element` object.
+     *		The first parameter of the callback is the `VElement` object.
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -11878,9 +11900,9 @@ class Element {
      *	@inherit: false
      } */ 
     on_error(callback) {
-        if (callback == null) { return this.element.onerror; }
+        if (callback == null) { return this.onerror; }
     	const e = this;
-    	this.element.onerror = () => callback(e);
+    	this.onerror = () => callback(e);
     	return this;
     }
 
@@ -11891,11 +11913,11 @@ class Element {
      *		Script to be run when media data is loaded.
      *		The equivalent of HTML attribute `onloadeddata`.
      *		
-     *		The first parameter of the callback is the `Element` object.
+     *		The first parameter of the callback is the `VElement` object.
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -11903,9 +11925,9 @@ class Element {
      *	@inherit: false
      } */ 
     on_loaded_data(callback) {
-        if (callback == null) { return this.element.onloadeddata; }
+        if (callback == null) { return this.onloadeddata; }
     	const e = this;
-    	this.element.onloadeddata = () => callback(e);
+    	this.onloadeddata = () => callback(e);
     	return this;
     }
 
@@ -11916,11 +11938,11 @@ class Element {
      *		Script to be run when meta data (like dimensions and duration) are loaded.
      *		The equivalent of HTML attribute `onloadedmetadata`.
      *		
-     *		The first parameter of the callback is the `Element` object.
+     *		The first parameter of the callback is the `VElement` object.
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -11928,9 +11950,9 @@ class Element {
      *	@inherit: false
      } */ 
     on_loaded_metadata(callback) {
-        if (callback == null) { return this.element.onloadedmetadata; }
+        if (callback == null) { return this.onloadedmetadata; }
     	const e = this;
-    	this.element.onloadedmetadata = () => callback(e);
+    	this.onloadedmetadata = () => callback(e);
     	return this;
     }
 
@@ -11941,11 +11963,11 @@ class Element {
      *		Script to be run just as the file begins to load before anything is actually loaded.
      *		The equivalent of HTML attribute `onloadstart`.
      *		
-     *		The first parameter of the callback is the `Element` object.
+     *		The first parameter of the callback is the `VElement` object.
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -11953,9 +11975,9 @@ class Element {
      *	@inherit: false
      } */ 
     on_load_start(callback) {
-        if (callback == null) { return this.element.onloadstart; }
+        if (callback == null) { return this.onloadstart; }
     	const e = this;
-    	this.element.onloadstart = () => callback(e);
+    	this.onloadstart = () => callback(e);
     	return this;
     }
 
@@ -11966,11 +11988,11 @@ class Element {
      *		Script to be run when the media is paused either by the user or programmatically.
      *		The equivalent of HTML attribute `onpause`.
      *		
-     *		The first parameter of the callback is the `Element` object.
+     *		The first parameter of the callback is the `VElement` object.
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -11978,9 +12000,9 @@ class Element {
      *	@inherit: false
      } */ 
     on_pause(callback) {
-        if (callback == null) { return this.element.onpause; }
+        if (callback == null) { return this.onpause; }
     	const e = this;
-    	this.element.onpause = () => callback(e);
+    	this.onpause = () => callback(e);
     	return this;
     }
 
@@ -11991,11 +12013,11 @@ class Element {
      *		Script to be run when the media is ready to start playing.
      *		The equivalent of HTML attribute `onplay`.
      *		
-     *		The first parameter of the callback is the `Element` object.
+     *		The first parameter of the callback is the `VElement` object.
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -12003,9 +12025,9 @@ class Element {
      *	@inherit: false
      } */ 
     on_play(callback) {
-        if (callback == null) { return this.element.onplay; }
+        if (callback == null) { return this.onplay; }
     	const e = this;
-    	this.element.onplay = () => callback(e);
+    	this.onplay = () => callback(e);
     	return this;
     }
 
@@ -12016,11 +12038,11 @@ class Element {
      *		Script to be run when the media actually has started playing.
      *		The equivalent of HTML attribute `onplaying`.
      *		
-     *		The first parameter of the callback is the `Element` object.
+     *		The first parameter of the callback is the `VElement` object.
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -12028,9 +12050,9 @@ class Element {
      *	@inherit: false
      } */ 
     on_playing(callback) {
-        if (callback == null) { return this.element.onplaying; }
+        if (callback == null) { return this.onplaying; }
     	const e = this;
-    	this.element.onplaying = () => callback(e);
+    	this.onplaying = () => callback(e);
     	return this;
     }
 
@@ -12041,11 +12063,11 @@ class Element {
      *		Script to be run when the browser is in the process of getting the media data.
      *		The equivalent of HTML attribute `onprogress`.
      *		
-     *		The first parameter of the callback is the `Element` object.
+     *		The first parameter of the callback is the `VElement` object.
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -12053,9 +12075,9 @@ class Element {
      *	@inherit: false
      } */ 
     onprogress(callback) {
-        if (callback == null) { return this.element.onprogress; }
+        if (callback == null) { return this.onprogress; }
     	const e = this;
-    	this.element.onprogress = () => callback(e);
+    	this.onprogress = () => callback(e);
     	return this;
     }
 
@@ -12066,11 +12088,11 @@ class Element {
      *		Script to be run each time the playback rate changes (like when a user switches to a slow motion or fast forward mode).
      *		The equivalent of HTML attribute `onratechange`.
      *		
-     *		The first parameter of the callback is the `Element` object.
+     *		The first parameter of the callback is the `VElement` object.
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -12078,9 +12100,9 @@ class Element {
      *	@inherit: false
      } */ 
     on_rate_change(callback) {
-        if (callback == null) { return this.element.onratechange; }
+        if (callback == null) { return this.onratechange; }
     	const e = this;
-    	this.element.onratechange = () => callback(e);
+    	this.onratechange = () => callback(e);
     	return this;
     }
 
@@ -12091,11 +12113,11 @@ class Element {
      *		Script to be run when the seeking attribute is set to false indicating that seeking has ended.
      *		The equivalent of HTML attribute `onseeked`.
      *		
-     *		The first parameter of the callback is the `Element` object.
+     *		The first parameter of the callback is the `VElement` object.
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -12103,9 +12125,9 @@ class Element {
      *	@inherit: false
      } */ 
     on_seeked(callback) {
-        if (callback == null) { return this.element.onseeked; }
+        if (callback == null) { return this.onseeked; }
     	const e = this;
-    	this.element.onseeked = () => callback(e);
+    	this.onseeked = () => callback(e);
     	return this;
     }
 
@@ -12116,11 +12138,11 @@ class Element {
      *		Script to be run when the seeking attribute is set to true indicating that seeking is active.
      *		The equivalent of HTML attribute `onseeking`.
      *		
-     *		The first parameter of the callback is the `Element` object.
+     *		The first parameter of the callback is the `VElement` object.
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -12128,9 +12150,9 @@ class Element {
      *	@inherit: false
      } */ 
     on_seeking(callback) {
-        if (callback == null) { return this.element.onseeking; }
+        if (callback == null) { return this.onseeking; }
     	const e = this;
-    	this.element.onseeking = () => callback(e);
+    	this.onseeking = () => callback(e);
     	return this;
     }
 
@@ -12141,11 +12163,11 @@ class Element {
      *		Script to be run when the browser is unable to fetch the media data for whatever reason.
      *		The equivalent of HTML attribute `onstalled`.
      *		
-     *		The first parameter of the callback is the `Element` object.
+     *		The first parameter of the callback is the `VElement` object.
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -12153,9 +12175,9 @@ class Element {
      *	@inherit: false
      } */ 
     on_stalled(callback) {
-        if (callback == null) { return this.element.onstalled; }
+        if (callback == null) { return this.onstalled; }
     	const e = this;
-    	this.element.onstalled = () => callback(e);
+    	this.onstalled = () => callback(e);
     	return this;
     }
 
@@ -12166,11 +12188,11 @@ class Element {
      *		Script to be run when fetching the media data is stopped before it is completely loaded for whatever reason.
      *		The equivalent of HTML attribute `onsuspend`.
      *		
-     *		The first parameter of the callback is the `Element` object.
+     *		The first parameter of the callback is the `VElement` object.
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -12178,9 +12200,9 @@ class Element {
      *	@inherit: false
      } */ 
     on_suspend(callback) {
-        if (callback == null) { return this.element.onsuspend; }
+        if (callback == null) { return this.onsuspend; }
     	const e = this;
-    	this.element.onsuspend = () => callback(e);
+    	this.onsuspend = () => callback(e);
     	return this;
     }
 
@@ -12191,11 +12213,11 @@ class Element {
      *		Script to be run when the playing position has changed (like when the user fast forwards to a different point in the media).
      *		The equivalent of HTML attribute `ontimeupdate`.
      *		
-     *		The first parameter of the callback is the `Element` object.
+     *		The first parameter of the callback is the `VElement` object.
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -12203,9 +12225,9 @@ class Element {
      *	@inherit: false
      } */ 
     on_time_update(callback) {
-        if (callback == null) { return this.element.ontimeupdate; }
+        if (callback == null) { return this.ontimeupdate; }
     	const e = this;
-    	this.element.ontimeupdate = () => callback(e);
+    	this.ontimeupdate = () => callback(e);
     	return this;
     }
 
@@ -12216,11 +12238,11 @@ class Element {
      *		Script to be run each time the volume is changed which (includes setting the volume to "mute").
      *		The equivalent of HTML attribute `onvolumechange`.
      *		
-     *		The first parameter of the callback is the `Element` object.
+     *		The first parameter of the callback is the `VElement` object.
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -12228,9 +12250,9 @@ class Element {
      *	@inherit: false
      } */ 
     on_volume_change(callback) {
-        if (callback == null) { return this.element.onvolumechange; }
+        if (callback == null) { return this.onvolumechange; }
     	const e = this;
-    	this.element.onvolumechange = () => callback(e);
+    	this.onvolumechange = () => callback(e);
     	return this;
     }
 
@@ -12241,11 +12263,11 @@ class Element {
      *		Script to be run when the media has paused but is expected to resume (like when the media pauses to buffer more data).
      *		The equivalent of HTML attribute `onwaiting`.
      *		
-     *		The first parameter of the callback is the `Element` object.
+     *		The first parameter of the callback is the `VElement` object.
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -12253,9 +12275,9 @@ class Element {
      *	@inherit: false
      } */ 
     on_waiting(callback) {
-        if (callback == null) { return this.element.onwaiting; }
+        if (callback == null) { return this.onwaiting; }
     	const e = this;
-    	this.element.onwaiting = () => callback(e);
+    	this.onwaiting = () => callback(e);
     	return this;
     }
 
@@ -12266,11 +12288,11 @@ class Element {
      *		Fires when the user opens or closes the <details> element.
      *		The equivalent of HTML attribute `ontoggle`.
      *		
-     *		The first parameter of the callback is the `Element` object.
+     *		The first parameter of the callback is the `VElement` object.
      *		
      *		Returns the attribute value when parameter `value` is `null`.
      *	@return: 
-     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
      *	@parameter: {
      *		@name: value
      *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -12278,10 +12300,13 @@ class Element {
      *	@inherit: false
      } */ 
     on_toggle(callback) {
-        if (callback == null) { return this.element.ontoggle; }
+        if (callback == null) { return this.ontoggle; }
     	const e = this;
-    	this.element.ontoggle = () => callback(e);
+    	this.ontoggle = () => callback(e);
     	return this;
     }
 
 };
+
+// Register custom type.
+vweb.utils.register_custom_type(VElement);

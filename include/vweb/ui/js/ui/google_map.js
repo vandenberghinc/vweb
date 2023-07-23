@@ -4,8 +4,12 @@
  */
 
 // GoogleMap.
-class GoogleMap extends Element {
+class GoogleMap extends VElement {
 	
+	// Default vars.
+	static s_type = "GoogleMap";
+	static s_tag = "iframe";
+
 	// Default styling.
 	static default_styling = {
 		"border": "0",
@@ -25,10 +29,7 @@ class GoogleMap extends Element {
 	constructor(location, mode = "place") {
 		
 		// Initialize base class.
-		super("GoogleMap", "iframe");
-		
-		// Set default styling.
-		this.style(GoogleMap.default_styling);
+		super(GoogleMap.s_type, GoogleMap.s_tag, GoogleMap.default_styling);
 		
 		// Set attributes.
 		this.attributes(GoogleMap.default_attributes);
@@ -59,3 +60,6 @@ class GoogleMap extends Element {
 	}
 		
 }
+
+// Register custom type.
+vweb.utils.register_custom_type(GoogleMap);

@@ -4,8 +4,12 @@
  */
 
 // Scroller.
-class Divider extends Element {
+class Divider extends VElement {
 	
+	// Default vars.
+	static s_type = "Divider";
+	static s_tag = "div";
+
 	// Default styling.
 	static default_styling = {
 		"margin": "0px",
@@ -20,11 +24,11 @@ class Divider extends Element {
 	constructor() {
 		
 		// Initialize base class.
-		super("Divider", "div");
-		
-		// Set default styling
-		this.style(Divider.default_styling);
+		super(Divider.s_type, Divider.s_tag, Divider.default_styling);
 		
 	}
 	
 }
+
+// Register custom type.
+vweb.utils.register_custom_type(Divider);

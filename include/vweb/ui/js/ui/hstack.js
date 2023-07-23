@@ -4,8 +4,12 @@
  */
 
 // HStack.
-class HStack extends Element {
+class HStack extends VElement {
 	
+	// Default vars.
+	static s_type = "HStack";
+	static s_tag = "div";
+
 	// Default styling.
 	static default_styling = {
 		"position": "relative",
@@ -25,13 +29,13 @@ class HStack extends Element {
 	constructor(...children) {
 		
 		// Initialize base class.
-		super("HStack", "div");
-		
-		// Set default styling
-		this.style(HStack.default_styling);
+		super(HStack.s_type, HStack.s_tag, HStack.default_styling);
 		
 		// Add children.
 		this.append(...children);
 	}
 	
 }
+
+// Register custom type.
+vweb.utils.register_custom_type(HStack);

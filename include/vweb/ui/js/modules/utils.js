@@ -5,7 +5,11 @@
 
 // Utils module.
 vweb.utils = {};
-// vweb.utils.vendor_prefix_cache = {};
+
+// Register a custom type.
+vweb.utils.register_custom_type = function(type) {
+	customElements.define("v-" + type.s_type.toLowerCase(), type, {extends: type.s_tag});	
+}
 	
 // Is string.
 vweb.utils.is_string = function(value) {
@@ -199,7 +203,7 @@ vweb.utils.on_load = function(func) {
 	document.addEventListener("DOMContentLoaded", function() {
 		let e = func();
 		if (e != null) {
-			document.body.appendChild(e.element);
+			document.body.appendChild(e);
 		}
 	});
 }

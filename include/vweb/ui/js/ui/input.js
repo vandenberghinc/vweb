@@ -4,8 +4,12 @@
  */
 
 // Input.
-class Input extends Element {
+class Input extends VElement {
 	
+	// Default vars.
+	static s_type = "Input";
+	static s_tag = "input";
+
 	// Default styling.
 	static default_styling = {
 		"margin": "0px 0px 0px 0px",
@@ -25,13 +29,10 @@ class Input extends Element {
 	constructor(placeholder) {
 		
 		// Initialize base class.
-		super("Input", "input");
+		super(Input.s_type, Input.s_tag, Input.default_styling);
 		
 		// Input type.
 		this.type("text");
-		
-		// Set default styling
-		this.style(Input.default_styling);
 
 		// Set placeholder text.
 		this.placeholder(placeholder);
@@ -40,9 +41,16 @@ class Input extends Element {
 	
 }
 
+// Register custom type.
+vweb.utils.register_custom_type(Input);
+
 // PasswordInput.
-class PasswordInput extends Element {
+class PasswordInput extends VElement {
 	
+	// Default vars.
+	static s_type = "PasswordInput";
+	static s_tag = "input";
+
 	// Default styling.
 	static default_styling = {
 		"margin": "0px 0px 0px 0px",
@@ -62,14 +70,11 @@ class PasswordInput extends Element {
 	constructor(placeholder) {
 		
 		// Initialize base class.
-		super("PasswordInput", "input");
+		super(PasswordInput.s_type, PasswordInput.s_tag, PasswordInput.default_styling);
 		
 		// Input type.
 		this.type("password");
 		
-		// Set default styling
-		this.style(PasswordInput.default_styling);
-		
 		// Set placeholder text.
 		this.placeholder(placeholder);
 		
@@ -77,9 +82,16 @@ class PasswordInput extends Element {
 	
 }
 
+// Register custom type.
+vweb.utils.register_custom_type(PasswordInput);
+
 // EmailInput.
-class EmailInput extends Element {
+class EmailInput extends VElement {
 	
+	// Default vars.
+	static s_type = "EmailInput";
+	static s_tag = "input";
+
 	// Default styling.
 	static default_styling = {
 		"margin": "0px 0px 0px 0px",
@@ -99,14 +111,11 @@ class EmailInput extends Element {
 	constructor(placeholder) {
 		
 		// Initialize base class.
-		super("EmailInput", "input");
+		super(EmailInput.s_type, EmailInput.s_tag, EmailInput.default_styling);
 		
 		// Input type.
 		this.type("email");
 		
-		// Set default styling
-		this.style(EmailInput.default_styling);
-		
 		// Set placeholder text.
 		this.placeholder(placeholder);
 		
@@ -114,9 +123,16 @@ class EmailInput extends Element {
 	
 }
 
+// Register custom type.
+vweb.utils.register_custom_type(EmailInput);
+
 // PhoneNumberInput.
-class PhoneNumberInput extends Element {
+class PhoneNumberInput extends VElement {
 	
+	// Default vars.
+	static s_type = "PhoneNumberInput";
+	static s_tag = "input";
+
 	// Default styling.
 	static default_styling = {
 		"margin": "0px 0px 0px 0px",
@@ -136,24 +152,28 @@ class PhoneNumberInput extends Element {
 	constructor(placeholder) {
 		
 		// Initialize base class.
-		super("PhoneNumberInput", "input");
-		
+		super(PhoneNumberInput.s_type, PhoneNumberInput.s_tag, PhoneNumberInput.default_styling);
+
 		// Input type.
 		this.type("tel");
 		
-		// Set default styling
-		this.style(PhoneNumberInput.default_styling);
-		
 		// Set placeholder text.
 		this.placeholder(placeholder);
 		
 	}
 	
 }
+
+// Register custom type.
+vweb.utils.register_custom_type(PhoneNumberInput);
 
 // InputBox.
-class InputBox extends Element {
+class InputBox extends VElement {
 	
+	// Default vars.
+	static s_type = "InputBox";
+	static s_tag = "textarea";
+
 	// Default styling.
 	static default_styling = {
 		"margin": "0px 0px 0px 0px",
@@ -174,11 +194,8 @@ class InputBox extends Element {
 	constructor(placeholder) {
 		
 		// Initialize base class.
-		super("InputBox", "textarea");
-		
-		// Set default styling
-		this.style(InputBox.default_styling);
-		
+		super(InputBox.s_type, InputBox.s_tag, InputBox.default_styling);
+
 		// Set placeholder text.
 		this.placeholder(placeholder);
 		
@@ -186,9 +203,16 @@ class InputBox extends Element {
 	
 }
 
+// Register custom type.
+vweb.utils.register_custom_type(InputBox);
+
 // SelectOptionInput.
-class SelectOptionInput extends Element {
+class SelectOptionInput extends VElement {
 	
+	// Default vars.
+	static s_type = "SelectOptionInput";
+	static s_tag = "select";
+
 	// Default styling.
 	static default_styling = {
 		"margin": "0px 0px 0px 0px",
@@ -209,10 +233,7 @@ class SelectOptionInput extends Element {
 	constructor(placeholder) {
 		
 		// Initialize base class.
-		super("SelectOptionInput", "select");
-		
-		// Set default styling
-		this.style(SelectOptionInput.default_styling);
+		super(SelectOptionInput.s_type, SelectOptionInput.s_tag, SelectOptionInput.default_styling);
 		
 		// Add children.
 		for (let i = 0; i < arguments.length; i++) {
@@ -229,3 +250,6 @@ class SelectOptionInput extends Element {
 	}
 	
 }
+
+// Register custom type.
+vweb.utils.register_custom_type(SelectOptionInput);

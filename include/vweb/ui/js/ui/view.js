@@ -4,8 +4,12 @@
  */
 
 // Scroller.
-class View extends Element {
+class View extends VElement {
 	
+	// Default vars.
+	static s_type = "View";
+	static s_tag = "div";
+
 	// Default styling.
 	static default_styling = {
 		"position": "absolute",
@@ -28,13 +32,13 @@ class View extends Element {
 	constructor(...children) {
 		
 		// Initialize base class.
-		super("View", "div");
-		
-		// Set default styling
-		this.style(View.default_styling);
+		super(View.s_type, View.s_tag, View.default_styling);
 		
 		// Add children.
 		this.append(...children);
 	}
 	
 }
+
+// Register custom type.
+vweb.utils.register_custom_type(View);

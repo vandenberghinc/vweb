@@ -4,8 +4,12 @@
  */
 
 // Scroller.
-class ZStack extends Element {
+class ZStack extends VElement {
 	
+	// Default vars.
+	static s_type = "ZStack";
+	static s_tag = "div";
+
 	// Default styling.
 	static default_styling = {
 		"position": "relative",
@@ -19,10 +23,7 @@ class ZStack extends Element {
 	constructor(...children) {
 		
 		// Initialize base class.
-		super("ZStack", "div");
-		
-		// Set default styling
-		this.style(ZStack.default_styling);
+		super(ZStack.s_type, ZStack.s_tag, ZStack.default_styling);
 		
 		// Add children.
 		this.zstack_append(...children);
@@ -34,3 +35,6 @@ class ZStack extends Element {
 	}
 	
 }
+
+// Register custom type.
+vweb.utils.register_custom_type(ZStack);

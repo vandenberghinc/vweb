@@ -6,7 +6,6 @@
 // Gradient.
 class Gradient {
 
-	
 	// Constructor.
 	/*	@docs: {
      *	@title: Gradient.

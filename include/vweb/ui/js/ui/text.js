@@ -4,8 +4,12 @@
  */
 
 // Text.
-class Text extends Element {
+class Text extends VElement {
 	
+	// Default vars.
+	static s_type = "Text";
+	static s_tag = "p";
+
 	// Default styling.
 	static default_styling = {
 		"margin": "0px 0px 0px 0px",
@@ -21,13 +25,13 @@ class Text extends Element {
 	constructor(text) {
 		
 		// Initialize base class.
-		super("Text", "p");
-		
-		// Set default styling.
-		this.style(Text.default_styling);
+		super(Text.s_type, Text.s_tag, Text.default_styling);
 		
 		// Set text.
 		this.inner_html(text);
 	}
 		
 }
+
+// Register custom type.
+vweb.utils.register_custom_type(Text);

@@ -4,8 +4,12 @@
  */
 
 // Image.
-class Image extends Element {
+class Image extends VElement {
 	
+	// Default vars.
+	static s_type = "Image";
+	static s_tag = "img";
+
 	// Default styling.
 	static default_styling = {
 		"margin": "0px",
@@ -17,10 +21,7 @@ class Image extends Element {
 	constructor(src) {
 		
 		// Initialize base class.
-		super("Image", "img");
-		
-		// Set default styling.
-		this.style(Image.default_styling);
+		super(Image.s_type, Image.s_tag, Image.default_styling);
 		
 		// Set src.
 		this.src(src);
@@ -28,9 +29,16 @@ class Image extends Element {
 		
 }
 
+// Register custom type.
+vweb.utils.register_custom_type(Image);
+
 // ImageMask.
-class ImageMask extends Element {
+class ImageMask extends VElement {
 	
+	// Default vars.
+	static s_type = "ImageMask";
+	static s_tag = "div";
+
 	// Default styling.
 	static default_styling = {
 		"margin": "0px",
@@ -43,14 +51,11 @@ class ImageMask extends Element {
 	constructor(src) {
 		
 		// Initialize base class.
-		super("ImageMask", "div");
-		
-		// Set default styling.
-		this.style(ImageMask.default_styling);
+		super(ImageMask.s_type, ImageMask.s_tag, ImageMask.default_styling);
 		
 		// Append child.
 		this.append(
-			new Element("ImageMaskChild", "div")
+			new VElement("ImageMaskChild", "div")
 				.width("100%")
 				.height("100%")
 				.background("black")
@@ -78,38 +83,5 @@ class ImageMask extends Element {
 		
 }
 
-/*
-// ImageMask.
-class ImageMask extends Element {
-	
-	// Default styling.
-	static default_styling = {
-		"margin": "0px",
-		"padding": "0px",
-		"object-fit": "cover",
-		// "display": "inline-block",
-	};
-	
-	// Constructor.
-	constructor(src) {
-		
-		// Initialize base class.
-		super("ImageMask", "img");
-		
-		// Set default styling.
-		this.style(ImageMask.default_styling);
-		
-		// Append child.
-		this.src(src);
-		// this.append(
-		// 	new Element("ImageMaskChild", "div")
-		// 	.width("100%")
-		// 	.height("100%")
-		// 	.background("black")
-		// 	.mask("url('" + src + "') no-repeat center/contain")
-		// );
-
-	
-		
-}
-(/)
+// Register custom type.
+vweb.utils.register_custom_type(ImageMask);

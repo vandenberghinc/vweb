@@ -4,8 +4,12 @@
  */
 
 // ForEach.
-class ForEach extends Element {
+class ForEach extends VElement {
 	
+	// Default vars.
+	static s_type = "ForEach";
+	static s_tag = "section";
+
 	// Default styling.
 	static default_styling = {
 		"border": "none",
@@ -17,10 +21,7 @@ class ForEach extends Element {
 	constructor(items, func) {
 		
 		// Initialize base class.
-		super("ForEach", "section");
-		
-		// Set default styling
-		this.style(Divider.default_styling);
+		super(ForEach.s_type, ForEach.s_tag, ForEach.default_styling);
 		
 		// Iterate.
 		for (let i = 0; i < items.length; i++) {
@@ -30,3 +31,6 @@ class ForEach extends Element {
 	}
 	
 }
+
+// Register custom type.
+vweb.utils.register_custom_type(ForEach);

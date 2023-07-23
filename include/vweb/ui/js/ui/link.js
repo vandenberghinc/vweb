@@ -4,8 +4,12 @@
  */
 
 // Link.
-class Link extends Element {
+class Link extends VElement {
 	
+	// Default vars.
+	static s_type = "Link";
+	static s_tag = "a";
+
 	// Default styling.
 	static default_styling = {
 		"font-family": "inherit",
@@ -19,10 +23,7 @@ class Link extends Element {
 	constructor(text, href) {
 		
 		// Initialize base class.
-		super("Link", "a");
-		
-		// Set default styling.
-		this.style(Link.default_styling);
+		super(Link.s_type, Link.s_tag, Link.default_styling);
 		
 		// Set text.
 		this.text(text);
@@ -33,3 +34,6 @@ class Link extends Element {
 	}
 		
 }
+
+// Register custom type.
+vweb.utils.register_custom_type(Link);

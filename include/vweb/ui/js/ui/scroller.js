@@ -4,8 +4,12 @@
  */
 
 // Scroller.
-class Scroller extends Element {
+class Scroller extends VElement {
 	
+	// Default vars.
+	static s_type = "Scroller";
+	static s_tag = "div";
+
 	// Default styling.
 	static default_styling = {
 		"position": "relative",
@@ -27,13 +31,13 @@ class Scroller extends Element {
 	constructor(...children) {
 		
 		// Initialize base class.
-		super("Scroller", "div");
-		
-		// Set default styling
-		this.style(Scroller.default_styling);
+		super(Scroller.s_type, Scroller.s_tag, Scroller.default_styling);
 		
 		// Add children.
 		this.append(...children);
 	}
 	
 }
+
+// Register custom type.
+vweb.utils.register_custom_type(Scroller);

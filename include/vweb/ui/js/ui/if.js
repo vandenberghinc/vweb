@@ -4,8 +4,12 @@
  */
 
 // If.
-class If extends Element {
+class If extends VElement {
 	
+	// Default vars.
+	static s_type = "If";
+	static s_tag = "section";
+
 	// Default styling.
 	static default_styling = {};
 	
@@ -15,10 +19,7 @@ class If extends Element {
 	constructor(...args) {
 		
 		// Initialize base class.
-		super("If", "section");
-		
-		// Set default styling
-		this.style(View.default_styling);
+		super(If.s_type, If.s_tag, If.default_styling);
 		
 		// Execute.
 		if (args[0] == true) {
@@ -39,34 +40,5 @@ class If extends Element {
 	
 }
 
-// IfDeviceWith.
-// Deprecated: use Element.media instead.
-// @TODO update on resize etc.
-// class IfDeviceWith extends Element {
-	
-// 	// Default styling.
-// 	static default_styling = {};
-	
-// 	// Constructor.
-// 	// The first value of the args should be the true or false boolean ...
-// 	// All others will be the children which will be visible when the boolean is true.
-// 	constructor(comparison, value, child) {
-		
-// 		// Initialize base class.
-// 		super("IfDeviceWith", "section");
-		
-// 		// Attributes.
-// 		this.comparison = comparison;
-// 		this.value = value;
-// 		this.child = child;
-		
-// 		// Set default styling
-// 		this.style(View.default_styling);
-		
-// 		// Add child.
-// 		if (comparison(vweb.utils.device_width(), this.value)) {
-// 			this.append(this.child);
-// 		}
-// 	}
-	
-// }
+// Register custom type.
+vweb.utils.register_custom_type(If);
