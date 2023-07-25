@@ -76,7 +76,7 @@ class CodeLineElement extends CreateVElementClass({
 		"background": "#000000",
 		"color": "#FFFFFF",
 		"border-radius": "10px",
-		"padding": "5px 7.5px 5px 7.5px",
+		"padding": "2.5px 7.5px 2.5px 7.5px",
 	},
 }) {
 	

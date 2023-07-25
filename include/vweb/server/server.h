@@ -1031,18 +1031,41 @@ private:
 				} else {
 					throw vlib::InvalidUsageError("Found a \"", decorator, "\" decorator without a valid next line. Only \"const ...;\" and \"clas ... {}\" are valid next lines, skipping.");
 				}
-				String name = first_line.slice(5).trim_leading_whitespace_r();
-				ullong delimiter = name.find_first(" \t{=");
+				String full_name = first_line.slice(5).trim_leading_whitespace_r();
+				ullong delimiter = full_name.find_first(" \t{=");
 				if (delimiter == NPos::npos) {
 					++pos;
 					continue;
 				}
-				name.slice_r(0, delimiter);
+				full_name.slice_r(0, delimiter);
 				
-				// Remove Element suffix.
-				String full_name = name;
-				if (name.len() >= 7) {// Element
-					name.len() -= 7;
+				// Create insert string.
+				String insert;
+				if (decorator == "@vweb_constructor_wrapper") {
+					
+					// Remove Element suffix.
+					String name = full_name;
+					if (full_name.eq_last("Element", 7)) {
+						name.len() -= 7;
+					} else if (full_name.eq_last("Type", 4)) {
+						name.len() -= 4;
+					} else {
+						throw vlib::InvalidUsageError("The class must have a \"Element\" or \"Type\" suffix for decorator \"", decorator, "\".");
+					}
+					
+					// Create insert.
+					insert << "\nfunction " << name << "(...args){return new " << full_name << "(...args);}";
+					
+				}
+				
+				// Decorator: @vweb_register_element.
+				else if (decorator ==  "@vweb_register_element") {
+					insert << "\nvweb.elements.register(" << full_name << ");";
+				}
+				
+				// Invalid.
+				else {
+					throw vlib::InvalidUsageError("Unknown decorator \"", decorator, "\".");
 				}
 				
 				// Find the start index of where to create the new code.
@@ -1072,14 +1095,6 @@ private:
 				// Insert.
 				if (insert_index == NPos::npos) {
 					throw vlib::InvalidUsageError("Could not find the insert index of decorator \"", decorator, "\" at \"", path, "\".");
-				}
-				String insert;
-				if (decorator == "@vweb_constructor_wrapper") {
-					insert << "\nfunction " << name << "(...args){return new " << full_name << "(...args);}";
-				} else if (decorator ==  "@vweb_register_element") {
-					insert << "\nvweb.elements.register(" << full_name << ");";
-				} else {
-					throw vlib::InvalidUsageError("Unknown decorator \"", decorator, "\".");
 				}
 				data = data.slice(0, insert_index).concat_r(insert).concat_r(data.data() + insert_index, data.len() - insert_index);
 				++pos;

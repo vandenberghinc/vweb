@@ -60,8 +60,8 @@ class CanvasElement extends CreateVElementClass({
 
 	// Create gradient.
 	create_gradient(ctx, gradient, start_x, start_y, end_x, end_y) {
-		if (!(gradient instanceof Gradient)) {
-			console.error("Invalid usage, parameter \"gradient\" should be type \"Gradient\".");
+		if (!(gradient instanceof GradientType)) {
+			console.error("Invalid usage, parameter \"gradient\" should be type \"GradientType\".");
 			return null;
 		}
 		let value;
@@ -108,7 +108,7 @@ class CanvasElement extends CreateVElementClass({
      *	} 
      *	@parameter: {
      *		@name: fill
-     *		@description: The fill color, supports a `Gradient` class. leave `null` to ignore.
+     *		@description: The fill color, supports a `GradientType` class. leave `null` to ignore.
      *	} 
      *	@parameter: {
      *		@name: scale
@@ -168,7 +168,7 @@ class CanvasElement extends CreateVElementClass({
 	    if (fill != null) {
 
 	    	// Gradient.
-	    	if (fill instanceof Gradient) {
+	    	if (fill instanceof GradientType) {
 				let minX = Infinity;
 				let maxX = -Infinity;
 				let minY = Infinity;
@@ -205,7 +205,7 @@ class CanvasElement extends CreateVElementClass({
     		}
     		let is_gradient = false;
     		if (dots.color != null) {
-    			if (dots.color instanceof Gradient) {
+    			if (dots.color instanceof GradientType) {
 		    		is_gradient = true;
 		    	} else {
 		    		ctx.fillStyle = dots.color;

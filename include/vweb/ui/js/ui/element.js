@@ -24,80 +24,232 @@ function CreateVElementClass({
 }) {
 
 	// Get base.
-	const base_map = {
-		a: HTMLAnchorElement,
-		area: HTMLAreaElement,
-		audio: HTMLAudioElement,
-		base: HTMLBaseElement,
-		blockquote: HTMLQuoteElement,
-		body: HTMLBodyElement,
-		br: HTMLBRElement,
-		button: HTMLButtonElement,
-		canvas: HTMLCanvasElement,
-		caption: HTMLTableCaptionElement,
-		col: HTMLTableColElement,
-		data: HTMLDataElement,
-		datalist: HTMLDataListElement,
-		dl: HTMLDListElement,
-		dir: HTMLDirectoryElement,
-		div: HTMLDivElement,
-		html: HTMLHtmlElement,
-		embed: HTMLEmbedElement,
-		fieldset: HTMLFieldSetElement,
-		form: HTMLFormElement,
-		h1: HTMLHeadingElement,
-		h2: HTMLHeadingElement,
-		h3: HTMLHeadingElement,
-		h4: HTMLHeadingElement,
-		h5: HTMLHeadingElement,
-		h6: HTMLHeadingElement,
-		head: HTMLHeadElement,
-		hr: HTMLHRElement,
-		img: HTMLImageElement,
-		input: HTMLInputElement,
-		ins: HTMLModElement,
-		label: HTMLLabelElement,
-		legend: HTMLLegendElement,
-		li: HTMLLIElement,
-		link: HTMLLinkElement,
-		map: HTMLMapElement,
-		meta: HTMLMetaElement,
-		meter: HTMLMeterElement,
-		object: HTMLObjectElement,
-		ol: HTMLOListElement,
-		optgroup: HTMLOptGroupElement,
-		option: HTMLOptionElement,
-		output: HTMLOutputElement,
-		p: HTMLParagraphElement,
-		param: HTMLParamElement,
-		picture: HTMLPictureElement,
-		pre: HTMLPreElement,
-		progress: HTMLProgressElement,
-		q: HTMLQuoteElement,
-		script: HTMLScriptElement,
-		select: HTMLSelectElement,
-		slot: HTMLSlotElement,
-		source: HTMLSourceElement,
-		span: HTMLSpanElement,
-		style: HTMLStyleElement,
-		table: HTMLTableElement,
-		thead: HTMLTableSectionElement,
-		tbody: HTMLTableSectionElement,
-		tfoot: HTMLTableSectionElement,
-		th: HTMLTableCellElement,
-		td: HTMLTableCellElement,
-		template: HTMLTemplateElement,
-		textarea: HTMLTextAreaElement,
-		time: HTMLTimeElement,
-		title: HTMLTitleElement,
-		tr: HTMLTableRowElement,
-		track: HTMLTrackElement,
-		ul: HTMLUListElement,
+	let Base;
+	switch (tag) {
+		case "a": 
+			Base = HTMLAnchorElement;
+			break;
+		case "area": 
+			Base = HTMLAreaElement;
+			break;
+		case "audio": 
+			Base = HTMLAudioElement;
+			break;
+		case "base": 
+			Base = HTMLBaseElement;
+			break;
+		case "blockquote": 
+			Base = HTMLQuoteElement;
+			break;
+		case "body": 
+			Base = HTMLBodyElement;
+			break;
+		case "br": 
+			Base = HTMLBRElement;
+			break;
+		case "button": 
+			Base = HTMLButtonElement;
+			break;
+		case "canvas": 
+			Base = HTMLCanvasElement;
+			break;
+		case "caption": 
+			Base = HTMLTableCaptionElement;
+			break;
+		case "col": 
+			Base = HTMLTableColElement;
+			break;
+		case "data": 
+			Base = HTMLDataElement;
+			break;
+		case "datalist": 
+			Base = HTMLDataListElement;
+			break;
+		case "dl": 
+			Base = HTMLDListElement;
+			break;
+		case "dir": 
+			Base = HTMLDirectoryElement;
+			break;
+		case "div": 
+			Base = HTMLDivElement;
+			break;
+		case "html": 
+			Base = HTMLHtmlElement;
+			break;
+		case "embed": 
+			Base = HTMLEmbedElement;
+			break;
+		case "fieldset": 
+			Base = HTMLFieldSetElement;
+			break;
+		case "form": 
+			Base = HTMLFormElement;
+			break;
+		case "h1": 
+			Base = HTMLHeadingElement;
+			break;
+		case "h2": 
+			Base = HTMLHeadingElement;
+			break;
+		case "h3": 
+			Base = HTMLHeadingElement;
+			break;
+		case "h4": 
+			Base = HTMLHeadingElement;
+			break;
+		case "h5": 
+			Base = HTMLHeadingElement;
+			break;
+		case "h6": 
+			Base = HTMLHeadingElement;
+			break;
+		case "head": 
+			Base = HTMLHeadElement;
+			break;
+		case "hr": 
+			Base = HTMLHRElement;
+			break;
+		case "img": 
+			Base = HTMLImageElement;
+			break;
+		case "input": 
+			Base = HTMLInputElement;
+			break;
+		case "ins": 
+			Base = HTMLModElement;
+			break;
+		case "label": 
+			Base = HTMLLabelElement;
+			break;
+		case "legend": 
+			Base = HTMLLegendElement;
+			break;
+		case "li": 
+			Base = HTMLLIElement;
+			break;
+		case "link": 
+			Base = HTMLLinkElement;
+			break;
+		case "map": 
+			Base = HTMLMapElement;
+			break;
+		case "meta": 
+			Base = HTMLMetaElement;
+			break;
+		case "meter": 
+			Base = HTMLMeterElement;
+			break;
+		case "object": 
+			Base = HTMLObjectElement;
+			break;
+		case "ol": 
+			Base = HTMLOListElement;
+			break;
+		case "optgroup": 
+			Base = HTMLOptGroupElement;
+			break;
+		case "option": 
+			Base = HTMLOptionElement;
+			break;
+		case "output": 
+			Base = HTMLOutputElement;
+			break;
+		case "p": 
+			Base = HTMLParagraphElement;
+			break;
+		case "param": 
+			Base = HTMLParamElement;
+			break;
+		case "picture": 
+			Base = HTMLPictureElement;
+			break;
+		case "pre": 
+			Base = HTMLPreElement;
+			break;
+		case "progress": 
+			Base = HTMLProgressElement;
+			break;
+		case "q": 
+			Base = HTMLQuoteElement;
+			break;
+		case "script": 
+			Base = HTMLScriptElement;
+			break;
+		case "select": 
+			Base = HTMLSelectElement;
+			break;
+		case "slot": 
+			Base = HTMLSlotElement;
+			break;
+		case "source": 
+			Base = HTMLSourceElement;
+			break;
+		case "span": 
+			Base = HTMLSpanElement;
+			break;
+		// case "style": 
+		// 	Base = HTMLStyleElement;
+		// 	break;
+		case "table": 
+			Base = HTMLTableElement;
+			break;
+		case "thead": 
+			Base = HTMLTableSectionElement;
+			break;
+		case "tbody": 
+			Base = HTMLTableSectionElement;
+			break;
+		case "tfoot": 
+			Base = HTMLTableSectionElement;
+			break;
+		case "th": 
+			Base = HTMLTableCellElement;
+			break;
+		case "td": 
+			Base = HTMLTableCellElement;
+			break;
+		case "template": 
+			Base = HTMLTemplateElement;
+			break;
+		case "textarea": 
+			Base = HTMLTextAreaElement;
+			break;
+		case "time": 
+			Base = HTMLTimeElement;
+			break;
+		case "title": 
+			Base = HTMLTitleElement;
+			break;
+		case "tr": 
+			Base = HTMLTableRowElement;
+			break;
+		case "track": 
+			Base = HTMLTrackElement;
+			break;
+		case "ul": 
+			Base = HTMLUListElement;
+			break;
+
+		// Custom.
+
+		// Style.
+		// Can be used for animation keyframes or other funcs to set a style without accessing the target element's style.
+		case "style":
+			class B {
+				constructor() {
+					this.style = {};
+				}
+			}
+			Base = B;
+			break;
+
+		// Unknown so use HTMLElement.
+		default:
+			Base = HTMLElement;
+			break;
+
 	};
-	let Base = base_map[tag];
-	if (Base == null) {
-		Base = HTMLElement;
-	}
 
 	// Build class.
 	class E extends Base {
@@ -165,6 +317,9 @@ function CreateVElementClass({
 		// Can also be used for similair string that use "x() y()".
 		// When to is null the type will be removed.
 		edit_filter_wrapper(filter, type, to = null) {
+			if (filter == null) {
+				return to;
+			}
 			const pattern = new RegExp(`${type}\\([^)]*\\)\\s*`, "g");
 			if (pattern.test(filter)) {
 				if (to == null) {
@@ -182,6 +337,9 @@ function CreateVElementClass({
 		// Can also be used for similair string that use "x() y()".
 		// When the type is present the item will be removed, otherwise the to will be added.
 		toggle_filter_wrapper(filter, type, to = null) {
+			if (filter == null) {
+				return to;
+			}
 			const pattern = new RegExp(`${type}\\([^)]*\\)\\s*`, "g");
 			if (pattern.test(filter)) {
 				return filter.replace(pattern, "");
@@ -417,15 +575,29 @@ function CreateVElementClass({
 			} else if (values.length === 1) {
 				this.style.padding = this.pad_numeric(values[0]);
 			} else if (values.length === 2) {	
-				this.style.paddingTop = this.pad_numeric(values[0]);
-				this.style.paddingRight = this.pad_numeric(values[1]);
-				this.style.paddingBottom = this.pad_numeric(values[0]);
-				this.style.paddingLeft = this.pad_numeric(values[1]);
+				if (values[0] != null) {
+					this.style.paddingTop = this.pad_numeric(values[0]);
+				}
+				if (values[1] != null) {
+					this.style.paddingRight = this.pad_numeric(values[1]);
+				}
+				if (values[0] != null) {
+					this.style.paddingBottom = this.pad_numeric(values[0]);
+				}
+				if (values[1] != null) {
+					this.style.paddingLeft = this.pad_numeric(values[1]);
+				}
 			} else if (values.length === 4) {
 				this.style.paddingTop = this.pad_numeric(values[0]);
-				this.style.paddingRight = this.pad_numeric(values[1]);
-				this.style.paddingBottom = this.pad_numeric(values[2]);
-				this.style.paddingLeft = this.pad_numeric(values[3]);
+				if (values[1] != null) {
+					this.style.paddingRight = this.pad_numeric(values[1]);
+				}
+				if (values[2] != null) {
+					this.style.paddingBottom = this.pad_numeric(values[2]);
+				}
+				if (values[3] != null) {
+					this.style.paddingLeft = this.pad_numeric(values[3]);
+				}
 			} else {
 				console.error("Invalid number of arguments for function \"padding()\".");
 			}
@@ -440,14 +612,26 @@ function CreateVElementClass({
 				this.style.margin = this.pad_numeric(values[0]);
 			} else if (values.length === 2) {		
 				this.style.marginTop = this.pad_numeric(values[0]);
-				this.style.marginRight = this.pad_numeric(values[1]);
-				this.style.marginBottom = this.pad_numeric(values[0]);
-				this.style.marginLeft = this.pad_numeric(values[1]);
+				if (values[1] != null) {
+					this.style.marginRight = this.pad_numeric(values[1]);
+				}
+				if (values[0] != null) {
+					this.style.marginBottom = this.pad_numeric(values[0]);
+				}
+				if (values[1] != null) {
+					this.style.marginLeft = this.pad_numeric(values[1]);
+				}
 			} else if (values.length === 4) {
 				this.style.marginTop = this.pad_numeric(values[0]);
-				this.style.marginRight = this.pad_numeric(values[1]);
-				this.style.marginBottom = this.pad_numeric(values[2]);
-				this.style.marginLeft = this.pad_numeric(values[3]);
+				if (values[1] != null) {
+					this.style.marginRight = this.pad_numeric(values[1]);
+				}
+				if (values[2] != null) {
+					this.style.marginBottom = this.pad_numeric(values[2]);
+				}
+				if (values[3] != null) {
+					this.style.marginLeft = this.pad_numeric(values[3]);
+				}
 			} else {
 				console.error("Invalid number of arguments for function \"margin()\".");
 			}
@@ -462,10 +646,18 @@ function CreateVElementClass({
 				this.style.position = values[0];
 			} else if (values.length === 4) {
 				this.style.position = "absolute";
-				this.style.top = this.pad_numeric(values[0]);
-				this.style.right = this.pad_numeric(values[1]);
-				this.style.bottom = this.pad_numeric(values[2]);
-				this.style.left = this.pad_numeric(values[3]);
+				if (values[0] != null) {
+					this.style.top = this.pad_numeric(values[0]);
+				}
+				if (values[1] != null) {
+					this.style.right = this.pad_numeric(values[1]);
+				}
+				if (values[2] != null) {
+					this.style.bottom = this.pad_numeric(values[2]);
+				}
+				if (values[3] != null) {
+					this.style.left = this.pad_numeric(values[3]);
+				}
 			} else {
 				console.error("Invalid number of arguments for function \"position()\".");
 			}
@@ -600,13 +792,13 @@ function CreateVElementClass({
 		/*	@docs: {
 	     *	@title: Color
 	     *	@description: 
-	     *		Sets the color of text, also supports a `Gradient` element.
+	     *		Sets the color of text, also supports a `GradientType` element.
 	     *		
 	     *		Returns the attribute value when parameter `value` is `null`.
 	     *	@return: 
 	     *		Returns the `VElement` object. 
 	     *		Unless parameter `value` is `null`, then the attribute's value is returned. 
-	     *		When the value is `null` and the color has been set using a `Gradient`, `transparent` will be returned.
+	     *		When the value is `null` and the color has been set using a `GradientType`, `transparent` will be returned.
 	     *	@parameter: {
 	     *		@name: value
 	     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
@@ -615,7 +807,7 @@ function CreateVElementClass({
 		 } */ 
 		color(value) {
 		 	if (value == null) { return this.style.color; }
-		 	if (value instanceof Gradient) {
+		 	if (value instanceof GradientType) {
 		 		this.style.backgroundImage = value.gradient;
 		 		this.style.backgroundClip = "text";
 		 		this.style["-webkit-background-clip"] = "text";
@@ -686,12 +878,30 @@ function CreateVElementClass({
 
 		// Opacity.
 		opacity(value) {
-			this.style.opacity = value;
-			return this;
+			switch (this.element_type) {
+
+				// Use filter since that also supports keyframes for class StyleElement.
+				case "Style":
+					if (value == null) {
+						return this.filter(this.edit_filter_wrapper(this.style.filter, "opacity", value));
+					} else {
+						if (value <= 1.0) {
+							value *= 100;
+						}
+						return this.filter(this.edit_filter_wrapper(this.style.filter, "opacity", "opacity(" + value + ") "));
+					}
+
+				// Default.
+				default:
+					this.style.opacity = value;
+					return this;
+
+			}
 		}
 
 		// Toggle opacity.
 		// Can be used to darken and normalize a view.
+		// Not supported for element "StyleElement" because of "opacity()".
 		toggle_opacity(value = 0.25) {
 			if (typeof this.style.opacity === "undefined" || this.style.opacity == "" || this.style.opacity == 1.0) {
 				this.style.opacity = value;
@@ -706,7 +916,7 @@ function CreateVElementClass({
 			if (value == null) {
 				return this.filter(this.edit_filter_wrapper(this.style.filter, "blur", value));
 			} else {
-				return filter(this.edit_filter_wrapper(this.style.filter, "blur", "blur(" + this.pad_numeric(value) + ") "));
+				return this.filter(this.edit_filter_wrapper(this.style.filter, "blur", "blur(" + this.pad_numeric(value) + ") "));
 			}
 		}
 
@@ -757,6 +967,16 @@ function CreateVElementClass({
 			return this.backdrop_filter(this.toggle_filter_wrapper(this.style.backdropFilter, "brightness", "brightness(" + this.pad_percentage(value, "%") + ") "));
 		}
 
+		// Delay and duration used for keyframes for class StyleElement.
+		delay(value) {
+			this.style.delay = value;
+			return this;
+		}
+		duration(value) {
+			this.style.duration = value;
+			return this;
+		}
+
 		// ---------------------------------------------------------
 		// Visibility functions.
 
@@ -793,7 +1013,7 @@ function CreateVElementClass({
 
 	    // Toggle visibility.
 	    toggle_visibility() {
-	    	if (this.hidden()) {
+	    	if (this.is_hidden()) {
 	    		this.show();
 	    	} else {
 	    		this.hide();
@@ -945,29 +1165,102 @@ function CreateVElementClass({
 		// ---------------------------------------------------------
 		// Default html element functions.
 
-		// Animate.
+		// Default html animate function.
+		default_animate(...args) {
+			super.animate(...args);
+			return this;
+		}
+
+		// Animation.
+		// Starting a new animation automatically resets the active animation.
 		animate({
-			keyframes = [], 
-			easing = "ease-in-out",
-			delay = 0,
-			duration = 1000,
-			repeat = false,
-			on_finish = null,
+			keyframes = [], 		// keyframe objects.
+			delay = 0,				// start delay.
+			duration = 0,			// duration per keyframe.
+			repeat = false,			// infinite repeat,
+			persistent = false,		// keep the last keyframe when the animation ends.
+			on_finish = null,		// on finish callback function.
+			easing = "ease-in-out",	// easing.
 		}) {
 			const e = this;
 
-			// Keep a single keyframe state for delays.
-			function keep_state(index) {
-				e.animate(
-					[
-					keyframes[index],
-					keyframes[index],
-					], 
-					{
-						duration: delay,
+			// Padd numeric values like "top" with "px".
+			const convert = [
+				"width",
+			    "height",
+			    "top",
+			    "right",
+			    "bottom",
+			    "left",
+			    "margin",
+			    "margin-top",
+			    "margin-right",
+			    "margin-bottom",
+			    "margin-left",
+			    "padding",
+			    "padding-top",
+			    "padding-right",
+			    "padding-bottom",
+			    "padding-left",
+			    "border-width",
+			    "border-top-width",
+			    "border-right-width",
+			    "border-bottom-width",
+			    "border-left-width",
+			    "min-width",
+			    "min-height",
+			    "max-width",
+			    "max-height",
+			    "outline-width",
+			    "column-width",
+			    "column-gap",
+			    "row-gap",
+
+			    "marginTop",
+			    "marginRight",
+			    "marginBottom",
+			    "marginLeft",
+			    "paddingTop",
+			    "paddingRight",
+			    "paddingBottom",
+			    "paddingLeft",
+			    "borderWidth",
+			    "borderTopWidth",
+			    "borderRightWidth",
+			    "borderBottomWidth",
+			    "borderLeftWidth",
+			    "minWidth",
+			    "minHeight",
+			    "maxWidth",
+			    "maxHeight",
+			    "outlineWidth",
+			    "columnWidth",
+			    "columnGap",
+			    "rowGap",
+			];
+			for (let i = 0; i < keyframes.length; i++) {
+				if (keyframes[i] instanceof StyleElement) {
+					keyframes[i] = keyframes[i].styles();
+				}
+				for (let key in keyframes[i]) {
+					if (vweb.utils.is_numeric(keyframes[i][key]) && convert.includes(key)) {
+						keyframes[i][key] = this.pad_numeric(keyframes[i][key]);
 					}
-					);
+				}
 			}
+
+			// Keep a single keyframe state for delays.
+			// function keep_state(index) {
+			// 	e.default_animate(
+			// 		[
+			// 		keyframes[index],
+			// 		keyframes[index],
+			// 		], 
+			// 		{
+			// 			duration: delay,
+			// 		}
+			// 		);
+			// }
 
 			// Do an animation.
 			function do_animation(index) {
@@ -976,21 +1269,31 @@ function CreateVElementClass({
 				if (index + 1 < keyframes.length) {
 					const from = keyframes[index];
 					const to = keyframes[index + 1];
-					e.animate(
-						[
-						from, 
-						to,
-						], 
-						{
-							duration: from.duration || duration,
-							// easing: from.easing || easing,
-						}
-						);
+					let opts = {
+						duration: duration,
+						// easing: from.easing || easing,
+					};
+					if (from.duration != null) {
+						opts.duration = from.duration;
+					}
+					if (
+						(index + 2 == keyframes.length && persistent && !repeat) || // keep by persistant.
+						(to.delay != null && to.delay > 0) // keep by delay.
+					) {
+						opts.fill = "forwards";
+					}
+					e.default_animate(
+						[from, to], 
+						opts,
+					);
 					if (to.delay != null && to.delay > 0) {
-						setTimeout(() => keep_state(index + 1), from.duration || duration);
-						setTimeout(() => do_animation(index + 1), (from.duration || duration) + (to.delay || 0));
+						// clearTimeout(e.animate_timeout);
+						// e.animate_timeout = setTimeout(() => keep_state(index + 1), from.duration || duration);
+						clearTimeout(e.animate_timeout);
+						e.animate_timeout = setTimeout(() => do_animation(index + 1), (from.duration || duration) + (to.delay || 0));
 					} else {
-						setTimeout(() => do_animation(index + 1), from.duration || duration);
+						clearTimeout(e.animate_timeout);
+						e.animate_timeout = setTimeout(() => do_animation(index + 1), from.duration || duration);
 					}
 				}
 
@@ -999,15 +1302,17 @@ function CreateVElementClass({
 
 					// Keep last state till delay.
 					if (delay > 0) {
-						keep_state(keyframes.length - 1);
-						setTimeout(() => do_animation(0), delay);
+						// keep_state(keyframes.length - 1);
+						clearTimeout(e.animate_timeout);
+						e.animate_timeout = setTimeout(() => do_animation(0), delay);
 
 					}
 
 					// No delay.
 					else {
 						const delay = keyframes[keyframes.length - 1].duration || duration;
-						setTimeout(() => do_animation(0), delay);
+						clearTimeout(e.animate_timeout);
+						e.animate_timeout = setTimeout(() => do_animation(0), delay);
 					}
 
 				}
@@ -1019,7 +1324,10 @@ function CreateVElementClass({
 			}
 
 			// Start.
-			setTimeout(() => do_animation(0), delay || 0);
+			if (this.animate_timeout != null) {
+				clearTimeout(this.animate_timeout);
+			}
+			this.animate_timeout = setTimeout(() => do_animation(0), delay || 0);
 			return this;
 
 			// ============================================
@@ -1321,6 +1629,26 @@ function CreateVElementClass({
 				return this.set_default(E);
 			}
 			Type.default_style = this.styles();
+			return this;
+		}
+
+		// Assign a function or property.
+		// You must use function syntax "function() {}" not "() => {}".
+		assign(name, value) {
+			if (vweb.utils.is_func(value)) {
+				E.prototype[name] = value;
+			} else {
+				Object.defineProperty(E.prototype, name, { value });
+			}
+			return this;
+		}
+
+		// Extend with functions or properties.
+		// You must use function syntax "function() {}" not "() => {}".
+		extend(obj) {
+			for (let name in obj) {
+				this.assign(name, obj[name]);
+			}
 			return this;
 		}
 
@@ -6288,11 +6616,11 @@ function CreateVElementClass({
          *	}: 
          *	@inherit: false
          } */ 
-        opacity(value) {
-            if (value == null) { return this.style.opacity; }
-            this.style.opacity = value;
-            return this;
-        }
+        // opacity(value) {
+        //     if (value == null) { return this.style.opacity; }
+        //     this.style.opacity = value;
+        //     return this;
+        // }
 
         // Sets the order of the flexible item, relative to the rest.
         /*	@docs: {
@@ -12380,3 +12708,8 @@ function CreateVElementClass({
 // Element class.
 @vweb_constructor_wrapper
 const VElementElement = CreateVElementClass({type: "VElement", tag: "div"}); // should always remain a "div" since some elements like LoaderButton rely on the behaviour of a div.
+
+// Style class.
+// Used to create styles without an element, for example for animations.
+@vweb_constructor_wrapper
+const StyleElement = CreateVElementClass({type: "Style", tag: "style"});
