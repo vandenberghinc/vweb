@@ -4,23 +4,21 @@
  */
 
 // If.
-class If extends VElement {
-	
-	// Default vars.
-	static s_type = "If";
-	static s_tag = "section";
+@vweb_constructor_wrapper
+@vweb_register_element
+class IfElement extends CreateVElementClass({
+	type: "If",
+	tag: "section",
+}) {
 
-	// Default styling.
-	static default_styling = {};
-	
 	// Constructor.
 	// The first value of the args should be the true or false boolean ...
 	// All others will be the children which will be visible when the boolean is true.
 	constructor(...args) {
 		
 		// Initialize base class.
-		super(If.s_type, If.s_tag, If.default_styling);
-		
+		super();
+
 		// Execute.
 		if (args[0] == true) {
 			for (let i = 0; i < args.length; i++) {
@@ -39,6 +37,3 @@ class If extends VElement {
 	}
 	
 }
-
-// Register custom type.
-vweb.utils.register_custom_type(If);

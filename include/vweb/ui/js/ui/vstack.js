@@ -4,14 +4,12 @@
  */
 
 // Scroller.
-class VStack extends VElement {
-	
-	// Default vars.
-	static s_type = "VStack";
-	static s_tag = "div";
-
-	// Default styling.
-	static default_styling = {
+@vweb_constructor_wrapper
+@vweb_register_element
+class VStackElement extends CreateVElementClass({
+	type: "VStack",
+	tag: "div",
+	default_style: {
 		"position": "relative",
 		"margin": "0px",
 		"padding": "0px",
@@ -22,19 +20,18 @@ class VStack extends VElement {
 		"align-content": "flex-start", // align items at start, do not stretch / space when inside HStack.
 		"flex-direction": "column",
 		"text-align": "start",
-	};
+	},
+}) {
 	
 	// Constructor.
 	constructor(...children) {
 		
 		// Initialize base class.
-		super(VStack.s_type, VStack.s_tag, VStack.default_styling);
-		
+		super();
+
 		// Add children.
 		this.append(...children);
-	}
-	
-}
 
-// Register custom type.
-vweb.utils.register_custom_type(VStack);
+	}
+		
+}

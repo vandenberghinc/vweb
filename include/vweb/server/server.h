@@ -570,6 +570,10 @@ private:
 			// {"application/javascript", "/vweb/post_js.js", include_base.join("html/post_js.js")},
 		};
 		for (auto& [content_type, endpoint, full_path]: packs) {
+			Code data = full_path.load();
+			if (endpoint == "/vweb/vweb.js") {
+				fill_vweb_decorators(data, full_path);
+			}
 			m_endpoints.append(Endpoint {
 				"GET",
 				endpoint,
@@ -578,7 +582,7 @@ private:
 					.rate_limit = 100,
 					.rate_limit_duration = 60,
 				},
-				full_path.load(),
+				data,
 			});
 		}
 		
@@ -954,6 +958,136 @@ private:
 		return mimes.value(index);
 	}
 	
+	// Fill js decorators like "@vweb_constructor_wrapper".
+	void	fill_vweb_decorators(Code& data, const Path& path) {
+		
+		// Util func.
+		auto increment_on_whitespace = [&](ullong& index) {
+			while (true) {
+				switch (data[index]) {
+					case '\t':
+					case '\n':
+					case ' ':
+						++index;
+						continue;
+					default:
+						break;
+				}
+				break;
+			}
+		};
+		
+		// Fill some @vweb_constructor_wrapper.
+		for (auto& decorator: {
+			String("@vweb_constructor_wrapper"),
+			String("@vweb_register_element"),
+			
+		}) {
+			ullong pos = 0;
+			while (true) {
+				pos = data.find_code(decorator.c_str(), pos, NPos::npos, {.exclude_strings = true, .exclude_chars = true, .exclude_comments = true});
+				if (pos == NPos::npos) { break; }
+				
+				// Find the end of the line.
+				ullong post_start = data.find('\n', pos);
+				if (post_start == NPos::npos) {
+					++pos;
+					continue;
+				}
+				
+				// Remove the @.
+				data = data.slice(0, pos).concat_r(data.data() + post_start, data.len() - post_start);
+				
+				// IMPORTANT: Variable "pos" should not be used after here, use "post_start" instead.
+				// Find the start of the new line.
+				// Skip the other decorators.
+				post_start = pos;
+				increment_on_whitespace(post_start);
+				while (data[post_start] == '@') {
+					post_start = data.find('\n', post_start);
+					if (post_start == NPos::npos) {
+						break;
+					}
+					increment_on_whitespace(post_start);
+				}
+				
+				// Find the end first next line.
+				ullong newline_end = data.find('\n', post_start);
+				if (newline_end == NPos::npos) {
+					++pos;
+					continue;
+				}
+				
+				// Get the first line.
+				String first_line = String(data.data() + post_start, newline_end - post_start);
+				first_line.trim_whitespace_r();
+				
+				// Only "const ... ;" and "class ... {}" are supported.
+				short mode = 0;
+				if (first_line.eq_first("const", 5)) {
+					mode = 1;
+				} else if (first_line.eq_first("class", 5)) {
+					mode = 2;
+				} else {
+					throw vlib::InvalidUsageError("Found a \"", decorator, "\" decorator without a valid next line. Only \"const ...;\" and \"clas ... {}\" are valid next lines, skipping.");
+				}
+				String name = first_line.slice(5).trim_leading_whitespace_r();
+				ullong delimiter = name.find_first(" \t{=");
+				if (delimiter == NPos::npos) {
+					++pos;
+					continue;
+				}
+				name.slice_r(0, delimiter);
+				
+				// Remove Element suffix.
+				String full_name = name;
+				if (name.len() >= 7) {// Element
+					name.len() -= 7;
+				}
+				
+				// Find the start index of where to create the new code.
+				ullong insert_index = NPos::npos;
+				
+				// Find the closing ";".
+				if (mode == 1) {
+					insert_index = data.find(';', post_start);
+					if (insert_index != NPos::npos) {
+						++insert_index;
+					}
+				}
+				
+				// Iterate till the end of the opening "{".
+				else if (mode == 2) {
+					bool open = false;
+					for (auto& i: data.iterate(post_start)) {
+						if (!open && i.parentheses_depth() == 0 && i.brackets_depth() == 0 && i.curly_brackets_depth() == 1) {
+							open = true;
+						} else if (open && i.curly_brackets_depth() == 0) {
+							insert_index = i.index + 1;
+							break;
+						}
+					}
+				}
+				
+				// Insert.
+				if (insert_index == NPos::npos) {
+					throw vlib::InvalidUsageError("Could not find the insert index of decorator \"", decorator, "\" at \"", path, "\".");
+				}
+				String insert;
+				if (decorator == "@vweb_constructor_wrapper") {
+					insert << "\nfunction " << name << "(...args){return new " << full_name << "(...args);}";
+				} else if (decorator ==  "@vweb_register_element") {
+					insert << "\nvweb.elements.register(" << full_name << ");";
+				} else {
+					throw vlib::InvalidUsageError("Unknown decorator \"", decorator, "\".");
+				}
+				data = data.slice(0, insert_index).concat_r(insert).concat_r(data.data() + insert_index, data.len() - insert_index);
+				++pos;
+			}
+		}
+		
+	}
+	
 	// Create static endpoints.
 	void    create_static_endpoints(const Path& path, const Bool& js_views = false) {
 		if (!path.exists()) { return ; }
@@ -963,58 +1097,25 @@ private:
 			if (child.is_file()) {
 				String content_type = get_content_type(child.extension());
 				String& extension = child.extension();
-				String data;
+				Code data;
 				
 				// Javascript views directory.
 				if (js_views) {
+					
+					// CSS.
 					if (extension == "css") {
 						data = child.load();
 					}
 					
+					// Javascript.
 					else if (extension == "js") {
-						Code js = child.load();
-						String transformed_js;
+						data = child.load();
 						
-						// Make some javascript edits.
-						String join_str_batch;
-						bool is_str = false;
-						ullong str_end_index = 0;
-						String allowed_between_str_chars = "\n\t ";
-						for (auto& i: js.iterate()) {
-							
-							// Transform a line like ["Hello World!" "\n"] to ["Hello World!\n"].
-							bool append = str_end_index == 0;
-							if (str_end_index != 0 && i.is_any_str()) {
-								join_str_batch.reset();
-								str_end_index = 0;
-								--transformed_js.len();
-								append = false;
-							} else if (str_end_index != 0) {
-								if (allowed_between_str_chars.contains(i.character())) {
-									join_str_batch.append(i.character());
-									append = false;
-								} else {
-									str_end_index = 0;
-									transformed_js.concat_r(join_str_batch);
-									join_str_batch.reset();
-									append = true;
-								}
-							}
-							if (!is_str && i.is_any_str()) {
-								is_str = true;
-							} else if (is_str && !i.is_any_str()) {
-								is_str = false;
-								if (allowed_between_str_chars.contains(i.character())) {
-									str_end_index = i.index;
-									join_str_batch.append(i.character());
-									append = false;
-								}
-							}
-							if (append) {
-								transformed_js.append(i.character());
-							}
-						}
-						data = move(transformed_js);
+						// Join lines like ["Hello World!" "\n"] to ["Hello World!\n"].
+						data = vlib::JavaScript::join_strings(data);
+						
+						// Fill js vweb decorators.
+						fill_vweb_decorators(data, path);
 						
 						// Trim js.
 						if (vweb_production) {
@@ -1027,9 +1128,8 @@ private:
 						}
 					}
 					
-					else {
-						continue;
-					}
+					// Skip.
+					else { continue; }
 					
 				}
 				

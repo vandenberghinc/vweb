@@ -4,14 +4,12 @@
  */
 
 // HStack.
-class HStack extends VElement {
-	
-	// Default vars.
-	static s_type = "HStack";
-	static s_tag = "div";
-
-	// Default styling.
-	static default_styling = {
+@vweb_constructor_wrapper
+@vweb_register_element
+class HStackElement extends CreateVElementClass({
+	type: "HStack",
+	tag: "div",
+	default_style: {
 		"position": "relative",
 		"margin": "0px",
 		"padding": "0px",
@@ -23,19 +21,18 @@ class HStack extends VElement {
 		"flex-direction": "row",
 		"align-items": "flex-start", // disable the auto extending of the childs height to the max child height.
 		// "flex": "1", // disabled to support horizontal spacers in VStacks.
-	};
-	
+		"border": "0px",
+	},
+}) {
+
 	// Constructor.
 	constructor(...children) {
 		
 		// Initialize base class.
-		super(HStack.s_type, HStack.s_tag, HStack.default_styling);
+		super();
 		
 		// Add children.
 		this.append(...children);
 	}
 	
 }
-
-// Register custom type.
-vweb.utils.register_custom_type(HStack);

@@ -4,32 +4,32 @@
  */
 
 // Title.
-class Title extends VElement {
-	
-	// Default vars.
-	static s_type = "Title";
-	static s_tag = "h1";
-
-	// Default styling.
-	static default_styling = {
+@vweb_constructor_wrapper
+@vweb_register_element
+class TitleElement extends CreateVElementClass({
+	type: "Title",
+	tag: "h1",
+	default_style: {
 		"margin": "0px 0px 0px 0px",
 		"color": "inherit",
 		"white-space": "wrap",
 		"text-align": "inherit",
-		"color": "green",
+	},
+}) {
+
+	// Default styling.
+	static default_style = {
+		
 	};
 	
 	// Constructor.
 	constructor(text) {
 		
 		// Initialize base class.
-		super(Title.s_type, Title.s_tag, Title.default_styling);
+		super();
 		
 		// Set text.
 		this.inner_html(text);
 	}
 		
 }
-
-// Register custom type.
-vweb.utils.register_custom_type(Title);

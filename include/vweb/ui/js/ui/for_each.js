@@ -4,24 +4,23 @@
  */
 
 // ForEach.
-class ForEach extends VElement {
-	
-	// Default vars.
-	static s_type = "ForEach";
-	static s_tag = "section";
-
-	// Default styling.
-	static default_styling = {
+@vweb_constructor_wrapper
+@vweb_register_element
+class ForEachElement extends CreateVElementClass({
+	type: "ForEach",
+	tag: "section",
+	default_style: {
 		"border": "none",
 		"outline": "none",
 		"background": "transparent",
-	};
+	},
+}) {
 	
 	// Constructor.
 	constructor(items, func) {
 		
 		// Initialize base class.
-		super(ForEach.s_type, ForEach.s_tag, ForEach.default_styling);
+		super();
 		
 		// Iterate.
 		for (let i = 0; i < items.length; i++) {
@@ -31,6 +30,3 @@ class ForEach extends VElement {
 	}
 	
 }
-
-// Register custom type.
-vweb.utils.register_custom_type(ForEach);

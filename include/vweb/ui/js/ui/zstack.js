@@ -4,29 +4,29 @@
  */
 
 // Scroller.
-class ZStack extends VElement {
-	
-	// Default vars.
-	static s_type = "ZStack";
-	static s_tag = "div";
-
-	// Default styling.
-	static default_styling = {
+@vweb_constructor_wrapper
+@vweb_register_element
+class ZStackElement extends CreateVElementClass({
+	type: "ZStack",
+	tag: "div",
+	default_style: {
 		"position": "relative",
 		"margin": "0px",
 		"padding": "0px",
 		"display": "grid",
 		"text-align": "start",
-	};
+	},
+}) {
 	
 	// Constructor.
 	constructor(...children) {
 		
 		// Initialize base class.
-		super(ZStack.s_type, ZStack.s_tag, ZStack.default_styling);
+		super();
 		
 		// Add children.
 		this.zstack_append(...children);
+
 	}
 	
 	// Override append.
@@ -35,6 +35,3 @@ class ZStack extends VElement {
 	}
 	
 }
-
-// Register custom type.
-vweb.utils.register_custom_type(ZStack);

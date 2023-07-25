@@ -4,14 +4,12 @@
  */
 
 // Input.
-class Input extends VElement {
-	
-	// Default vars.
-	static s_type = "Input";
-	static s_tag = "input";
-
-	// Default styling.
-	static default_styling = {
+@vweb_constructor_wrapper
+@vweb_register_element
+class InputElement extends CreateVElementClass({
+	type: "Input",
+	tag: "input",
+	default_style: {
 		"margin": "0px 0px 0px 0px",
 		"padding": "2.5px 5px 2.5px 5px",
 		"height": "20px",
@@ -23,14 +21,15 @@ class Input extends VElement {
 		"border-radius": "10px",
 		"text-align": "start",
 		"white-space": "nowrap",
-	};
+	},
+}) {
 	
 	// Constructor.
 	constructor(placeholder) {
 		
 		// Initialize base class.
-		super(Input.s_type, Input.s_tag, Input.default_styling);
-		
+		super();
+
 		// Input type.
 		this.type("text");
 
@@ -41,18 +40,13 @@ class Input extends VElement {
 	
 }
 
-// Register custom type.
-vweb.utils.register_custom_type(Input);
-
 // PasswordInput.
-class PasswordInput extends VElement {
-	
-	// Default vars.
-	static s_type = "PasswordInput";
-	static s_tag = "input";
-
-	// Default styling.
-	static default_styling = {
+@vweb_constructor_wrapper
+@vweb_register_element
+class PasswordInputElement extends CreateVElementClass({
+	type: "PasswordInput",
+	tag: "input",
+	default_style: {
 		"margin": "0px 0px 0px 0px",
 		"padding": "2.5px 5px 2.5px 5px",
 		"height": "20px",
@@ -64,14 +58,15 @@ class PasswordInput extends VElement {
 		"border-radius": "10px",
 		"text-align": "start",
 		"white-space": "nowrap",
-	};
+	},
+}) {
 	
 	// Constructor.
 	constructor(placeholder) {
 		
 		// Initialize base class.
-		super(PasswordInput.s_type, PasswordInput.s_tag, PasswordInput.default_styling);
-		
+		super();
+
 		// Input type.
 		this.type("password");
 		
@@ -82,18 +77,13 @@ class PasswordInput extends VElement {
 	
 }
 
-// Register custom type.
-vweb.utils.register_custom_type(PasswordInput);
-
 // EmailInput.
-class EmailInput extends VElement {
-	
-	// Default vars.
-	static s_type = "EmailInput";
-	static s_tag = "input";
-
-	// Default styling.
-	static default_styling = {
+@vweb_constructor_wrapper
+@vweb_register_element
+class EmailInputElement extends CreateVElementClass({
+	type: "EmailInput",
+	tag: "input",
+	default_style: {
 		"margin": "0px 0px 0px 0px",
 		"padding": "2.5px 5px 2.5px 5px",
 		"height": "20px",
@@ -105,14 +95,15 @@ class EmailInput extends VElement {
 		"border-radius": "10px",
 		"text-align": "start",
 		"white-space": "nowrap",
-	};
+	},
+}) {
 	
 	// Constructor.
 	constructor(placeholder) {
 		
 		// Initialize base class.
-		super(EmailInput.s_type, EmailInput.s_tag, EmailInput.default_styling);
-		
+		super();
+
 		// Input type.
 		this.type("email");
 		
@@ -123,18 +114,13 @@ class EmailInput extends VElement {
 	
 }
 
-// Register custom type.
-vweb.utils.register_custom_type(EmailInput);
-
 // PhoneNumberInput.
-class PhoneNumberInput extends VElement {
-	
-	// Default vars.
-	static s_type = "PhoneNumberInput";
-	static s_tag = "input";
-
-	// Default styling.
-	static default_styling = {
+@vweb_constructor_wrapper
+@vweb_register_element
+class PhoneNumberInputElement extends CreateVElementClass({
+	type: "PhoneNumberInput",
+	tag: "input",
+	default_style: {
 		"margin": "0px 0px 0px 0px",
 		"padding": "2.5px 5px 2.5px 5px",
 		"height": "20px",
@@ -146,13 +132,14 @@ class PhoneNumberInput extends VElement {
 		"border-radius": "10px",
 		"text-align": "start",
 		"white-space": "nowrap",
-	};
+	},
+}) {
 	
 	// Constructor.
 	constructor(placeholder) {
 		
 		// Initialize base class.
-		super(PhoneNumberInput.s_type, PhoneNumberInput.s_tag, PhoneNumberInput.default_styling);
+		super();
 
 		// Input type.
 		this.type("tel");
@@ -164,18 +151,13 @@ class PhoneNumberInput extends VElement {
 	
 }
 
-// Register custom type.
-vweb.utils.register_custom_type(PhoneNumberInput);
-
 // InputBox.
-class InputBox extends VElement {
-	
-	// Default vars.
-	static s_type = "InputBox";
-	static s_tag = "textarea";
-
-	// Default styling.
-	static default_styling = {
+@vweb_constructor_wrapper
+@vweb_register_element
+class InputBoxElement extends CreateVElementClass({
+	type: "InputBox",
+	tag: "textarea",
+	default_style: {
 		"margin": "0px 0px 0px 0px",
 		"padding": "2.5px 5px 2.5px 5px",
 		"height": "20px",
@@ -188,13 +170,14 @@ class InputBox extends VElement {
 		"text-align": "start",
 		"white-space": "wrap",
 		"resize": "none",
-	};
+	},
+}) {
 	
 	// Constructor.
 	constructor(placeholder) {
 		
 		// Initialize base class.
-		super(InputBox.s_type, InputBox.s_tag, InputBox.default_styling);
+		super();
 
 		// Set placeholder text.
 		this.placeholder(placeholder);
@@ -203,18 +186,13 @@ class InputBox extends VElement {
 	
 }
 
-// Register custom type.
-vweb.utils.register_custom_type(InputBox);
-
 // SelectOptionInput.
-class SelectOptionInput extends VElement {
-	
-	// Default vars.
-	static s_type = "SelectOptionInput";
-	static s_tag = "select";
-
-	// Default styling.
-	static default_styling = {
+@vweb_constructor_wrapper
+@vweb_register_element
+class SelectOptionInputElement extends CreateVElementClass({
+	type: "SelectOptionInput",
+	tag: "select",
+	default_style: {
 		"margin": "0px 0px 0px 0px",
 		"padding": "2.5px 5px 2.5px 5px",
 		"height": "20px",
@@ -227,14 +205,15 @@ class SelectOptionInput extends VElement {
 		"text-align": "start",
 		"white-space": "wrap",
 		"resize": "none",
-	};
+	},
+}) {
 	
 	// Constructor.
 	constructor(placeholder) {
 		
 		// Initialize base class.
-		super(SelectOptionInput.s_type, SelectOptionInput.s_tag, SelectOptionInput.default_styling);
-		
+		super();
+
 		// Add children.
 		for (let i = 0; i < arguments.length; i++) {
 			let e = document.createElement("option");
@@ -250,6 +229,3 @@ class SelectOptionInput extends VElement {
 	}
 	
 }
-
-// Register custom type.
-vweb.utils.register_custom_type(SelectOptionInput);

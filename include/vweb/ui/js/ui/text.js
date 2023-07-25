@@ -4,14 +4,12 @@
  */
 
 // Text.
-class Text extends VElement {
-	
-	// Default vars.
-	static s_type = "Text";
-	static s_tag = "p";
-
-	// Default styling.
-	static default_styling = {
+@vweb_constructor_wrapper
+@vweb_register_element
+class TextElement extends CreateVElementClass({
+	type: "Text",
+	tag: "p",
+	default_style: {
 		"margin": "0px 0px 0px 0px",
 		"padding": "2.5px",
 		"padding": "2.5px",
@@ -19,19 +17,17 @@ class Text extends VElement {
 		"color": "inherit",
 		"text-align": "inherit",
 		"white-space": "wrap",
-	};
+	},
+}) {
 	
 	// Constructor.
 	constructor(text) {
 		
 		// Initialize base class.
-		super(Text.s_type, Text.s_tag, Text.default_styling);
-		
+		super();
+	
 		// Set text.
 		this.inner_html(text);
 	}
 		
 }
-
-// Register custom type.
-vweb.utils.register_custom_type(Text);

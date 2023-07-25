@@ -5,27 +5,26 @@
 
 // RingLoader.
 // - The width and height must be in pixels.
-class RingLoader extends VElement {
-	
-	// Default vars.
-	static s_type = "RingLoader";
-	static s_tag = "div";
-
-	// Default styling.
-	static default_styling = {
+@vweb_constructor_wrapper
+@vweb_register_element
+class RingLoaderElement extends CreateVElementClass({
+	type: "RingLoader",
+	tag: "div",
+	default_style:  {
 		"width": "80px",
 		"height": "80px",
 		"--child-background": "black",
 		"display": "inline-block",
 		"position": "relative",
-	};
+	},
+}) {
 	
 	// Constructor.
 	constructor() {
 		
 		// Initialize base class.
-		super(RingLoader.s_type, RingLoader.s_tag, RingLoader.default_styling);
-		
+		super();
+
 		// Set default.
 		this.update();
 		
@@ -33,8 +32,8 @@ class RingLoader extends VElement {
 
 	// Overwrite the set background function.
 	background(value) {
-        if (value == null) { return tthis.element.style["--child-background"]; }
-        this.element.style["--child-background"] = value;
+        if (value == null) { return this.style["--child-background"]; }
+        this.style["--child-background"] = value;
         return this;
     }
 	
@@ -42,9 +41,9 @@ class RingLoader extends VElement {
 	// Needs to be called after initialing or changing the loader.
 	update() {
 		this.remove_children();
-		const width = parseFloat(this.element.style.width.replace("px", ""));
-		const height = parseFloat(this.element.style.height.replace("px", ""));
-		const background = this.element.style["--child-background"];
+		const width = parseFloat(this.style.width.replace("px", ""));
+		const height = parseFloat(this.style.height.replace("px", ""));
+		const background = this.style["--child-background"];
 		const children_style = {
 			"box-sizing": "border-box",
 			"display": "block",
@@ -75,6 +74,3 @@ class RingLoader extends VElement {
 	}
 		
 }
-
-// Register custom type.
-vweb.utils.register_custom_type(RingLoader);

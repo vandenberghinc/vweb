@@ -6,21 +6,19 @@
 // Elements module.
 vweb.elements = {};
 
-// All vweb elements.
-vweb.elements.all_elements = [];
-
 // Get by id.
-// Can only be used for vweb elements.
-// Not for elements that are not created by the vweb api.
 vweb.elements.get = function(id) {
-	for (let i = 0; i < vweb.elements.all_elements.length; i++) {
-		const item = vweb.elements.all_elements[i];
-		if (item.element.id == id) {
-			return item;
-		}
-	}
-	return null;
+	return document.getElementById(id);
 }
 vweb.elements.get_by_id = function(id) {
 	return vweb.elements.get(id)
+}
+
+// Register a custom type.
+// Parameter "tag" is optional.
+vweb.elements.register = function(type, tag) {
+
+	// Prefer type.name here since that also supports inherited classes.
+	customElements.define("v-" + type.name.toLowerCase(), type, {extends: tag || type.element_tag});
+
 }

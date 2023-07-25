@@ -5,11 +5,6 @@
 
 // Utils module.
 vweb.utils = {};
-
-// Register a custom type.
-vweb.utils.register_custom_type = function(type) {
-	customElements.define("v-" + type.s_type.toLowerCase(), type, {extends: type.s_tag});	
-}
 	
 // Is string.
 vweb.utils.is_string = function(value) {
@@ -18,17 +13,17 @@ vweb.utils.is_string = function(value) {
 
 // Is numeric.
 vweb.utils.is_numeric = function(value) {
-  return typeof value === 'number' && Number.isFinite(value);
+  	return typeof value === 'number' && Number.isFinite(value);
 }
 
 // Is int.
 vweb.utils.is_int = function(value) {
-  return typeof value === 'number' && Number.isInteger(value);
+  	return typeof value === 'number' && Number.isInteger(value);
 }
 
 // Is float.
 vweb.utils.is_float = function(value) {
-  return typeof value === 'number' && !Number.isNaN(value) && !Number.isInteger(value);
+  	return typeof value === 'number' && !Number.isNaN(value) && !Number.isInteger(value);
 }
 
 // Is function.

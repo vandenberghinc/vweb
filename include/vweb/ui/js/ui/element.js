@@ -3,414 +3,496 @@
  * Copyright: © 2022 - 2023 Daan van den Bergh.
  */
 
+// Elements that use the "width" etc attribute instead of the "style.width".
+vweb.elements.elements_with_width_attribute = [
+	'CANVAS',
+	'EMBED',
+	'IFRAME',
+	'IMG',
+	'OBJECT',
+	'PROGRESS',
+	'VIDEO',
+];
+
 // Element.
-/*	@docs: {
- *	@chapter: UI
- *	@title: Element
- *	@description:
- *		Base class Element for derived classes.
- } */
-class VElement extends HTMLElement {
-	
-	// Default vars.
-	static s_type = "VElement";
-	static s_tag = "div";
+function CreateVElementClass({
+	type = "VElement", 
+	tag = "div",
+	default_style = null, 
+	default_attributes = null, 
+	default_events = null, 
+}) {
 
-	// ---------------------------------------------------------
-	// Constructors.
-	
-	constructor(type, tag, style) {
+	// Get base.
+	const base_map = {
+		a: HTMLAnchorElement,
+		area: HTMLAreaElement,
+		audio: HTMLAudioElement,
+		base: HTMLBaseElement,
+		blockquote: HTMLQuoteElement,
+		body: HTMLBodyElement,
+		br: HTMLBRElement,
+		button: HTMLButtonElement,
+		canvas: HTMLCanvasElement,
+		caption: HTMLTableCaptionElement,
+		col: HTMLTableColElement,
+		data: HTMLDataElement,
+		datalist: HTMLDataListElement,
+		dl: HTMLDListElement,
+		dir: HTMLDirectoryElement,
+		div: HTMLDivElement,
+		html: HTMLHtmlElement,
+		embed: HTMLEmbedElement,
+		fieldset: HTMLFieldSetElement,
+		form: HTMLFormElement,
+		h1: HTMLHeadingElement,
+		h2: HTMLHeadingElement,
+		h3: HTMLHeadingElement,
+		h4: HTMLHeadingElement,
+		h5: HTMLHeadingElement,
+		h6: HTMLHeadingElement,
+		head: HTMLHeadElement,
+		hr: HTMLHRElement,
+		img: HTMLImageElement,
+		input: HTMLInputElement,
+		ins: HTMLModElement,
+		label: HTMLLabelElement,
+		legend: HTMLLegendElement,
+		li: HTMLLIElement,
+		link: HTMLLinkElement,
+		map: HTMLMapElement,
+		meta: HTMLMetaElement,
+		meter: HTMLMeterElement,
+		object: HTMLObjectElement,
+		ol: HTMLOListElement,
+		optgroup: HTMLOptGroupElement,
+		option: HTMLOptionElement,
+		output: HTMLOutputElement,
+		p: HTMLParagraphElement,
+		param: HTMLParamElement,
+		picture: HTMLPictureElement,
+		pre: HTMLPreElement,
+		progress: HTMLProgressElement,
+		q: HTMLQuoteElement,
+		script: HTMLScriptElement,
+		select: HTMLSelectElement,
+		slot: HTMLSlotElement,
+		source: HTMLSourceElement,
+		span: HTMLSpanElement,
+		style: HTMLStyleElement,
+		table: HTMLTableElement,
+		thead: HTMLTableSectionElement,
+		tbody: HTMLTableSectionElement,
+		tfoot: HTMLTableSectionElement,
+		th: HTMLTableCellElement,
+		td: HTMLTableCellElement,
+		template: HTMLTemplateElement,
+		textarea: HTMLTextAreaElement,
+		time: HTMLTimeElement,
+		title: HTMLTitleElement,
+		tr: HTMLTableRowElement,
+		track: HTMLTrackElement,
+		ul: HTMLUListElement,
+	};
+	let Base = base_map[tag];
+	if (Base == null) {
+		Base = HTMLElement;
+	}
+
+	// Build class.
+	class E extends Base {
+
+		// ---------------------------------------------------------
+		// Attributes.
+
+		static element_tag = tag; // must remain static.
+		static default_style = default_style;
+		static default_attributes = default_attributes;
+		static default_events = default_events;
+
+		// ---------------------------------------------------------
+		// Constructor.
 		
-		// Inherit.
-	 	super()
+		constructor() {
 
-	    // Type.
-		this.element_type = type;
+			// Super base.
+			super();
 
-		// Tag.
-		this.element_tag = tag;
+			// Attributes.
+			this.element_type = type; // must remain a member attribute.
+			this.element_display = "block";
 
-		// Display.
-		this.element_display = "block";
+			// Default style.
+			if (E.default_style != null) {
+				this.styles(E.default_style);
+			}
 
-		// Default style.
-		if (style != null) {
-			this.styles(style);
+			// Default attributes.
+			if (E.default_attributes != null) {
+				this.attrs(E.default_attributes);
+			}
+
+			// Default events.
+			if (E.default_events != null) {
+				this.events(E.default_events);
+			}
+
+		}
+		
+		// ---------------------------------------------------------
+		// Utils.
+		
+		// Padd a numeric with px.
+		pad_numeric(value, padding = "px") {
+			if (vweb.utils.is_numeric(value)) {
+				return value + padding;
+			}
+			return value;
 		}
 
-	}
-	
-	// ---------------------------------------------------------
-	// vweb.utils.
-	
-	// Padd a numeric with px.
-	pad_numeric(value, padding = "px") {
-		if (vweb.utils.is_numeric(value)) {
-			return value + padding;
+		// Padd a numeric percentage with %.
+		// When the numeric is a float and between 0 and 1 it is also multiplied by 100.
+		pad_percentage(value, padding = "%") {
+			if (vweb.utils.is_float(value) && value < 1.0) {
+				return (value * 100) + padding;
+			} else if (vweb.utils.is_numeric(value)) {
+				return value + padding;
+			}
+			return value;
 		}
-		return value;
-	}
 
-	// Padd a numeric percentage with %.
-	// When the numeric is a float and between 0 and 1 it is also multiplied by 100.
-	pad_percentage(value, padding = "%") {
-		if (vweb.utils.is_float(value) && value < 1.0) {
-			return (value * 100) + padding;
-		} else if (vweb.utils.is_numeric(value)) {
-			return value + padding;
+		// Edit a x() from a filter string.
+		// Can also be used for similair string that use "x() y()".
+		// When to is null the type will be removed.
+		edit_filter_wrapper(filter, type, to = null) {
+			const pattern = new RegExp(`${type}\\([^)]*\\)\\s*`, "g");
+			if (pattern.test(filter)) {
+				if (to == null) {
+					return filter.replace(pattern, "");
+				} else {
+					return filter.replace(pattern, to);
+				}
+			} else if (to != null) {
+				return `${filter} ${to}`;
+			}
+			return value;
 		}
-		return value;
-	}
 
-	// Edit a x() from a filter string.
-	// Can also be used for similair string that use "x() y()".
-	// When to is null the type will be removed.
-	edit_filter_wrapper(filter, type, to = null) {
-	    const pattern = new RegExp(`${type}\\([^)]*\\)\\s*`, "g");
-	    if (pattern.test(filter)) {
-	        if (to == null) {
+		// Toggle a x() from a filter string.
+		// Can also be used for similair string that use "x() y()".
+		// When the type is present the item will be removed, otherwise the to will be added.
+		toggle_filter_wrapper(filter, type, to = null) {
+			const pattern = new RegExp(`${type}\\([^)]*\\)\\s*`, "g");
+			if (pattern.test(filter)) {
 				return filter.replace(pattern, "");
-	        } else {
-	        	return filter.replace(pattern, to);
-	        }
-	    } else if (to != null) {
-	        return `${filter} ${to}`;
-	    }
-		return value;
-	}
+			} else if (to != null) {
+				return `${filter} ${to}`;
+			}
+			return value;
+		}
+		
+		// ---------------------------------------------------------
+		// Children functions.
+		
+		// Append child elements.
+		// Can be called with multiple arguments.
+		// A direct HTML Node is also accepted.
+		// A function is also accepted and will be executed.
+		append(...children) {
+			for (let i = 0; i < children.length; i++) {
+				const child = children[i];
+				if (child != null) {
 
-	// Toggle a x() from a filter string.
-	// Can also be used for similair string that use "x() y()".
-	// When the type is present the item will be removed, otherwise the to will be added.
-	toggle_filter_wrapper(filter, type, to = null) {
-	    const pattern = new RegExp(`${type}\\([^)]*\\)\\s*`, "g");
-	    if (pattern.test(filter)) {
-	        return filter.replace(pattern, "");
-	    } else if (to != null) {
-	        return `${filter} ${to}`;
-	    }
-		return value;
-	}
-	
-	// ---------------------------------------------------------
-	// Children functions.
-	
-	// Append child elements.
-	// Can be called with multiple arguments.
-	// A direct HTML Node is also accepted.
-	// A function is also accepted and will be executed.
-	append(...children) {
-		for (let i = 0; i < children.length; i++) {
-			const child = children[i];
-			if (child != null) {
-
-				// VWeb element.
-				if (child.element != null) {
-					if (
-						child.element_type == "ForEach" ||
-						child.element_type == "If" ||
-						child.element_type == "IfDeviceWith"
-					) {
-						child.append_children_to(this.element);
+					// VWeb element.
+					if (child.element_type != null) {
+						if (
+							child.element_type == "ForEach" ||
+							child.element_type == "If" ||
+							child.element_type == "IfDeviceWith"
+						) {
+							child.append_children_to(this);
 					} else {
-						this.appendChild(child.element);
+						this.appendChild(child);
 					}
 				}
 
-				// Execute function.
-				else if (vweb.utils.is_func(child)) {
-					this.append(child());
+					// Execute function.
+					else if (vweb.utils.is_func(child)) {
+						this.append(child());
+					}
+
+					// Node element.
+					else if (child instanceof Node) {
+						this.appendChild(child);
+					}
+
+					// Append text.
+					else if (vweb.utils.is_string(child)) {
+						this.appendChild(document.createTextNode(child));	
+					}
+
+					// else {
+					// 	console.log("UNKOWN CHILD: ", child);
+					// }
+
 				}
-
-				// Node element.
-				else if (child instanceof Node) {
-					this.appendChild(child);
-				}
-
-				// Append text.
-				else if (vweb.utils.is_string(child)) {
-					this.appendChild(document.createTextNode(child));	
-				}
-
-				// else {
-				// 	console.log("UNKOWN CHILD: ", child);
-				// }
-
 			}
+			return this;
 		}
-		return this;
-	}
-	zstack_append(...children) {
-		for (let i = 0; i < children.length; i++) {
-			const child = children[i];
-			if (child != null) {
+		zstack_append(...children) {
+			for (let i = 0; i < children.length; i++) {
+				const child = children[i];
+				if (child != null) {
 
-				// VWeb element.
-				if (child.element != null) {
-					// child.element.style.position = "absolute";
-					child.element.style.gridArea = "1 / 1 / 2 / 2";
-					if (
-						child.element_type == "ForEach" ||
-						child.element_type == "If" ||
-						child.element_type == "IfDeviceWith"
-					) {
-						child.append_children_to(this.element);
+					// VWeb element.
+					if (child.element_type != null) {
+						child.style.gridArea = "1 / 1 / 2 / 2";
+						if (
+							child.element_type == "ForEach" ||
+							child.element_type == "If" ||
+							child.element_type == "IfDeviceWith"
+							) {
+							child.append_children_to(this);
 					} else {
-						this.appendChild(child.element);
+						this.appendChild(child);
 					}
 				}
 
-				// Execute function.
-				else if (vweb.utils.is_func(child)) {
-					this.append(child());
+					// Execute function.
+					else if (vweb.utils.is_func(child)) {
+						this.append(child());
+					}
+
+					// Node element.
+					else if (child instanceof Node) {
+						child.style.gridArea = "1 / 1 / 2 / 2";
+						this.appendChild(child);
+					}
+
+					// Append text.
+					else if (vweb.utils.is_string(child)) {
+						this.appendChild(document.createTextNode(child));	
+					}
+
 				}
+			}
+			return this;
+		}
 
-				// Node element.
-				else if (child instanceof Node) {
-					// child.element.style.position = "absolute";
-					child.element.style.gridArea = "1 / 1 / 2 / 2";
-					this.appendChild(child);
+		// Append to parent element.
+		append_to(parent) {
+			parent.appendChild(this);
+			return this;
+		}
+
+		// Append the children to parent element.
+		append_children_to(parent) {
+			while (this.firstChild) {
+				parent.appendChild(this.firstChild)
+			}
+			return this;
+		}
+
+		// Remove child.
+		// Can either be a Node object an Element derived object or an id.
+		remove_child(child) {
+			if (child.element_type != null) {
+				this.removeChild(child);
+			} else if (child instanceof Node) {
+				this.removeChild(child);
+			} else if (vweb.utils.is_string(child)) {
+				this.removeChild(document.getElementById(child));
+			} else {
+				console.error("Invalid parameter type for function \"remove_child()\".");
+			}
+			return this;
+		}
+
+		// Remove children.
+		remove_children() {
+			while (this.firstChild) {
+				this.removeChild(this.firstChild);
+			}
+			return this;
+		}
+
+		// ---------------------------------------------------------
+		// Text attribute functions.
+		
+		// Set or get the text.
+		// Leave value "null" to get the text.
+		text(value) {
+			if (value == null) {
+				return this.textContent;	
+			}
+			this.textContent = value;
+			return this;
+		}
+
+		// ---------------------------------------------------------
+		// Framing functions.
+		
+		// Specify the width or height of the element
+		// Returns the offset width or height when the param value is null.
+		width(value, check_attribute = true) {
+			if (check_attribute && vweb.elements.elements_with_width_attribute.includes(this.tagName)) {
+				if (value == null) {
+					return this.getAttribute("width");
 				}
-
-				// Append text.
-				else if (vweb.utils.is_string(child)) {
-					this.appendChild(document.createTextNode(child));	
+				this.setAttribute("width", value);
+			} else {
+				if (value == null) {
+					return this.style.width;
 				}
-
+				this.style.width = this.pad_numeric(value);
 			}
+			return this;
 		}
-		return this;
-	}
-
-	// Append to parent element.
-	append_to(parent) {
-		parent.appendChild(this.element);
-		return this;
-	}
-
-	// Append the children to parent element.
-	append_children_to(parent) {
-		while (this.firstChild) {
-			parent.appendChild(this.firstChild)
-		}
-		return this;
-	}
-
-	// Remove child.
-	// Can either be a Node object an Element derived object or an id.
-	remove_child(child) {
-		if (child.element != null) {
-			this.removeChild(child.element);
-		} else if (child instanceof Node) {
-			this.removeChild(child);
-		} else if (vweb.utils.is_string(child)) {
-			this.removeChild(document.getElementById(child));
-		} else {
-			console.error("Invalid parameter type for function \"remove_child()\".");
-		}
-		return this;
-	}
-
-	// Remove children.
-	remove_children() {
-		while (this.firstChild) {
-			this.removeChild(this.firstChild);
-		}
-		return this;
-	}
-
-	// ---------------------------------------------------------
-	// Text attribute functions.
-	
-	// Set or get the text.
-	// Leave value "null" to get the text.
-	text(value) {
-		if (value == null) {
-			return this.textContent;	
-		}
-		this.textContent = value;
-		return this;
-	}
-
-	// Set or get the value.
-	// Leave value "null" to get the value.
-	value(val) {
-		if (val == null) {
-			return this.value;	
-		}
-		this.value = val;
-		return this;
-	}
-
-	// ---------------------------------------------------------
-	// Framing functions.
-	
-	// Specify the width or height of the element
-	// Returns the offset width or height when the param value is null.
-	static elements_with_width_attribute = [
-		'canvas',
-		'embed',
-		'iframe',
-		'img',
-		'object',
-		'progress',
-		'video',
-	];
-	width(value, check_attribute = true) {
-		if (check_attribute && Element.elements_with_width_attribute.includes(this.element_tag)) {
-			if (value == null) {
-				return this.width;
+		height(value) {
+			if (vweb.elements.elements_with_width_attribute.includes(this.tagName)) {
+				if (value == null) {
+					return this.getAttribute("height");
+				}
+				this.setAttribute("height", value);
+			} else {
+				if (value == null) {
+					return this.style.height;
+				}
+				this.style.height = this.pad_numeric(value);
 			}
-			this.width = value;
-		} else {
-			if (value == null) {
-				return this.style.width;
+			return this;
+		}
+
+		// Set width by columns for HStack children.
+		width_by_columns(columns) {
+			let margin_left = this.style.marginLeft;
+			let margin_right = this.style.marginRight;
+			if (margin_left == null) {
+				margin_left = "0px";
 			}
-			this.style.width = this.pad_numeric(value);
-		}
-		return this;
-	}
-	height(value) {
-		if (Element.elements_with_width_attribute.includes(this.element_tag)) {
-			if (value == null) {
-				return this.height;
+			if (margin_right == null) {
+				margin_right = "0px";
 			}
-			this.height = value;
-		} else {
-			if (value == null) {
-				return this.style.height;
+			if (columns == null) {
+				columns = 1;
 			}
-			this.style.height = this.pad_numeric(value);
+			this.style.flexBasis = "calc(100% / " + columns + " - (" + margin_left + " + " + margin_right + "))";
+			// overflow needs to be set to hidden since it can cause the flex box ...
+			// calculations by the js template to fail.
+			this.style.overflow = "hidden";
+			return this;
 		}
-		return this;
-	}
 
-	// Set width by columns for HStack children.
-	width_by_columns(columns) {
-		let margin_left = this.style.marginLeft;
-        let margin_right = this.style.marginRight;
-		if (margin_left == null) {
-			margin_left = "0px";
+		// Get the offset width and height.
+		offset_width() {
+			return this.offsetWidth;
 		}
-		if (margin_right == null) {
-			margin_right = "0px";
+		offset_height() {
+			return this.offsetHeight;
 		}
-		if (columns == null) {
-			columns = 1;
-		}
-		this.style.flexBasis = "calc(100% / " + columns + " - (" + margin_left + " + " + margin_right + "))";
-		// overflow needs to be set to hidden since it can cause the flex box ...
-		// calculations by the js template to fail.
-		this.style.overflow = "hidden";
-		return this;
-	}
 
-	// Get the offset width and height.
-	offset_width() {
-		return this.offsetWidth;
-	}
-	offset_height() {
-		return this.offsetHeight;
-	}
-
-	// Get the x and y offset
-	x() {
-		return this.offsetLeft;
-	}
-	y() {
-		return this.offsetTop;
-	}
-
-	// Frame.
-	frame(width, height) {
-		this.width(width);
-		this.height(height);
-		return this;
-	}
-
-	// Padding, 1 or 4 args.
-	padding(...values) {
-		if (values.length === 0) {
-			return this.style.padding;
-		} else if (values.length === 1) {
-			this.style.padding = this.pad_numeric(values[0]);
-		} else if (values.length === 2) {	
-			this.style.paddingTop = this.pad_numeric(values[0]);
-			this.style.paddingRight = this.pad_numeric(values[1]);
-			this.style.paddingBottom = this.pad_numeric(values[0]);
-			this.style.paddingLeft = this.pad_numeric(values[1]);
-		} else if (values.length === 4) {
-			this.style.paddingTop = this.pad_numeric(values[0]);
-			this.style.paddingRight = this.pad_numeric(values[1]);
-			this.style.paddingBottom = this.pad_numeric(values[2]);
-			this.style.paddingLeft = this.pad_numeric(values[3]);
-		} else {
-			console.error("Invalid number of arguments for function \"padding()\".");
+		// Get the x and y offset
+		x() {
+			return this.offsetLeft;
 		}
-		return this;
-	}
-	
-	// Margin, 1 or 4 args.
-	margin(...values) {
-		if (values.length === 0) {
-			return this.style.margin;
-		} else if (values.length === 1) {
-			this.style.margin = this.pad_numeric(values[0]);
-		} else if (values.length === 2) {		
-			this.style.marginTop = this.pad_numeric(values[0]);
-			this.style.marginRight = this.pad_numeric(values[1]);
-			this.style.marginBottom = this.pad_numeric(values[0]);
-			this.style.marginLeft = this.pad_numeric(values[1]);
-		} else if (values.length === 4) {
-			this.style.marginTop = this.pad_numeric(values[0]);
-			this.style.marginRight = this.pad_numeric(values[1]);
-			this.style.marginBottom = this.pad_numeric(values[2]);
-			this.style.marginLeft = this.pad_numeric(values[3]);
-		} else {
-			console.error("Invalid number of arguments for function \"margin()\".");
+		y() {
+			return this.offsetTop;
 		}
-		return this;
-	}
-	
-	// Position, 1 or 4 args.
-	position(...values) {
-		if (values.length === 0) {
-			return this.style.position;
-		} else if (values.length === 1) {
-			this.style.position = values[0];
-		} else if (values.length === 4) {
-			this.style.position = "absolute";
-			this.style.top = this.pad_numeric(values[0]);
-			this.style.right = this.pad_numeric(values[1]);
-			this.style.bottom = this.pad_numeric(values[2]);
-			this.style.left = this.pad_numeric(values[3]);
-		} else {
-			console.error("Invalid number of arguments for function \"position()\".");
-		}
-		return this;
-	}
 
-	// Stretch (flex).
-	stretch(value) {
-		if (value == true) {
-			this.style.flex = 1;
-		} else {
-			this.style.flex = 0;
+		// Frame.
+		frame(width, height) {
+			if (width != null) {
+				this.width(width);
+			}
+			if (height != null) {
+				this.height(height);
+			}
+			return this;
 		}
-		return this;
-	}
 
-	// Wrap.
-	wrap(value) {
-		if (value == true) {
-			this.style.whiteSpace = "wrap";
-		} else if (value == false) {
-			this.style.whiteSpace = "nowrap";
-		} else {
-			this.style.whiteSpace = value;
+		// Padding, 1 or 4 args.
+		padding(...values) {
+			if (values.length === 0) {
+				return this.style.padding;
+			} else if (values.length === 1) {
+				this.style.padding = this.pad_numeric(values[0]);
+			} else if (values.length === 2) {	
+				this.style.paddingTop = this.pad_numeric(values[0]);
+				this.style.paddingRight = this.pad_numeric(values[1]);
+				this.style.paddingBottom = this.pad_numeric(values[0]);
+				this.style.paddingLeft = this.pad_numeric(values[1]);
+			} else if (values.length === 4) {
+				this.style.paddingTop = this.pad_numeric(values[0]);
+				this.style.paddingRight = this.pad_numeric(values[1]);
+				this.style.paddingBottom = this.pad_numeric(values[2]);
+				this.style.paddingLeft = this.pad_numeric(values[3]);
+			} else {
+				console.error("Invalid number of arguments for function \"padding()\".");
+			}
+			return this;
 		}
-		switch (this.element_tag) {
-			case "div":
+		
+		// Margin, 1 or 4 args.
+		margin(...values) {
+			if (values.length === 0) {
+				return this.style.margin;
+			} else if (values.length === 1) {
+				this.style.margin = this.pad_numeric(values[0]);
+			} else if (values.length === 2) {		
+				this.style.marginTop = this.pad_numeric(values[0]);
+				this.style.marginRight = this.pad_numeric(values[1]);
+				this.style.marginBottom = this.pad_numeric(values[0]);
+				this.style.marginLeft = this.pad_numeric(values[1]);
+			} else if (values.length === 4) {
+				this.style.marginTop = this.pad_numeric(values[0]);
+				this.style.marginRight = this.pad_numeric(values[1]);
+				this.style.marginBottom = this.pad_numeric(values[2]);
+				this.style.marginLeft = this.pad_numeric(values[3]);
+			} else {
+				console.error("Invalid number of arguments for function \"margin()\".");
+			}
+			return this;
+		}
+		
+		// Position, 1 or 4 args.
+		position(...values) {
+			if (values.length === 0) {
+				return this.style.position;
+			} else if (values.length === 1) {
+				this.style.position = values[0];
+			} else if (values.length === 4) {
+				this.style.position = "absolute";
+				this.style.top = this.pad_numeric(values[0]);
+				this.style.right = this.pad_numeric(values[1]);
+				this.style.bottom = this.pad_numeric(values[2]);
+				this.style.left = this.pad_numeric(values[3]);
+			} else {
+				console.error("Invalid number of arguments for function \"position()\".");
+			}
+			return this;
+		}
+
+		// Stretch (flex).
+		stretch(value) {
+			if (value == true) {
+				this.style.flex = 1;
+			} else {
+				this.style.flex = 0;
+			}
+			return this;
+		}
+
+		// Wrap.
+		wrap(value) {
+			if (value == true) {
+				this.style.whiteSpace = "wrap";
+			} else if (value == false) {
+				this.style.whiteSpace = "nowrap";
+			} else {
+				this.style.whiteSpace = value;
+			}
+			switch (this.tagName) {
+				case "DIV":
 				if (value == true) {
 					this.style.flexFlow = "wrap";
 				} else if (value == false) {
@@ -419,7 +501,7 @@ class VElement extends HTMLElement {
 					this.style.flexFlow = value;
 				}
 				break;
-			default:
+				default:
 				if (value == true) {
 					this.style.textWrap = "wrap";
 				} else if (value == false) {
@@ -428,11885 +510,11873 @@ class VElement extends HTMLElement {
 					this.style.textWrap = value;
 				}
 				break;
-		}
-		return this;
-	}
-
-	// Z Index.
-	z_index(value) {
-		this.style["z-index"] = value;
-		return this;
-	}
-
-	// ---------------------------------------------------------
-	// Alignment functions.
-	
-	// Alignment.
-	align(value) {
-		switch (this.element_type) {
-			case "HStack":
-			case "ZStack":
-				this.style.justifyContent = value;
-				return this;
-			case "VStack":
-			case "Scroller":
-				this.style.alignItems = value;
-				return this;
-			default:
-				this.style.textAlign = value;
-				return this;
-		}
-	}
-	leading() {
-		return this.align("start");
-	}
-	center() {
-		return this.align("center");
-	}
-	trailing() {
-		return this.align("end");
-	}
-	
-	// Align.
-	align_vertical(value) {
-		switch (this.element_type) {
-			case "HStack":
-			case "ZStack":
-				this.style.alignItems = value;
-				return this;
-			case "VStack":
-			case "Scroller":
-				this.style.justifyContent = value;
-				return this;
-			default:
-				this.style.textAlign = value;
-				return this;
-		}
-	}
-	leading_vertical() {
-		return this.align_vertical("start");
-	}
-	center_vertical() {
-		return this.align_vertical("center");
-	}
-	trailing_vertical() {
-		return this.align_vertical("end");
-	}
-	
-	// Text align shortcuts.
-	align_text(value) {
-		return this.text_align(value);
-	}
-	text_leading() {
-		return this.text_align("start");
-	}
-	text_center() {
-		return this.text_align("center");
-	}
-	text_trailing() {
-		return this.text_align("end");
-	}
-
-	// Align items by height inside a hstack.
-	align_height() {
-		return this.align_items("stretch");
-	}
-	
-	// ---------------------------------------------------------
-	// Styling functions.
-
-	/*	@docs: {
-     *	@title: Color
-     *	@description: 
-     *		Sets the color of text, also supports a `Gradient` element.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. 
-     *		Unless parameter `value` is `null`, then the attribute's value is returned. 
-     *		When the value is `null` and the color has been set using a `Gradient`, `transparent` will be returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	} 
-     *	@inherit: false
-     } */ 
-    color(value) {
-        if (value == null) { return this.style.color; }
-        if (value instanceof Gradient) {
-        	this.style.backgroundImage = value.gradient;
-        	this.style.backgroundClip = "text";
-        	this.style["-webkit-background-clip"] = "text";
-        	this.style.color = "transparent";
-        } else {
-        	this.style.color = value;
-        }
-        return this;
-    }
-
-	// Border, 1 till 3 args.
-	border(...values) {
-		if (values.length === 1) {
-			this.style.border = values[0];
-		} else if (values.length === 2) {
-			this.style.border = this.pad_numeric(values[0]) + " solid " + values[1];
-		} else if (values.length === 3) {
-			this.style.border = this.pad_numeric(values[0]) + " ", values[1] + " " + values[2];
-		} else {
-			console.error("Invalid number of arguments for function \"border()\".");
-		}
-		return this;
-	}
-
-	// Adds shadow to the object, 1 or 4 args.
-	shadow(...values) {
-		if (values.length === 1) {
-			this.style.boxShadow = this.pad_numeric(values[0]);
-		} else if (values.length === 4) {
-			this.style.boxShadow =
-				this.pad_numeric(values[0]) + " " +
-				this.pad_numeric(values[1]) + " " +
-				this.pad_numeric(values[2]) + " " +
-				values[3];
-		} else {
-			console.error("Invalid number of arguments for function \"shadow()\".");
-		}
-		return this;
-	}
-
-	// Adds drop shadow to the object, 0 or 4 args.
-	drop_shadow(...values) {
-		if (values.length === 0) {
-			this.style.filter = "";
-			this.style["-webkit-filter"] = "";
-		} else if (values.length === 1) {
-			this.style.filter = "drop-shadow(" + this.pad_numeric(values[0]) + ") ";
-			this.style["-webkit-filter"] = this.style.filter;
-		} else if (values.length === 4) {
-			this.style.filter =
-				"drop-shadow(" + 
-				this.pad_numeric(values[0]) + " " +
-				this.pad_numeric(values[1]) + " " +
-				this.pad_numeric(values[2]) + " " +
-				values[3] + ") ";
-			this.style["-webkit-filter"] = this.style.filter;
-		} else {
-			console.error("Invalid number of arguments for function \"drop_shadow()\".");
-		}
-		return this;
-	}
-
-	// Greyscale.
-	greyscale(value) {
-		if (value == null) {
-			this.style.filter = "";
-			this.style["-webkit-filter"] = "";
-		} else {
-			this.style.filter += "grayscale(" + this.pad_percentage(value, "") + ") ";
-			this.style["-webkit-filter"] += "grayscale(" + this.pad_percentage(value, "") + ") ";
-		}
-		return this;
-	}
-
-	// Opacity.
-	opacity(value) {
-		this.style.opacity = value;
-		return this;
-	}
-
-	// Toggle opacity.
-	// Can be used to darken and normalize a view.
-    toggle_opacity(value = 0.25) {
-		if (typeof this.style.opacity === "undefined" || this.style.opacity == "" || this.style.opacity == 1.0) {
-			this.style.opacity = value;
-		} else {
-			this.style.opacity = 1.0;
-		}
-		return this;
-    }
-
-	// Blur.
-	blur(value) {
-		if (value == null) {
-			this.style.filter = this.edit_filter_wrapper(this.style.filter, "blur", value);
-		} else {
-			this.style.filter = this.edit_filter_wrapper(this.style.filter, "blur", "blur(" + this.pad_numeric(value) + ") ");
-		}
-		this.style["-webkit-filter"] = this.style.filter;
-		return this;
-	}
-
-	// Toggle blur.
-	toggle_blur(value = 10) {
-		this.style.filter = this.toggle_filter_wrapper(this.style.filter, "blur", "blur(" + this.pad_numeric(value) + ") ");
-		this.style["-webkit-filter"] = this.style.filter;
-		return this;
-	}
-	
-	// Background blur.
-	background_blur(value) {
-		if (value == null) {
-			this.style.backdropFilter = this.edit_filter_wrapper(this.style.backdropFilter, "blur", value);
-		} else {
-			this.style.backdropFilter =this.edit_filter_wrapper(this.style.backdropFilter, "blur", "blur(" + this.pad_numeric(value) + ") ");
-		}
-		this.style["-webkit-backdrop-filter"] = this.style.backdropFilter;
-		return this;
-	}
-
-	// Toggle background blur.
-	toggle_background_blur(value = 10) {
-		this.style.backdropFilter = this.toggle_filter_wrapper(this.style.backdropFilter, "blur", "blur(" + this.pad_numeric(value) + ") ");
-		this.style["-webkit-backdrop-filter"] = this.style.backdropFilter;
-		return this;
-	}
-
-	// Brightness.
-	brightness(value) {
-		if (value == null) {
-			this.style.filter = this.edit_filter_wrapper(this.style.filter, "brightness", value);
-		} else {
-			this.style.filter = this.edit_filter_wrapper(this.style.filter, "brightness", "brightness(" + this.pad_percentage(value, "%") + ") ");
-		}
-		this.style["-webkit-filter"] = this.style.filter;
-		return this;
-	}
-
-	// Toggle brightness.
-	toggle_brightness(value = 0.5) {
-		this.style.filter = this.toggle_filter_wrapper(this.style.filter, "brightness", "brightness(" + this.pad_percentage(value, "%") + ") ");
-		this.style["-webkit-filter"] = this.style.filter;
-		return this;
-	}
-
-	// Background brightness.
-	background_brightness(value) {
-		if (value == null) {
-			this.style.backdropFilter = this.edit_filter_wrapper(this.style.backdropFilter, "brightness", value);
-		} else {
-			this.style.backdropFilter = this.edit_filter_wrapper(this.style.backdropFilter, "brightness", "brightness(" + this.pad_percentage(value, "%") + ") ");
-		}
-		this.style["-webkit-backdrop-filter"] = this.style.backdropFilter;
-		return this;
-	}
-
-	// Toggle brightness.
-	toggle_background_brightness(value = 10) {
-		this.style.backdropFilter = this.toggle_filter_wrapper(this.style.backdropFilter, "brightness", "brightness(" + this.pad_percentage(value, "%") + ") ");
-		this.style["-webkit-backdrop-filter"] = this.style.backdropFilter;
-		return this;
-	}
-
-	// ---------------------------------------------------------
-	// Visibility functions.
-
-	// Specifies how a certain HTML element should be displayed
-    display(value) {
-    	if (value != null && value != "none") {
-    		this.element_display = value;
-    	}
-        this.style.display = value;
-        return this;
-    }
-
-    // Hide the element.
-    hide() {
-    	this.style.display = "none";
-    	return this;
-    }
-
-    // Show.
-    show() {
-    	this.style.display = this.element_display;
-    	return this;
-    }
-
-    // Specify if the element is hidden.
-    // Should not be used with an argument, rather use hide() and show().
-    // When no argument is passed it returns the visibility boolean.
-    is_hidden(...args) {
-    	if (args.length === 0) {
-    		return this.style.display == "none" || typeof this.style.display === "undefined";
-    	}
-    	console.error("Function \"hidden()\" should not be used with arguments, use \"hide()\" and \"show()\" instead.");
-    }
-
-    // Toggle visibility.
-    toggle_visibility() {
-		if (this.hidden()) {
-			this.show();
-		} else {
-			this.hide();
-		}
-		return this;
-    }
-
-    // ---------------------------------------------------------
-	// General attribute functions.
-	
-	// Inner html.
-	inner_html(value) {
-		if (value == null) {
-			return this.innerHTML;
-		}
-		this.innerHTML = value;
-		return this;
-	}
-
-	// Outer html.
-	outer_html(value) {
-		if (value == null) {
-			return this.outerHTML;
-		}
-		this.outerHTML = value;
-		return this;
-	}
-	
-	// Style dictionary.
-	// - Returns the css attributes when param css_attr is null.
-	styles(css_attr) {
-		if (css_attr == null) {
-			let dict = {};
-			for (let property in this.style) {
-				if (this.style.hasOwnProperty(property)) {
-
-					// Custom css styles will be a direct key instead of the string index.
-					// if (property[0] == "-") { 
-					if (!(/^\d+$/).test(property) && this.style[property] != '' && typeof this.style[property] !== 'function') { 
-						// console.log(property);
-						dict[property] = this.style[property];
-					}
-
-					// Default styles will be an index string instead of the key.
-					else { 
-						const key = this.style[property];
-						const value = this.style[key];
-						if (
-							key !== '' && key !== undefined && typeof key !== 'function' &&
-							value !== '' && value !== undefined && typeof value !== 'function'
-						) {
-							dict[key] = value;
-						}
-					}
-
-				}
-			}
-			return dict;
-		}
-		for (const i in css_attr) {
-			const value = css_attr[i];
-			if (i === "display" && value != null && value !== "none") {
-				this.element_display = value;
-			}
-			this.style[i] = value;
-		}	
-		return this;
-	}
-	
-	// Get or set a single attribute.
-	// leave value null to get the attribute.
-	attribute(key, value = null) {
-		if (value == null) {
-			return this.element[key];
-		}
-		this.element[key] = value;
-		return this;
-	}
-
-	// Set attributes by dict.
-	attributes(html_attr) {
-		for (let i in html_attr) {
-			this.element[i] = html_attr[i];
-		}
-		return this;
-	}
-	
-	// Get or set a single events.
-	// leave value null to get the events.
-	event(key, value = null) {
-		if (value == null) {
-			return this.element[key];
-		}
-		this.element[key] = value;
-		return this;
-	}
-
-	// Set events by dict.
-	events(html_events) {
-		for (let i in html_events) {
-			this.element[i] = html_events[i];
-		}
-		return this;
-	}
-
-	// Specifies one or more classnames for an element (refers to a class in a style sheet).
-    /*	@docs: {
-     *	@title: Class
-     *	@description: 
-     *		Specifies one or more classnames for an element (refers to a class in a style sheet).
-     *		The equivalent of HTML attribute `class`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	} 
-     *	@inherit: false
-     } */ 
-    class(value) {
-        if (value == null) { return this.class; }
-    	this.className = value;
-    	return this;
-    }
-
-	// ---------------------------------------------------------
-	// Media query functions.
-
-	// Media query.
-	media(media_query, true_handler, false_handler) {
-		const e = this;
-		function query_handler(query) {
-			if (query.matches) {
-				true_handler(e);
-			} else if (false_handler != null) {
-				false_handler(e);
-			}
-		}
-		const query_list = window.matchMedia(media_query);
-		query_handler(query_list); // Initialize the style based on the initial media query state
-		query_list.addListener(query_handler); // Update the style when the media query state changes
-		return this;
-	}
-
-	// ---------------------------------------------------------
-	// Default html element functions.
-
-	// Animate.
-	animate({
-		keyframes = [], 
-		easing = "ease-in-out",
-		delay = 0,
-		duration = 1000,
-		repeat = false,
-		on_finish = null,
-	}) {
-		const e = this;
-
-		// Keep a single keyframe state for delays.
-		function keep_state(index) {
-			e.element.animate(
-				[
-					keyframes[index],
-					keyframes[index],
-				], 
-				{
-					duration: delay,
-				}
-			);
-		}
-
-		// Do an animation.
-		function do_animation(index) {
-
-			// Animate.
-			if (index + 1 < keyframes.length) {
-				const from = keyframes[index];
-				const to = keyframes[index + 1];
-				e.element.animate(
-					[
-						from, 
-						to,
-					], 
-					{
-						duration: from.duration || duration,
-						// easing: from.easing || easing,
-					}
-				);
-				if (to.delay != null && to.delay > 0) {
-					setTimeout(() => keep_state(index + 1), from.duration || duration);
-					setTimeout(() => do_animation(index + 1), (from.duration || duration) + (to.delay || 0));
-				} else {
-					setTimeout(() => do_animation(index + 1), from.duration || duration);
-				}
-			}
-
-			// Repeat when finished.
-			else if (repeat) {
-
-				// Keep last state till delay.
-				if (delay > 0) {
-					keep_state(keyframes.length - 1);
-					setTimeout(() => do_animation(0), delay);
-
-				}
-
-				// No delay.
-				else {
-					const delay = keyframes[keyframes.length - 1].duration || duration;
-					setTimeout(() => do_animation(0), delay);
-				}
-
-			}
-
-			// Finished.
-			else if (on_finish != null) {
-				on_finish(e);
-			}
-		};
-
-		// Start.
-		setTimeout(() => do_animation(0), delay || 0);
-		return this;
-
-		// ============================================
-		// v1.
-		/*
-
-		// Use default animation when the keyframes do not contain key "duration" or "delay".
-		const default_animation = true;
-		for (let i = 0; i < keyframes.length; i++) {
-			if (keyframes[i].duration != null || keyframes[i].delay != null) {
-				default_animation = false;
-				break;
-			}
-		}
-
-		// Default animation.
-		if (default_animation) {
-			if (options.iterations == "infinite") {
-				options.iterations = Infinity;
-			}
-			if (options.iterations == "infinite") {
-				options.iterations = Infinity;
-			}
-			const animation = this.animate(keyframes, options);
-			if (on_finish !== null) {
-				const e = this;
-				animation.onfinish = function() {
-					on_finish(e);
-				}
 			}
 			return this;
 		}
 
-		// const { keyframes, options: animationOptions, on_finish } = options;
-
-		// List of properties that require the "px" unit
-  		const padded_properties = [
-			"top",
-			"left",
-			"right",
-			"bottom",
-			"width",
-			"height",
-			"margin",
-			"margin-top",
-			"margin-bottom",
-			"margin-left",
-			"margin-right",
-			"padding",
-			"padding-top",
-			"padding-bottom",
-			"padding-left",
-			"padding-right",
-			"border-width",
-			"border-top-width",
-			"border-bottom-width",
-			"border-left-width",
-			"border-right-width",
-			"border-radius",
-  		];
-
-    	const animate_frame = (index) => {
-	        if (index >= keyframes.length) {
-	            if (options.iterations === "infinite") {
-	                // Repeat the animation if iterations are set to "infinite"
-	                requestAnimationFrame(() => animate_frame(0));
-	            } else if (typeof options.iterations === "number" && options.iterations > 1) {
-	                // Repeat the animation a finite number of times
-	                requestAnimationFrame(() => animate_frame(0));
-	                options.iterations--;
-	            } else if (on_finish) {
-	                // Animation finished, call the on_finish callback
-	                on_finish();
-	            }
-	            return;
-	        }
-
-	        const keyframe = keyframes[index];
-	        const next_keyframe = keyframes[index + 1] || keyframes[0];
-
-	        const duration = keyframe.duration || options.duration || 1000; // Default duration if not provided
-	        const delay = keyframe.delay || options.delay || 0; // Default duration if not provided
-	        const start_time = Date.now();
-
-	        const animate_step = () => {
-	            const elapsed = Date.now() - start_time;
-	            const delay_progress = delay == 0 ? 1 : Math.min(elapsed / delay, 1);
-	            const progress = duration == 0 ? 1 : Math.min((elapsed - delay) / duration, 1);
-
-	            if (delay_progress >= 1) {
-		            for (let property in keyframe) {
-		            	const from = keyframe[property];
-		            	const to = next_keyframe[property];
-
-		            	// Apply "px" unit to properties that require it.
-		            	if (padded_properties.includes(property)) {
-		            		let padding;
-		            		if (vweb.utils.is_string(from)) {
-		            			if (from.includes("px")) {
-		            				from = parseFloat(from.substr(0, from.length - 2));
-		            				padding = "px";
-		            			} else if (from.includes("%")) {
-		            				from = parseFloat(from.substr(0, from.length - 1));
-		            				padding = "%";
-		            			}
-		            		} else {
-		            			padding = "px";
-		            		}
-			                const current = (to - from) * progress + from;
-							this.style[property] = current + padding;
-						}
-
-						// Apply non-numeric animation directly.
-						else if (progress >= 1){
-							this.style[property] = to;
-						}
-
-		            }
-		         }
-
-	            if (delay_progress < 1 || progress < 1) {
-	                requestAnimationFrame(animate_step);
-	            } else {
-	                requestAnimationFrame(() => animate_frame(index + 1));
-	            }
-	        };
-
-	        animate_step();
-	    };
-
-	    animate_frame(0);
-
-		return this;
-		*/
-	}
-
-	// ---------------------------------------------------------
-	// Events.
-
-	// Script to be run when the element is being clicked
-    on_click(value) {
-    	this.style.cursor = "pointer";
-    	this.onclick = value;
-    	return this;
-    }
-
-    // Script to be run when the browser window is being resized.
-    /*	@docs: {
-     *	@title: On resize
-     *	@description: 
-     *		Script to be run when the browser window is being resized.
-     *		
-     *		The first parameter of the callback is the `VElement` object.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_window_resize({callback, once = false, delay = 25}) {
-        if (callback == null) { return window.onresize; }
-    	const e = this;
-    	window.addEventListener('resize', () => {
-    		if (once && e.on_window_resize_timer != null) {
-    			clearTimeout(e.on_window_resize_timer)
-    		}
-    		e.on_window_resize_timer = setTimeout(() => callback(e), delay);
-    	});
-    	return this;
-    }
-
-    // Custom on attachment drop event.
-    on_attachment_drop({handler, compress = false}) {
-    	this.on_drag_over(function(e) {
-			e.preventDefault();
-			e.dataTransfer.dropEffect = "copy";
-		});
-		this.on_drop(function(e) {
-			e.preventDefault();
-			const files = e.dataTransfer.files;
-			for (let i = 0; i < files.length; i++) {
-				const file = files[i];
-				const reader = new FileReader();
-				reader.onload = (event) => {
-					if (compress == true) {
-						handler(file.name, vweb.utils.compress(event.target.result), file);
-					} else {
-						handler(file.name, event.target.result, file);
-					}
-				};
-				reader.readAsText(file);
-			}
-		});
-		return this;
-    }
-
-    // Event when a element appears to the user.
-    on_appear({callback, repeat = false}) {
-    	let is_called = false;
-    	const observer = new IntersectionObserver((entries, observer) => {
-			entries.forEach(entry => {
-				if (entry.isIntersecting && !is_called) {
-					if (callback != null) {
-						const e = this;
-						callback(e);
-					}
-					if (!repeat) {
-						observer.unobserve(entry.target);
-					}
-					is_called = true;
-				} else if (!entry.isIntersecting) {
-					is_called = false;
-				}
-			});
-		});
-		observer.observe(this.element);
-		return this;
-    }
-
-    // ---------------------------------------------------------
-	// Pseudo element styles.
-
-	// Style the before object.
-	// Returns style object of the pseudo-element.
-	before() {
-		const pseudo = getComputedStyle(this.element, '::before');
-		const e = new VElement();
-		e.element = pseudo;
-		return e;
-	}
-
-	// Style the after object.
-	// Returns style object of the pseudo-element.
-	after() {
-		const pseudo = getComputedStyle(this.element, '::after');
-		const e = new VElement();
-		e.element = pseudo;
-		return e;
-	}
-
-	// ---------------------------------------------------------
-	// Other functions.
-
-	// Get the children.
-	children() {
-		return this.children;
-	}
-
-	// Get a child by index.
-	child(index) {
-		return this.children[index];
-	}
-
-	// Get the first child.
-	first_child() {
-		return this.firstChild;
-	}
-
-	// Get the last child.
-	last_child() {
-		return this.lastChild;
-	}
-
-	// ---------------------------------------------------------
-	// Custom functions for some derived classes.
-
-	// Get or set the parent element.
-	// Only assigned when this is a child element of a specific Element derived class, such as LoaderButton.
-	parent(value) {
-		if (value == null) {
-			return this.parent_e;
+		// Z Index.
+		z_index(value) {
+			this.style.zIndex = value;
+			return this;
 		}
-		this.parent_e = value;
-		return this;
-	}
-
-	// ---------------------------------------------------------
-	// Cast functions.
-	
-	// Cast to string.
-	toString() {
-		return this.outerHTML;
-		// The outer html is not defined if the element is not added to the body.
-		// const serializer = new XMLSerializer();
-		// const html = serializer.serializeToString(this.element);
-		// console.log(html);
-		// return html;
-	}
-
-    // ---------------------------------------------------------
-    // Automatically generated CSS functions. 
-    // Reference: https://www.w3schools.com/cssref/index.php. 
-
-    // Specifies an accent color for user-interface controls.
-    /*	@docs: {
-     *	@title: Accent color
-     *	@description: 
-     *		Specifies an accent color for user-interface controls.
-     *		The equivalent of CSS attribute `accentColor`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    accent_color(value) {
-        if (value == null) { return this.style.accentColor; }
-        this.style.accentColor = value;
-        return this;
-    }
-
-    // Specifies the alignment between the lines inside a flexible container when the items do not use all available space.
-    /*	@docs: {
-     *	@title: Align content
-     *	@description: 
-     *		Specifies the alignment between the lines inside a flexible container when the items do not use all available space.
-     *		The equivalent of CSS attribute `alignContent`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    align_content(value) {
-        if (value == null) { return this.style.alignContent; }
-        this.style.alignContent = value;
-        this.style.msAlignContent = value;
-        this.style.webkitAlignContent = value;
-        this.style.MozAlignContent = value;
-        this.style.OAlignContent = value;
-        return this;
-    }
-
-    // Specifies the alignment for items inside a flexible container.
-    /*	@docs: {
-     *	@title: Align items
-     *	@description: 
-     *		Specifies the alignment for items inside a flexible container.
-     *		The equivalent of CSS attribute `alignItems`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    align_items(value) {
-        if (value == null) { return this.style.alignItems; }
-        this.style.alignItems = value;
-        this.style.msAlignItems = value;
-        this.style.webkitAlignItems = value;
-        this.style.MozAlignItems = value;
-        this.style.OAlignItems = value;
-        return this;
-    }
-
-    // Specifies the alignment for selected items inside a flexible container.
-    /*	@docs: {
-     *	@title: Align self
-     *	@description: 
-     *		Specifies the alignment for selected items inside a flexible container.
-     *		The equivalent of CSS attribute `alignSelf`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    align_self(value) {
-        if (value == null) { return this.style.alignSelf; }
-        this.style.alignSelf = value;
-        this.style.msAlignSelf = value;
-        this.style.webkitAlignSelf = value;
-        this.style.MozAlignSelf = value;
-        this.style.OAlignSelf = value;
-        return this;
-    }
-
-    // Resets all properties (except unicode-bidi and direction).
-    /*	@docs: {
-     *	@title: All
-     *	@description: 
-     *		Resets all properties (except unicode-bidi and direction).
-     *		The equivalent of CSS attribute `all`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    all(value) {
-        if (value == null) { return this.style.all; }
-        this.style.all = value;
-        return this;
-    }
-
-    // A shorthand property for all the animation-* properties.
-    /*	@docs: {
-     *	@title: Animation
-     *	@description: 
-     *		A shorthand property for all the animation-* properties.
-     *		The equivalent of CSS attribute `animation`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    animation(value) {
-        if (value == null) { return this.style.animation; }
-        this.style.animation = value;
-        this.style.msAnimation = value;
-        this.style.webkitAnimation = value;
-        this.style.MozAnimation = value;
-        this.style.OAnimation = value;
-        return this;
-    }
-
-    // Specifies a delay for the start of an animation.
-    /*	@docs: {
-     *	@title: Animation delay
-     *	@description: 
-     *		Specifies a delay for the start of an animation.
-     *		The equivalent of CSS attribute `animationDelay`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    animation_delay(value) {
-        if (value == null) { return this.style.animationDelay; }
-        this.style.animationDelay = value;
-        this.style.msAnimationDelay = value;
-        this.style.webkitAnimationDelay = value;
-        this.style.MozAnimationDelay = value;
-        this.style.OAnimationDelay = value;
-        return this;
-    }
-
-    // Specifies whether an animation should be played forwards, backwards or in alternate cycles.
-    /*	@docs: {
-     *	@title: Animation direction
-     *	@description: 
-     *		Specifies whether an animation should be played forwards, backwards or in alternate cycles.
-     *		The equivalent of CSS attribute `animationDirection`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    animation_direction(value) {
-        if (value == null) { return this.style.animationDirection; }
-        this.style.animationDirection = value;
-        this.style.msAnimationDirection = value;
-        this.style.webkitAnimationDirection = value;
-        this.style.MozAnimationDirection = value;
-        this.style.OAnimationDirection = value;
-        return this;
-    }
-
-    // Specifies how long an animation should take to complete one cycle.
-    /*	@docs: {
-     *	@title: Animation duration
-     *	@description: 
-     *		Specifies how long an animation should take to complete one cycle.
-     *		The equivalent of CSS attribute `animationDuration`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    animation_duration(value) {
-        if (value == null) { return this.style.animationDuration; }
-        this.style.animationDuration = value;
-        this.style.msAnimationDuration = value;
-        this.style.webkitAnimationDuration = value;
-        this.style.MozAnimationDuration = value;
-        this.style.OAnimationDuration = value;
-        return this;
-    }
-
-    // Specifies a style for the element when the animation is not playing (before it starts, after it ends, or both).
-    /*	@docs: {
-     *	@title: Animation fill mode
-     *	@description: 
-     *		Specifies a style for the element when the animation is not playing (before it starts, after it ends, or both).
-     *		The equivalent of CSS attribute `animationFillMode`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    animation_fill_mode(value) {
-        if (value == null) { return this.style.animationFillMode; }
-        this.style.animationFillMode = value;
-        this.style.msAnimationFillMode = value;
-        this.style.webkitAnimationFillMode = value;
-        this.style.MozAnimationFillMode = value;
-        this.style.OAnimationFillMode = value;
-        return this;
-    }
-
-    // Specifies the number of times an animation should be played.
-    /*	@docs: {
-     *	@title: Animation iteration count
-     *	@description: 
-     *		Specifies the number of times an animation should be played.
-     *		The equivalent of CSS attribute `animationIterationCount`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    animation_iteration_count(value) {
-        if (value == null) { return this.style.animationIterationCount; }
-        this.style.animationIterationCount = value;
-        this.style.msAnimationIterationCount = value;
-        this.style.webkitAnimationIterationCount = value;
-        this.style.MozAnimationIterationCount = value;
-        this.style.OAnimationIterationCount = value;
-        return this;
-    }
-
-    // Specifies a name for the @keyframes animation.
-    /*	@docs: {
-     *	@title: Animation name
-     *	@description: 
-     *		Specifies a name for the @keyframes animation.
-     *		The equivalent of CSS attribute `animationName`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    animation_name(value) {
-        if (value == null) { return this.style.animationName; }
-        this.style.animationName = value;
-        this.style.msAnimationName = value;
-        this.style.webkitAnimationName = value;
-        this.style.MozAnimationName = value;
-        this.style.OAnimationName = value;
-        return this;
-    }
-
-    // Specifies whether the animation is running or paused.
-    /*	@docs: {
-     *	@title: Animation play state
-     *	@description: 
-     *		Specifies whether the animation is running or paused.
-     *		The equivalent of CSS attribute `animationPlayState`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    animation_play_state(value) {
-        if (value == null) { return this.style.animationPlayState; }
-        this.style.animationPlayState = value;
-        this.style.msAnimationPlayState = value;
-        this.style.webkitAnimationPlayState = value;
-        this.style.MozAnimationPlayState = value;
-        this.style.OAnimationPlayState = value;
-        return this;
-    }
-
-    // Specifies the speed curve of an animation.
-    /*	@docs: {
-     *	@title: Animation timing function
-     *	@description: 
-     *		Specifies the speed curve of an animation.
-     *		The equivalent of CSS attribute `animationTimingFunction`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    animation_timing_function(value) {
-        if (value == null) { return this.style.animationTimingFunction; }
-        this.style.animationTimingFunction = value;
-        this.style.msAnimationTimingFunction = value;
-        this.style.webkitAnimationTimingFunction = value;
-        this.style.MozAnimationTimingFunction = value;
-        this.style.OAnimationTimingFunction = value;
-        return this;
-    }
-
-    // Specifies preferred aspect ratio of an element.
-    /*	@docs: {
-     *	@title: Aspect ratio
-     *	@description: 
-     *		Specifies preferred aspect ratio of an element.
-     *		The equivalent of CSS attribute `aspectRatio`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    aspect_ratio(value) {
-        if (value == null) { return this.style.aspectRatio; }
-        this.style.aspectRatio = value;
-        return this;
-    }
-
-    // Defines a graphical effect to the area behind an element.
-    /*	@docs: {
-     *	@title: Backdrop filter
-     *	@description: 
-     *		Defines a graphical effect to the area behind an element.
-     *		The equivalent of CSS attribute `backdropFilter`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    backdrop_filter(value) {
-        if (value == null) { return this.style.backdropFilter; }
-        this.style.backdropFilter = value;
-        return this;
-    }
-
-    // Defines whether or not the back face of an element should be visible when facing the user.
-    /*	@docs: {
-     *	@title: Backface visibility
-     *	@description: 
-     *		Defines whether or not the back face of an element should be visible when facing the user.
-     *		The equivalent of CSS attribute `backfaceVisibility`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    backface_visibility(value) {
-        if (value == null) { return this.style.backfaceVisibility; }
-        this.style.backfaceVisibility = value;
-        this.style.msBackfaceVisibility = value;
-        this.style.webkitBackfaceVisibility = value;
-        this.style.MozBackfaceVisibility = value;
-        this.style.OBackfaceVisibility = value;
-        return this;
-    }
-
-    // A shorthand property for all the background-* properties.
-    /*	@docs: {
-     *	@title: Background
-     *	@description: 
-     *		A shorthand property for all the background-* properties.
-     *		The equivalent of CSS attribute `background`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    background(value) {
-        if (value == null) { return this.style.background; }
-        this.style.background = value;
-        return this;
-    }
-
-    // Sets whether a background image scrolls with the rest of the page, or is fixed.
-    /*	@docs: {
-     *	@title: Background attachment
-     *	@description: 
-     *		Sets whether a background image scrolls with the rest of the page, or is fixed.
-     *		The equivalent of CSS attribute `backgroundAttachment`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    background_attachment(value) {
-        if (value == null) { return this.style.backgroundAttachment; }
-        this.style.backgroundAttachment = value;
-        return this;
-    }
-
-    // Specifies the blending mode of each background layer (color/image).
-    /*	@docs: {
-     *	@title: Background blend mode
-     *	@description: 
-     *		Specifies the blending mode of each background layer (color/image).
-     *		The equivalent of CSS attribute `backgroundBlendMode`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    background_blend_mode(value) {
-        if (value == null) { return this.style.backgroundBlendMode; }
-        this.style.backgroundBlendMode = value;
-        return this;
-    }
-
-    // Defines how far the background (color or image) should extend within an element.
-    /*	@docs: {
-     *	@title: Background clip
-     *	@description: 
-     *		Defines how far the background (color or image) should extend within an element.
-     *		The equivalent of CSS attribute `backgroundClip`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    background_clip(value) {
-        if (value == null) { return this.style.backgroundClip; }
-        this.style.backgroundClip = value;
-        this.style.msBackgroundClip = value;
-        this.style.webkitBackgroundClip = value;
-        this.style.MozBackgroundClip = value;
-        this.style.OBackgroundClip = value;
-        return this;
-    }
-
-    // Specifies the background color of an element.
-    /*	@docs: {
-     *	@title: Background color
-     *	@description: 
-     *		Specifies the background color of an element.
-     *		The equivalent of CSS attribute `backgroundColor`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    background_color(value) {
-        if (value == null) { return this.style.backgroundColor; }
-        this.style.backgroundColor = value;
-        return this;
-    }
-
-    // Specifies one or more background images for an element.
-    /*	@docs: {
-     *	@title: Background image
-     *	@description: 
-     *		Specifies one or more background images for an element.
-     *		The equivalent of CSS attribute `backgroundImage`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    background_image(value) {
-        if (value == null) { return this.style.backgroundImage; }
-        this.style.backgroundImage = value;
-        return this;
-    }
-
-    // Specifies the origin position of a background image.
-    /*	@docs: {
-     *	@title: Background origin
-     *	@description: 
-     *		Specifies the origin position of a background image.
-     *		The equivalent of CSS attribute `backgroundOrigin`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    background_origin(value) {
-        if (value == null) { return this.style.backgroundOrigin; }
-        this.style.backgroundOrigin = value;
-        this.style.msBackgroundOrigin = value;
-        this.style.webkitBackgroundOrigin = value;
-        this.style.MozBackgroundOrigin = value;
-        this.style.OBackgroundOrigin = value;
-        return this;
-    }
-
-    // Specifies the position of a background image.
-    /*	@docs: {
-     *	@title: Background position
-     *	@description: 
-     *		Specifies the position of a background image.
-     *		The equivalent of CSS attribute `backgroundPosition`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    background_position(value) {
-        if (value == null) { return this.style.backgroundPosition; }
-        this.style.backgroundPosition = value;
-        return this;
-    }
-
-    // Specifies the position of a background image on x-axis.
-    /*	@docs: {
-     *	@title: Background position x
-     *	@description: 
-     *		Specifies the position of a background image on x-axis.
-     *		The equivalent of CSS attribute `backgroundPositionX`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    background_position_x(value) {
-        if (value == null) { return this.style.backgroundPositionX; }
-        this.style.backgroundPositionX = value;
-        return this;
-    }
-
-    // Specifies the position of a background image on y-axis.
-    /*	@docs: {
-     *	@title: Background position y
-     *	@description: 
-     *		Specifies the position of a background image on y-axis.
-     *		The equivalent of CSS attribute `backgroundPositionY`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    background_position_y(value) {
-        if (value == null) { return this.style.backgroundPositionY; }
-        this.style.backgroundPositionY = value;
-        return this;
-    }
-
-    // Sets if/how a background image will be repeated.
-    /*	@docs: {
-     *	@title: Background repeat
-     *	@description: 
-     *		Sets if/how a background image will be repeated.
-     *		The equivalent of CSS attribute `backgroundRepeat`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    background_repeat(value) {
-        if (value == null) { return this.style.backgroundRepeat; }
-        this.style.backgroundRepeat = value;
-        return this;
-    }
-
-    // Specifies the size of the background images.
-    /*	@docs: {
-     *	@title: Background size
-     *	@description: 
-     *		Specifies the size of the background images.
-     *		The equivalent of CSS attribute `backgroundSize`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    background_size(value) {
-        if (value == null) { return this.style.backgroundSize; }
-        this.style.backgroundSize = this.pad_numeric(value);
-        this.style.msBackgroundSize = this.pad_numeric(value);
-        this.style.webkitBackgroundSize = this.pad_numeric(value);
-        this.style.MozBackgroundSize = this.pad_numeric(value);
-        this.style.OBackgroundSize = this.pad_numeric(value);
-        return this;
-    }
-
-    // Specifies the size of an element in block direction.
-    /*	@docs: {
-     *	@title: Block size
-     *	@description: 
-     *		Specifies the size of an element in block direction.
-     *		The equivalent of CSS attribute `blockSize`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    block_size(value) {
-        if (value == null) { return this.style.blockSize; }
-        this.style.blockSize = this.pad_numeric(value);
-        return this;
-    }
-
-    // A shorthand property for border-width, border-style and border-color.
-    // border(value) {
-    //     if (value == null) { return this.style.border; }
-    //     this.style.border = value;
-    //     return this;
-    // }
-
-    // A shorthand property for border-block-width, border-block-style and border-block-color.
-    /*	@docs: {
-     *	@title: Border block
-     *	@description: 
-     *		A shorthand property for border-block-width, border-block-style and border-block-color.
-     *		The equivalent of CSS attribute `borderBlock`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    border_block(value) {
-        if (value == null) { return this.style.borderBlock; }
-        this.style.borderBlock = value;
-        return this;
-    }
-
-    // Sets the color of the borders at start and end in the block direction.
-    /*	@docs: {
-     *	@title: Border block color
-     *	@description: 
-     *		Sets the color of the borders at start and end in the block direction.
-     *		The equivalent of CSS attribute `borderBlockColor`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    border_block_color(value) {
-        if (value == null) { return this.style.borderBlockColor; }
-        this.style.borderBlockColor = value;
-        return this;
-    }
-
-    // Sets the color of the border at the end in the block direction.
-    /*	@docs: {
-     *	@title: Border block end color
-     *	@description: 
-     *		Sets the color of the border at the end in the block direction.
-     *		The equivalent of CSS attribute `borderBlockEndColor`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    border_block_end_color(value) {
-        if (value == null) { return this.style.borderBlockEndColor; }
-        this.style.borderBlockEndColor = value;
-        return this;
-    }
-
-    // Sets the style of the border at the end in the block direction.
-    /*	@docs: {
-     *	@title: Border block end style
-     *	@description: 
-     *		Sets the style of the border at the end in the block direction.
-     *		The equivalent of CSS attribute `borderBlockEndStyle`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    border_block_end_style(value) {
-        if (value == null) { return this.style.borderBlockEndStyle; }
-        this.style.borderBlockEndStyle = value;
-        return this;
-    }
-
-    // Sets the width of the border at the end in the block direction.
-    /*	@docs: {
-     *	@title: Border block end width
-     *	@description: 
-     *		Sets the width of the border at the end in the block direction.
-     *		The equivalent of CSS attribute `borderBlockEndWidth`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    border_block_end_width(value) {
-        if (value == null) { return this.style.borderBlockEndWidth; }
-        this.style.borderBlockEndWidth = this.pad_numeric(value);
-        return this;
-    }
-
-    // Sets the color of the border at the start in the block direction.
-    /*	@docs: {
-     *	@title: Border block start color
-     *	@description: 
-     *		Sets the color of the border at the start in the block direction.
-     *		The equivalent of CSS attribute `borderBlockStartColor`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    border_block_start_color(value) {
-        if (value == null) { return this.style.borderBlockStartColor; }
-        this.style.borderBlockStartColor = value;
-        return this;
-    }
-
-    // Sets the style of the border at the start in the block direction.
-    /*	@docs: {
-     *	@title: Border block start style
-     *	@description: 
-     *		Sets the style of the border at the start in the block direction.
-     *		The equivalent of CSS attribute `borderBlockStartStyle`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    border_block_start_style(value) {
-        if (value == null) { return this.style.borderBlockStartStyle; }
-        this.style.borderBlockStartStyle = value;
-        return this;
-    }
-
-    // Sets the width of the border at the start in the block direction.
-    /*	@docs: {
-     *	@title: Border block start width
-     *	@description: 
-     *		Sets the width of the border at the start in the block direction.
-     *		The equivalent of CSS attribute `borderBlockStartWidth`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    border_block_start_width(value) {
-        if (value == null) { return this.style.borderBlockStartWidth; }
-        this.style.borderBlockStartWidth = this.pad_numeric(value);
-        return this;
-    }
-
-    // Sets the style of the borders at start and end in the block direction.
-    /*	@docs: {
-     *	@title: Border block style
-     *	@description: 
-     *		Sets the style of the borders at start and end in the block direction.
-     *		The equivalent of CSS attribute `borderBlockStyle`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    border_block_style(value) {
-        if (value == null) { return this.style.borderBlockStyle; }
-        this.style.borderBlockStyle = value;
-        return this;
-    }
-
-    // Sets the width of the borders at start and end in the block direction.
-    /*	@docs: {
-     *	@title: Border block width
-     *	@description: 
-     *		Sets the width of the borders at start and end in the block direction.
-     *		The equivalent of CSS attribute `borderBlockWidth`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    border_block_width(value) {
-        if (value == null) { return this.style.borderBlockWidth; }
-        this.style.borderBlockWidth = this.pad_numeric(value);
-        return this;
-    }
-
-    // A shorthand property for border-bottom-width, border-bottom-style and border-bottom-color.
-    /*	@docs: {
-     *	@title: Border bottom
-     *	@description: 
-     *		A shorthand property for border-bottom-width, border-bottom-style and border-bottom-color.
-     *		The equivalent of CSS attribute `borderBottom`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    border_bottom(value) {
-        if (value == null) { return this.style.borderBottom; }
-        this.style.borderBottom = this.pad_numeric(value);
-        return this;
-    }
-
-    // Sets the color of the bottom border.
-    /*	@docs: {
-     *	@title: Border bottom color
-     *	@description: 
-     *		Sets the color of the bottom border.
-     *		The equivalent of CSS attribute `borderBottomColor`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    border_bottom_color(value) {
-        if (value == null) { return this.style.borderBottomColor; }
-        this.style.borderBottomColor = value;
-        return this;
-    }
-
-    // Defines the radius of the border of the bottom-left corner.
-    /*	@docs: {
-     *	@title: Border bottom left radius
-     *	@description: 
-     *		Defines the radius of the border of the bottom-left corner.
-     *		The equivalent of CSS attribute `borderBottomLeftRadius`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    border_bottom_left_radius(value) {
-        if (value == null) { return this.style.borderBottomLeftRadius; }
-        this.style.borderBottomLeftRadius = this.pad_numeric(value);
-        return this;
-    }
-
-    // Defines the radius of the border of the bottom-right corner.
-    /*	@docs: {
-     *	@title: Border bottom right radius
-     *	@description: 
-     *		Defines the radius of the border of the bottom-right corner.
-     *		The equivalent of CSS attribute `borderBottomRightRadius`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    border_bottom_right_radius(value) {
-        if (value == null) { return this.style.borderBottomRightRadius; }
-        this.style.borderBottomRightRadius = this.pad_numeric(value);
-        return this;
-    }
-
-    // Sets the style of the bottom border.
-    /*	@docs: {
-     *	@title: Border bottom style
-     *	@description: 
-     *		Sets the style of the bottom border.
-     *		The equivalent of CSS attribute `borderBottomStyle`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    border_bottom_style(value) {
-        if (value == null) { return this.style.borderBottomStyle; }
-        this.style.borderBottomStyle = value;
-        return this;
-    }
-
-    // Sets the width of the bottom border.
-    /*	@docs: {
-     *	@title: Border bottom width
-     *	@description: 
-     *		Sets the width of the bottom border.
-     *		The equivalent of CSS attribute `borderBottomWidth`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    border_bottom_width(value) {
-        if (value == null) { return this.style.borderBottomWidth; }
-        this.style.borderBottomWidth = this.pad_numeric(value);
-        return this;
-    }
-
-    // Sets whether table borders should collapse into a single border or be separated.
-    /*	@docs: {
-     *	@title: Border collapse
-     *	@description: 
-     *		Sets whether table borders should collapse into a single border or be separated.
-     *		The equivalent of CSS attribute `borderCollapse`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    border_collapse(value) {
-        if (value == null) { return this.style.borderCollapse; }
-        this.style.borderCollapse = value;
-        return this;
-    }
-
-    // Sets the color of the four borders.
-    /*	@docs: {
-     *	@title: Border color
-     *	@description: 
-     *		Sets the color of the four borders.
-     *		The equivalent of CSS attribute `borderColor`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    border_color(value) {
-        if (value == null) { return this.style.borderColor; }
-        this.style.borderColor = value;
-        return this;
-    }
-
-    // A shorthand property for all the border-image-* properties.
-    /*	@docs: {
-     *	@title: Border image
-     *	@description: 
-     *		A shorthand property for all the border-image-* properties.
-     *		The equivalent of CSS attribute `borderImage`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    border_image(value) {
-        if (value == null) { return this.style.borderImage; }
-        this.style.borderImage = value;
-        this.style.msBorderImage = value;
-        this.style.webkitBorderImage = value;
-        this.style.MozBorderImage = value;
-        this.style.OBorderImage = value;
-        return this;
-    }
-
-    // Specifies the amount by which the border image area extends beyond the border box.
-    /*	@docs: {
-     *	@title: Border image outset
-     *	@description: 
-     *		Specifies the amount by which the border image area extends beyond the border box.
-     *		The equivalent of CSS attribute `borderImageOutset`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    border_image_outset(value) {
-        if (value == null) { return this.style.borderImageOutset; }
-        this.style.borderImageOutset = value;
-        return this;
-    }
-
-    // Specifies whether the border image should be repeated, rounded or stretched.
-    /*	@docs: {
-     *	@title: Border image repeat
-     *	@description: 
-     *		Specifies whether the border image should be repeated, rounded or stretched.
-     *		The equivalent of CSS attribute `borderImageRepeat`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    border_image_repeat(value) {
-        if (value == null) { return this.style.borderImageRepeat; }
-        this.style.borderImageRepeat = value;
-        return this;
-    }
-
-    // Specifies how to slice the border image.
-    /*	@docs: {
-     *	@title: Border image slice
-     *	@description: 
-     *		Specifies how to slice the border image.
-     *		The equivalent of CSS attribute `borderImageSlice`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    border_image_slice(value) {
-        if (value == null) { return this.style.borderImageSlice; }
-        this.style.borderImageSlice = value;
-        return this;
-    }
-
-    // Specifies the path to the image to be used as a border.
-    /*	@docs: {
-     *	@title: Border image source
-     *	@description: 
-     *		Specifies the path to the image to be used as a border.
-     *		The equivalent of CSS attribute `borderImageSource`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    border_image_source(value) {
-        if (value == null) { return this.style.borderImageSource; }
-        this.style.borderImageSource = value;
-        return this;
-    }
-
-    // Specifies the width of the border image.
-    /*	@docs: {
-     *	@title: Border image width
-     *	@description: 
-     *		Specifies the width of the border image.
-     *		The equivalent of CSS attribute `borderImageWidth`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    border_image_width(value) {
-        if (value == null) { return this.style.borderImageWidth; }
-        this.style.borderImageWidth = this.pad_numeric(value);
-        return this;
-    }
-
-    // A shorthand property for border-inline-width, border-inline-style and border-inline-color.
-    /*	@docs: {
-     *	@title: Border inline
-     *	@description: 
-     *		A shorthand property for border-inline-width, border-inline-style and border-inline-color.
-     *		The equivalent of CSS attribute `borderInline`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    border_inline(value) {
-        if (value == null) { return this.style.borderInline; }
-        this.style.borderInline = value;
-        return this;
-    }
-
-    // Sets the color of the borders at start and end in the inline direction.
-    /*	@docs: {
-     *	@title: Border inline color
-     *	@description: 
-     *		Sets the color of the borders at start and end in the inline direction.
-     *		The equivalent of CSS attribute `borderInlineColor`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    border_inline_color(value) {
-        if (value == null) { return this.style.borderInlineColor; }
-        this.style.borderInlineColor = value;
-        return this;
-    }
-
-    // Sets the color of the border at the end in the inline direction.
-    /*	@docs: {
-     *	@title: Border inline end color
-     *	@description: 
-     *		Sets the color of the border at the end in the inline direction.
-     *		The equivalent of CSS attribute `borderInlineEndColor`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    border_inline_end_color(value) {
-        if (value == null) { return this.style.borderInlineEndColor; }
-        this.style.borderInlineEndColor = value;
-        return this;
-    }
-
-    // Sets the style of the border at the end in the inline direction.
-    /*	@docs: {
-     *	@title: Border inline end style
-     *	@description: 
-     *		Sets the style of the border at the end in the inline direction.
-     *		The equivalent of CSS attribute `borderInlineEndStyle`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    border_inline_end_style(value) {
-        if (value == null) { return this.style.borderInlineEndStyle; }
-        this.style.borderInlineEndStyle = value;
-        return this;
-    }
-
-    // Sets the width of the border at the end in the inline direction.
-    /*	@docs: {
-     *	@title: Border inline end width
-     *	@description: 
-     *		Sets the width of the border at the end in the inline direction.
-     *		The equivalent of CSS attribute `borderInlineEndWidth`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    border_inline_end_width(value) {
-        if (value == null) { return this.style.borderInlineEndWidth; }
-        this.style.borderInlineEndWidth = this.pad_numeric(value);
-        return this;
-    }
-
-    // Sets the color of the border at the start in the inline direction.
-    /*	@docs: {
-     *	@title: Border inline start color
-     *	@description: 
-     *		Sets the color of the border at the start in the inline direction.
-     *		The equivalent of CSS attribute `borderInlineStartColor`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    border_inline_start_color(value) {
-        if (value == null) { return this.style.borderInlineStartColor; }
-        this.style.borderInlineStartColor = value;
-        return this;
-    }
-
-    // Sets the style of the border at the start in the inline direction.
-    /*	@docs: {
-     *	@title: Border inline start style
-     *	@description: 
-     *		Sets the style of the border at the start in the inline direction.
-     *		The equivalent of CSS attribute `borderInlineStartStyle`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    border_inline_start_style(value) {
-        if (value == null) { return this.style.borderInlineStartStyle; }
-        this.style.borderInlineStartStyle = value;
-        return this;
-    }
-
-    // Sets the width of the border at the start in the inline direction.
-    /*	@docs: {
-     *	@title: Border inline start width
-     *	@description: 
-     *		Sets the width of the border at the start in the inline direction.
-     *		The equivalent of CSS attribute `borderInlineStartWidth`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    border_inline_start_width(value) {
-        if (value == null) { return this.style.borderInlineStartWidth; }
-        this.style.borderInlineStartWidth = this.pad_numeric(value);
-        return this;
-    }
-
-    // Sets the style of the borders at start and end in the inline direction.
-    /*	@docs: {
-     *	@title: Border inline style
-     *	@description: 
-     *		Sets the style of the borders at start and end in the inline direction.
-     *		The equivalent of CSS attribute `borderInlineStyle`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    border_inline_style(value) {
-        if (value == null) { return this.style.borderInlineStyle; }
-        this.style.borderInlineStyle = value;
-        return this;
-    }
-
-    // Sets the width of the borders at start and end in the inline direction.
-    /*	@docs: {
-     *	@title: Border inline width
-     *	@description: 
-     *		Sets the width of the borders at start and end in the inline direction.
-     *		The equivalent of CSS attribute `borderInlineWidth`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    border_inline_width(value) {
-        if (value == null) { return this.style.borderInlineWidth; }
-        this.style.borderInlineWidth = this.pad_numeric(value);
-        return this;
-    }
-
-    // A shorthand property for all the border-left-* properties.
-    /*	@docs: {
-     *	@title: Border left
-     *	@description: 
-     *		A shorthand property for all the border-left-* properties.
-     *		The equivalent of CSS attribute `borderLeft`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    border_left(value) {
-        if (value == null) { return this.style.borderLeft; }
-        this.style.borderLeft = this.pad_numeric(value);
-        return this;
-    }
-
-    // Sets the color of the left border.
-    /*	@docs: {
-     *	@title: Border left color
-     *	@description: 
-     *		Sets the color of the left border.
-     *		The equivalent of CSS attribute `borderLeftColor`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    border_left_color(value) {
-        if (value == null) { return this.style.borderLeftColor; }
-        this.style.borderLeftColor = value;
-        return this;
-    }
-
-    // Sets the style of the left border.
-    /*	@docs: {
-     *	@title: Border left style
-     *	@description: 
-     *		Sets the style of the left border.
-     *		The equivalent of CSS attribute `borderLeftStyle`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    border_left_style(value) {
-        if (value == null) { return this.style.borderLeftStyle; }
-        this.style.borderLeftStyle = value;
-        return this;
-    }
-
-    // Sets the width of the left border.
-    /*	@docs: {
-     *	@title: Border left width
-     *	@description: 
-     *		Sets the width of the left border.
-     *		The equivalent of CSS attribute `borderLeftWidth`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    border_left_width(value) {
-        if (value == null) { return this.style.borderLeftWidth; }
-        this.style.borderLeftWidth = this.pad_numeric(value);
-        return this;
-    }
-
-    // A shorthand property for the four border-*-radius properties.
-    /*	@docs: {
-     *	@title: Border radius
-     *	@description: 
-     *		A shorthand property for the four border-*-radius properties.
-     *		The equivalent of CSS attribute `borderRadius`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    border_radius(value) {
-        if (value == null) { return this.style.borderRadius; }
-        this.style.borderRadius = this.pad_numeric(value);
-        this.style.msBorderRadius = this.pad_numeric(value);
-        this.style.webkitBorderRadius = this.pad_numeric(value);
-        this.style.MozBorderRadius = this.pad_numeric(value);
-        this.style.OBorderRadius = this.pad_numeric(value);
-        return this;
-    }
-
-    // A shorthand property for all the border-right-* properties.
-    /*	@docs: {
-     *	@title: Border right
-     *	@description: 
-     *		A shorthand property for all the border-right-* properties.
-     *		The equivalent of CSS attribute `borderRight`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    border_right(value) {
-        if (value == null) { return this.style.borderRight; }
-        this.style.borderRight = this.pad_numeric(value);
-        return this;
-    }
-
-    // Sets the color of the right border.
-    /*	@docs: {
-     *	@title: Border right color
-     *	@description: 
-     *		Sets the color of the right border.
-     *		The equivalent of CSS attribute `borderRightColor`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    border_right_color(value) {
-        if (value == null) { return this.style.borderRightColor; }
-        this.style.borderRightColor = value;
-        return this;
-    }
-
-    // Sets the style of the right border.
-    /*	@docs: {
-     *	@title: Border right style
-     *	@description: 
-     *		Sets the style of the right border.
-     *		The equivalent of CSS attribute `borderRightStyle`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    border_right_style(value) {
-        if (value == null) { return this.style.borderRightStyle; }
-        this.style.borderRightStyle = value;
-        return this;
-    }
-
-    // Sets the width of the right border.
-    /*	@docs: {
-     *	@title: Border right width
-     *	@description: 
-     *		Sets the width of the right border.
-     *		The equivalent of CSS attribute `borderRightWidth`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    border_right_width(value) {
-        if (value == null) { return this.style.borderRightWidth; }
-        this.style.borderRightWidth = this.pad_numeric(value);
-        return this;
-    }
-
-    // Sets the distance between the borders of adjacent cells.
-    /*	@docs: {
-     *	@title: Border spacing
-     *	@description: 
-     *		Sets the distance between the borders of adjacent cells.
-     *		The equivalent of CSS attribute `borderSpacing`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    border_spacing(value) {
-        if (value == null) { return this.style.borderSpacing; }
-        this.style.borderSpacing = value;
-        return this;
-    }
-
-    // Sets the style of the four borders.
-    /*	@docs: {
-     *	@title: Border style
-     *	@description: 
-     *		Sets the style of the four borders.
-     *		The equivalent of CSS attribute `borderStyle`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    border_style(value) {
-        if (value == null) { return this.style.borderStyle; }
-        this.style.borderStyle = value;
-        return this;
-    }
-
-    // A shorthand property for border-top-width, border-top-style and border-top-color.
-    /*	@docs: {
-     *	@title: Border top
-     *	@description: 
-     *		A shorthand property for border-top-width, border-top-style and border-top-color.
-     *		The equivalent of CSS attribute `borderTop`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    border_top(value) {
-        if (value == null) { return this.style.borderTop; }
-        this.style.borderTop = this.pad_numeric(value);
-        return this;
-    }
-
-    // Sets the color of the top border.
-    /*	@docs: {
-     *	@title: Border top color
-     *	@description: 
-     *		Sets the color of the top border.
-     *		The equivalent of CSS attribute `borderTopColor`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    border_top_color(value) {
-        if (value == null) { return this.style.borderTopColor; }
-        this.style.borderTopColor = value;
-        return this;
-    }
-
-    // Defines the radius of the border of the top-left corner.
-    /*	@docs: {
-     *	@title: Border top left radius
-     *	@description: 
-     *		Defines the radius of the border of the top-left corner.
-     *		The equivalent of CSS attribute `borderTopLeftRadius`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    border_top_left_radius(value) {
-        if (value == null) { return this.style.borderTopLeftRadius; }
-        this.style.borderTopLeftRadius = this.pad_numeric(value);
-        return this;
-    }
-
-    // Defines the radius of the border of the top-right corner.
-    /*	@docs: {
-     *	@title: Border top right radius
-     *	@description: 
-     *		Defines the radius of the border of the top-right corner.
-     *		The equivalent of CSS attribute `borderTopRightRadius`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    border_top_right_radius(value) {
-        if (value == null) { return this.style.borderTopRightRadius; }
-        this.style.borderTopRightRadius = this.pad_numeric(value);
-        return this;
-    }
-
-    // Sets the style of the top border.
-    /*	@docs: {
-     *	@title: Border top style
-     *	@description: 
-     *		Sets the style of the top border.
-     *		The equivalent of CSS attribute `borderTopStyle`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    border_top_style(value) {
-        if (value == null) { return this.style.borderTopStyle; }
-        this.style.borderTopStyle = value;
-        return this;
-    }
-
-    // Sets the width of the top border.
-    /*	@docs: {
-     *	@title: Border top width
-     *	@description: 
-     *		Sets the width of the top border.
-     *		The equivalent of CSS attribute `borderTopWidth`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    border_top_width(value) {
-        if (value == null) { return this.style.borderTopWidth; }
-        this.style.borderTopWidth = this.pad_numeric(value);
-        return this;
-    }
-
-    // Sets the width of the four borders.
-    /*	@docs: {
-     *	@title: Border width
-     *	@description: 
-     *		Sets the width of the four borders.
-     *		The equivalent of CSS attribute `borderWidth`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    border_width(value) {
-        if (value == null) { return this.style.borderWidth; }
-        this.style.borderWidth = this.pad_numeric(value);
-        return this;
-    }
-
-    // Sets the elements position, from the bottom of its parent element.
-    /*	@docs: {
-     *	@title: Bottom
-     *	@description: 
-     *		Sets the elements position, from the bottom of its parent element.
-     *		The equivalent of CSS attribute `bottom`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    bottom(value) {
-        if (value == null) { return this.style.bottom; }
-        this.style.bottom = this.pad_numeric(value);
-        return this;
-    }
-
-    // Sets the behavior of the background and border of an element at page-break, or, for in-line elements, at line-break.
-    /*	@docs: {
-     *	@title: Box decoration break
-     *	@description: 
-     *		Sets the behavior of the background and border of an element at page-break, or, for in-line elements, at line-break.
-     *		The equivalent of CSS attribute `boxDecorationBreak`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    box_decoration_break(value) {
-        if (value == null) { return this.style.boxDecorationBreak; }
-        this.style.boxDecorationBreak = value;
-        return this;
-    }
-
-    // The box-reflect property is used to create a reflection of an element.
-    /*	@docs: {
-     *	@title: Box reflect
-     *	@description: 
-     *		The box-reflect property is used to create a reflection of an element.
-     *		The equivalent of CSS attribute `boxReflect`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    box_reflect(value) {
-        if (value == null) { return this.style.boxReflect; }
-        this.style.boxReflect = value;
-        return this;
-    }
-
-    // Attaches one or more shadows to an element.
-    /*	@docs: {
-     *	@title: Box shadow
-     *	@description: 
-     *		Attaches one or more shadows to an element.
-     *		The equivalent of CSS attribute `boxShadow`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    box_shadow(value) {
-        if (value == null) { return this.style.boxShadow; }
-        this.style.boxShadow = value;
-        this.style.msBoxShadow = value;
-        this.style.webkitBoxShadow = value;
-        this.style.MozBoxShadow = value;
-        this.style.OBoxShadow = value;
-        return this;
-    }
-
-    // Defines how the width and height of an element are calculated: should they include padding and borders, or not.
-    /*	@docs: {
-     *	@title: Box sizing
-     *	@description: 
-     *		Defines how the width and height of an element are calculated: should they include padding and borders, or not.
-     *		The equivalent of CSS attribute `boxSizing`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    box_sizing(value) {
-        if (value == null) { return this.style.boxSizing; }
-        this.style.boxSizing = value;
-        this.style.msBoxSizing = value;
-        this.style.webkitBoxSizing = value;
-        this.style.MozBoxSizing = value;
-        this.style.OBoxSizing = value;
-        return this;
-    }
-
-    // Specifies whether or not a page-, column-, or region-break should occur after the specified element.
-    /*	@docs: {
-     *	@title: Break after
-     *	@description: 
-     *		Specifies whether or not a page-, column-, or region-break should occur after the specified element.
-     *		The equivalent of CSS attribute `breakAfter`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    break_after(value) {
-        if (value == null) { return this.style.breakAfter; }
-        this.style.breakAfter = value;
-        return this;
-    }
-
-    // Specifies whether or not a page-, column-, or region-break should occur before the specified element.
-    /*	@docs: {
-     *	@title: Break before
-     *	@description: 
-     *		Specifies whether or not a page-, column-, or region-break should occur before the specified element.
-     *		The equivalent of CSS attribute `breakBefore`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    break_before(value) {
-        if (value == null) { return this.style.breakBefore; }
-        this.style.breakBefore = value;
-        return this;
-    }
-
-    // Specifies whether or not a page-, column-, or region-break should occur inside the specified element.
-    /*	@docs: {
-     *	@title: Break inside
-     *	@description: 
-     *		Specifies whether or not a page-, column-, or region-break should occur inside the specified element.
-     *		The equivalent of CSS attribute `breakInside`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    break_inside(value) {
-        if (value == null) { return this.style.breakInside; }
-        this.style.breakInside = value;
-        return this;
-    }
-
-    // Specifies the placement of a table caption.
-    /*	@docs: {
-     *	@title: Caption side
-     *	@description: 
-     *		Specifies the placement of a table caption.
-     *		The equivalent of CSS attribute `captionSide`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    caption_side(value) {
-        if (value == null) { return this.style.captionSide; }
-        this.style.captionSide = value;
-        return this;
-    }
-
-    // Specifies the color of the cursor (caret) in inputs, textareas, or any element that is editable.
-    /*	@docs: {
-     *	@title: Caret color
-     *	@description: 
-     *		Specifies the color of the cursor (caret) in inputs, textareas, or any element that is editable.
-     *		The equivalent of CSS attribute `caretColor`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    caret_color(value) {
-        if (value == null) { return this.style.caretColor; }
-        this.style.caretColor = value;
-        return this;
-    }
-
-    // Specifies what should happen with the element that is next to a floating element.
-    /*	@docs: {
-     *	@title: Clear
-     *	@description: 
-     *		Specifies what should happen with the element that is next to a floating element.
-     *		The equivalent of CSS attribute `clear`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    clear(value) {
-        if (value == null) { return this.style.clear; }
-        this.style.clear = value;
-        return this;
-    }
-
-    // Clips an absolutely positioned element.
-    /*	@docs: {
-     *	@title: Clip
-     *	@description: 
-     *		Clips an absolutely positioned element.
-     *		The equivalent of CSS attribute `clip`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    clip(value) {
-        if (value == null) { return this.style.clip; }
-        this.style.clip = value;
-        return this;
-    }
-
-    // Sets the color of text.
-    // color(value) {
-    //     if (value == null) { return this.style.color; }
-    //     this.style.color = value;
-    //     return this;
-    // }
-
-    // Specifies the number of columns an element should be divided into.
-    /*	@docs: {
-     *	@title: Column count
-     *	@description: 
-     *		Specifies the number of columns an element should be divided into.
-     *		The equivalent of CSS attribute `columnCount`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    column_count(value) {
-        if (value == null) { return this.style.columnCount; }
-        this.style.columnCount = value;
-        this.style.msColumnCount = value;
-        this.style.webkitColumnCount = value;
-        this.style.MozColumnCount = value;
-        this.style.OColumnCount = value;
-        return this;
-    }
-
-    // Specifies how to fill columns, balanced or not.
-    /*	@docs: {
-     *	@title: Column fill
-     *	@description: 
-     *		Specifies how to fill columns, balanced or not.
-     *		The equivalent of CSS attribute `columnFill`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    column_fill(value) {
-        if (value == null) { return this.style.columnFill; }
-        this.style.columnFill = value;
-        return this;
-    }
-
-    // Specifies the gap between the columns.
-    /*	@docs: {
-     *	@title: Column gap
-     *	@description: 
-     *		Specifies the gap between the columns.
-     *		The equivalent of CSS attribute `columnGap`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    column_gap(value) {
-        if (value == null) { return this.style.columnGap; }
-        this.style.columnGap = value;
-        this.style.msColumnGap = value;
-        this.style.webkitColumnGap = value;
-        this.style.MozColumnGap = value;
-        this.style.OColumnGap = value;
-        return this;
-    }
-
-    // A shorthand property for all the column-rule-* properties.
-    /*	@docs: {
-     *	@title: Column rule
-     *	@description: 
-     *		A shorthand property for all the column-rule-* properties.
-     *		The equivalent of CSS attribute `columnRule`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    column_rule(value) {
-        if (value == null) { return this.style.columnRule; }
-        this.style.columnRule = value;
-        this.style.msColumnRule = value;
-        this.style.webkitColumnRule = value;
-        this.style.MozColumnRule = value;
-        this.style.OColumnRule = value;
-        return this;
-    }
-
-    // Specifies the color of the rule between columns.
-    /*	@docs: {
-     *	@title: Column rule color
-     *	@description: 
-     *		Specifies the color of the rule between columns.
-     *		The equivalent of CSS attribute `columnRuleColor`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    column_rule_color(value) {
-        if (value == null) { return this.style.columnRuleColor; }
-        this.style.columnRuleColor = value;
-        this.style.msColumnRuleColor = value;
-        this.style.webkitColumnRuleColor = value;
-        this.style.MozColumnRuleColor = value;
-        this.style.OColumnRuleColor = value;
-        return this;
-    }
-
-    // Specifies the style of the rule between columns.
-    /*	@docs: {
-     *	@title: Column rule style
-     *	@description: 
-     *		Specifies the style of the rule between columns.
-     *		The equivalent of CSS attribute `columnRuleStyle`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    column_rule_style(value) {
-        if (value == null) { return this.style.columnRuleStyle; }
-        this.style.columnRuleStyle = value;
-        this.style.msColumnRuleStyle = value;
-        this.style.webkitColumnRuleStyle = value;
-        this.style.MozColumnRuleStyle = value;
-        this.style.OColumnRuleStyle = value;
-        return this;
-    }
-
-    // Specifies the width of the rule between columns.
-    /*	@docs: {
-     *	@title: Column rule width
-     *	@description: 
-     *		Specifies the width of the rule between columns.
-     *		The equivalent of CSS attribute `columnRuleWidth`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    column_rule_width(value) {
-        if (value == null) { return this.style.columnRuleWidth; }
-        this.style.columnRuleWidth = this.pad_numeric(value);
-        this.style.msColumnRuleWidth = this.pad_numeric(value);
-        this.style.webkitColumnRuleWidth = this.pad_numeric(value);
-        this.style.MozColumnRuleWidth = this.pad_numeric(value);
-        this.style.OColumnRuleWidth = this.pad_numeric(value);
-        return this;
-    }
-
-    // Specifies how many columns an element should span across.
-    /*	@docs: {
-     *	@title: Column span
-     *	@description: 
-     *		Specifies how many columns an element should span across.
-     *		The equivalent of CSS attribute `columnSpan`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    column_span(value) {
-        if (value == null) { return this.style.columnSpan; }
-        this.style.columnSpan = value;
-        return this;
-    }
-
-    // Specifies the column width.
-    /*	@docs: {
-     *	@title: Column width
-     *	@description: 
-     *		Specifies the column width.
-     *		The equivalent of CSS attribute `columnWidth`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    column_width(value) {
-        if (value == null) { return this.style.columnWidth; }
-        this.style.columnWidth = this.pad_numeric(value);
-        this.style.msColumnWidth = this.pad_numeric(value);
-        this.style.webkitColumnWidth = this.pad_numeric(value);
-        this.style.MozColumnWidth = this.pad_numeric(value);
-        this.style.OColumnWidth = this.pad_numeric(value);
-        return this;
-    }
-
-    // A shorthand property for column-width and column-count.
-    /*	@docs: {
-     *	@title: Columns
-     *	@description: 
-     *		A shorthand property for column-width and column-count.
-     *		The equivalent of CSS attribute `columns`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    columns(value) {
-        if (value == null) { return this.style.columns; }
-        this.style.columns = value;
-        return this;
-    }
-
-    // Used with the :before and :after pseudo-elements, to insert generated content.
-    /*	@docs: {
-     *	@title: Content
-     *	@description: 
-     *		Used with the :before and :after pseudo-elements, to insert generated content.
-     *		The equivalent of CSS attribute `content`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    content(value) {
-        if (value == null) { return this.style.content; }
-        this.style.content = value;
-        return this;
-    }
-
-    // Increases or decreases the value of one or more CSS counters.
-    /*	@docs: {
-     *	@title: Counter increment
-     *	@description: 
-     *		Increases or decreases the value of one or more CSS counters.
-     *		The equivalent of CSS attribute `counterIncrement`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    counter_increment(value) {
-        if (value == null) { return this.style.counterIncrement; }
-        this.style.counterIncrement = value;
-        return this;
-    }
-
-    // Creates or resets one or more CSS counters.
-    /*	@docs: {
-     *	@title: Counter reset
-     *	@description: 
-     *		Creates or resets one or more CSS counters.
-     *		The equivalent of CSS attribute `counterReset`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    counter_reset(value) {
-        if (value == null) { return this.style.counterReset; }
-        this.style.counterReset = value;
-        return this;
-    }
-
-    // Specifies the mouse cursor to be displayed when pointing over an element.
-    /*	@docs: {
-     *	@title: Cursor
-     *	@description: 
-     *		Specifies the mouse cursor to be displayed when pointing over an element.
-     *		The equivalent of CSS attribute `cursor`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    cursor(value) {
-        if (value == null) { return this.style.cursor; }
-        this.style.cursor = value;
-        return this;
-    }
-
-    // Specifies the text direction/writing direction.
-    /*	@docs: {
-     *	@title: Direction
-     *	@description: 
-     *		Specifies the text direction/writing direction.
-     *		The equivalent of CSS attribute `direction`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    direction(value) {
-        if (value == null) { return this.style.direction; }
-        this.style.direction = value;
-        return this;
-    }
-
-    // Specifies how a certain HTML element should be displayed.
-    // display(value) {
-    //     if (value == null) { return this.style.display; }
-    //     this.style.display = value;
-    //     return this;
-    // }
-
-    // Specifies whether or not to display borders and background on empty cells in a table.
-    /*	@docs: {
-     *	@title: Empty cells
-     *	@description: 
-     *		Specifies whether or not to display borders and background on empty cells in a table.
-     *		The equivalent of CSS attribute `emptyCells`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    empty_cells(value) {
-        if (value == null) { return this.style.emptyCells; }
-        this.style.emptyCells = value;
-        return this;
-    }
-
-    // Defines effects (e.g. blurring or color shifting) on an element before the element is displayed.
-    /*	@docs: {
-     *	@title: Filter
-     *	@description: 
-     *		Defines effects (e.g. blurring or color shifting) on an element before the element is displayed.
-     *		The equivalent of CSS attribute `filter`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    filter(value) {
-        if (value == null) { return this.style.filter; }
-        this.style.filter = value;
-        this.style.msFilter = value;
-        this.style.webkitFilter = value;
-        this.style.MozFilter = value;
-        this.style.OFilter = value;
-        return this;
-    }
-
-    // A shorthand property for the flex-grow, flex-shrink, and the flex-basis properties.
-    /*	@docs: {
-     *	@title: Flex
-     *	@description: 
-     *		A shorthand property for the flex-grow, flex-shrink, and the flex-basis properties.
-     *		The equivalent of CSS attribute `flex`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    flex(value) {
-        if (value == null) { return this.style.flex; }
-        this.style.flex = value;
-        this.style.msFlex = value;
-        this.style.webkitFlex = value;
-        this.style.MozFlex = value;
-        this.style.OFlex = value;
-        return this;
-    }
-
-    // Specifies the initial length of a flexible item.
-    /*	@docs: {
-     *	@title: Flex basis
-     *	@description: 
-     *		Specifies the initial length of a flexible item.
-     *		The equivalent of CSS attribute `flexBasis`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    flex_basis(value) {
-        if (value == null) { return this.style.flexBasis; }
-        this.style.flexBasis = value;
-        this.style.msFlexBasis = value;
-        this.style.webkitFlexBasis = value;
-        this.style.MozFlexBasis = value;
-        this.style.OFlexBasis = value;
-        return this;
-    }
-
-    // Specifies the direction of the flexible items.
-    /*	@docs: {
-     *	@title: Flex direction
-     *	@description: 
-     *		Specifies the direction of the flexible items.
-     *		The equivalent of CSS attribute `flexDirection`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    flex_direction(value) {
-        if (value == null) { return this.style.flexDirection; }
-        this.style.flexDirection = value;
-        this.style.msFlexDirection = value;
-        this.style.webkitFlexDirection = value;
-        this.style.MozFlexDirection = value;
-        this.style.OFlexDirection = value;
-        return this;
-    }
-
-    // A shorthand property for the flex-direction and the flex-wrap properties.
-    /*	@docs: {
-     *	@title: Flex flow
-     *	@description: 
-     *		A shorthand property for the flex-direction and the flex-wrap properties.
-     *		The equivalent of CSS attribute `flexFlow`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    flex_flow(value) {
-        if (value == null) { return this.style.flexFlow; }
-        this.style.flexFlow = value;
-        this.style.msFlexFlow = value;
-        this.style.webkitFlexFlow = value;
-        this.style.MozFlexFlow = value;
-        this.style.OFlexFlow = value;
-        return this;
-    }
-
-    // Specifies how much the item will grow relative to the rest.
-    /*	@docs: {
-     *	@title: Flex grow
-     *	@description: 
-     *		Specifies how much the item will grow relative to the rest.
-     *		The equivalent of CSS attribute `flexGrow`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    flex_grow(value) {
-        if (value == null) { return this.style.flexGrow; }
-        this.style.flexGrow = value;
-        this.style.msFlexGrow = value;
-        this.style.webkitFlexGrow = value;
-        this.style.MozFlexGrow = value;
-        this.style.OFlexGrow = value;
-        return this;
-    }
-
-    // Specifies how the item will shrink relative to the rest.
-    /*	@docs: {
-     *	@title: Flex shrink
-     *	@description: 
-     *		Specifies how the item will shrink relative to the rest.
-     *		The equivalent of CSS attribute `flexShrink`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    flex_shrink(value) {
-        if (value == null) { return this.style.flexShrink; }
-        this.style.flexShrink = value;
-        this.style.msFlexShrink = value;
-        this.style.webkitFlexShrink = value;
-        this.style.MozFlexShrink = value;
-        this.style.OFlexShrink = value;
-        return this;
-    }
-
-    // Specifies whether the flexible items should wrap or not.
-    /*	@docs: {
-     *	@title: Flex wrap
-     *	@description: 
-     *		Specifies whether the flexible items should wrap or not.
-     *		The equivalent of CSS attribute `flexWrap`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    flex_wrap(value) {
-        if (value == null) { return this.style.flexWrap; }
-        this.style.flexWrap = value;
-        this.style.msFlexWrap = value;
-        this.style.webkitFlexWrap = value;
-        this.style.MozFlexWrap = value;
-        this.style.OFlexWrap = value;
-        return this;
-    }
-
-    // Specifies whether an element should float to the left, right, or not at all.
-    /*	@docs: {
-     *	@title: Float
-     *	@description: 
-     *		Specifies whether an element should float to the left, right, or not at all.
-     *		The equivalent of CSS attribute `float`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    float(value) {
-        if (value == null) { return this.style.float; }
-        this.style.float = value;
-        return this;
-    }
-
-    // A shorthand property for the font-style, font-variant, font-weight, font-size/line-height, and the font-family properties.
-    /*	@docs: {
-     *	@title: Font
-     *	@description: 
-     *		A shorthand property for the font-style, font-variant, font-weight, font-size/line-height, and the font-family properties.
-     *		The equivalent of CSS attribute `font`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    font(value) {
-        if (value == null) { return this.style.font; }
-        this.style.font = value;
-        return this;
-    }
-
-    // Specifies the font family for text.
-    /*	@docs: {
-     *	@title: Font family
-     *	@description: 
-     *		Specifies the font family for text.
-     *		The equivalent of CSS attribute `fontFamily`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    font_family(value) {
-        if (value == null) { return this.style.fontFamily; }
-        this.style.fontFamily = value;
-        return this;
-    }
-
-    // Allows control over advanced typographic features in OpenType fonts.
-    /*	@docs: {
-     *	@title: Font feature settings
-     *	@description: 
-     *		Allows control over advanced typographic features in OpenType fonts.
-     *		The equivalent of CSS attribute `fontFeatureSettings`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    font_feature_settings(value) {
-        if (value == null) { return this.style.fontFeatureSettings; }
-        this.style.fontFeatureSettings = value;
-        return this;
-    }
-
-    // Controls the usage of the kerning information (how letters are spaced).
-    /*	@docs: {
-     *	@title: Font kerning
-     *	@description: 
-     *		Controls the usage of the kerning information (how letters are spaced).
-     *		The equivalent of CSS attribute `fontKerning`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    font_kerning(value) {
-        if (value == null) { return this.style.fontKerning; }
-        this.style.fontKerning = value;
-        return this;
-    }
-
-    // Controls the usage of language-specific glyphs in a typeface.
-    /*	@docs: {
-     *	@title: Font language override
-     *	@description: 
-     *		Controls the usage of language-specific glyphs in a typeface.
-     *		The equivalent of CSS attribute `fontLanguageOverride`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    font_language_override(value) {
-        if (value == null) { return this.style.fontLanguageOverride; }
-        this.style.fontLanguageOverride = value;
-        return this;
-    }
-
-    // Specifies the font size of text.
-    /*	@docs: {
-     *	@title: Font size
-     *	@description: 
-     *		Specifies the font size of text.
-     *		The equivalent of CSS attribute `fontSize`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    font_size(value) {
-        if (value == null) { return this.style.fontSize; }
-        this.style.fontSize = this.pad_numeric(value);
-        return this;
-    }
-
-    // Preserves the readability of text when font fallback occurs.
-    /*	@docs: {
-     *	@title: Font size adjust
-     *	@description: 
-     *		Preserves the readability of text when font fallback occurs.
-     *		The equivalent of CSS attribute `fontSizeAdjust`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    font_size_adjust(value) {
-        if (value == null) { return this.style.fontSizeAdjust; }
-        this.style.fontSizeAdjust = value;
-        return this;
-    }
-
-    // Selects a normal, condensed, or expanded face from a font family.
-    /*	@docs: {
-     *	@title: Font stretch
-     *	@description: 
-     *		Selects a normal, condensed, or expanded face from a font family.
-     *		The equivalent of CSS attribute `fontStretch`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    font_stretch(value) {
-        if (value == null) { return this.style.fontStretch; }
-        this.style.fontStretch = value;
-        return this;
-    }
-
-    // Specifies the font style for text.
-    /*	@docs: {
-     *	@title: Font style
-     *	@description: 
-     *		Specifies the font style for text.
-     *		The equivalent of CSS attribute `fontStyle`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    font_style(value) {
-        if (value == null) { return this.style.fontStyle; }
-        this.style.fontStyle = value;
-        return this;
-    }
-
-    // Controls which missing typefaces (bold or italic) may be synthesized by the browser.
-    /*	@docs: {
-     *	@title: Font synthesis
-     *	@description: 
-     *		Controls which missing typefaces (bold or italic) may be synthesized by the browser.
-     *		The equivalent of CSS attribute `fontSynthesis`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    font_synthesis(value) {
-        if (value == null) { return this.style.fontSynthesis; }
-        this.style.fontSynthesis = value;
-        return this;
-    }
-
-    // Specifies whether or not a text should be displayed in a small-caps font.
-    /*	@docs: {
-     *	@title: Font variant
-     *	@description: 
-     *		Specifies whether or not a text should be displayed in a small-caps font.
-     *		The equivalent of CSS attribute `fontVariant`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    font_variant(value) {
-        if (value == null) { return this.style.fontVariant; }
-        this.style.fontVariant = value;
-        return this;
-    }
-
-    // Controls the usage of alternate glyphs associated to alternative names defined in @font-feature-values.
-    /*	@docs: {
-     *	@title: Font variant alternates
-     *	@description: 
-     *		Controls the usage of alternate glyphs associated to alternative names defined in @font-feature-values.
-     *		The equivalent of CSS attribute `fontVariantAlternates`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    font_variant_alternates(value) {
-        if (value == null) { return this.style.fontVariantAlternates; }
-        this.style.fontVariantAlternates = value;
-        return this;
-    }
-
-    // Controls the usage of alternate glyphs for capital letters.
-    /*	@docs: {
-     *	@title: Font variant caps
-     *	@description: 
-     *		Controls the usage of alternate glyphs for capital letters.
-     *		The equivalent of CSS attribute `fontVariantCaps`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    font_variant_caps(value) {
-        if (value == null) { return this.style.fontVariantCaps; }
-        this.style.fontVariantCaps = value;
-        return this;
-    }
-
-    // Controls the usage of alternate glyphs for East Asian scripts (e.g Japanese and Chinese).
-    /*	@docs: {
-     *	@title: Font variant east asian
-     *	@description: 
-     *		Controls the usage of alternate glyphs for East Asian scripts (e.g Japanese and Chinese).
-     *		The equivalent of CSS attribute `fontVariantEastAsian`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    font_variant_east_asian(value) {
-        if (value == null) { return this.style.fontVariantEastAsian; }
-        this.style.fontVariantEastAsian = value;
-        return this;
-    }
-
-    // Controls which ligatures and contextual forms are used in textual content of the elements it applies to.
-    /*	@docs: {
-     *	@title: Font variant ligatures
-     *	@description: 
-     *		Controls which ligatures and contextual forms are used in textual content of the elements it applies to.
-     *		The equivalent of CSS attribute `fontVariantLigatures`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    font_variant_ligatures(value) {
-        if (value == null) { return this.style.fontVariantLigatures; }
-        this.style.fontVariantLigatures = value;
-        return this;
-    }
-
-    // Controls the usage of alternate glyphs for numbers, fractions, and ordinal markers.
-    /*	@docs: {
-     *	@title: Font variant numeric
-     *	@description: 
-     *		Controls the usage of alternate glyphs for numbers, fractions, and ordinal markers.
-     *		The equivalent of CSS attribute `fontVariantNumeric`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    font_variant_numeric(value) {
-        if (value == null) { return this.style.fontVariantNumeric; }
-        this.style.fontVariantNumeric = value;
-        return this;
-    }
-
-    // Controls the usage of alternate glyphs of smaller size positioned as superscript or subscript regarding the baseline of the font.
-    /*	@docs: {
-     *	@title: Font variant position
-     *	@description: 
-     *		Controls the usage of alternate glyphs of smaller size positioned as superscript or subscript regarding the baseline of the font.
-     *		The equivalent of CSS attribute `fontVariantPosition`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    font_variant_position(value) {
-        if (value == null) { return this.style.fontVariantPosition; }
-        this.style.fontVariantPosition = value;
-        return this;
-    }
-
-    // Specifies the weight of a font.
-    /*	@docs: {
-     *	@title: Font weight
-     *	@description: 
-     *		Specifies the weight of a font.
-     *		The equivalent of CSS attribute `fontWeight`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    font_weight(value) {
-        if (value == null) { return this.style.fontWeight; }
-        this.style.fontWeight = value;
-        return this;
-    }
-
-    // A shorthand property for the row-gap and the column-gap properties.
-    /*	@docs: {
-     *	@title: Gap
-     *	@description: 
-     *		A shorthand property for the row-gap and the column-gap properties.
-     *		The equivalent of CSS attribute `gap`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    gap(value) {
-        if (value == null) { return this.style.gap; }
-        this.style.gap = value;
-        return this;
-    }
-
-    // A shorthand property for the grid-template-rows, grid-template-columns, grid-template-areas, grid-auto-rows, grid-auto-columns, and the grid-auto-flow properties.
-    /*	@docs: {
-     *	@title: Grid
-     *	@description: 
-     *		A shorthand property for the grid-template-rows, grid-template-columns, grid-template-areas, grid-auto-rows, grid-auto-columns, and the grid-auto-flow properties.
-     *		The equivalent of CSS attribute `grid`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    grid(value) {
-        if (value == null) { return this.style.grid; }
-        this.style.grid = value;
-        return this;
-    }
-
-    // Either specifies a name for the grid item, or this property is a shorthand property for the grid-row-start, grid-column-start, grid-row-end, and grid-column-end properties.
-    /*	@docs: {
-     *	@title: Grid area
-     *	@description: 
-     *		Either specifies a name for the grid item, or this property is a shorthand property for the grid-row-start, grid-column-start, grid-row-end, and grid-column-end properties.
-     *		The equivalent of CSS attribute `gridArea`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    grid_area(value) {
-        if (value == null) { return this.style.gridArea; }
-        this.style.gridArea = value;
-        return this;
-    }
-
-    // Specifies a default column size.
-    /*	@docs: {
-     *	@title: Grid auto columns
-     *	@description: 
-     *		Specifies a default column size.
-     *		The equivalent of CSS attribute `gridAutoColumns`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    grid_auto_columns(value) {
-        if (value == null) { return this.style.gridAutoColumns; }
-        this.style.gridAutoColumns = value;
-        return this;
-    }
-
-    // Specifies how auto-placed items are inserted in the grid.
-    /*	@docs: {
-     *	@title: Grid auto flow
-     *	@description: 
-     *		Specifies how auto-placed items are inserted in the grid.
-     *		The equivalent of CSS attribute `gridAutoFlow`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    grid_auto_flow(value) {
-        if (value == null) { return this.style.gridAutoFlow; }
-        this.style.gridAutoFlow = value;
-        return this;
-    }
-
-    // Specifies a default row size.
-    /*	@docs: {
-     *	@title: Grid auto rows
-     *	@description: 
-     *		Specifies a default row size.
-     *		The equivalent of CSS attribute `gridAutoRows`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    grid_auto_rows(value) {
-        if (value == null) { return this.style.gridAutoRows; }
-        this.style.gridAutoRows = value;
-        return this;
-    }
-
-    // A shorthand property for the grid-column-start and the grid-column-end properties.
-    /*	@docs: {
-     *	@title: Grid column
-     *	@description: 
-     *		A shorthand property for the grid-column-start and the grid-column-end properties.
-     *		The equivalent of CSS attribute `gridColumn`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    grid_column(value) {
-        if (value == null) { return this.style.gridColumn; }
-        this.style.gridColumn = value;
-        return this;
-    }
-
-    // Specifies where to end the grid item.
-    /*	@docs: {
-     *	@title: Grid column end
-     *	@description: 
-     *		Specifies where to end the grid item.
-     *		The equivalent of CSS attribute `gridColumnEnd`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    grid_column_end(value) {
-        if (value == null) { return this.style.gridColumnEnd; }
-        this.style.gridColumnEnd = value;
-        return this;
-    }
-
-    // Specifies the size of the gap between columns.
-    /*	@docs: {
-     *	@title: Grid column gap
-     *	@description: 
-     *		Specifies the size of the gap between columns.
-     *		The equivalent of CSS attribute `gridColumnGap`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    grid_column_gap(value) {
-        if (value == null) { return this.style.gridColumnGap; }
-        this.style.gridColumnGap = value;
-        return this;
-    }
-
-    // Specifies where to start the grid item.
-    /*	@docs: {
-     *	@title: Grid column start
-     *	@description: 
-     *		Specifies where to start the grid item.
-     *		The equivalent of CSS attribute `gridColumnStart`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    grid_column_start(value) {
-        if (value == null) { return this.style.gridColumnStart; }
-        this.style.gridColumnStart = value;
-        return this;
-    }
-
-    // A shorthand property for the grid-row-gap and grid-column-gap properties.
-    /*	@docs: {
-     *	@title: Grid gap
-     *	@description: 
-     *		A shorthand property for the grid-row-gap and grid-column-gap properties.
-     *		The equivalent of CSS attribute `gridGap`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    grid_gap(value) {
-        if (value == null) { return this.style.gridGap; }
-        this.style.gridGap = value;
-        return this;
-    }
-
-    // A shorthand property for the grid-row-start and the grid-row-end properties.
-    /*	@docs: {
-     *	@title: Grid row
-     *	@description: 
-     *		A shorthand property for the grid-row-start and the grid-row-end properties.
-     *		The equivalent of CSS attribute `gridRow`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    grid_row(value) {
-        if (value == null) { return this.style.gridRow; }
-        this.style.gridRow = value;
-        return this;
-    }
-
-    // Specifies where to end the grid item.
-    /*	@docs: {
-     *	@title: Grid row end
-     *	@description: 
-     *		Specifies where to end the grid item.
-     *		The equivalent of CSS attribute `gridRowEnd`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    grid_row_end(value) {
-        if (value == null) { return this.style.gridRowEnd; }
-        this.style.gridRowEnd = value;
-        return this;
-    }
-
-    // Specifies the size of the gap between rows.
-    /*	@docs: {
-     *	@title: Grid row gap
-     *	@description: 
-     *		Specifies the size of the gap between rows.
-     *		The equivalent of CSS attribute `gridRowGap`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    grid_row_gap(value) {
-        if (value == null) { return this.style.gridRowGap; }
-        this.style.gridRowGap = value;
-        return this;
-    }
-
-    // Specifies where to start the grid item.
-    /*	@docs: {
-     *	@title: Grid row start
-     *	@description: 
-     *		Specifies where to start the grid item.
-     *		The equivalent of CSS attribute `gridRowStart`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    grid_row_start(value) {
-        if (value == null) { return this.style.gridRowStart; }
-        this.style.gridRowStart = value;
-        return this;
-    }
-
-    // A shorthand property for the grid-template-rows, grid-template-columns and grid-areas properties.
-    /*	@docs: {
-     *	@title: Grid template
-     *	@description: 
-     *		A shorthand property for the grid-template-rows, grid-template-columns and grid-areas properties.
-     *		The equivalent of CSS attribute `gridTemplate`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    grid_template(value) {
-        if (value == null) { return this.style.gridTemplate; }
-        this.style.gridTemplate = value;
-        return this;
-    }
-
-    // Specifies how to display columns and rows, using named grid items.
-    /*	@docs: {
-     *	@title: Grid template areas
-     *	@description: 
-     *		Specifies how to display columns and rows, using named grid items.
-     *		The equivalent of CSS attribute `gridTemplateAreas`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    grid_template_areas(value) {
-        if (value == null) { return this.style.gridTemplateAreas; }
-        this.style.gridTemplateAreas = value;
-        return this;
-    }
-
-    // Specifies the size of the columns, and how many columns in a grid layout.
-    /*	@docs: {
-     *	@title: Grid template columns
-     *	@description: 
-     *		Specifies the size of the columns, and how many columns in a grid layout.
-     *		The equivalent of CSS attribute `gridTemplateColumns`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    grid_template_columns(value) {
-        if (value == null) { return this.style.gridTemplateColumns; }
-        this.style.gridTemplateColumns = value;
-        return this;
-    }
-
-    // Specifies the size of the rows in a grid layout.
-    /*	@docs: {
-     *	@title: Grid template rows
-     *	@description: 
-     *		Specifies the size of the rows in a grid layout.
-     *		The equivalent of CSS attribute `gridTemplateRows`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    grid_template_rows(value) {
-        if (value == null) { return this.style.gridTemplateRows; }
-        this.style.gridTemplateRows = value;
-        return this;
-    }
-
-    // Specifies whether a punctuation character may be placed outside the line box.
-    /*	@docs: {
-     *	@title: Hanging punctuation
-     *	@description: 
-     *		Specifies whether a punctuation character may be placed outside the line box.
-     *		The equivalent of CSS attribute `hangingPunctuation`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    hanging_punctuation(value) {
-        if (value == null) { return this.style.hangingPunctuation; }
-        this.style.hangingPunctuation = value;
-        return this;
-    }
-
-    // Sets the height of an element.
-    // height(value) {
-    //     if (value == null) { return this.style.height; }
-    //     this.style.height = this.pad_numeric(value);
-    //     return this;
-    // }
-
-    // Sets how to split words to improve the layout of paragraphs.
-    /*	@docs: {
-     *	@title: Hyphens
-     *	@description: 
-     *		Sets how to split words to improve the layout of paragraphs.
-     *		The equivalent of CSS attribute `hyphens`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    hyphens(value) {
-        if (value == null) { return this.style.hyphens; }
-        this.style.hyphens = value;
-        return this;
-    }
-
-    // Specifies the type of algorithm to use for image scaling.
-    /*	@docs: {
-     *	@title: Image rendering
-     *	@description: 
-     *		Specifies the type of algorithm to use for image scaling.
-     *		The equivalent of CSS attribute `imageRendering`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    image_rendering(value) {
-        if (value == null) { return this.style.imageRendering; }
-        this.style.imageRendering = value;
-        return this;
-    }
-
-    // Specifies the size of an element in the inline direction.
-    /*	@docs: {
-     *	@title: Inline size
-     *	@description: 
-     *		Specifies the size of an element in the inline direction.
-     *		The equivalent of CSS attribute `inlineSize`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    inline_size(value) {
-        if (value == null) { return this.style.inlineSize; }
-        this.style.inlineSize = this.pad_numeric(value);
-        return this;
-    }
-
-    // Specifies the distance between an element and the parent element.
-    /*	@docs: {
-     *	@title: Inset
-     *	@description: 
-     *		Specifies the distance between an element and the parent element.
-     *		The equivalent of CSS attribute `inset`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    inset(value) {
-        if (value == null) { return this.style.inset; }
-        this.style.inset = value;
-        return this;
-    }
-
-    // Specifies the distance between an element and the parent element in the block direction.
-    /*	@docs: {
-     *	@title: Inset block
-     *	@description: 
-     *		Specifies the distance between an element and the parent element in the block direction.
-     *		The equivalent of CSS attribute `insetBlock`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    inset_block(value) {
-        if (value == null) { return this.style.insetBlock; }
-        this.style.insetBlock = value;
-        return this;
-    }
-
-    // Specifies the distance between the end of an element and the parent element in the block direction.
-    /*	@docs: {
-     *	@title: Inset block end
-     *	@description: 
-     *		Specifies the distance between the end of an element and the parent element in the block direction.
-     *		The equivalent of CSS attribute `insetBlockEnd`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    inset_block_end(value) {
-        if (value == null) { return this.style.insetBlockEnd; }
-        this.style.insetBlockEnd = value;
-        return this;
-    }
-
-    // Specifies the distance between the start of an element and the parent element in the block direction.
-    /*	@docs: {
-     *	@title: Inset block start
-     *	@description: 
-     *		Specifies the distance between the start of an element and the parent element in the block direction.
-     *		The equivalent of CSS attribute `insetBlockStart`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    inset_block_start(value) {
-        if (value == null) { return this.style.insetBlockStart; }
-        this.style.insetBlockStart = value;
-        return this;
-    }
-
-    // Specifies the distance between an element and the parent element in the inline direction.
-    /*	@docs: {
-     *	@title: Inset inline
-     *	@description: 
-     *		Specifies the distance between an element and the parent element in the inline direction.
-     *		The equivalent of CSS attribute `insetInline`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    inset_inline(value) {
-        if (value == null) { return this.style.insetInline; }
-        this.style.insetInline = value;
-        return this;
-    }
-
-    // Specifies the distance between the end of an element and the parent element in the inline direction.
-    /*	@docs: {
-     *	@title: Inset inline end
-     *	@description: 
-     *		Specifies the distance between the end of an element and the parent element in the inline direction.
-     *		The equivalent of CSS attribute `insetInlineEnd`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    inset_inline_end(value) {
-        if (value == null) { return this.style.insetInlineEnd; }
-        this.style.insetInlineEnd = value;
-        return this;
-    }
-
-    // Specifies the distance between the start of an element and the parent element in the inline direction.
-    /*	@docs: {
-     *	@title: Inset inline start
-     *	@description: 
-     *		Specifies the distance between the start of an element and the parent element in the inline direction.
-     *		The equivalent of CSS attribute `insetInlineStart`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    inset_inline_start(value) {
-        if (value == null) { return this.style.insetInlineStart; }
-        this.style.insetInlineStart = value;
-        return this;
-    }
-
-    // Defines whether an element must create a new stacking content.
-    /*	@docs: {
-     *	@title: Isolation
-     *	@description: 
-     *		Defines whether an element must create a new stacking content.
-     *		The equivalent of CSS attribute `isolation`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    isolation(value) {
-        if (value == null) { return this.style.isolation; }
-        this.style.isolation = value;
-        return this;
-    }
-
-    // Specifies the alignment between the items inside a flexible container when the items do not use all available space.
-    /*	@docs: {
-     *	@title: Justify content
-     *	@description: 
-     *		Specifies the alignment between the items inside a flexible container when the items do not use all available space.
-     *		The equivalent of CSS attribute `justifyContent`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    justify_content(value) {
-        if (value == null) { return this.style.justifyContent; }
-        this.style.justifyContent = value;
-        this.style.msJustifyContent = value;
-        this.style.webkitJustifyContent = value;
-        this.style.MozJustifyContent = value;
-        this.style.OJustifyContent = value;
-        return this;
-    }
-
-    // Is set on the grid container. Specifies the alignment of grid items in the inline direction.
-    /*	@docs: {
-     *	@title: Justify items
-     *	@description: 
-     *		Is set on the grid container. Specifies the alignment of grid items in the inline direction.
-     *		The equivalent of CSS attribute `justifyItems`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    justify_items(value) {
-        if (value == null) { return this.style.justifyItems; }
-        this.style.justifyItems = value;
-        return this;
-    }
-
-    // Is set on the grid item. Specifies the alignment of the grid item in the inline direction.
-    /*	@docs: {
-     *	@title: Justify self
-     *	@description: 
-     *		Is set on the grid item. Specifies the alignment of the grid item in the inline direction.
-     *		The equivalent of CSS attribute `justifySelf`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    justify_self(value) {
-        if (value == null) { return this.style.justifySelf; }
-        this.style.justifySelf = value;
-        return this;
-    }
-
-    // Specifies the left position of a positioned element.
-    /*	@docs: {
-     *	@title: Left
-     *	@description: 
-     *		Specifies the left position of a positioned element.
-     *		The equivalent of CSS attribute `left`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    left(value) {
-        if (value == null) { return this.style.left; }
-        this.style.left = this.pad_numeric(value);
-        return this;
-    }
-
-    // Increases or decreases the space between characters in a text.
-    /*	@docs: {
-     *	@title: Letter spacing
-     *	@description: 
-     *		Increases or decreases the space between characters in a text.
-     *		The equivalent of CSS attribute `letterSpacing`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    letter_spacing(value) {
-        if (value == null) { return this.style.letterSpacing; }
-        this.style.letterSpacing = value;
-        return this;
-    }
-
-    // Specifies how/if to break lines.
-    /*	@docs: {
-     *	@title: Line break
-     *	@description: 
-     *		Specifies how/if to break lines.
-     *		The equivalent of CSS attribute `lineBreak`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    line_break(value) {
-        if (value == null) { return this.style.lineBreak; }
-        this.style.lineBreak = value;
-        return this;
-    }
-
-    // Sets the line height.
-    /*	@docs: {
-     *	@title: Line height
-     *	@description: 
-     *		Sets the line height.
-     *		The equivalent of CSS attribute `lineHeight`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    line_height(value) {
-        if (value == null) { return this.style.lineHeight; }
-        this.style.lineHeight = this.pad_numeric(value);
-        return this;
-    }
-
-    // Sets all the properties for a list in one declaration.
-    /*	@docs: {
-     *	@title: List style
-     *	@description: 
-     *		Sets all the properties for a list in one declaration.
-     *		The equivalent of CSS attribute `listStyle`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    list_style(value) {
-        if (value == null) { return this.style.listStyle; }
-        this.style.listStyle = value;
-        return this;
-    }
-
-    // Specifies an image as the list-item marker.
-    /*	@docs: {
-     *	@title: List style image
-     *	@description: 
-     *		Specifies an image as the list-item marker.
-     *		The equivalent of CSS attribute `listStyleImage`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    list_style_image(value) {
-        if (value == null) { return this.style.listStyleImage; }
-        this.style.listStyleImage = value;
-        return this;
-    }
-
-    // Specifies the position of the list-item markers (bullet points).
-    /*	@docs: {
-     *	@title: List style position
-     *	@description: 
-     *		Specifies the position of the list-item markers (bullet points).
-     *		The equivalent of CSS attribute `listStylePosition`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    list_style_position(value) {
-        if (value == null) { return this.style.listStylePosition; }
-        this.style.listStylePosition = value;
-        return this;
-    }
-
-    // Specifies the type of list-item marker.
-    /*	@docs: {
-     *	@title: List style type
-     *	@description: 
-     *		Specifies the type of list-item marker.
-     *		The equivalent of CSS attribute `listStyleType`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    list_style_type(value) {
-        if (value == null) { return this.style.listStyleType; }
-        this.style.listStyleType = value;
-        return this;
-    }
-
-    // Sets all the margin properties in one declaration.
-    // margin(value) {
-    //     if (value == null) { return this.style.margin; }
-    //     this.style.margin = value;
-    //     return this;
-    // }
-
-    // Specifies the margin in the block direction.
-    /*	@docs: {
-     *	@title: Margin block
-     *	@description: 
-     *		Specifies the margin in the block direction.
-     *		The equivalent of CSS attribute `marginBlock`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    margin_block(value) {
-        if (value == null) { return this.style.marginBlock; }
-        this.style.marginBlock = value;
-        return this;
-    }
-
-    // Specifies the margin at the end in the block direction.
-    /*	@docs: {
-     *	@title: Margin block end
-     *	@description: 
-     *		Specifies the margin at the end in the block direction.
-     *		The equivalent of CSS attribute `marginBlockEnd`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    margin_block_end(value) {
-        if (value == null) { return this.style.marginBlockEnd; }
-        this.style.marginBlockEnd = value;
-        return this;
-    }
-
-    // Specifies the margin at the start in the block direction.
-    /*	@docs: {
-     *	@title: Margin block start
-     *	@description: 
-     *		Specifies the margin at the start in the block direction.
-     *		The equivalent of CSS attribute `marginBlockStart`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    margin_block_start(value) {
-        if (value == null) { return this.style.marginBlockStart; }
-        this.style.marginBlockStart = value;
-        return this;
-    }
-
-    // Sets the bottom margin of an element.
-    /*	@docs: {
-     *	@title: Margin bottom
-     *	@description: 
-     *		Sets the bottom margin of an element.
-     *		The equivalent of CSS attribute `marginBottom`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    margin_bottom(value) {
-        if (value == null) { return this.style.marginBottom; }
-        this.style.marginBottom = this.pad_numeric(value);
-        return this;
-    }
-
-    // Specifies the margin in the inline direction.
-    /*	@docs: {
-     *	@title: Margin inline
-     *	@description: 
-     *		Specifies the margin in the inline direction.
-     *		The equivalent of CSS attribute `marginInline`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    margin_inline(value) {
-        if (value == null) { return this.style.marginInline; }
-        this.style.marginInline = value;
-        return this;
-    }
-
-    // Specifies the margin at the end in the inline direction.
-    /*	@docs: {
-     *	@title: Margin inline end
-     *	@description: 
-     *		Specifies the margin at the end in the inline direction.
-     *		The equivalent of CSS attribute `marginInlineEnd`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    margin_inline_end(value) {
-        if (value == null) { return this.style.marginInlineEnd; }
-        this.style.marginInlineEnd = value;
-        return this;
-    }
-
-    // Specifies the margin at the start in the inline direction.
-    /*	@docs: {
-     *	@title: Margin inline start
-     *	@description: 
-     *		Specifies the margin at the start in the inline direction.
-     *		The equivalent of CSS attribute `marginInlineStart`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    margin_inline_start(value) {
-        if (value == null) { return this.style.marginInlineStart; }
-        this.style.marginInlineStart = value;
-        return this;
-    }
-
-    // Sets the left margin of an element.
-    /*	@docs: {
-     *	@title: Margin left
-     *	@description: 
-     *		Sets the left margin of an element.
-     *		The equivalent of CSS attribute `marginLeft`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    margin_left(value) {
-        if (value == null) { return this.style.marginLeft; }
-        this.style.marginLeft = this.pad_numeric(value);
-        return this;
-    }
-
-    // Sets the right margin of an element.
-    /*	@docs: {
-     *	@title: Margin right
-     *	@description: 
-     *		Sets the right margin of an element.
-     *		The equivalent of CSS attribute `marginRight`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    margin_right(value) {
-        if (value == null) { return this.style.marginRight; }
-        this.style.marginRight = this.pad_numeric(value);
-        return this;
-    }
-
-    // Sets the top margin of an element.
-    /*	@docs: {
-     *	@title: Margin top
-     *	@description: 
-     *		Sets the top margin of an element.
-     *		The equivalent of CSS attribute `marginTop`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    margin_top(value) {
-        if (value == null) { return this.style.marginTop; }
-        this.style.marginTop = this.pad_numeric(value);
-        return this;
-    }
-
-    // Hides parts of an element by masking or clipping an image at specific places.
-    /*	@docs: {
-     *	@title: Mask
-     *	@description: 
-     *		Hides parts of an element by masking or clipping an image at specific places.
-     *		The equivalent of CSS attribute `mask`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    mask(value) {
-        if (value == null) { return this.style.mask; }
-        this.style.mask = value;
-        this.style.msMask = value;
-        this.style.webkitMask = value;
-        this.style.MozMask = value;
-        this.style.OMask = value;
-        return this;
-    }
-
-    // Specifies the mask area.
-    /*	@docs: {
-     *	@title: Mask clip
-     *	@description: 
-     *		Specifies the mask area.
-     *		The equivalent of CSS attribute `maskClip`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    mask_clip(value) {
-        if (value == null) { return this.style.maskClip; }
-        this.style.maskClip = value;
-        return this;
-    }
-
-    // Represents a compositing operation used on the current mask layer with the mask layers below it.
-    /*	@docs: {
-     *	@title: Mask composite
-     *	@description: 
-     *		Represents a compositing operation used on the current mask layer with the mask layers below it.
-     *		The equivalent of CSS attribute `maskComposite`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    mask_composite(value) {
-        if (value == null) { return this.style.maskComposite; }
-        this.style.maskComposite = value;
-        this.style.msMaskComposite = value;
-        this.style.webkitMaskComposite = value;
-        this.style.MozMaskComposite = value;
-        this.style.OMaskComposite = value;
-        return this;
-    }
-
-    // Specifies an image to be used as a mask layer for an element.
-    /*	@docs: {
-     *	@title: Mask image
-     *	@description: 
-     *		Specifies an image to be used as a mask layer for an element.
-     *		The equivalent of CSS attribute `maskImage`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    mask_image(value) {
-        if (value == null) { return this.style.maskImage; }
-        this.style.maskImage = value;
-        return this;
-    }
-
-    // Specifies whether the mask layer image is treated as a luminance mask or as an alpha mask.
-    /*	@docs: {
-     *	@title: Mask mode
-     *	@description: 
-     *		Specifies whether the mask layer image is treated as a luminance mask or as an alpha mask.
-     *		The equivalent of CSS attribute `maskMode`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    mask_mode(value) {
-        if (value == null) { return this.style.maskMode; }
-        this.style.maskMode = value;
-        return this;
-    }
-
-    // Specifies the origin position (the mask position area) of a mask layer image.
-    /*	@docs: {
-     *	@title: Mask origin
-     *	@description: 
-     *		Specifies the origin position (the mask position area) of a mask layer image.
-     *		The equivalent of CSS attribute `maskOrigin`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    mask_origin(value) {
-        if (value == null) { return this.style.maskOrigin; }
-        this.style.maskOrigin = value;
-        return this;
-    }
-
-    // Sets the starting position of a mask layer image (relative to the mask position area).
-    /*	@docs: {
-     *	@title: Mask position
-     *	@description: 
-     *		Sets the starting position of a mask layer image (relative to the mask position area).
-     *		The equivalent of CSS attribute `maskPosition`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    mask_position(value) {
-        if (value == null) { return this.style.maskPosition; }
-        this.style.maskPosition = value;
-        return this;
-    }
-
-    // Specifies how the mask layer image is repeated.
-    /*	@docs: {
-     *	@title: Mask repeat
-     *	@description: 
-     *		Specifies how the mask layer image is repeated.
-     *		The equivalent of CSS attribute `maskRepeat`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    mask_repeat(value) {
-        if (value == null) { return this.style.maskRepeat; }
-        this.style.maskRepeat = value;
-        return this;
-    }
-
-    // Specifies the size of a mask layer image.
-    /*	@docs: {
-     *	@title: Mask size
-     *	@description: 
-     *		Specifies the size of a mask layer image.
-     *		The equivalent of CSS attribute `maskSize`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    mask_size(value) {
-        if (value == null) { return this.style.maskSize; }
-        this.style.maskSize = this.pad_numeric(value);
-        return this;
-    }
-
-    // Specifies whether an SVG <mask> element is treated as a luminance mask or as an alpha mask.
-    /*	@docs: {
-     *	@title: Mask type
-     *	@description: 
-     *		Specifies whether an SVG <mask> element is treated as a luminance mask or as an alpha mask.
-     *		The equivalent of CSS attribute `maskType`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    mask_type(value) {
-        if (value == null) { return this.style.maskType; }
-        this.style.maskType = value;
-        return this;
-    }
-
-    // Sets the maximum height of an element.
-    /*	@docs: {
-     *	@title: Max height
-     *	@description: 
-     *		Sets the maximum height of an element.
-     *		The equivalent of CSS attribute `maxHeight`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    max_height(value) {
-        if (value == null) { return this.style.maxHeight; }
-        this.style.maxHeight = this.pad_numeric(value);
-        return this;
-    }
-
-    // Sets the maximum width of an element.
-    /*	@docs: {
-     *	@title: Max width
-     *	@description: 
-     *		Sets the maximum width of an element.
-     *		The equivalent of CSS attribute `maxWidth`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    max_width(value) {
-        if (value == null) { return this.style.maxWidth; }
-        this.style.maxWidth = this.pad_numeric(value);
-        return this;
-    }
-
-    // Sets the maximum size of an element in the block direction.
-    /*	@docs: {
-     *	@title: Max block size
-     *	@description: 
-     *		Sets the maximum size of an element in the block direction.
-     *		The equivalent of CSS attribute `maxBlockSize`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    max_block_size(value) {
-        if (value == null) { return this.style.maxBlockSize; }
-        this.style.maxBlockSize = this.pad_numeric(value);
-        return this;
-    }
-
-    // Sets the maximum size of an element in the inline direction.
-    /*	@docs: {
-     *	@title: Max inline size
-     *	@description: 
-     *		Sets the maximum size of an element in the inline direction.
-     *		The equivalent of CSS attribute `maxInlineSize`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    max_inline_size(value) {
-        if (value == null) { return this.style.maxInlineSize; }
-        this.style.maxInlineSize = this.pad_numeric(value);
-        return this;
-    }
-
-    // Sets the minimum size of an element in the block direction.
-    /*	@docs: {
-     *	@title: Min block size
-     *	@description: 
-     *		Sets the minimum size of an element in the block direction.
-     *		The equivalent of CSS attribute `minBlockSize`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    min_block_size(value) {
-        if (value == null) { return this.style.minBlockSize; }
-        this.style.minBlockSize = this.pad_numeric(value);
-        return this;
-    }
-
-    // Sets the minimum size of an element in the inline direction.
-    /*	@docs: {
-     *	@title: Min inline size
-     *	@description: 
-     *		Sets the minimum size of an element in the inline direction.
-     *		The equivalent of CSS attribute `minInlineSize`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    min_inline_size(value) {
-        if (value == null) { return this.style.minInlineSize; }
-        this.style.minInlineSize = this.pad_numeric(value);
-        return this;
-    }
-
-    // Sets the minimum height of an element.
-    /*	@docs: {
-     *	@title: Min height
-     *	@description: 
-     *		Sets the minimum height of an element.
-     *		The equivalent of CSS attribute `minHeight`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    min_height(value) {
-        if (value == null) { return this.style.minHeight; }
-        this.style.minHeight = this.pad_numeric(value);
-        return this;
-    }
-
-    // Sets the minimum width of an element.
-    /*	@docs: {
-     *	@title: Min width
-     *	@description: 
-     *		Sets the minimum width of an element.
-     *		The equivalent of CSS attribute `minWidth`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    min_width(value) {
-        if (value == null) { return this.style.minWidth; }
-        this.style.minWidth = this.pad_numeric(value);
-        return this;
-    }
-
-    // Specifies how an element's content should blend with its direct parent background.
-    /*	@docs: {
-     *	@title: Mix blend mode
-     *	@description: 
-     *		Specifies how an element's content should blend with its direct parent background.
-     *		The equivalent of CSS attribute `mixBlendMode`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    mix_blend_mode(value) {
-        if (value == null) { return this.style.mixBlendMode; }
-        this.style.mixBlendMode = value;
-        return this;
-    }
-
-    // Specifies how the contents of a replaced element should be fitted to the box established by its used height and width.
-    /*	@docs: {
-     *	@title: Object fit
-     *	@description: 
-     *		Specifies how the contents of a replaced element should be fitted to the box established by its used height and width.
-     *		The equivalent of CSS attribute `objectFit`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    object_fit(value) {
-        if (value == null) { return this.style.objectFit; }
-        this.style.objectFit = value;
-        return this;
-    }
-
-    // Specifies the alignment of the replaced element inside its box.
-    /*	@docs: {
-     *	@title: Object position
-     *	@description: 
-     *		Specifies the alignment of the replaced element inside its box.
-     *		The equivalent of CSS attribute `objectPosition`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    object_position(value) {
-        if (value == null) { return this.style.objectPosition; }
-        this.style.objectPosition = value;
-        return this;
-    }
-
-    // Is a shorthand, and specifies how to animate an element along a path.
-    /*	@docs: {
-     *	@title: Offset
-     *	@description: 
-     *		Is a shorthand, and specifies how to animate an element along a path.
-     *		The equivalent of CSS attribute `offset`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    offset(value) {
-        if (value == null) { return this.style.offset; }
-        this.style.offset = value;
-        return this;
-    }
-
-    // Specifies a point on an element that is fixed to the path it is animated along.
-    /*	@docs: {
-     *	@title: Offset anchor
-     *	@description: 
-     *		Specifies a point on an element that is fixed to the path it is animated along.
-     *		The equivalent of CSS attribute `offsetAnchor`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    offset_anchor(value) {
-        if (value == null) { return this.style.offsetAnchor; }
-        this.style.offsetAnchor = value;
-        return this;
-    }
-
-    // Specifies the position along a path where an animated element is placed.
-    /*	@docs: {
-     *	@title: Offset distance
-     *	@description: 
-     *		Specifies the position along a path where an animated element is placed.
-     *		The equivalent of CSS attribute `offsetDistance`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    offset_distance(value) {
-        if (value == null) { return this.style.offsetDistance; }
-        this.style.offsetDistance = value;
-        return this;
-    }
-
-    // Specifies the path an element is animated along.
-    /*	@docs: {
-     *	@title: Offset path
-     *	@description: 
-     *		Specifies the path an element is animated along.
-     *		The equivalent of CSS attribute `offsetPath`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    offset_path(value) {
-        if (value == null) { return this.style.offsetPath; }
-        this.style.offsetPath = value;
-        return this;
-    }
-
-    // Specifies rotation of an element as it is animated along a path.
-    /*	@docs: {
-     *	@title: Offset rotate
-     *	@description: 
-     *		Specifies rotation of an element as it is animated along a path.
-     *		The equivalent of CSS attribute `offsetRotate`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    offset_rotate(value) {
-        if (value == null) { return this.style.offsetRotate; }
-        this.style.offsetRotate = value;
-        return this;
-    }
-
-    // Sets the opacity level for an element.
-    /*	@docs: {
-     *	@title: Opacity
-     *	@description: 
-     *		Sets the opacity level for an element.
-     *		The equivalent of CSS attribute `opacity`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    opacity(value) {
-        if (value == null) { return this.style.opacity; }
-        this.style.opacity = value;
-        return this;
-    }
-
-    // Sets the order of the flexible item, relative to the rest.
-    /*	@docs: {
-     *	@title: Order
-     *	@description: 
-     *		Sets the order of the flexible item, relative to the rest.
-     *		The equivalent of CSS attribute `order`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    order(value) {
-        if (value == null) { return this.style.order; }
-        this.style.order = value;
-        this.style.msOrder = value;
-        this.style.webkitOrder = value;
-        this.style.MozOrder = value;
-        this.style.OOrder = value;
-        return this;
-    }
-
-    // Sets the minimum number of lines that must be left at the bottom of a page or column.
-    /*	@docs: {
-     *	@title: Orphans
-     *	@description: 
-     *		Sets the minimum number of lines that must be left at the bottom of a page or column.
-     *		The equivalent of CSS attribute `orphans`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    orphans(value) {
-        if (value == null) { return this.style.orphans; }
-        this.style.orphans = value;
-        return this;
-    }
-
-    // A shorthand property for the outline-width, outline-style, and the outline-color properties.
-    /*	@docs: {
-     *	@title: Outline
-     *	@description: 
-     *		A shorthand property for the outline-width, outline-style, and the outline-color properties.
-     *		The equivalent of CSS attribute `outline`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    outline(value) {
-        if (value == null) { return this.style.outline; }
-        this.style.outline = value;
-        return this;
-    }
-
-    // Sets the color of an outline.
-    /*	@docs: {
-     *	@title: Outline color
-     *	@description: 
-     *		Sets the color of an outline.
-     *		The equivalent of CSS attribute `outlineColor`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    outline_color(value) {
-        if (value == null) { return this.style.outlineColor; }
-        this.style.outlineColor = value;
-        return this;
-    }
-
-    // Offsets an outline, and draws it beyond the border edge.
-    /*	@docs: {
-     *	@title: Outline offset
-     *	@description: 
-     *		Offsets an outline, and draws it beyond the border edge.
-     *		The equivalent of CSS attribute `outlineOffset`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    outline_offset(value) {
-        if (value == null) { return this.style.outlineOffset; }
-        this.style.outlineOffset = value;
-        return this;
-    }
-
-    // Sets the style of an outline.
-    /*	@docs: {
-     *	@title: Outline style
-     *	@description: 
-     *		Sets the style of an outline.
-     *		The equivalent of CSS attribute `outlineStyle`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    outline_style(value) {
-        if (value == null) { return this.style.outlineStyle; }
-        this.style.outlineStyle = value;
-        return this;
-    }
-
-    // Sets the width of an outline.
-    /*	@docs: {
-     *	@title: Outline width
-     *	@description: 
-     *		Sets the width of an outline.
-     *		The equivalent of CSS attribute `outlineWidth`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    outline_width(value) {
-        if (value == null) { return this.style.outlineWidth; }
-        this.style.outlineWidth = this.pad_numeric(value);
-        return this;
-    }
-
-    // Specifies what happens if content overflows an element's box.
-    /*	@docs: {
-     *	@title: Overflow
-     *	@description: 
-     *		Specifies what happens if content overflows an element's box.
-     *		The equivalent of CSS attribute `overflow`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    overflow(value) {
-        if (value == null) { return this.style.overflow; }
-        this.style.overflow = value;
-        return this;
-    }
-
-    // Specifies whether or not content in viewable area in a scrollable contianer should be pushed down when new content is loaded above.
-    /*	@docs: {
-     *	@title: Overflow anchor
-     *	@description: 
-     *		Specifies whether or not content in viewable area in a scrollable contianer should be pushed down when new content is loaded above.
-     *		The equivalent of CSS attribute `overflowAnchor`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    overflow_anchor(value) {
-        if (value == null) { return this.style.overflowAnchor; }
-        this.style.overflowAnchor = value;
-        return this;
-    }
-
-    // Specifies whether or not the browser can break lines with long words, if they overflow the container.
-    /*	@docs: {
-     *	@title: Overflow wrap
-     *	@description: 
-     *		Specifies whether or not the browser can break lines with long words, if they overflow the container.
-     *		The equivalent of CSS attribute `overflowWrap`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    overflow_wrap(value) {
-        if (value == null) { return this.style.overflowWrap; }
-        this.style.overflowWrap = value;
-        return this;
-    }
-
-    // Specifies whether or not to clip the left/right edges of the content, if it overflows the element's content area.
-    /*	@docs: {
-     *	@title: Overflow x
-     *	@description: 
-     *		Specifies whether or not to clip the left/right edges of the content, if it overflows the element's content area.
-     *		The equivalent of CSS attribute `overflowX`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    overflow_x(value) {
-        if (value == null) { return this.style.overflowX; }
-        this.style.overflowX = value;
-        return this;
-    }
-
-    // Specifies whether or not to clip the top/bottom edges of the content, if it overflows the element's content area.
-    /*	@docs: {
-     *	@title: Overflow y
-     *	@description: 
-     *		Specifies whether or not to clip the top/bottom edges of the content, if it overflows the element's content area.
-     *		The equivalent of CSS attribute `overflowY`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    overflow_y(value) {
-        if (value == null) { return this.style.overflowY; }
-        this.style.overflowY = value;
-        return this;
-    }
-
-    // Specifies whether to have scroll chaining or overscroll affordance in x- and y-directions.
-    /*	@docs: {
-     *	@title: Overscroll behavior
-     *	@description: 
-     *		Specifies whether to have scroll chaining or overscroll affordance in x- and y-directions.
-     *		The equivalent of CSS attribute `overscrollBehavior`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    overscroll_behavior(value) {
-        if (value == null) { return this.style.overscrollBehavior; }
-        this.style.overscrollBehavior = value;
-        return this;
-    }
-
-    // Specifies whether to have scroll chaining or overscroll affordance in the block direction.
-    /*	@docs: {
-     *	@title: Overscroll behavior block
-     *	@description: 
-     *		Specifies whether to have scroll chaining or overscroll affordance in the block direction.
-     *		The equivalent of CSS attribute `overscrollBehaviorBlock`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    overscroll_behavior_block(value) {
-        if (value == null) { return this.style.overscrollBehaviorBlock; }
-        this.style.overscrollBehaviorBlock = value;
-        return this;
-    }
-
-    // Specifies whether to have scroll chaining or overscroll affordance in the inline direction.
-    /*	@docs: {
-     *	@title: Overscroll behavior inline
-     *	@description: 
-     *		Specifies whether to have scroll chaining or overscroll affordance in the inline direction.
-     *		The equivalent of CSS attribute `overscrollBehaviorInline`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    overscroll_behavior_inline(value) {
-        if (value == null) { return this.style.overscrollBehaviorInline; }
-        this.style.overscrollBehaviorInline = value;
-        return this;
-    }
-
-    // Specifies whether to have scroll chaining or overscroll affordance in x-direction.
-    /*	@docs: {
-     *	@title: Overscroll behavior x
-     *	@description: 
-     *		Specifies whether to have scroll chaining or overscroll affordance in x-direction.
-     *		The equivalent of CSS attribute `overscrollBehaviorX`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    overscroll_behavior_x(value) {
-        if (value == null) { return this.style.overscrollBehaviorX; }
-        this.style.overscrollBehaviorX = value;
-        return this;
-    }
-
-    // Specifies whether to have scroll chaining or overscroll affordance in y-directions.
-    /*	@docs: {
-     *	@title: Overscroll behavior y
-     *	@description: 
-     *		Specifies whether to have scroll chaining or overscroll affordance in y-directions.
-     *		The equivalent of CSS attribute `overscrollBehaviorY`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    overscroll_behavior_y(value) {
-        if (value == null) { return this.style.overscrollBehaviorY; }
-        this.style.overscrollBehaviorY = value;
-        return this;
-    }
-
-    // A shorthand property for all the padding-* properties.
-    // padding(value) {
-    //     if (value == null) { return this.style.padding; }
-    //     this.style.padding = value;
-    //     return this;
-    // }
-
-    // Specifies the padding in the block direction.
-    /*	@docs: {
-     *	@title: Padding block
-     *	@description: 
-     *		Specifies the padding in the block direction.
-     *		The equivalent of CSS attribute `paddingBlock`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    padding_block(value) {
-        if (value == null) { return this.style.paddingBlock; }
-        this.style.paddingBlock = value;
-        return this;
-    }
-
-    // Specifies the padding at the end in the block direction.
-    /*	@docs: {
-     *	@title: Padding block end
-     *	@description: 
-     *		Specifies the padding at the end in the block direction.
-     *		The equivalent of CSS attribute `paddingBlockEnd`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    padding_block_end(value) {
-        if (value == null) { return this.style.paddingBlockEnd; }
-        this.style.paddingBlockEnd = value;
-        return this;
-    }
-
-    // Specifies the padding at the start in the block direction.
-    /*	@docs: {
-     *	@title: Padding block start
-     *	@description: 
-     *		Specifies the padding at the start in the block direction.
-     *		The equivalent of CSS attribute `paddingBlockStart`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    padding_block_start(value) {
-        if (value == null) { return this.style.paddingBlockStart; }
-        this.style.paddingBlockStart = value;
-        return this;
-    }
-
-    // Sets the bottom padding of an element.
-    /*	@docs: {
-     *	@title: Padding bottom
-     *	@description: 
-     *		Sets the bottom padding of an element.
-     *		The equivalent of CSS attribute `paddingBottom`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    padding_bottom(value) {
-        if (value == null) { return this.style.paddingBottom; }
-        this.style.paddingBottom = this.pad_numeric(value);
-        return this;
-    }
-
-    // Specifies the padding in the inline direction.
-    /*	@docs: {
-     *	@title: Padding inline
-     *	@description: 
-     *		Specifies the padding in the inline direction.
-     *		The equivalent of CSS attribute `paddingInline`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    padding_inline(value) {
-        if (value == null) { return this.style.paddingInline; }
-        this.style.paddingInline = value;
-        return this;
-    }
-
-    // Specifies the padding at the end in the inline direction.
-    /*	@docs: {
-     *	@title: Padding inline end
-     *	@description: 
-     *		Specifies the padding at the end in the inline direction.
-     *		The equivalent of CSS attribute `paddingInlineEnd`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    padding_inline_end(value) {
-        if (value == null) { return this.style.paddingInlineEnd; }
-        this.style.paddingInlineEnd = value;
-        return this;
-    }
-
-    // Specifies the padding at the start in the inline direction.
-    /*	@docs: {
-     *	@title: Padding inline start
-     *	@description: 
-     *		Specifies the padding at the start in the inline direction.
-     *		The equivalent of CSS attribute `paddingInlineStart`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    padding_inline_start(value) {
-        if (value == null) { return this.style.paddingInlineStart; }
-        this.style.paddingInlineStart = value;
-        return this;
-    }
-
-    // Sets the left padding of an element.
-    /*	@docs: {
-     *	@title: Padding left
-     *	@description: 
-     *		Sets the left padding of an element.
-     *		The equivalent of CSS attribute `paddingLeft`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    padding_left(value) {
-        if (value == null) { return this.style.paddingLeft; }
-        this.style.paddingLeft = this.pad_numeric(value);
-        return this;
-    }
-
-    // Sets the right padding of an element.
-    /*	@docs: {
-     *	@title: Padding right
-     *	@description: 
-     *		Sets the right padding of an element.
-     *		The equivalent of CSS attribute `paddingRight`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    padding_right(value) {
-        if (value == null) { return this.style.paddingRight; }
-        this.style.paddingRight = this.pad_numeric(value);
-        return this;
-    }
-
-    // Sets the top padding of an element.
-    /*	@docs: {
-     *	@title: Padding top
-     *	@description: 
-     *		Sets the top padding of an element.
-     *		The equivalent of CSS attribute `paddingTop`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    padding_top(value) {
-        if (value == null) { return this.style.paddingTop; }
-        this.style.paddingTop = this.pad_numeric(value);
-        return this;
-    }
-
-    // Sets the page-break behavior after an element.
-    /*	@docs: {
-     *	@title: Page break after
-     *	@description: 
-     *		Sets the page-break behavior after an element.
-     *		The equivalent of CSS attribute `pageBreakAfter`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    page_break_after(value) {
-        if (value == null) { return this.style.pageBreakAfter; }
-        this.style.pageBreakAfter = value;
-        return this;
-    }
-
-    // Sets the page-break behavior before an element.
-    /*	@docs: {
-     *	@title: Page break before
-     *	@description: 
-     *		Sets the page-break behavior before an element.
-     *		The equivalent of CSS attribute `pageBreakBefore`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    page_break_before(value) {
-        if (value == null) { return this.style.pageBreakBefore; }
-        this.style.pageBreakBefore = value;
-        return this;
-    }
-
-    // Sets the page-break behavior inside an element.
-    /*	@docs: {
-     *	@title: Page break inside
-     *	@description: 
-     *		Sets the page-break behavior inside an element.
-     *		The equivalent of CSS attribute `pageBreakInside`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    page_break_inside(value) {
-        if (value == null) { return this.style.pageBreakInside; }
-        this.style.pageBreakInside = value;
-        return this;
-    }
-
-    // Sets the order of how an SVG element or text is painted.
-    /*	@docs: {
-     *	@title: Paint order
-     *	@description: 
-     *		Sets the order of how an SVG element or text is painted.
-     *		The equivalent of CSS attribute `paintOrder`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    paint_order(value) {
-        if (value == null) { return this.style.paintOrder; }
-        this.style.paintOrder = value;
-        return this;
-    }
-
-    // Gives a 3D-positioned element some perspective.
-    /*	@docs: {
-     *	@title: Perspective
-     *	@description: 
-     *		Gives a 3D-positioned element some perspective.
-     *		The equivalent of CSS attribute `perspective`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    perspective(value) {
-        if (value == null) { return this.style.perspective; }
-        this.style.perspective = value;
-        this.style.msPerspective = value;
-        this.style.webkitPerspective = value;
-        this.style.MozPerspective = value;
-        this.style.OPerspective = value;
-        return this;
-    }
-
-    // Defines at which position the user is looking at the 3D-positioned element.
-    /*	@docs: {
-     *	@title: Perspective origin
-     *	@description: 
-     *		Defines at which position the user is looking at the 3D-positioned element.
-     *		The equivalent of CSS attribute `perspectiveOrigin`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    perspective_origin(value) {
-        if (value == null) { return this.style.perspectiveOrigin; }
-        this.style.perspectiveOrigin = value;
-        this.style.msPerspectiveOrigin = value;
-        this.style.webkitPerspectiveOrigin = value;
-        this.style.MozPerspectiveOrigin = value;
-        this.style.OPerspectiveOrigin = value;
-        return this;
-    }
-
-    // Specifies align-content and justify-content property values for flexbox and grid layouts.
-    /*	@docs: {
-     *	@title: Place content
-     *	@description: 
-     *		Specifies align-content and justify-content property values for flexbox and grid layouts.
-     *		The equivalent of CSS attribute `placeContent`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    place_content(value) {
-        if (value == null) { return this.style.placeContent; }
-        this.style.placeContent = value;
-        return this;
-    }
-
-    // Specifies align-items and justify-items property values for grid layouts.
-    /*	@docs: {
-     *	@title: Place items
-     *	@description: 
-     *		Specifies align-items and justify-items property values for grid layouts.
-     *		The equivalent of CSS attribute `placeItems`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    place_items(value) {
-        if (value == null) { return this.style.placeItems; }
-        this.style.placeItems = value;
-        return this;
-    }
-
-    // Specifies align-self and justify-self property values for grid layouts.
-    /*	@docs: {
-     *	@title: Place self
-     *	@description: 
-     *		Specifies align-self and justify-self property values for grid layouts.
-     *		The equivalent of CSS attribute `placeSelf`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    place_self(value) {
-        if (value == null) { return this.style.placeSelf; }
-        this.style.placeSelf = value;
-        return this;
-    }
-
-    // Defines whether or not an element reacts to pointer events.
-    /*	@docs: {
-     *	@title: Pointer events
-     *	@description: 
-     *		Defines whether or not an element reacts to pointer events.
-     *		The equivalent of CSS attribute `pointerEvents`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    pointer_events(value) {
-        if (value == null) { return this.style.pointerEvents; }
-        this.style.pointerEvents = value;
-        return this;
-    }
-
-    // Specifies the type of positioning method used for an element (static, relative, absolute or fixed).
-    // position(value) {
-    //     if (value == null) { return this.style.position; }
-    //     this.style.position = value;
-    //     return this;
-    // }
-
-    // Sets the type of quotation marks for embedded quotations.
-    /*	@docs: {
-     *	@title: Quotes
-     *	@description: 
-     *		Sets the type of quotation marks for embedded quotations.
-     *		The equivalent of CSS attribute `quotes`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    quotes(value) {
-        if (value == null) { return this.style.quotes; }
-        this.style.quotes = value;
-        return this;
-    }
-
-    // Defines if (and how) an element is resizable by the user.
-    /*	@docs: {
-     *	@title: Resize
-     *	@description: 
-     *		Defines if (and how) an element is resizable by the user.
-     *		The equivalent of CSS attribute `resize`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    resize(value) {
-        if (value == null) { return this.style.resize; }
-        this.style.resize = value;
-        return this;
-    }
-
-    // Specifies the right position of a positioned element.
-    /*	@docs: {
-     *	@title: Right
-     *	@description: 
-     *		Specifies the right position of a positioned element.
-     *		The equivalent of CSS attribute `right`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    right(value) {
-        if (value == null) { return this.style.right; }
-        this.style.right = this.pad_numeric(value);
-        return this;
-    }
-
-    // Specifies the rotation of an element.
-    /*	@docs: {
-     *	@title: Rotate
-     *	@description: 
-     *		Specifies the rotation of an element.
-     *		The equivalent of CSS attribute `rotate`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    rotate(value) {
-        if (value == null) { return this.style.rotate; }
-        this.style.rotate = value;
-        return this;
-    }
-
-    // Specifies the gap between the grid rows.
-    /*	@docs: {
-     *	@title: Row gap
-     *	@description: 
-     *		Specifies the gap between the grid rows.
-     *		The equivalent of CSS attribute `rowGap`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    row_gap(value) {
-        if (value == null) { return this.style.rowGap; }
-        this.style.rowGap = value;
-        return this;
-    }
-
-    // Specifies the size of an element by scaling up or down.
-    /*	@docs: {
-     *	@title: Scale
-     *	@description: 
-     *		Specifies the size of an element by scaling up or down.
-     *		The equivalent of CSS attribute `scale`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    scale(value) {
-        if (value == null) { return this.style.scale; }
-        this.style.scale = value;
-        return this;
-    }
-
-    // Specifies whether to smoothly animate the scroll position in a scrollable box, instead of a straight jump.
-    /*	@docs: {
-     *	@title: Scroll behavior
-     *	@description: 
-     *		Specifies whether to smoothly animate the scroll position in a scrollable box, instead of a straight jump.
-     *		The equivalent of CSS attribute `scrollBehavior`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    scroll_behavior(value) {
-        if (value == null) { return this.style.scrollBehavior; }
-        this.style.scrollBehavior = value;
-        return this;
-    }
-
-    // Specifies the margin between the snap position and the container.
-    /*	@docs: {
-     *	@title: Scroll margin
-     *	@description: 
-     *		Specifies the margin between the snap position and the container.
-     *		The equivalent of CSS attribute `scrollMargin`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    scroll_margin(value) {
-        if (value == null) { return this.style.scrollMargin; }
-        this.style.scrollMargin = value;
-        return this;
-    }
-
-    // Specifies the margin between the snap position and the container in the block direction.
-    /*	@docs: {
-     *	@title: Scroll margin block
-     *	@description: 
-     *		Specifies the margin between the snap position and the container in the block direction.
-     *		The equivalent of CSS attribute `scrollMarginBlock`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    scroll_margin_block(value) {
-        if (value == null) { return this.style.scrollMarginBlock; }
-        this.style.scrollMarginBlock = value;
-        return this;
-    }
-
-    // Specifies the end margin between the snap position and the container in the block direction.
-    /*	@docs: {
-     *	@title: Scroll margin block end
-     *	@description: 
-     *		Specifies the end margin between the snap position and the container in the block direction.
-     *		The equivalent of CSS attribute `scrollMarginBlockEnd`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    scroll_margin_block_end(value) {
-        if (value == null) { return this.style.scrollMarginBlockEnd; }
-        this.style.scrollMarginBlockEnd = value;
-        return this;
-    }
-
-    // Specifies the start margin between the snap position and the container in the block direction.
-    /*	@docs: {
-     *	@title: Scroll margin block start
-     *	@description: 
-     *		Specifies the start margin between the snap position and the container in the block direction.
-     *		The equivalent of CSS attribute `scrollMarginBlockStart`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    scroll_margin_block_start(value) {
-        if (value == null) { return this.style.scrollMarginBlockStart; }
-        this.style.scrollMarginBlockStart = value;
-        return this;
-    }
-
-    // Specifies the margin between the snap position on the bottom side and the container.
-    /*	@docs: {
-     *	@title: Scroll margin bottom
-     *	@description: 
-     *		Specifies the margin between the snap position on the bottom side and the container.
-     *		The equivalent of CSS attribute `scrollMarginBottom`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    scroll_margin_bottom(value) {
-        if (value == null) { return this.style.scrollMarginBottom; }
-        this.style.scrollMarginBottom = this.pad_numeric(value);
-        return this;
-    }
-
-    // Specifies the margin between the snap position and the container in the inline direction.
-    /*	@docs: {
-     *	@title: Scroll margin inline
-     *	@description: 
-     *		Specifies the margin between the snap position and the container in the inline direction.
-     *		The equivalent of CSS attribute `scrollMarginInline`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    scroll_margin_inline(value) {
-        if (value == null) { return this.style.scrollMarginInline; }
-        this.style.scrollMarginInline = value;
-        return this;
-    }
-
-    // Specifies the end margin between the snap position and the container in the inline direction.
-    /*	@docs: {
-     *	@title: Scroll margin inline end
-     *	@description: 
-     *		Specifies the end margin between the snap position and the container in the inline direction.
-     *		The equivalent of CSS attribute `scrollMarginInlineEnd`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    scroll_margin_inline_end(value) {
-        if (value == null) { return this.style.scrollMarginInlineEnd; }
-        this.style.scrollMarginInlineEnd = value;
-        return this;
-    }
-
-    // Specifies the start margin between the snap position and the container in the inline direction.
-    /*	@docs: {
-     *	@title: Scroll margin inline start
-     *	@description: 
-     *		Specifies the start margin between the snap position and the container in the inline direction.
-     *		The equivalent of CSS attribute `scrollMarginInlineStart`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    scroll_margin_inline_start(value) {
-        if (value == null) { return this.style.scrollMarginInlineStart; }
-        this.style.scrollMarginInlineStart = value;
-        return this;
-    }
-
-    // Specifies the margin between the snap position on the left side and the container.
-    /*	@docs: {
-     *	@title: Scroll margin left
-     *	@description: 
-     *		Specifies the margin between the snap position on the left side and the container.
-     *		The equivalent of CSS attribute `scrollMarginLeft`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    scroll_margin_left(value) {
-        if (value == null) { return this.style.scrollMarginLeft; }
-        this.style.scrollMarginLeft = this.pad_numeric(value);
-        return this;
-    }
-
-    // Specifies the margin between the snap position on the right side and the container.
-    /*	@docs: {
-     *	@title: Scroll margin right
-     *	@description: 
-     *		Specifies the margin between the snap position on the right side and the container.
-     *		The equivalent of CSS attribute `scrollMarginRight`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    scroll_margin_right(value) {
-        if (value == null) { return this.style.scrollMarginRight; }
-        this.style.scrollMarginRight = this.pad_numeric(value);
-        return this;
-    }
-
-    // Specifies the margin between the snap position on the top side and the container.
-    /*	@docs: {
-     *	@title: Scroll margin top
-     *	@description: 
-     *		Specifies the margin between the snap position on the top side and the container.
-     *		The equivalent of CSS attribute `scrollMarginTop`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    scroll_margin_top(value) {
-        if (value == null) { return this.style.scrollMarginTop; }
-        this.style.scrollMarginTop = this.pad_numeric(value);
-        return this;
-    }
-
-    // Specifies the distance from the container to the snap position on the child elements.
-    /*	@docs: {
-     *	@title: Scroll padding
-     *	@description: 
-     *		Specifies the distance from the container to the snap position on the child elements.
-     *		The equivalent of CSS attribute `scrollPadding`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    scroll_padding(value) {
-        if (value == null) { return this.style.scrollPadding; }
-        this.style.scrollPadding = value;
-        return this;
-    }
-
-    // Specifies the distance in block direction from the container to the snap position on the child elements.
-    /*	@docs: {
-     *	@title: Scroll padding block
-     *	@description: 
-     *		Specifies the distance in block direction from the container to the snap position on the child elements.
-     *		The equivalent of CSS attribute `scrollPaddingBlock`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    scroll_padding_block(value) {
-        if (value == null) { return this.style.scrollPaddingBlock; }
-        this.style.scrollPaddingBlock = value;
-        return this;
-    }
-
-    // Specifies the distance in block direction from the end of the container to the snap position on the child elements.
-    /*	@docs: {
-     *	@title: Scroll padding block end
-     *	@description: 
-     *		Specifies the distance in block direction from the end of the container to the snap position on the child elements.
-     *		The equivalent of CSS attribute `scrollPaddingBlockEnd`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    scroll_padding_block_end(value) {
-        if (value == null) { return this.style.scrollPaddingBlockEnd; }
-        this.style.scrollPaddingBlockEnd = value;
-        return this;
-    }
-
-    // Specifies the distance in block direction from the start of the container to the snap position on the child elements.
-    /*	@docs: {
-     *	@title: Scroll padding block start
-     *	@description: 
-     *		Specifies the distance in block direction from the start of the container to the snap position on the child elements.
-     *		The equivalent of CSS attribute `scrollPaddingBlockStart`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    scroll_padding_block_start(value) {
-        if (value == null) { return this.style.scrollPaddingBlockStart; }
-        this.style.scrollPaddingBlockStart = value;
-        return this;
-    }
-
-    // Specifies the distance from the bottom of the container to the snap position on the child elements.
-    /*	@docs: {
-     *	@title: Scroll padding bottom
-     *	@description: 
-     *		Specifies the distance from the bottom of the container to the snap position on the child elements.
-     *		The equivalent of CSS attribute `scrollPaddingBottom`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    scroll_padding_bottom(value) {
-        if (value == null) { return this.style.scrollPaddingBottom; }
-        this.style.scrollPaddingBottom = this.pad_numeric(value);
-        return this;
-    }
-
-    // Specifies the distance in inline direction from the container to the snap position on the child elements.
-    /*	@docs: {
-     *	@title: Scroll padding inline
-     *	@description: 
-     *		Specifies the distance in inline direction from the container to the snap position on the child elements.
-     *		The equivalent of CSS attribute `scrollPaddingInline`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    scroll_padding_inline(value) {
-        if (value == null) { return this.style.scrollPaddingInline; }
-        this.style.scrollPaddingInline = value;
-        return this;
-    }
-
-    // Specifies the distance in inline direction from the end of the container to the snap position on the child elements.
-    /*	@docs: {
-     *	@title: Scroll padding inline end
-     *	@description: 
-     *		Specifies the distance in inline direction from the end of the container to the snap position on the child elements.
-     *		The equivalent of CSS attribute `scrollPaddingInlineEnd`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    scroll_padding_inline_end(value) {
-        if (value == null) { return this.style.scrollPaddingInlineEnd; }
-        this.style.scrollPaddingInlineEnd = value;
-        return this;
-    }
-
-    // Specifies the distance in inline direction from the start of the container to the snap position on the child elements.
-    /*	@docs: {
-     *	@title: Scroll padding inline start
-     *	@description: 
-     *		Specifies the distance in inline direction from the start of the container to the snap position on the child elements.
-     *		The equivalent of CSS attribute `scrollPaddingInlineStart`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    scroll_padding_inline_start(value) {
-        if (value == null) { return this.style.scrollPaddingInlineStart; }
-        this.style.scrollPaddingInlineStart = value;
-        return this;
-    }
-
-    // Specifies the distance from the left side of the container to the snap position on the child elements.
-    /*	@docs: {
-     *	@title: Scroll padding left
-     *	@description: 
-     *		Specifies the distance from the left side of the container to the snap position on the child elements.
-     *		The equivalent of CSS attribute `scrollPaddingLeft`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    scroll_padding_left(value) {
-        if (value == null) { return this.style.scrollPaddingLeft; }
-        this.style.scrollPaddingLeft = this.pad_numeric(value);
-        return this;
-    }
-
-    // Specifies the distance from the right side of the container to the snap position on the child elements.
-    /*	@docs: {
-     *	@title: Scroll padding right
-     *	@description: 
-     *		Specifies the distance from the right side of the container to the snap position on the child elements.
-     *		The equivalent of CSS attribute `scrollPaddingRight`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    scroll_padding_right(value) {
-        if (value == null) { return this.style.scrollPaddingRight; }
-        this.style.scrollPaddingRight = this.pad_numeric(value);
-        return this;
-    }
-
-    // Specifies the distance from the top of the container to the snap position on the child elements.
-    /*	@docs: {
-     *	@title: Scroll padding top
-     *	@description: 
-     *		Specifies the distance from the top of the container to the snap position on the child elements.
-     *		The equivalent of CSS attribute `scrollPaddingTop`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    scroll_padding_top(value) {
-        if (value == null) { return this.style.scrollPaddingTop; }
-        this.style.scrollPaddingTop = this.pad_numeric(value);
-        return this;
-    }
-
-    // Specifies where to position elements when the user stops scrolling.
-    /*	@docs: {
-     *	@title: Scroll snap align
-     *	@description: 
-     *		Specifies where to position elements when the user stops scrolling.
-     *		The equivalent of CSS attribute `scrollSnapAlign`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    scroll_snap_align(value) {
-        if (value == null) { return this.style.scrollSnapAlign; }
-        this.style.scrollSnapAlign = value;
-        return this;
-    }
-
-    // Specifies scroll behaviour after fast swipe on trackpad or touch screen.
-    /*	@docs: {
-     *	@title: Scroll snap stop
-     *	@description: 
-     *		Specifies scroll behaviour after fast swipe on trackpad or touch screen.
-     *		The equivalent of CSS attribute `scrollSnapStop`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    scroll_snap_stop(value) {
-        if (value == null) { return this.style.scrollSnapStop; }
-        this.style.scrollSnapStop = value;
-        return this;
-    }
-
-    // Specifies how snap behaviour should be when scrolling.
-    /*	@docs: {
-     *	@title: Scroll snap type
-     *	@description: 
-     *		Specifies how snap behaviour should be when scrolling.
-     *		The equivalent of CSS attribute `scrollSnapType`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    scroll_snap_type(value) {
-        if (value == null) { return this.style.scrollSnapType; }
-        this.style.scrollSnapType = value;
-        return this;
-    }
-
-    // Specifies the color of the scrollbar of an element.
-    /*	@docs: {
-     *	@title: Scrollbar color
-     *	@description: 
-     *		Specifies the color of the scrollbar of an element.
-     *		The equivalent of CSS attribute `scrollbarColor`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    scrollbar_color(value) {
-        if (value == null) { return this.style.scrollbarColor; }
-        this.style.scrollbarColor = value;
-        return this;
-    }
-
-    // Specifies the width of a tab character.
-    /*	@docs: {
-     *	@title: Tab size
-     *	@description: 
-     *		Specifies the width of a tab character.
-     *		The equivalent of CSS attribute `tabSize`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    tab_size(value) {
-        if (value == null) { return this.style.tabSize; }
-        this.style.tabSize = this.pad_numeric(value);
-        return this;
-    }
-
-    // Defines the algorithm used to lay out table cells, rows, and columns.
-    /*	@docs: {
-     *	@title: Table layout
-     *	@description: 
-     *		Defines the algorithm used to lay out table cells, rows, and columns.
-     *		The equivalent of CSS attribute `tableLayout`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    table_layout(value) {
-        if (value == null) { return this.style.tableLayout; }
-        this.style.tableLayout = value;
-        return this;
-    }
-
-    // Specifies the horizontal alignment of text.
-    /*	@docs: {
-     *	@title: Text align
-     *	@description: 
-     *		Specifies the horizontal alignment of text.
-     *		The equivalent of CSS attribute `textAlign`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    text_align(value) {
-        if (value == null) { return this.style.textAlign; }
-        this.style.textAlign = value;
-        return this;
-    }
-
-    // Describes how the last line of a block or a line right before a forced line break is aligned when text-align is "justify".
-    /*	@docs: {
-     *	@title: Text align last
-     *	@description: 
-     *		Describes how the last line of a block or a line right before a forced line break is aligned when text-align is "justify".
-     *		The equivalent of CSS attribute `textAlignLast`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    text_align_last(value) {
-        if (value == null) { return this.style.textAlignLast; }
-        this.style.textAlignLast = value;
-        return this;
-    }
-
-    // Specifies the combination of multiple characters into the space of a single character.
-    /*	@docs: {
-     *	@title: Text combine upright
-     *	@description: 
-     *		Specifies the combination of multiple characters into the space of a single character.
-     *		The equivalent of CSS attribute `textCombineUpright`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    text_combine_upright(value) {
-        if (value == null) { return this.style.textCombineUpright; }
-        this.style.textCombineUpright = value;
-        return this;
-    }
-
-    // Specifies the decoration added to text.
-    /*	@docs: {
-     *	@title: Text decoration
-     *	@description: 
-     *		Specifies the decoration added to text.
-     *		The equivalent of CSS attribute `textDecoration`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    text_decoration(value) {
-        if (value == null) { return this.style.textDecoration; }
-        this.style.textDecoration = value;
-        return this;
-    }
-
-    // Specifies the color of the text-decoration.
-    /*	@docs: {
-     *	@title: Text decoration color
-     *	@description: 
-     *		Specifies the color of the text-decoration.
-     *		The equivalent of CSS attribute `textDecorationColor`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    text_decoration_color(value) {
-        if (value == null) { return this.style.textDecorationColor; }
-        this.style.textDecorationColor = value;
-        return this;
-    }
-
-    // Specifies the type of line in a text-decoration.
-    /*	@docs: {
-     *	@title: Text decoration line
-     *	@description: 
-     *		Specifies the type of line in a text-decoration.
-     *		The equivalent of CSS attribute `textDecorationLine`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    text_decoration_line(value) {
-        if (value == null) { return this.style.textDecorationLine; }
-        this.style.textDecorationLine = value;
-        return this;
-    }
-
-    // Specifies the style of the line in a text decoration.
-    /*	@docs: {
-     *	@title: Text decoration style
-     *	@description: 
-     *		Specifies the style of the line in a text decoration.
-     *		The equivalent of CSS attribute `textDecorationStyle`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    text_decoration_style(value) {
-        if (value == null) { return this.style.textDecorationStyle; }
-        this.style.textDecorationStyle = value;
-        return this;
-    }
-
-    // Specifies the thickness of the decoration line.
-    /*	@docs: {
-     *	@title: Text decoration thickness
-     *	@description: 
-     *		Specifies the thickness of the decoration line.
-     *		The equivalent of CSS attribute `textDecorationThickness`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    text_decoration_thickness(value) {
-        if (value == null) { return this.style.textDecorationThickness; }
-        this.style.textDecorationThickness = value;
-        return this;
-    }
-
-    // Applies emphasis marks to text.
-    /*	@docs: {
-     *	@title: Text emphasis
-     *	@description: 
-     *		Applies emphasis marks to text.
-     *		The equivalent of CSS attribute `textEmphasis`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    text_emphasis(value) {
-        if (value == null) { return this.style.textEmphasis; }
-        this.style.textEmphasis = value;
-        return this;
-    }
-
-    // Specifies the indentation of the first line in a text-block.
-    /*	@docs: {
-     *	@title: Text indent
-     *	@description: 
-     *		Specifies the indentation of the first line in a text-block.
-     *		The equivalent of CSS attribute `textIndent`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    text_indent(value) {
-        if (value == null) { return this.style.textIndent; }
-        this.style.textIndent = value;
-        return this;
-    }
-
-    // Specifies the justification method used when text-align is "justify".
-    /*	@docs: {
-     *	@title: Text justify
-     *	@description: 
-     *		Specifies the justification method used when text-align is "justify".
-     *		The equivalent of CSS attribute `textJustify`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    text_justify(value) {
-        if (value == null) { return this.style.textJustify; }
-        this.style.textJustify = value;
-        return this;
-    }
-
-    // Defines the orientation of characters in a line.
-    /*	@docs: {
-     *	@title: Text orientation
-     *	@description: 
-     *		Defines the orientation of characters in a line.
-     *		The equivalent of CSS attribute `textOrientation`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    text_orientation(value) {
-        if (value == null) { return this.style.textOrientation; }
-        this.style.textOrientation = value;
-        return this;
-    }
-
-    // Specifies what should happen when text overflows the containing element.
-    /*	@docs: {
-     *	@title: Text overflow
-     *	@description: 
-     *		Specifies what should happen when text overflows the containing element.
-     *		The equivalent of CSS attribute `textOverflow`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    text_overflow(value) {
-        if (value == null) { return this.style.textOverflow; }
-        this.style.textOverflow = value;
-        return this;
-    }
-
-    // Adds shadow to text.
-    /*	@docs: {
-     *	@title: Text shadow
-     *	@description: 
-     *		Adds shadow to text.
-     *		The equivalent of CSS attribute `textShadow`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    text_shadow(value) {
-        if (value == null) { return this.style.textShadow; }
-        this.style.textShadow = value;
-        return this;
-    }
-
-    // Controls the capitalization of text.
-    /*	@docs: {
-     *	@title: Text transform
-     *	@description: 
-     *		Controls the capitalization of text.
-     *		The equivalent of CSS attribute `textTransform`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    text_transform(value) {
-        if (value == null) { return this.style.textTransform; }
-        this.style.textTransform = value;
-        return this;
-    }
-
-    // Specifies the position of the underline which is set using the text-decoration property.
-    /*	@docs: {
-     *	@title: Text underline position
-     *	@description: 
-     *		Specifies the position of the underline which is set using the text-decoration property.
-     *		The equivalent of CSS attribute `textUnderlinePosition`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    text_underline_position(value) {
-        if (value == null) { return this.style.textUnderlinePosition; }
-        this.style.textUnderlinePosition = value;
-        return this;
-    }
-
-    // Specifies the top position of a positioned element.
-    /*	@docs: {
-     *	@title: Top
-     *	@description: 
-     *		Specifies the top position of a positioned element.
-     *		The equivalent of CSS attribute `top`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    top(value) {
-        if (value == null) { return this.style.top; }
-        this.style.top = this.pad_numeric(value);
-        return this;
-    }
-
-    // Applies a 2D or 3D transformation to an element.
-    /*	@docs: {
-     *	@title: Transform
-     *	@description: 
-     *		Applies a 2D or 3D transformation to an element.
-     *		The equivalent of CSS attribute `transform`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    transform(value) {
-        if (value == null) { return this.style.transform; }
-        this.style.transform = value;
-        this.style.msTransform = value;
-        this.style.webkitTransform = value;
-        this.style.MozTransform = value;
-        this.style.OTransform = value;
-        return this;
-    }
-
-    // Allows you to change the position on transformed elements.
-    /*	@docs: {
-     *	@title: Transform origin
-     *	@description: 
-     *		Allows you to change the position on transformed elements.
-     *		The equivalent of CSS attribute `transformOrigin`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    transform_origin(value) {
-        if (value == null) { return this.style.transformOrigin; }
-        this.style.transformOrigin = value;
-        this.style.msTransformOrigin = value;
-        this.style.webkitTransformOrigin = value;
-        this.style.MozTransformOrigin = value;
-        this.style.OTransformOrigin = value;
-        return this;
-    }
-
-    // Specifies how nested elements are rendered in 3D space.
-    /*	@docs: {
-     *	@title: Transform style
-     *	@description: 
-     *		Specifies how nested elements are rendered in 3D space.
-     *		The equivalent of CSS attribute `transformStyle`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    transform_style(value) {
-        if (value == null) { return this.style.transformStyle; }
-        this.style.transformStyle = value;
-        this.style.msTransformStyle = value;
-        this.style.webkitTransformStyle = value;
-        this.style.MozTransformStyle = value;
-        this.style.OTransformStyle = value;
-        return this;
-    }
-
-    // A shorthand property for all the transition-* properties.
-    /*	@docs: {
-     *	@title: Transition
-     *	@description: 
-     *		A shorthand property for all the transition-* properties.
-     *		The equivalent of CSS attribute `transition`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    transition(value) {
-        if (value == null) { return this.style.transition; }
-        this.style.transition = value;
-        this.style.msTransition = value;
-        this.style.webkitTransition = value;
-        this.style.MozTransition = value;
-        this.style.OTransition = value;
-        return this;
-    }
-
-    // Specifies when the transition effect will start.
-    /*	@docs: {
-     *	@title: Transition delay
-     *	@description: 
-     *		Specifies when the transition effect will start.
-     *		The equivalent of CSS attribute `transitionDelay`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    transition_delay(value) {
-        if (value == null) { return this.style.transitionDelay; }
-        this.style.transitionDelay = value;
-        this.style.msTransitionDelay = value;
-        this.style.webkitTransitionDelay = value;
-        this.style.MozTransitionDelay = value;
-        this.style.OTransitionDelay = value;
-        return this;
-    }
-
-    // Specifies how many seconds or milliseconds a transition effect takes to complete.
-    /*	@docs: {
-     *	@title: Transition duration
-     *	@description: 
-     *		Specifies how many seconds or milliseconds a transition effect takes to complete.
-     *		The equivalent of CSS attribute `transitionDuration`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    transition_duration(value) {
-        if (value == null) { return this.style.transitionDuration; }
-        this.style.transitionDuration = value;
-        this.style.msTransitionDuration = value;
-        this.style.webkitTransitionDuration = value;
-        this.style.MozTransitionDuration = value;
-        this.style.OTransitionDuration = value;
-        return this;
-    }
-
-    // Specifies the name of the CSS property the transition effect is for.
-    /*	@docs: {
-     *	@title: Transition property
-     *	@description: 
-     *		Specifies the name of the CSS property the transition effect is for.
-     *		The equivalent of CSS attribute `transitionProperty`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    transition_property(value) {
-        if (value == null) { return this.style.transitionProperty; }
-        this.style.transitionProperty = value;
-        this.style.msTransitionProperty = value;
-        this.style.webkitTransitionProperty = value;
-        this.style.MozTransitionProperty = value;
-        this.style.OTransitionProperty = value;
-        return this;
-    }
-
-    // Specifies the speed curve of the transition effect.
-    /*	@docs: {
-     *	@title: Transition timing function
-     *	@description: 
-     *		Specifies the speed curve of the transition effect.
-     *		The equivalent of CSS attribute `transitionTimingFunction`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    transition_timing_function(value) {
-        if (value == null) { return this.style.transitionTimingFunction; }
-        this.style.transitionTimingFunction = value;
-        this.style.msTransitionTimingFunction = value;
-        this.style.webkitTransitionTimingFunction = value;
-        this.style.MozTransitionTimingFunction = value;
-        this.style.OTransitionTimingFunction = value;
-        return this;
-    }
-
-    // Specifies the position of an element.
-    /*	@docs: {
-     *	@title: Translate
-     *	@description: 
-     *		Specifies the position of an element.
-     *		The equivalent of CSS attribute `translate`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    translate(value) {
-        if (value == null) { return this.style.translate; }
-        this.style.translate = value;
-        return this;
-    }
-
-    // Used together with the direction property to set or return whether the text should be overridden to support multiple languages in the same document.
-    /*	@docs: {
-     *	@title: Unicode bidi
-     *	@description: 
-     *		Used together with the direction property to set or return whether the text should be overridden to support multiple languages in the same document.
-     *		The equivalent of CSS attribute `unicodeBidi`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    unicode_bidi(value) {
-        if (value == null) { return this.style.unicodeBidi; }
-        this.style.unicodeBidi = value;
-        return this;
-    }
-
-    // Specifies whether the text of an element can be selected.
-    /*	@docs: {
-     *	@title: User select
-     *	@description: 
-     *		Specifies whether the text of an element can be selected.
-     *		The equivalent of CSS attribute `userSelect`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    user_select(value) {
-        if (value == null) { return this.style.userSelect; }
-        this.style.userSelect = value;
-        this.style.msUserSelect = value;
-        this.style.webkitUserSelect = value;
-        this.style.MozUserSelect = value;
-        this.style.OUserSelect = value;
-        return this;
-    }
-
-    // Sets the vertical alignment of an element.
-    // vertical_align(value) {
-    //     if (value == null) { return this.style.verticalAlign; }
-    //     this.style.verticalAlign = value;
-    //     return this;
-    // }
-
-    // Specifies whether or not an element is visible.
-    /*	@docs: {
-     *	@title: Visibility
-     *	@description: 
-     *		Specifies whether or not an element is visible.
-     *		The equivalent of CSS attribute `visibility`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    visibility(value) {
-        if (value == null) { return this.style.visibility; }
-        this.style.visibility = value;
-        return this;
-    }
-
-    // Specifies how white-space inside an element is handled.
-    /*	@docs: {
-     *	@title: White space
-     *	@description: 
-     *		Specifies how white-space inside an element is handled.
-     *		The equivalent of CSS attribute `whiteSpace`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    white_space(value) {
-        if (value == null) { return this.style.whiteSpace; }
-        this.style.whiteSpace = value;
-        return this;
-    }
-
-    // Sets the minimum number of lines that must be left at the top of a page or column.
-    /*	@docs: {
-     *	@title: Widows
-     *	@description: 
-     *		Sets the minimum number of lines that must be left at the top of a page or column.
-     *		The equivalent of CSS attribute `widows`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    widows(value) {
-        if (value == null) { return this.style.widows; }
-        this.style.widows = value;
-        return this;
-    }
-
-    // Sets the width of an element.
-    // width(value) {
-    //     if (value == null) { return this.style.width; }
-    //     this.style.width = this.pad_numeric(value);
-    //     return this;
-    // }
-
-    // Specifies how words should break when reaching the end of a line.
-    /*	@docs: {
-     *	@title: Word break
-     *	@description: 
-     *		Specifies how words should break when reaching the end of a line.
-     *		The equivalent of CSS attribute `wordBreak`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    word_break(value) {
-        if (value == null) { return this.style.wordBreak; }
-        this.style.wordBreak = value;
-        return this;
-    }
-
-    // Increases or decreases the space between words in a text.
-    /*	@docs: {
-     *	@title: Word spacing
-     *	@description: 
-     *		Increases or decreases the space between words in a text.
-     *		The equivalent of CSS attribute `wordSpacing`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    word_spacing(value) {
-        if (value == null) { return this.style.wordSpacing; }
-        this.style.wordSpacing = value;
-        return this;
-    }
-
-    // Allows long, unbreakable words to be broken and wrap to the next line.
-    /*	@docs: {
-     *	@title: Word wrap
-     *	@description: 
-     *		Allows long, unbreakable words to be broken and wrap to the next line.
-     *		The equivalent of CSS attribute `wordWrap`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    word_wrap(value) {
-        if (value == null) { return this.style.wordWrap; }
-        this.style.wordWrap = value;
-        return this;
-    }
-
-    // Specifies whether lines of text are laid out horizontally or vertically.
-    /*	@docs: {
-     *	@title: Writing mode
-     *	@description: 
-     *		Specifies whether lines of text are laid out horizontally or vertically.
-     *		The equivalent of CSS attribute `writingMode`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    writing_mode(value) {
-        if (value == null) { return this.style.writingMode; }
-        this.style.writingMode = value;
-        return this;
-    }
-
-    // ---------------------------------------------------------
-    // Automatically generated HTML attribute functions. 
-    // Reference: https://www.w3schools.com/tags/ref_attributes.asp. 
-
-    // Specifies the types of files that the server accepts (only for type="file").
-    /*	@docs: {
-     *	@title: Accept
-     *	@description: 
-     *		Specifies the types of files that the server accepts (only for type="file").
-     *		The equivalent of HTML attribute `accept`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    accept(value) {
-        if (value == null) { return this.accept; }
-    	this.accept = value;
-    	return this;
-    }
-
-    // Specifies the character encodings that are to be used for the form submission.
-    /*	@docs: {
-     *	@title: Accept charset
-     *	@description: 
-     *		Specifies the character encodings that are to be used for the form submission.
-     *		The equivalent of HTML attribute `accept_charset`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    accept_charset(value) {
-        if (value == null) { return this.accept_charset; }
-    	this.accept_charset = value;
-    	return this;
-    }
-
-    // Specifies where to send the form-data when a form is submitted.
-    /*	@docs: {
-     *	@title: Action
-     *	@description: 
-     *		Specifies where to send the form-data when a form is submitted.
-     *		The equivalent of HTML attribute `action`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    action(value) {
-        if (value == null) { return this.action; }
-    	this.action = value;
-    	return this;
-    }
-
-    // Specifies an alternate text when the original element fails to display.
-    /*	@docs: {
-     *	@title: Alt
-     *	@description: 
-     *		Specifies an alternate text when the original element fails to display.
-     *		The equivalent of HTML attribute `alt`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    alt(value) {
-        if (value == null) { return this.alt; }
-    	this.alt = value;
-    	return this;
-    }
-
-    // Specifies that the script is executed asynchronously (only for external scripts).
-    /*	@docs: {
-     *	@title: Async
-     *	@description: 
-     *		Specifies that the script is executed asynchronously (only for external scripts).
-     *		The equivalent of HTML attribute `async`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    async(value) {
-        if (value == null) { return this.async; }
-    	this.async = value;
-    	return this;
-    }
-
-    // Specifies whether the <form> or the <input> element should have autocomplete enabled.
-    /*	@docs: {
-     *	@title: Auto complete
-     *	@description: 
-     *		Specifies whether the <form> or the <input> element should have autocomplete enabled.
-     *		The equivalent of HTML attribute `autocomplete`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    auto_complete(value) {
-        if (value == null) { return this.autocomplete; }
-    	this.autocomplete = value;
-    	return this;
-    }
-
-    // Specifies that the element should automatically get focus when the page loads.
-    /*	@docs: {
-     *	@title: Auto focus
-     *	@description: 
-     *		Specifies that the element should automatically get focus when the page loads.
-     *		The equivalent of HTML attribute `autofocus`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    auto_focus(value) {
-        if (value == null) { return this.autofocus; }
-    	this.autofocus = value;
-    	return this;
-    }
-
-    // Specifies that the audio/video will start playing as soon as it is ready.
-    /*	@docs: {
-     *	@title: Auto play
-     *	@description: 
-     *		Specifies that the audio/video will start playing as soon as it is ready.
-     *		The equivalent of HTML attribute `autoplay`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    auto_play(value) {
-        if (value == null) { return this.autoplay; }
-    	this.autoplay = value;
-    	return this;
-    }
-
-    // Specifies the character encoding.
-    /*	@docs: {
-     *	@title: Charset
-     *	@description: 
-     *		Specifies the character encoding.
-     *		The equivalent of HTML attribute `charset`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    charset(value) {
-        if (value == null) { return this.charset; }
-    	this.charset = value;
-    	return this;
-    }
-
-    // Specifies that an <input> element should be pre-selected when the page loads (for type="checkbox" or type="radio").
-    /*	@docs: {
-     *	@title: Checked
-     *	@description: 
-     *		Specifies that an <input> element should be pre-selected when the page loads (for type="checkbox" or type="radio").
-     *		The equivalent of HTML attribute `checked`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    checked(value) {
-        if (value == null) { return this.checked; }
-    	this.checked = value;
-    	return this;
-    }
-
-    // Specifies a URL which explains the quote/deleted/inserted text.
-    /*	@docs: {
-     *	@title: Cite
-     *	@description: 
-     *		Specifies a URL which explains the quote/deleted/inserted text.
-     *		The equivalent of HTML attribute `cite`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    cite(value) {
-        if (value == null) { return this.cite; }
-    	this.cite = value;
-    	return this;
-    }
-
-    // Specifies one or more classnames for an element (refers to a class in a style sheet).
-    // class(value) {
-    //     if (value == null) { return this.class; }
-    // 	this.class = value;
-    // 	return this;
-    // }
-
-    // Specifies the visible width of a text area.
-    /*	@docs: {
-     *	@title: Cols
-     *	@description: 
-     *		Specifies the visible width of a text area.
-     *		The equivalent of HTML attribute `cols`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    cols(value) {
-        if (value == null) { return this.cols; }
-    	this.cols = value;
-    	return this;
-    }
-
-    // Specifies the number of columns a table cell should span.
-    /*	@docs: {
-     *	@title: Colspan
-     *	@description: 
-     *		Specifies the number of columns a table cell should span.
-     *		The equivalent of HTML attribute `colspan`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    colspan(value) {
-        if (value == null) { return this.colspan; }
-    	this.colspan = value;
-    	return this;
-    }
-
-    // Gives the value associated with the http-equiv or name attribute.
-    /*	@docs: {
-     *	@title: Content
-     *	@description: 
-     *		Gives the value associated with the http-equiv or name attribute.
-     *		The equivalent of HTML attribute `content`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    content(value) {
-        if (value == null) { return this.content; }
-    	this.content = value;
-    	return this;
-    }
-
-    // Specifies whether the content of an element is editable or not.
-    /*	@docs: {
-     *	@title: Content editable
-     *	@description: 
-     *		Specifies whether the content of an element is editable or not.
-     *		The equivalent of HTML attribute `contenteditable`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    content_editable(value) {
-        if (value == null) { return this.contenteditable; }
-    	this.contenteditable = value;
-    	return this;
-    }
-
-    // Specifies that audio/video controls should be displayed (such as a play/pause button etc).
-    /*	@docs: {
-     *	@title: Controls
-     *	@description: 
-     *		Specifies that audio/video controls should be displayed (such as a play/pause button etc).
-     *		The equivalent of HTML attribute `controls`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    controls(value) {
-        if (value == null) { return this.controls; }
-    	this.controls = value;
-    	return this;
-    }
-
-    // Specifies the coordinates of the area.
-    /*	@docs: {
-     *	@title: Coords
-     *	@description: 
-     *		Specifies the coordinates of the area.
-     *		The equivalent of HTML attribute `coords`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    coords(value) {
-        if (value == null) { return this.coords; }
-    	this.coords = value;
-    	return this;
-    }
-
-    // Specifies the URL of the resource to be used by the object.
-    /*	@docs: {
-     *	@title: Data
-     *	@description: 
-     *		Specifies the URL of the resource to be used by the object.
-     *		The equivalent of HTML attribute `data`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    data(value) {
-        if (value == null) { return this.data; }
-    	this.data = value;
-    	return this;
-    }
-
-    // Specifies the date and time.
-    /*	@docs: {
-     *	@title: Datetime
-     *	@description: 
-     *		Specifies the date and time.
-     *		The equivalent of HTML attribute `datetime`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    datetime(value) {
-        if (value == null) { return this.datetime; }
-    	this.datetime = value;
-    	return this;
-    }
-
-    // Specifies that the track is to be enabled if the user's preferences do not indicate that another track would be more appropriate.
-    /*	@docs: {
-     *	@title: Default
-     *	@description: 
-     *		Specifies that the track is to be enabled if the user's preferences do not indicate that another track would be more appropriate.
-     *		The equivalent of HTML attribute `default`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    default(value) {
-        if (value == null) { return this.default; }
-    	this.default = value;
-    	return this;
-    }
-
-    // Specifies that the script is executed when the page has finished parsing (only for external scripts).
-    /*	@docs: {
-     *	@title: Defer
-     *	@description: 
-     *		Specifies that the script is executed when the page has finished parsing (only for external scripts).
-     *		The equivalent of HTML attribute `defer`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    defer(value) {
-        if (value == null) { return this.defer; }
-    	this.defer = value;
-    	return this;
-    }
-
-    // Specifies the text direction for the content in an element.
-    /*	@docs: {
-     *	@title: Dir
-     *	@description: 
-     *		Specifies the text direction for the content in an element.
-     *		The equivalent of HTML attribute `dir`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    dir(value) {
-        if (value == null) { return this.dir; }
-    	this.dir = value;
-    	return this;
-    }
-
-    // Specifies that the text direction will be submitted.
-    /*	@docs: {
-     *	@title: Dirname
-     *	@description: 
-     *		Specifies that the text direction will be submitted.
-     *		The equivalent of HTML attribute `dirname`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    dirname(value) {
-        if (value == null) { return this.dirname; }
-    	this.dirname = value;
-    	return this;
-    }
-
-    // Specifies that the specified element/group of elements should be disabled.
-    /*	@docs: {
-     *	@title: Disabled
-     *	@description: 
-     *		Specifies that the specified element/group of elements should be disabled.
-     *		The equivalent of HTML attribute `disabled`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    disabled(value) {
-        if (value == null) { return this.disabled; }
-    	this.disabled = value;
-    	return this;
-    }
-
-    // Specifies that the target will be downloaded when a user clicks on the hyperlink.
-    /*	@docs: {
-     *	@title: Download
-     *	@description: 
-     *		Specifies that the target will be downloaded when a user clicks on the hyperlink.
-     *		The equivalent of HTML attribute `download`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    download(value) {
-        if (value == null) { return this.download; }
-    	this.download = value;
-    	return this;
-    }
-
-    // Specifies whether an element is draggable or not.
-    /*	@docs: {
-     *	@title: Draggable
-     *	@description: 
-     *		Specifies whether an element is draggable or not.
-     *		The equivalent of HTML attribute `draggable`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    draggable(value) {
-        if (value == null) { return this.draggable; }
-    	this.draggable = value;
-    	return this;
-    }
-
-    // Specifies how the form-data should be encoded when submitting it to the server (only for method="post").
-    /*	@docs: {
-     *	@title: Enctype
-     *	@description: 
-     *		Specifies how the form-data should be encoded when submitting it to the server (only for method="post").
-     *		The equivalent of HTML attribute `enctype`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    enctype(value) {
-        if (value == null) { return this.enctype; }
-    	this.enctype = value;
-    	return this;
-    }
-
-    // Specifies which form element(s) a label/calculation is bound to.
-    /*	@docs: {
-     *	@title: For
-     *	@description: 
-     *		Specifies which form element(s) a label/calculation is bound to.
-     *		The equivalent of HTML attribute `for`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    for(value) {
-        if (value == null) { return this.for; }
-    	this.for = value;
-    	return this;
-    }
-
-    // Specifies the name of the form the element belongs to.
-    /*	@docs: {
-     *	@title: Form
-     *	@description: 
-     *		Specifies the name of the form the element belongs to.
-     *		The equivalent of HTML attribute `form`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    form(value) {
-        if (value == null) { return this.form; }
-    	this.form = value;
-    	return this;
-    }
-
-    // Specifies where to send the form-data when a form is submitted. Only for type="submit".
-    /*	@docs: {
-     *	@title: Form action
-     *	@description: 
-     *		Specifies where to send the form-data when a form is submitted. Only for type="submit".
-     *		The equivalent of HTML attribute `formaction`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    form_action(value) {
-        if (value == null) { return this.formaction; }
-    	this.formaction = value;
-    	return this;
-    }
-
-    // Specifies one or more headers cells a cell is related to.
-    /*	@docs: {
-     *	@title: Headers
-     *	@description: 
-     *		Specifies one or more headers cells a cell is related to.
-     *		The equivalent of HTML attribute `headers`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    headers(value) {
-        if (value == null) { return this.headers; }
-    	this.headers = value;
-    	return this;
-    }
-
-    // Specifies the height of the element.
-    // height(value) {
-    //     if (value == null) { return this.height; }
-    // 	this.height = this.pad_numeric(value);
-    // 	return this;
-    // }
-
-    // Specifies that an element is not yet, or is no longer, relevant.
-    // hidden(value) {
-    //     if (value == null) { return this.hidden; }
-    // 	this.hidden = value;
-    // 	return this;
-    // }
-
-    // Specifies the range that is considered to be a high value.
-    /*	@docs: {
-     *	@title: High
-     *	@description: 
-     *		Specifies the range that is considered to be a high value.
-     *		The equivalent of HTML attribute `high`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    high(value) {
-        if (value == null) { return this.high; }
-    	this.high = value;
-    	return this;
-    }
-
-    // Specifies the URL of the page the link goes to.
-    /*	@docs: {
-     *	@title: Href
-     *	@description: 
-     *		Specifies the URL of the page the link goes to.
-     *		The equivalent of HTML attribute `href`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    href(value) {
-        if (value == null) { return this.href; }
-    	this.href = value;
-    	return this;
-    }
-
-    // Specifies the language of the linked document.
-    /*	@docs: {
-     *	@title: Href lang
-     *	@description: 
-     *		Specifies the language of the linked document.
-     *		The equivalent of HTML attribute `hreflang`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    href_lang(value) {
-        if (value == null) { return this.hreflang; }
-    	this.hreflang = value;
-    	return this;
-    }
-
-    // Provides an HTTP header for the information/value of the content attribute.
-    /*	@docs: {
-     *	@title: Http equiv
-     *	@description: 
-     *		Provides an HTTP header for the information/value of the content attribute.
-     *		The equivalent of HTML attribute `http_equiv`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    http_equiv(value) {
-        if (value == null) { return this.http_equiv; }
-    	this.http_equiv = value;
-    	return this;
-    }
-
-    // Specifies a unique id for an element.
-    /*	@docs: {
-     *	@title: Id
-     *	@description: 
-     *		Specifies a unique id for an element.
-     *		The equivalent of HTML attribute `id`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    id(value) {
-        if (value == null) { return this.id; }
-    	this.id = value;
-    	return this;
-    }
-
-    // Specifies an image as a server-side image map.
-    /*	@docs: {
-     *	@title: Is map
-     *	@description: 
-     *		Specifies an image as a server-side image map.
-     *		The equivalent of HTML attribute `ismap`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    is_map(value) {
-        if (value == null) { return this.ismap; }
-    	this.ismap = value;
-    	return this;
-    }
-
-    // Specifies the kind of text track.
-    /*	@docs: {
-     *	@title: Kind
-     *	@description: 
-     *		Specifies the kind of text track.
-     *		The equivalent of HTML attribute `kind`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    kind(value) {
-        if (value == null) { return this.kind; }
-    	this.kind = value;
-    	return this;
-    }
-
-    // Specifies the title of the text track.
-    /*	@docs: {
-     *	@title: Label
-     *	@description: 
-     *		Specifies the title of the text track.
-     *		The equivalent of HTML attribute `label`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    label(value) {
-        if (value == null) { return this.label; }
-    	this.label = value;
-    	return this;
-    }
-
-    // Specifies the language of the element's content.
-    /*	@docs: {
-     *	@title: Lang
-     *	@description: 
-     *		Specifies the language of the element's content.
-     *		The equivalent of HTML attribute `lang`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    lang(value) {
-        if (value == null) { return this.lang; }
-    	this.lang = value;
-    	return this;
-    }
-
-    // Refers to a <datalist> element that contains pre-defined options for an <input> element.
-    /*	@docs: {
-     *	@title: List
-     *	@description: 
-     *		Refers to a <datalist> element that contains pre-defined options for an <input> element.
-     *		The equivalent of HTML attribute `list`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    list(value) {
-        if (value == null) { return this.list; }
-    	this.list = value;
-    	return this;
-    }
-
-    // Specifies that the audio/video will start over again, every time it is finished.
-    /*	@docs: {
-     *	@title: Loop
-     *	@description: 
-     *		Specifies that the audio/video will start over again, every time it is finished.
-     *		The equivalent of HTML attribute `loop`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    loop(value) {
-        if (value == null) { return this.loop; }
-    	this.loop = value;
-    	return this;
-    }
-
-    // Specifies the range that is considered to be a low value.
-    /*	@docs: {
-     *	@title: Low
-     *	@description: 
-     *		Specifies the range that is considered to be a low value.
-     *		The equivalent of HTML attribute `low`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    low(value) {
-        if (value == null) { return this.low; }
-    	this.low = value;
-    	return this;
-    }
-
-    // Specifies the maximum value.
-    /*	@docs: {
-     *	@title: Max
-     *	@description: 
-     *		Specifies the maximum value.
-     *		The equivalent of HTML attribute `max`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    max(value) {
-        if (value == null) { return this.max; }
-    	this.max = value;
-    	return this;
-    }
-
-    // Specifies the maximum number of characters allowed in an element.
-    /*	@docs: {
-     *	@title: Max length
-     *	@description: 
-     *		Specifies the maximum number of characters allowed in an element.
-     *		The equivalent of HTML attribute `maxlength`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    max_length(value) {
-        if (value == null) { return this.maxlength; }
-    	this.maxlength = value;
-    	return this;
-    }
-
-    // Specifies what media/device the linked document is optimized for.
-    // media(value) {
-    //     if (value == null) { return this.media; }
-    // 	this.media = value;
-    // 	return this;
-    // }
-
-    // Specifies the HTTP method to use when sending form-data.
-    /*	@docs: {
-     *	@title: Method
-     *	@description: 
-     *		Specifies the HTTP method to use when sending form-data.
-     *		The equivalent of HTML attribute `method`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    method(value) {
-        if (value == null) { return this.method; }
-    	this.method = value;
-    	return this;
-    }
-
-    // Specifies a minimum value.
-    /*	@docs: {
-     *	@title: Min
-     *	@description: 
-     *		Specifies a minimum value.
-     *		The equivalent of HTML attribute `min`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    min(value) {
-        if (value == null) { return this.min; }
-    	this.min = value;
-    	return this;
-    }
-
-    // Specifies that a user can enter more than one value.
-    /*	@docs: {
-     *	@title: Multiple
-     *	@description: 
-     *		Specifies that a user can enter more than one value.
-     *		The equivalent of HTML attribute `multiple`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    multiple(value) {
-        if (value == null) { return this.multiple; }
-    	this.multiple = value;
-    	return this;
-    }
-
-    // Specifies that the audio output of the video should be muted.
-    /*	@docs: {
-     *	@title: Muted
-     *	@description: 
-     *		Specifies that the audio output of the video should be muted.
-     *		The equivalent of HTML attribute `muted`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    muted(value) {
-        if (value == null) { return this.muted; }
-    	this.muted = value;
-    	return this;
-    }
-
-    // Specifies the name of the element.
-    /*	@docs: {
-     *	@title: Name
-     *	@description: 
-     *		Specifies the name of the element.
-     *		The equivalent of HTML attribute `name`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    name(value) {
-        if (value == null) { return this.name; }
-    	this.name = value;
-    	return this;
-    }
-
-    // Specifies that the form should not be validated when submitted.
-    /*	@docs: {
-     *	@title: No validate
-     *	@description: 
-     *		Specifies that the form should not be validated when submitted.
-     *		The equivalent of HTML attribute `novalidate`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    no_validate(value) {
-        if (value == null) { return this.novalidate; }
-    	this.novalidate = value;
-    	return this;
-    }
-
-    // Specifies that the details should be visible (open) to the user.
-    /*	@docs: {
-     *	@title: Open
-     *	@description: 
-     *		Specifies that the details should be visible (open) to the user.
-     *		The equivalent of HTML attribute `open`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    open(value) {
-        if (value == null) { return this.open; }
-    	this.open = value;
-    	return this;
-    }
-
-    // Specifies what value is the optimal value for the gauge.
-    /*	@docs: {
-     *	@title: Optimum
-     *	@description: 
-     *		Specifies what value is the optimal value for the gauge.
-     *		The equivalent of HTML attribute `optimum`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    optimum(value) {
-        if (value == null) { return this.optimum; }
-    	this.optimum = value;
-    	return this;
-    }
-
-    // Specifies a regular expression that an <input> element's value is checked against.
-    /*	@docs: {
-     *	@title: Pattern
-     *	@description: 
-     *		Specifies a regular expression that an <input> element's value is checked against.
-     *		The equivalent of HTML attribute `pattern`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    pattern(value) {
-        if (value == null) { return this.pattern; }
-    	this.pattern = value;
-    	return this;
-    }
-
-    // Specifies a short hint that describes the expected value of the element.
-    /*	@docs: {
-     *	@title: Placeholder
-     *	@description: 
-     *		Specifies a short hint that describes the expected value of the element.
-     *		The equivalent of HTML attribute `placeholder`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    placeholder(value) {
-        if (value == null) { return this.placeholder; }
-    	this.placeholder = value;
-    	return this;
-    }
-
-    // Specifies an image to be shown while the video is downloading, or until the user hits the play button.
-    /*	@docs: {
-     *	@title: Poster
-     *	@description: 
-     *		Specifies an image to be shown while the video is downloading, or until the user hits the play button.
-     *		The equivalent of HTML attribute `poster`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    poster(value) {
-        if (value == null) { return this.poster; }
-    	this.poster = value;
-    	return this;
-    }
-
-    // Specifies if and how the author thinks the audio/video should be loaded when the page loads.
-    /*	@docs: {
-     *	@title: Preload
-     *	@description: 
-     *		Specifies if and how the author thinks the audio/video should be loaded when the page loads.
-     *		The equivalent of HTML attribute `preload`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    preload(value) {
-        if (value == null) { return this.preload; }
-    	this.preload = value;
-    	return this;
-    }
-
-    // Specifies that the element is read-only.
-    /*	@docs: {
-     *	@title: Readonly
-     *	@description: 
-     *		Specifies that the element is read-only.
-     *		The equivalent of HTML attribute `readonly`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    readonly(value) {
-        if (value == null) { return this.readonly; }
-    	this.readonly = value;
-    	return this;
-    }
-
-    // Specifies the relationship between the current document and the linked document.
-    /*	@docs: {
-     *	@title: Rel
-     *	@description: 
-     *		Specifies the relationship between the current document and the linked document.
-     *		The equivalent of HTML attribute `rel`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    rel(value) {
-        if (value == null) { return this.rel; }
-    	this.rel = value;
-    	return this;
-    }
-
-    // Specifies that the element must be filled out before submitting the form.
-    /*	@docs: {
-     *	@title: Required
-     *	@description: 
-     *		Specifies that the element must be filled out before submitting the form.
-     *		The equivalent of HTML attribute `required`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    required(value) {
-        if (value == null) { return this.required; }
-    	this.required = value;
-    	return this;
-    }
-
-    // Specifies that the list order should be descending (9,8,7...).
-    /*	@docs: {
-     *	@title: Reversed
-     *	@description: 
-     *		Specifies that the list order should be descending (9,8,7...).
-     *		The equivalent of HTML attribute `reversed`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    reversed(value) {
-        if (value == null) { return this.reversed; }
-    	this.reversed = value;
-    	return this;
-    }
-
-    // Specifies the visible number of lines in a text area.
-    /*	@docs: {
-     *	@title: Rows
-     *	@description: 
-     *		Specifies the visible number of lines in a text area.
-     *		The equivalent of HTML attribute `rows`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    rows(value) {
-        if (value == null) { return this.rows; }
-    	this.rows = value;
-    	return this;
-    }
-
-    // Specifies the number of rows a table cell should span.
-    /*	@docs: {
-     *	@title: Row span
-     *	@description: 
-     *		Specifies the number of rows a table cell should span.
-     *		The equivalent of HTML attribute `rowspan`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    row_span(value) {
-        if (value == null) { return this.rowspan; }
-    	this.rowspan = value;
-    	return this;
-    }
-
-    // Enables an extra set of restrictions for the content in an <iframe>.
-    /*	@docs: {
-     *	@title: Sandbox
-     *	@description: 
-     *		Enables an extra set of restrictions for the content in an <iframe>.
-     *		The equivalent of HTML attribute `sandbox`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    sandbox(value) {
-        if (value == null) { return this.sandbox; }
-    	this.sandbox = value;
-    	return this;
-    }
-
-    // Specifies whether a header cell is a header for a column, row, or group of columns or rows.
-    /*	@docs: {
-     *	@title: Scope
-     *	@description: 
-     *		Specifies whether a header cell is a header for a column, row, or group of columns or rows.
-     *		The equivalent of HTML attribute `scope`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    scope(value) {
-        if (value == null) { return this.scope; }
-    	this.scope = value;
-    	return this;
-    }
-
-    // Specifies that an option should be pre-selected when the page loads.
-    /*	@docs: {
-     *	@title: Selected
-     *	@description: 
-     *		Specifies that an option should be pre-selected when the page loads.
-     *		The equivalent of HTML attribute `selected`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    selected(value) {
-        if (value == null) { return this.selected; }
-    	this.selected = value;
-    	return this;
-    }
-
-    // Specifies the shape of the area.
-    /*	@docs: {
-     *	@title: Shape
-     *	@description: 
-     *		Specifies the shape of the area.
-     *		The equivalent of HTML attribute `shape`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    shape(value) {
-        if (value == null) { return this.shape; }
-    	this.shape = value;
-    	return this;
-    }
-
-    // Specifies the width, in characters (for <input>) or specifies the number of visible options (for <select>).
-    /*	@docs: {
-     *	@title: Size
-     *	@description: 
-     *		Specifies the width, in characters (for <input>) or specifies the number of visible options (for <select>).
-     *		The equivalent of HTML attribute `size`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    size(value) {
-        if (value == null) { return this.size; }
-    	this.size = value;
-    	return this;
-    }
-
-    // Specifies the size of the linked resource.
-    /*	@docs: {
-     *	@title: Sizes
-     *	@description: 
-     *		Specifies the size of the linked resource.
-     *		The equivalent of HTML attribute `sizes`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    sizes(value) {
-        if (value == null) { return this.sizes; }
-    	this.sizes = value;
-    	return this;
-    }
-
-    // Specifies the number of columns to span.
-    /*	@docs: {
-     *	@title: Span
-     *	@description: 
-     *		Specifies the number of columns to span.
-     *		The equivalent of HTML attribute `span`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    span(value) {
-        if (value == null) { return this.span; }
-    	this.span = value;
-    	return this;
-    }
-
-    // Specifies whether the element is to have its spelling and grammar checked or not.
-    /*	@docs: {
-     *	@title: Spell check
-     *	@description: 
-     *		Specifies whether the element is to have its spelling and grammar checked or not.
-     *		The equivalent of HTML attribute `spellcheck`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    spell_check(value) {
-        if (value == null) { return this.spellcheck; }
-    	this.spellcheck = value;
-    	return this;
-    }
-
-    // Specifies the URL of the media file.
-    /*	@docs: {
-     *	@title: Src
-     *	@description: 
-     *		Specifies the URL of the media file.
-     *		The equivalent of HTML attribute `src`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    src(value) {
-        if (value == null) { return this.src; }
-    	this.src = value;
-    	return this;
-    }
-
-    // Specifies the HTML content of the page to show in the <iframe>.
-    /*	@docs: {
-     *	@title: Src doc
-     *	@description: 
-     *		Specifies the HTML content of the page to show in the <iframe>.
-     *		The equivalent of HTML attribute `srcdoc`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    src_doc(value) {
-        if (value == null) { return this.srcdoc; }
-    	this.srcdoc = value;
-    	return this;
-    }
-
-    // Specifies the language of the track text data (required if kind="subtitles").
-    /*	@docs: {
-     *	@title: Src lang
-     *	@description: 
-     *		Specifies the language of the track text data (required if kind="subtitles").
-     *		The equivalent of HTML attribute `srclang`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    src_lang(value) {
-        if (value == null) { return this.srclang; }
-    	this.srclang = value;
-    	return this;
-    }
-
-    // Specifies the URL of the image to use in different situations.
-    /*	@docs: {
-     *	@title: Rrsrc set
-     *	@description: 
-     *		Specifies the URL of the image to use in different situations.
-     *		The equivalent of HTML attribute `srcset`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    rrsrc_set(value) {
-        if (value == null) { return this.srcset; }
-    	this.srcset = value;
-    	return this;
-    }
-
-    // Specifies the start value of an ordered list.
-    /*	@docs: {
-     *	@title: Start
-     *	@description: 
-     *		Specifies the start value of an ordered list.
-     *		The equivalent of HTML attribute `start`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    start(value) {
-        if (value == null) { return this.start; }
-    	this.start = value;
-    	return this;
-    }
-
-    // Specifies the legal number intervals for an input field.
-    /*	@docs: {
-     *	@title: Step
-     *	@description: 
-     *		Specifies the legal number intervals for an input field.
-     *		The equivalent of HTML attribute `step`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    step(value) {
-        if (value == null) { return this.step; }
-    	this.step = value;
-    	return this;
-    }
-
-    // Specifies an inline CSS style for an element.
-    // style(value) {
-    //     if (value == null) { return this.style; }
-    // 	this.style = value;
-    // 	return this;
-    // }
-
-    // Specifies the tabbing order of an element.
-    /*	@docs: {
-     *	@title: Tab index
-     *	@description: 
-     *		Specifies the tabbing order of an element.
-     *		The equivalent of HTML attribute `tabindex`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    tab_index(value) {
-        if (value == null) { return this.tabindex; }
-    	this.tabindex = value;
-    	return this;
-    }
-
-    // Specifies the target for where to open the linked document or where to submit the form.
-    /*	@docs: {
-     *	@title: Target
-     *	@description: 
-     *		Specifies the target for where to open the linked document or where to submit the form.
-     *		The equivalent of HTML attribute `target`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    target(value) {
-        if (value == null) { return this.target; }
-    	this.target = value;
-    	return this;
-    }
-
-    // Specifies extra information about an element.
-    /*	@docs: {
-     *	@title: Title
-     *	@description: 
-     *		Specifies extra information about an element.
-     *		The equivalent of HTML attribute `title`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    title(value) {
-        if (value == null) { return this.title; }
-    	this.title = value;
-    	return this;
-    }
-
-    // Specifies whether the content of an element should be translated or not.
-    /*	@docs: {
-     *	@title: Translate
-     *	@description: 
-     *		Specifies whether the content of an element should be translated or not.
-     *		The equivalent of HTML attribute `translate`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    translate(value) {
-        if (value == null) { return this.translate; }
-    	this.translate = value;
-    	return this;
-    }
-
-    // Specifies the type of element.
-    /*	@docs: {
-     *	@title: Type
-     *	@description: 
-     *		Specifies the type of element.
-     *		The equivalent of HTML attribute `type`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    type(value) {
-        if (value == null) { return this.type; }
-    	this.type = value;
-    	return this;
-    }
-
-    // Specifies an image as a client-side image map.
-    /*	@docs: {
-     *	@title: Use map
-     *	@description: 
-     *		Specifies an image as a client-side image map.
-     *		The equivalent of HTML attribute `usemap`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    use_map(value) {
-        if (value == null) { return this.usemap; }
-    	this.usemap = value;
-    	return this;
-    }
-
-    // Specifies the value of the element.
-    /*	@docs: {
-     *	@title: Value
-     *	@description: 
-     *		Specifies the value of the element.
-     *		The equivalent of HTML attribute `value`.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    value(value) {
-        if (value == null) { return this.value; }
-    	this.value = value;
-    	return this;
-    }
-
-    // Specifies the width of the element.
-    // width(value) {
-    //     if (value == null) { return this.width; }
-    // 	this.width = this.pad_numeric(value);
-    // 	return this;
-    // }
-
-    // Specifies how the text in a text area is to be wrapped when submitted in a form.
-    // wrap(value) {
-    //     if (value == null) { return this.wrap; }
-    // 	this.wrap = value;
-    // 	return this;
-    // }
-
-    // Script to be run after the document is printed.
-    /*	@docs: {
-     *	@title: On after print
-     *	@description: 
-     *		Script to be run after the document is printed.
-     *		The equivalent of HTML attribute `onafterprint`.
-     *		
-     *		The first parameter of the callback is the `VElement` object.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_after_print(callback) {
-        if (callback == null) { return this.onafterprint; }
-    	const e = this;
-    	this.onafterprint = () => callback(e);
-    	return this;
-    }
-
-    // Script to be run before the document is printed.
-    /*	@docs: {
-     *	@title: On before print
-     *	@description: 
-     *		Script to be run before the document is printed.
-     *		The equivalent of HTML attribute `onbeforeprint`.
-     *		
-     *		The first parameter of the callback is the `VElement` object.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_before_print(callback) {
-        if (callback == null) { return this.onbeforeprint; }
-    	const e = this;
-    	this.onbeforeprint = () => callback(e);
-    	return this;
-    }
-
-    // Script to be run when the document is about to be unloaded.
-    /*	@docs: {
-     *	@title: On before unload
-     *	@description: 
-     *		Script to be run when the document is about to be unloaded.
-     *		The equivalent of HTML attribute `onbeforeunload`.
-     *		
-     *		The first parameter of the callback is the `VElement` object.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_before_unload(callback) {
-        if (callback == null) { return this.onbeforeunload; }
-    	const e = this;
-    	this.onbeforeunload = () => callback(e);
-    	return this;
-    }
-
-    // Script to be run when an error occurs.
-    /*	@docs: {
-     *	@title: On error
-     *	@description: 
-     *		Script to be run when an error occurs.
-     *		The equivalent of HTML attribute `onerror`.
-     *		
-     *		The first parameter of the callback is the `VElement` object.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_error(callback) {
-        if (callback == null) { return this.onerror; }
-    	const e = this;
-    	this.onerror = () => callback(e);
-    	return this;
-    }
-
-    // Script to be run when there has been changes to the anchor part of the a URL.
-    /*	@docs: {
-     *	@title: On hash change
-     *	@description: 
-     *		Script to be run when there has been changes to the anchor part of the a URL.
-     *		The equivalent of HTML attribute `onhashchange`.
-     *		
-     *		The first parameter of the callback is the `VElement` object.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_hash_change(callback) {
-        if (callback == null) { return this.onhashchange; }
-    	const e = this;
-    	this.onhashchange = () => callback(e);
-    	return this;
-    }
-
-    // Fires after the page is finished loading.
-    /*	@docs: {
-     *	@title: On load
-     *	@description: 
-     *		Fires after the page is finished loading.
-     *		The equivalent of HTML attribute `onload`.
-     *		
-     *		The first parameter of the callback is the `VElement` object.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_load(callback) {
-        if (callback == null) { return this.onload; }
-    	const e = this;
-    	this.onload = () => callback(e);
-    	return this;
-    }
-
-    // Script to be run when the message is triggered.
-    /*	@docs: {
-     *	@title: On message
-     *	@description: 
-     *		Script to be run when the message is triggered.
-     *		The equivalent of HTML attribute `onmessage`.
-     *		
-     *		The first parameter of the callback is the `VElement` object.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_message(callback) {
-        if (callback == null) { return this.onmessage; }
-    	const e = this;
-    	this.onmessage = () => callback(e);
-    	return this;
-    }
-
-    // Script to be run when the browser starts to work offline.
-    /*	@docs: {
-     *	@title: On offline
-     *	@description: 
-     *		Script to be run when the browser starts to work offline.
-     *		The equivalent of HTML attribute `onoffline`.
-     *		
-     *		The first parameter of the callback is the `VElement` object.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_offline(callback) {
-        if (callback == null) { return this.onoffline; }
-    	const e = this;
-    	this.onoffline = () => callback(e);
-    	return this;
-    }
-
-    // Script to be run when the browser starts to work online.
-    /*	@docs: {
-     *	@title: On online
-     *	@description: 
-     *		Script to be run when the browser starts to work online.
-     *		The equivalent of HTML attribute `ononline`.
-     *		
-     *		The first parameter of the callback is the `VElement` object.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_online(callback) {
-        if (callback == null) { return this.ononline; }
-    	const e = this;
-    	this.ononline = () => callback(e);
-    	return this;
-    }
-
-    // Script to be run when a user navigates away from a page.
-    /*	@docs: {
-     *	@title: On page hide
-     *	@description: 
-     *		Script to be run when a user navigates away from a page.
-     *		The equivalent of HTML attribute `onpagehide`.
-     *		
-     *		The first parameter of the callback is the `VElement` object.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_page_hide(callback) {
-        if (callback == null) { return this.onpagehide; }
-    	const e = this;
-    	this.onpagehide = () => callback(e);
-    	return this;
-    }
-
-    // Script to be run when a user navigates to a page.
-    /*	@docs: {
-     *	@title: On page show
-     *	@description: 
-     *		Script to be run when a user navigates to a page.
-     *		The equivalent of HTML attribute `onpageshow`.
-     *		
-     *		The first parameter of the callback is the `VElement` object.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_page_show(callback) {
-        if (callback == null) { return this.onpageshow; }
-    	const e = this;
-    	this.onpageshow = () => callback(e);
-    	return this;
-    }
-
-    // Script to be run when the window's history changes.
-    /*	@docs: {
-     *	@title: On popstate
-     *	@description: 
-     *		Script to be run when the window's history changes.
-     *		The equivalent of HTML attribute `onpopstate`.
-     *		
-     *		The first parameter of the callback is the `VElement` object.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_popstate(callback) {
-        if (callback == null) { return this.onpopstate; }
-    	const e = this;
-    	this.onpopstate = () => callback(e);
-    	return this;
-    }
-
-    // Fires when the browser window is resized.
-    /*	@docs: {
-     *	@title: On resize
-     *	@description: 
-     *		Fires when the browser window is resized.
-     *		The equivalent of HTML attribute `onresize`.
-     *		
-     *		The first parameter of the callback is the `VElement` object.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_resize(callback) {
-        if (callback == null) { return this.onresize; }
-    	const e = this;
-    	this.onresize = () => callback(e);
-    	return this;
-    }
-
-    // Script to be run when a Web Storage area is updated.
-    /*	@docs: {
-     *	@title: On storage
-     *	@description: 
-     *		Script to be run when a Web Storage area is updated.
-     *		The equivalent of HTML attribute `onstorage`.
-     *		
-     *		The first parameter of the callback is the `VElement` object.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_storage(callback) {
-        if (callback == null) { return this.onstorage; }
-    	const e = this;
-    	this.onstorage = () => callback(e);
-    	return this;
-    }
-
-    // Fires once a page has unloaded (or the browser window has been closed).
-    /*	@docs: {
-     *	@title: On unload
-     *	@description: 
-     *		Fires once a page has unloaded (or the browser window has been closed).
-     *		The equivalent of HTML attribute `onunload`.
-     *		
-     *		The first parameter of the callback is the `VElement` object.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_unload(callback) {
-        if (callback == null) { return this.onunload; }
-    	const e = this;
-    	this.onunload = () => callback(e);
-    	return this;
-    }
-
-    // Fires the moment that the element loses focus.
-    /*	@docs: {
-     *	@title: On blur
-     *	@description: 
-     *		Fires the moment that the element loses focus.
-     *		The equivalent of HTML attribute `onblur`.
-     *		
-     *		The first parameter of the callback is the `VElement` object.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_blur(callback) {
-        if (callback == null) { return this.onblur; }
-    	const e = this;
-    	this.onblur = () => callback(e);
-    	return this;
-    }
-
-    // Fires the moment when the value of the element is changed.
-    /*	@docs: {
-     *	@title: On change
-     *	@description: 
-     *		Fires the moment when the value of the element is changed.
-     *		The equivalent of HTML attribute `onchange`.
-     *		
-     *		The first parameter of the callback is the `VElement` object.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_change(callback) {
-        if (callback == null) { return this.onchange; }
-    	const e = this;
-    	this.onchange = () => callback(e);
-    	return this;
-    }
-
-    // Script to be run when a context menu is triggered.
-    /*	@docs: {
-     *	@title: On context menu
-     *	@description: 
-     *		Script to be run when a context menu is triggered.
-     *		The equivalent of HTML attribute `oncontextmenu`.
-     *		
-     *		The first parameter of the callback is the `VElement` object.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_context_menu(callback) {
-        if (callback == null) { return this.oncontextmenu; }
-    	const e = this;
-    	this.oncontextmenu = () => callback(e);
-    	return this;
-    }
-
-    // Fires the moment when the element gets focus.
-    /*	@docs: {
-     *	@title: On focus
-     *	@description: 
-     *		Fires the moment when the element gets focus.
-     *		The equivalent of HTML attribute `onfocus`.
-     *		
-     *		The first parameter of the callback is the `VElement` object.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_focus(callback) {
-        if (callback == null) { return this.onfocus; }
-    	const e = this;
-    	this.onfocus = () => callback(e);
-    	return this;
-    }
-
-    // Script to be run when an element gets user input.
-    /*	@docs: {
-     *	@title: On input
-     *	@description: 
-     *		Script to be run when an element gets user input.
-     *		The equivalent of HTML attribute `oninput`.
-     *		
-     *		The first parameter of the callback is the `VElement` object.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_input(callback) {
-        if (callback == null) { return this.oninput; }
-    	const e = this;
-    	this.oninput = () => callback(e);
-    	return this;
-    }
-
-    // Script to be run when an element is invalid.
-    /*	@docs: {
-     *	@title: On invalid
-     *	@description: 
-     *		Script to be run when an element is invalid.
-     *		The equivalent of HTML attribute `oninvalid`.
-     *		
-     *		The first parameter of the callback is the `VElement` object.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_invalid(callback) {
-        if (callback == null) { return this.oninvalid; }
-    	const e = this;
-    	this.oninvalid = () => callback(e);
-    	return this;
-    }
-
-    // Fires when the Reset button in a form is clicked.
-    /*	@docs: {
-     *	@title: On reset
-     *	@description: 
-     *		Fires when the Reset button in a form is clicked.
-     *		The equivalent of HTML attribute `onreset`.
-     *		
-     *		The first parameter of the callback is the `VElement` object.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_reset(callback) {
-        if (callback == null) { return this.onreset; }
-    	const e = this;
-    	this.onreset = () => callback(e);
-    	return this;
-    }
-
-    // Fires when the user writes something in a search field (for <input="search">).
-    /*	@docs: {
-     *	@title: On search
-     *	@description: 
-     *		Fires when the user writes something in a search field (for <input="search">).
-     *		The equivalent of HTML attribute `onsearch`.
-     *		
-     *		The first parameter of the callback is the `VElement` object.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_search(callback) {
-        if (callback == null) { return this.onsearch; }
-    	const e = this;
-    	this.onsearch = () => callback(e);
-    	return this;
-    }
-
-    // Fires after some text has been selected in an element.
-    /*	@docs: {
-     *	@title: On select
-     *	@description: 
-     *		Fires after some text has been selected in an element.
-     *		The equivalent of HTML attribute `onselect`.
-     *		
-     *		The first parameter of the callback is the `VElement` object.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_select(callback) {
-        if (callback == null) { return this.onselect; }
-    	const e = this;
-    	this.onselect = () => callback(e);
-    	return this;
-    }
-
-    // Fires when a form is submitted.
-    /*	@docs: {
-     *	@title: On submit
-     *	@description: 
-     *		Fires when a form is submitted.
-     *		The equivalent of HTML attribute `onsubmit`.
-     *		
-     *		The first parameter of the callback is the `VElement` object.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_submit(callback) {
-        if (callback == null) { return this.onsubmit; }
-    	const e = this;
-    	this.onsubmit = () => callback(e);
-    	return this;
-    }
-
-    // Fires when a user is pressing a key.
-    /*	@docs: {
-     *	@title: On key down
-     *	@description: 
-     *		Fires when a user is pressing a key.
-     *		The equivalent of HTML attribute `onkeydown`.
-     *		
-     *		The first parameter of the callback is the `VElement` object.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_key_down(callback) {
-        if (callback == null) { return this.onkeydown; }
-    	const e = this;
-    	this.onkeydown = () => callback(e);
-    	return this;
-    }
-
-    // Fires when a user presses a key.
-    /*	@docs: {
-     *	@title: On key press
-     *	@description: 
-     *		Fires when a user presses a key.
-     *		The equivalent of HTML attribute `onkeypress`.
-     *		
-     *		The first parameter of the callback is the `VElement` object.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_key_press(callback) {
-        if (callback == null) { return this.onkeypress; }
-    	const e = this;
-    	this.onkeypress = () => callback(e);
-    	return this;
-    }
-
-    // Fires when a user releases a key.
-    /*	@docs: {
-     *	@title: On key up
-     *	@description: 
-     *		Fires when a user releases a key.
-     *		The equivalent of HTML attribute `onkeyup`.
-     *		
-     *		The first parameter of the callback is the `VElement` object.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_key_up(callback) {
-        if (callback == null) { return this.onkeyup; }
-    	const e = this;
-    	this.onkeyup = () => callback(e);
-    	return this;
-    }
-
-    // Fires on a mouse click on the element.
-    // on_click(callback) {
-    //     if (callback == null) { return this.onclick; }
-    // 	const e = this;
-    // 	this.onclick = () => callback(e);
-    // 	return this;
-    // }
-
-    // Fires on a mouse double-click on the element.
-    /*	@docs: {
-     *	@title: On dbl click
-     *	@description: 
-     *		Fires on a mouse double-click on the element.
-     *		The equivalent of HTML attribute `ondblclick`.
-     *		
-     *		The first parameter of the callback is the `VElement` object.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_dbl_click(callback) {
-        if (callback == null) { return this.ondblclick; }
-    	const e = this;
-    	this.ondblclick = () => callback(e);
-    	return this;
-    }
-
-    // Fires when a mouse button is pressed down on an element.
-    /*	@docs: {
-     *	@title: On mouse down
-     *	@description: 
-     *		Fires when a mouse button is pressed down on an element.
-     *		The equivalent of HTML attribute `onmousedown`.
-     *		
-     *		The first parameter of the callback is the `VElement` object.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_mouse_down(callback) {
-        if (callback == null) { return this.onmousedown; }
-    	const e = this;
-    	this.onmousedown = () => callback(e);
-    	return this;
-    }
-
-    // Fires when the mouse pointer is moving while it is over an element.
-    /*	@docs: {
-     *	@title: On mouse move
-     *	@description: 
-     *		Fires when the mouse pointer is moving while it is over an element.
-     *		The equivalent of HTML attribute `onmousemove`.
-     *		
-     *		The first parameter of the callback is the `VElement` object.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_mouse_move(callback) {
-        if (callback == null) { return this.onmousemove; }
-    	const e = this;
-    	this.onmousemove = () => callback(e);
-    	return this;
-    }
-
-    // Fires when the mouse pointer moves out of an element.
-    /*	@docs: {
-     *	@title: On mouse out
-     *	@description: 
-     *		Fires when the mouse pointer moves out of an element.
-     *		The equivalent of HTML attribute `onmouseout`.
-     *		
-     *		The first parameter of the callback is the `VElement` object.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_mouse_out(callback) {
-        if (callback == null) { return this.onmouseout; }
-    	const e = this;
-    	this.onmouseout = () => callback(e);
-    	return this;
-    }
-
-    // Fires when the mouse pointer moves over an element.
-    /*	@docs: {
-     *	@title: On mouse over
-     *	@description: 
-     *		Fires when the mouse pointer moves over an element.
-     *		The equivalent of HTML attribute `onmouseover`.
-     *		
-     *		The first parameter of the callback is the `VElement` object.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_mouse_over(callback) {
-        if (callback == null) { return this.onmouseover; }
-    	const e = this;
-    	this.onmouseover = () => callback(e);
-    	return this;
-    }
-
-    // Fires when a mouse button is released over an element.
-    /*	@docs: {
-     *	@title: On mouse up
-     *	@description: 
-     *		Fires when a mouse button is released over an element.
-     *		The equivalent of HTML attribute `onmouseup`.
-     *		
-     *		The first parameter of the callback is the `VElement` object.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_mouse_up(callback) {
-        if (callback == null) { return this.onmouseup; }
-    	const e = this;
-    	this.onmouseup = () => callback(e);
-    	return this;
-    }
-
-    // Deprecated. Use the onwheel attribute instead.
-    /*	@docs: {
-     *	@title: On mouse wheel
-     *	@description: 
-     *		Deprecated. Use the onwheel attribute instead.
-     *		The equivalent of HTML attribute `onmousewheel`.
-     *		
-     *		The first parameter of the callback is the `VElement` object.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_mouse_wheel(callback) {
-        if (callback == null) { return this.onmousewheel; }
-    	const e = this;
-    	this.onmousewheel = () => callback(e);
-    	return this;
-    }
-
-    // Fires when the mouse wheel rolls up or down over an element.
-    /*	@docs: {
-     *	@title: On wheel
-     *	@description: 
-     *		Fires when the mouse wheel rolls up or down over an element.
-     *		The equivalent of HTML attribute `onwheel`.
-     *		
-     *		The first parameter of the callback is the `VElement` object.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_wheel(callback) {
-        if (callback == null) { return this.onwheel; }
-    	const e = this;
-    	this.onwheel = () => callback(e);
-    	return this;
-    }
-
-    // Script to be run when an element is dragged.
-    /*	@docs: {
-     *	@title: On drag
-     *	@description: 
-     *		Script to be run when an element is dragged.
-     *		The equivalent of HTML attribute `ondrag`.
-     *		
-     *		The first parameter of the callback is the `VElement` object.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_drag(callback) {
-        if (callback == null) { return this.ondrag; }
-    	const e = this;
-    	this.ondrag = () => callback(e);
-    	return this;
-    }
-
-    // Script to be run at the end of a drag operation.
-    /*	@docs: {
-     *	@title: On drag end
-     *	@description: 
-     *		Script to be run at the end of a drag operation.
-     *		The equivalent of HTML attribute `ondragend`.
-     *		
-     *		The first parameter of the callback is the `VElement` object.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_drag_end(callback) {
-        if (callback == null) { return this.ondragend; }
-    	const e = this;
-    	this.ondragend = () => callback(e);
-    	return this;
-    }
-
-    // Script to be run when an element has been dragged to a valid drop target.
-    /*	@docs: {
-     *	@title: On drag enter
-     *	@description: 
-     *		Script to be run when an element has been dragged to a valid drop target.
-     *		The equivalent of HTML attribute `ondragenter`.
-     *		
-     *		The first parameter of the callback is the `VElement` object.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_drag_enter(callback) {
-        if (callback == null) { return this.ondragenter; }
-    	const e = this;
-    	this.ondragenter = () => callback(e);
-    	return this;
-    }
-
-    // Script to be run when an element leaves a valid drop target.
-    /*	@docs: {
-     *	@title: On drag leave
-     *	@description: 
-     *		Script to be run when an element leaves a valid drop target.
-     *		The equivalent of HTML attribute `ondragleave`.
-     *		
-     *		The first parameter of the callback is the `VElement` object.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_drag_leave(callback) {
-        if (callback == null) { return this.ondragleave; }
-    	const e = this;
-    	this.ondragleave = () => callback(e);
-    	return this;
-    }
-
-    // Script to be run when an element is being dragged over a valid drop target.
-    /*	@docs: {
-     *	@title: On drag over
-     *	@description: 
-     *		Script to be run when an element is being dragged over a valid drop target.
-     *		The equivalent of HTML attribute `ondragover`.
-     *		
-     *		The first parameter of the callback is the `VElement` object.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_drag_over(callback) {
-        if (callback == null) { return this.ondragover; }
-    	const e = this;
-    	this.ondragover = () => callback(e);
-    	return this;
-    }
-
-    // Script to be run at the start of a drag operation.
-    /*	@docs: {
-     *	@title: On drag start
-     *	@description: 
-     *		Script to be run at the start of a drag operation.
-     *		The equivalent of HTML attribute `ondragstart`.
-     *		
-     *		The first parameter of the callback is the `VElement` object.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_drag_start(callback) {
-        if (callback == null) { return this.ondragstart; }
-    	const e = this;
-    	this.ondragstart = () => callback(e);
-    	return this;
-    }
-
-    // Script to be run when dragged element is being dropped.
-    /*	@docs: {
-     *	@title: On drop
-     *	@description: 
-     *		Script to be run when dragged element is being dropped.
-     *		The equivalent of HTML attribute `ondrop`.
-     *		
-     *		The first parameter of the callback is the `VElement` object.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_drop(callback) {
-        if (callback == null) { return this.ondrop; }
-    	const e = this;
-    	this.ondrop = () => callback(e);
-    	return this;
-    }
-
-    // Script to be run when an element's scrollbar is being scrolled.
-    /*	@docs: {
-     *	@title: On scroll
-     *	@description: 
-     *		Script to be run when an element's scrollbar is being scrolled.
-     *		The equivalent of HTML attribute `onscroll`.
-     *		
-     *		The first parameter of the callback is the `VElement` object.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_scroll(callback) {
-        if (callback == null) { return this.onscroll; }
-    	const e = this;
-    	this.onscroll = () => callback(e);
-    	return this;
-    }
-
-    // Fires when the user copies the content of an element.
-    /*	@docs: {
-     *	@title: On copy
-     *	@description: 
-     *		Fires when the user copies the content of an element.
-     *		The equivalent of HTML attribute `oncopy`.
-     *		
-     *		The first parameter of the callback is the `VElement` object.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_copy(callback) {
-        if (callback == null) { return this.oncopy; }
-    	const e = this;
-    	this.oncopy = () => callback(e);
-    	return this;
-    }
-
-    // Fires when the user cuts the content of an element.
-    /*	@docs: {
-     *	@title: On cut
-     *	@description: 
-     *		Fires when the user cuts the content of an element.
-     *		The equivalent of HTML attribute `oncut`.
-     *		
-     *		The first parameter of the callback is the `VElement` object.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_cut(callback) {
-        if (callback == null) { return this.oncut; }
-    	const e = this;
-    	this.oncut = () => callback(e);
-    	return this;
-    }
-
-    // Fires when the user pastes some content in an element.
-    /*	@docs: {
-     *	@title: On paste
-     *	@description: 
-     *		Fires when the user pastes some content in an element.
-     *		The equivalent of HTML attribute `onpaste`.
-     *		
-     *		The first parameter of the callback is the `VElement` object.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_paste(callback) {
-        if (callback == null) { return this.onpaste; }
-    	const e = this;
-    	this.onpaste = () => callback(e);
-    	return this;
-    }
-
-    // Script to be run on abort.
-    /*	@docs: {
-     *	@title: On abort
-     *	@description: 
-     *		Script to be run on abort.
-     *		The equivalent of HTML attribute `onabort`.
-     *		
-     *		The first parameter of the callback is the `VElement` object.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_abort(callback) {
-        if (callback == null) { return this.onabort; }
-    	const e = this;
-    	this.onabort = () => callback(e);
-    	return this;
-    }
-
-    // Script to be run when a file is ready to start playing (when it has buffered enough to begin).
-    /*	@docs: {
-     *	@title: On canplay
-     *	@description: 
-     *		Script to be run when a file is ready to start playing (when it has buffered enough to begin).
-     *		The equivalent of HTML attribute `oncanplay`.
-     *		
-     *		The first parameter of the callback is the `VElement` object.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_canplay(callback) {
-        if (callback == null) { return this.oncanplay; }
-    	const e = this;
-    	this.oncanplay = () => callback(e);
-    	return this;
-    }
-
-    // Script to be run when a file can be played all the way to the end without pausing for buffering.
-    /*	@docs: {
-     *	@title: On canplay through
-     *	@description: 
-     *		Script to be run when a file can be played all the way to the end without pausing for buffering.
-     *		The equivalent of HTML attribute `oncanplaythrough`.
-     *		
-     *		The first parameter of the callback is the `VElement` object.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_canplay_through(callback) {
-        if (callback == null) { return this.oncanplaythrough; }
-    	const e = this;
-    	this.oncanplaythrough = () => callback(e);
-    	return this;
-    }
-
-    // Script to be run when the cue changes in a <track> element.
-    /*	@docs: {
-     *	@title: On cue change
-     *	@description: 
-     *		Script to be run when the cue changes in a <track> element.
-     *		The equivalent of HTML attribute `oncuechange`.
-     *		
-     *		The first parameter of the callback is the `VElement` object.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_cue_change(callback) {
-        if (callback == null) { return this.oncuechange; }
-    	const e = this;
-    	this.oncuechange = () => callback(e);
-    	return this;
-    }
-
-    // Script to be run when the length of the media changes.
-    /*	@docs: {
-     *	@title: On duration change
-     *	@description: 
-     *		Script to be run when the length of the media changes.
-     *		The equivalent of HTML attribute `ondurationchange`.
-     *		
-     *		The first parameter of the callback is the `VElement` object.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_duration_change(callback) {
-        if (callback == null) { return this.ondurationchange; }
-    	const e = this;
-    	this.ondurationchange = () => callback(e);
-    	return this;
-    }
-
-    // Script to be run when something bad happens and the file is suddenly unavailable (like unexpectedly disconnects).
-    /*	@docs: {
-     *	@title: On emptied
-     *	@description: 
-     *		Script to be run when something bad happens and the file is suddenly unavailable (like unexpectedly disconnects).
-     *		The equivalent of HTML attribute `onemptied`.
-     *		
-     *		The first parameter of the callback is the `VElement` object.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_emptied(callback) {
-        if (callback == null) { return this.onemptied; }
-    	const e = this;
-    	this.onemptied = () => callback(e);
-    	return this;
-    }
-
-    // Script to be run when the media has reach the end (a useful event for messages like "thanks for listening").
-    /*	@docs: {
-     *	@title: On ended
-     *	@description: 
-     *		Script to be run when the media has reach the end (a useful event for messages like "thanks for listening").
-     *		The equivalent of HTML attribute `onended`.
-     *		
-     *		The first parameter of the callback is the `VElement` object.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_ended(callback) {
-        if (callback == null) { return this.onended; }
-    	const e = this;
-    	this.onended = () => callback(e);
-    	return this;
-    }
-
-    // Script to be run when an error occurs when the file is being loaded.
-    /*	@docs: {
-     *	@title: On error
-     *	@description: 
-     *		Script to be run when an error occurs when the file is being loaded.
-     *		The equivalent of HTML attribute `onerror`.
-     *		
-     *		The first parameter of the callback is the `VElement` object.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_error(callback) {
-        if (callback == null) { return this.onerror; }
-    	const e = this;
-    	this.onerror = () => callback(e);
-    	return this;
-    }
-
-    // Script to be run when media data is loaded.
-    /*	@docs: {
-     *	@title: On loaded data
-     *	@description: 
-     *		Script to be run when media data is loaded.
-     *		The equivalent of HTML attribute `onloadeddata`.
-     *		
-     *		The first parameter of the callback is the `VElement` object.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_loaded_data(callback) {
-        if (callback == null) { return this.onloadeddata; }
-    	const e = this;
-    	this.onloadeddata = () => callback(e);
-    	return this;
-    }
-
-    // Script to be run when meta data (like dimensions and duration) are loaded.
-    /*	@docs: {
-     *	@title: On loaded metadata
-     *	@description: 
-     *		Script to be run when meta data (like dimensions and duration) are loaded.
-     *		The equivalent of HTML attribute `onloadedmetadata`.
-     *		
-     *		The first parameter of the callback is the `VElement` object.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_loaded_metadata(callback) {
-        if (callback == null) { return this.onloadedmetadata; }
-    	const e = this;
-    	this.onloadedmetadata = () => callback(e);
-    	return this;
-    }
-
-    // Script to be run just as the file begins to load before anything is actually loaded.
-    /*	@docs: {
-     *	@title: On load start
-     *	@description: 
-     *		Script to be run just as the file begins to load before anything is actually loaded.
-     *		The equivalent of HTML attribute `onloadstart`.
-     *		
-     *		The first parameter of the callback is the `VElement` object.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_load_start(callback) {
-        if (callback == null) { return this.onloadstart; }
-    	const e = this;
-    	this.onloadstart = () => callback(e);
-    	return this;
-    }
-
-    // Script to be run when the media is paused either by the user or programmatically.
-    /*	@docs: {
-     *	@title: On pause
-     *	@description: 
-     *		Script to be run when the media is paused either by the user or programmatically.
-     *		The equivalent of HTML attribute `onpause`.
-     *		
-     *		The first parameter of the callback is the `VElement` object.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_pause(callback) {
-        if (callback == null) { return this.onpause; }
-    	const e = this;
-    	this.onpause = () => callback(e);
-    	return this;
-    }
-
-    // Script to be run when the media is ready to start playing.
-    /*	@docs: {
-     *	@title: On play
-     *	@description: 
-     *		Script to be run when the media is ready to start playing.
-     *		The equivalent of HTML attribute `onplay`.
-     *		
-     *		The first parameter of the callback is the `VElement` object.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_play(callback) {
-        if (callback == null) { return this.onplay; }
-    	const e = this;
-    	this.onplay = () => callback(e);
-    	return this;
-    }
-
-    // Script to be run when the media actually has started playing.
-    /*	@docs: {
-     *	@title: On playing
-     *	@description: 
-     *		Script to be run when the media actually has started playing.
-     *		The equivalent of HTML attribute `onplaying`.
-     *		
-     *		The first parameter of the callback is the `VElement` object.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_playing(callback) {
-        if (callback == null) { return this.onplaying; }
-    	const e = this;
-    	this.onplaying = () => callback(e);
-    	return this;
-    }
-
-    // Script to be run when the browser is in the process of getting the media data.
-    /*	@docs: {
-     *	@title: Onprogress
-     *	@description: 
-     *		Script to be run when the browser is in the process of getting the media data.
-     *		The equivalent of HTML attribute `onprogress`.
-     *		
-     *		The first parameter of the callback is the `VElement` object.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    onprogress(callback) {
-        if (callback == null) { return this.onprogress; }
-    	const e = this;
-    	this.onprogress = () => callback(e);
-    	return this;
-    }
-
-    // Script to be run each time the playback rate changes (like when a user switches to a slow motion or fast forward mode).
-    /*	@docs: {
-     *	@title: On rate change
-     *	@description: 
-     *		Script to be run each time the playback rate changes (like when a user switches to a slow motion or fast forward mode).
-     *		The equivalent of HTML attribute `onratechange`.
-     *		
-     *		The first parameter of the callback is the `VElement` object.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_rate_change(callback) {
-        if (callback == null) { return this.onratechange; }
-    	const e = this;
-    	this.onratechange = () => callback(e);
-    	return this;
-    }
-
-    // Script to be run when the seeking attribute is set to false indicating that seeking has ended.
-    /*	@docs: {
-     *	@title: On seeked
-     *	@description: 
-     *		Script to be run when the seeking attribute is set to false indicating that seeking has ended.
-     *		The equivalent of HTML attribute `onseeked`.
-     *		
-     *		The first parameter of the callback is the `VElement` object.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_seeked(callback) {
-        if (callback == null) { return this.onseeked; }
-    	const e = this;
-    	this.onseeked = () => callback(e);
-    	return this;
-    }
-
-    // Script to be run when the seeking attribute is set to true indicating that seeking is active.
-    /*	@docs: {
-     *	@title: On seeking
-     *	@description: 
-     *		Script to be run when the seeking attribute is set to true indicating that seeking is active.
-     *		The equivalent of HTML attribute `onseeking`.
-     *		
-     *		The first parameter of the callback is the `VElement` object.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_seeking(callback) {
-        if (callback == null) { return this.onseeking; }
-    	const e = this;
-    	this.onseeking = () => callback(e);
-    	return this;
-    }
-
-    // Script to be run when the browser is unable to fetch the media data for whatever reason.
-    /*	@docs: {
-     *	@title: On stalled
-     *	@description: 
-     *		Script to be run when the browser is unable to fetch the media data for whatever reason.
-     *		The equivalent of HTML attribute `onstalled`.
-     *		
-     *		The first parameter of the callback is the `VElement` object.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_stalled(callback) {
-        if (callback == null) { return this.onstalled; }
-    	const e = this;
-    	this.onstalled = () => callback(e);
-    	return this;
-    }
-
-    // Script to be run when fetching the media data is stopped before it is completely loaded for whatever reason.
-    /*	@docs: {
-     *	@title: On suspend
-     *	@description: 
-     *		Script to be run when fetching the media data is stopped before it is completely loaded for whatever reason.
-     *		The equivalent of HTML attribute `onsuspend`.
-     *		
-     *		The first parameter of the callback is the `VElement` object.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_suspend(callback) {
-        if (callback == null) { return this.onsuspend; }
-    	const e = this;
-    	this.onsuspend = () => callback(e);
-    	return this;
-    }
-
-    // Script to be run when the playing position has changed (like when the user fast forwards to a different point in the media).
-    /*	@docs: {
-     *	@title: On time update
-     *	@description: 
-     *		Script to be run when the playing position has changed (like when the user fast forwards to a different point in the media).
-     *		The equivalent of HTML attribute `ontimeupdate`.
-     *		
-     *		The first parameter of the callback is the `VElement` object.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_time_update(callback) {
-        if (callback == null) { return this.ontimeupdate; }
-    	const e = this;
-    	this.ontimeupdate = () => callback(e);
-    	return this;
-    }
-
-    // Script to be run each time the volume is changed which (includes setting the volume to "mute").
-    /*	@docs: {
-     *	@title: On volume change
-     *	@description: 
-     *		Script to be run each time the volume is changed which (includes setting the volume to "mute").
-     *		The equivalent of HTML attribute `onvolumechange`.
-     *		
-     *		The first parameter of the callback is the `VElement` object.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_volume_change(callback) {
-        if (callback == null) { return this.onvolumechange; }
-    	const e = this;
-    	this.onvolumechange = () => callback(e);
-    	return this;
-    }
-
-    // Script to be run when the media has paused but is expected to resume (like when the media pauses to buffer more data).
-    /*	@docs: {
-     *	@title: On waiting
-     *	@description: 
-     *		Script to be run when the media has paused but is expected to resume (like when the media pauses to buffer more data).
-     *		The equivalent of HTML attribute `onwaiting`.
-     *		
-     *		The first parameter of the callback is the `VElement` object.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_waiting(callback) {
-        if (callback == null) { return this.onwaiting; }
-    	const e = this;
-    	this.onwaiting = () => callback(e);
-    	return this;
-    }
-
-    // Fires when the user opens or closes the <details> element.
-    /*	@docs: {
-     *	@title: On toggle
-     *	@description: 
-     *		Fires when the user opens or closes the <details> element.
-     *		The equivalent of HTML attribute `ontoggle`.
-     *		
-     *		The first parameter of the callback is the `VElement` object.
-     *		
-     *		Returns the attribute value when parameter `value` is `null`.
-     *	@return: 
-     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-     *	@parameter: {
-     *		@name: value
-     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-     *	}: 
-     *	@inherit: false
-     } */ 
-    on_toggle(callback) {
-        if (callback == null) { return this.ontoggle; }
-    	const e = this;
-    	this.ontoggle = () => callback(e);
-    	return this;
-    }
 
+		// ---------------------------------------------------------
+		// Alignment functions.
+		
+		// Alignment.
+		align(value) {
+			switch (this.element_type) {
+				case "HStack":
+				case "ZStack":
+				this.style.justifyContent = value;
+				return this;
+				case "VStack":
+				case "Scroller":
+				this.style.alignItems = value;
+				return this;
+				default:
+				this.style.textAlign = value;
+				return this;
+			}
+		}
+		leading() {
+			return this.align("start");
+		}
+		center() {
+			return this.align("center");
+		}
+		trailing() {
+			return this.align("end");
+		}
+		
+		// Align.
+		align_vertical(value) {
+			switch (this.element_type) {
+				case "HStack":
+				case "ZStack":
+				this.style.alignItems = value;
+				return this;
+				case "VStack":
+				case "Scroller":
+				this.style.justifyContent = value;
+				return this;
+				default:
+				this.style.textAlign = value;
+				return this;
+			}
+		}
+		leading_vertical() {
+			return this.align_vertical("start");
+		}
+		center_vertical() {
+			return this.align_vertical("center");
+		}
+		trailing_vertical() {
+			return this.align_vertical("end");
+		}
+		
+		// Text align shortcuts.
+		align_text(value) {
+			return this.text_align(value);
+		}
+		text_leading() {
+			return this.text_align("start");
+		}
+		text_center() {
+			return this.text_align("center");
+		}
+		text_trailing() {
+			return this.text_align("end");
+		}
+
+		// Align items by height inside a hstack.
+		align_height() {
+			return this.align_items("stretch");
+		}
+		
+		// ---------------------------------------------------------
+		// Styling functions.
+
+		/*	@docs: {
+	     *	@title: Color
+	     *	@description: 
+	     *		Sets the color of text, also supports a `Gradient` element.
+	     *		
+	     *		Returns the attribute value when parameter `value` is `null`.
+	     *	@return: 
+	     *		Returns the `VElement` object. 
+	     *		Unless parameter `value` is `null`, then the attribute's value is returned. 
+	     *		When the value is `null` and the color has been set using a `Gradient`, `transparent` will be returned.
+	     *	@parameter: {
+	     *		@name: value
+	     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+	     *	} 
+	     *	@inherit: false
+		 } */ 
+		color(value) {
+		 	if (value == null) { return this.style.color; }
+		 	if (value instanceof Gradient) {
+		 		this.style.backgroundImage = value.gradient;
+		 		this.style.backgroundClip = "text";
+		 		this.style["-webkit-background-clip"] = "text";
+		 		this.style.color = "transparent";
+		 	} else {
+		 		this.style.color = value;
+		 	}
+		 	return this;
+		}
+
+		// Border, 1 till 3 args.
+		border(...values) {
+			if (values.length === 1) {
+				this.style.border = values[0];
+			} else if (values.length === 2) {
+				this.style.border = this.pad_numeric(values[0]) + " solid " + values[1];
+			} else if (values.length === 3) {
+				this.style.border = this.pad_numeric(values[0]) + " ", values[1] + " " + values[2];
+			} else {
+				console.error("Invalid number of arguments for function \"border()\".");
+			}
+			return this;
+		}
+
+		// Adds shadow to the object, 1 or 4 args.
+		shadow(...values) {
+			if (values.length === 1) {
+				return this.box_shadow(this.pad_numeric(values[0]));
+			} else if (values.length === 4) {
+				return this.box_shadow(
+					this.pad_numeric(values[0]) + " " +
+					this.pad_numeric(values[1]) + " " +
+					this.pad_numeric(values[2]) + " " +
+					values[3]
+					);
+			} else {
+				console.error("Invalid number of arguments for function \"shadow()\".");
+			}
+		}
+
+		// Adds drop shadow to the object, 0 or 4 args.
+		drop_shadow(...values) {
+			if (values.length === 0 || values.length === 1 && values[0] == null) {
+				return this.filter();
+			} else if (values.length === 1) {
+				return this.filter("drop-shadow(" + this.pad_numeric(values[0]) + ") ");
+			} else if (values.length === 4) {
+				return this.filter(
+					"drop-shadow(" + 
+					this.pad_numeric(values[0]) + " " +
+					this.pad_numeric(values[1]) + " " +
+					this.pad_numeric(values[2]) + " " +
+					values[3] + ") "
+					);
+			} else {
+				console.error("Invalid number of arguments for function \"drop_shadow()\".");
+			}
+		}
+
+		// Greyscale.
+		greyscale(value) {
+			if (value == null) {
+				return this.filter();
+			} else {
+				return this.filter("grayscale(" + this.pad_percentage(value, "") + ") ");
+			}
+		}
+
+		// Opacity.
+		opacity(value) {
+			this.style.opacity = value;
+			return this;
+		}
+
+		// Toggle opacity.
+		// Can be used to darken and normalize a view.
+		toggle_opacity(value = 0.25) {
+			if (typeof this.style.opacity === "undefined" || this.style.opacity == "" || this.style.opacity == 1.0) {
+				this.style.opacity = value;
+			} else {
+				this.style.opacity = 1.0;
+			}
+			return this;
+		}
+
+		// Blur.
+		blur(value) {
+			if (value == null) {
+				return this.filter(this.edit_filter_wrapper(this.style.filter, "blur", value));
+			} else {
+				return filter(this.edit_filter_wrapper(this.style.filter, "blur", "blur(" + this.pad_numeric(value) + ") "));
+			}
+		}
+
+		// Toggle blur.
+		toggle_blur(value = 10) {
+			return this.filter(this.toggle_filter_wrapper(this.style.filter, "blur", "blur(" + this.pad_numeric(value) + ") "));
+		}
+		
+		// Background blur.
+		background_blur(value) {
+			if (value == null) {
+				return this.backdrop_filter(this.edit_filter_wrapper(this.style.backdropFilter, "blur", value));
+			} else {
+				return this.backdrop_filter(this.edit_filter_wrapper(this.style.backdropFilter, "blur", "blur(" + this.pad_numeric(value) + ") "));
+			}
+		}
+
+		// Toggle background blur.
+		toggle_background_blur(value = 10) {
+			return this.backdrop_filter(this.toggle_filter_wrapper(this.style.backdropFilter, "blur", "blur(" + this.pad_numeric(value) + ") "));
+		}
+
+		// Brightness.
+		brightness(value) {
+			if (value == null) {
+				return this.filter(this.edit_filter_wrapper(this.style.filter, "brightness", value));
+			} else {
+				return this.filter(this.edit_filter_wrapper(this.style.filter, "brightness", "brightness(" + this.pad_percentage(value, "%") + ") "));
+			}
+		}
+
+		// Toggle brightness.
+		toggle_brightness(value = 0.5) {
+			return this.filter(this.toggle_filter_wrapper(this.style.filter, "brightness", "brightness(" + this.pad_percentage(value, "%") + ") "));
+		}
+
+		// Background brightness.
+		background_brightness(value) {
+			if (value == null) {
+				return this.backdrop_filter(this.edit_filter_wrapper(this.style.backdropFilter, "brightness", value));
+			} else {
+				return this.backdrop_filter(this.edit_filter_wrapper(this.style.backdropFilter, "brightness", "brightness(" + this.pad_percentage(value, "%") + ") "));
+			}
+		}
+
+		// Toggle brightness.
+		toggle_background_brightness(value = 10) {
+			return this.backdrop_filter(this.toggle_filter_wrapper(this.style.backdropFilter, "brightness", "brightness(" + this.pad_percentage(value, "%") + ") "));
+		}
+
+		// ---------------------------------------------------------
+		// Visibility functions.
+
+		// Specifies how a certain HTML element should be displayed
+		display(value) {
+			if (value != null && value != "none") {
+				this.element_display = value;
+			}
+			this.style.display = value;
+			return this;
+		}
+
+	    // Hide the element.
+	    hide() {
+	    	this.style.display = "none";
+	    	return this;
+	    }
+
+	    // Show.
+	    show() {
+	    	this.style.display = this.element_display;
+	    	return this;
+	    }
+
+	    // Specify if the element is hidden.
+	    // Should not be used with an argument, rather use hide() and show().
+	    // When no argument is passed it returns the visibility boolean.
+	    is_hidden(...args) {
+	    	if (args.length === 0) {
+	    		return this.style.display == "none" || typeof this.style.display === "undefined";
+	    	}
+	    	console.error("Function \"hidden()\" should not be used with arguments, use \"hide()\" and \"show()\" instead.");
+	    }
+
+	    // Toggle visibility.
+	    toggle_visibility() {
+	    	if (this.hidden()) {
+	    		this.show();
+	    	} else {
+	    		this.hide();
+	    	}
+	    	return this;
+	    }
+
+	    // ---------------------------------------------------------
+		// General attribute functions.
+		
+		// Inner html.
+		inner_html(value) {
+			if (value == null) {
+				return this.innerHTML;
+			}
+			this.innerHTML = value;
+			return this;
+		}
+
+		// Outer html.
+		outer_html(value) {
+			if (value == null) {
+				return this.outerHTML;
+			}
+			this.outerHTML = value;
+			return this;
+		}
+		
+		// Style dictionary.
+		// - Returns the css attributes when param css_attr is null.
+		styles(css_attr) {
+			if (css_attr == null) {
+					let dict = {};
+					for (let property in this.style) {
+						if (this.style.hasOwnProperty(property)) {
+
+							// Custom css styles will be a direct key instead of the string index.
+							// if (property[0] == "-") { 
+								if (!(/^\d+$/).test(property) && this.style[property] != '' && typeof this.style[property] !== 'function') { 
+								// console.log(property);
+								dict[property] = this.style[property];
+							}
+
+							// Default styles will be an index string instead of the key.
+							else { 
+								const key = this.style[property];
+								const value = this.style[key];
+								if (
+									key !== '' && key !== undefined && typeof key !== 'function' &&
+									value !== '' && value !== undefined && typeof value !== 'function'
+									) {
+									dict[key] = value;
+							}
+						}
+
+					}
+				}
+				return dict;
+			}
+			for (const i in css_attr) {
+				const value = css_attr[i];
+				if (
+					i === "display" && value != null && value !== "none"
+				) {
+					this.element_display = value;
+				}
+				this.style[i] = value;
+			}	
+			return this;
+		}
+
+		// Get or set a single attribute.
+		// leave value null to get the attribute.
+		attr(key, value = null) {
+			if (value == null) {
+				return this.getAttribute(key);
+			}
+			this.setAttribute(key, value);
+			return this;
+		}
+
+		// Set attributes by dict.
+		attrs(html_attr) {
+			for (let i in html_attr) {
+				this.setAttribute(i, html_attr[i]);
+			}
+			return this;
+		}
+		
+		// Get or set a single events.
+		// leave value null to get the events.
+		event(key, value = null) {
+			if (value == null) {
+				return this[key];
+			}
+			this[key] = value;
+			return this;
+		}
+
+		// Set events by dict.
+		events(html_events) {
+			for (let i in html_events) {
+				this[i] = html_events[i];
+			}
+			return this;
+		}
+
+		// Specifies one or more classnames for an element (refers to a class in a style sheet).
+	    /*	@docs: {
+	     *	@title: Class
+	     *	@description: 
+	     *		Specifies one or more classnames for an element (refers to a class in a style sheet).
+	     *		The equivalent of HTML attribute `class`.
+	     *		
+	     *		Returns the attribute value when parameter `value` is `null`.
+	     *	@return: 
+	     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+	     *	@parameter: {
+	     *		@name: value
+	     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+	     *	} 
+	     *	@inherit: false
+		} */ 
+		class(value) {
+		 	if (value == null) { return this.class; }
+		 	this.className = value;
+		 	return this;
+		}
+
+		// ---------------------------------------------------------
+		// Media query functions.
+
+		// Media query.
+		media(media_query, true_handler, false_handler) {
+			const e = this;
+			function query_handler(query) {
+				if (query.matches) {
+					true_handler(e);
+				} else if (false_handler != null) {
+					false_handler(e);
+				}
+			}
+			const query_list = window.matchMedia(media_query);
+			query_handler(query_list); // Initialize the style based on the initial media query state
+			query_list.addListener(query_handler); // Update the style when the media query state changes
+			return this;
+		}
+
+		// ---------------------------------------------------------
+		// Default html element functions.
+
+		// Animate.
+		animate({
+			keyframes = [], 
+			easing = "ease-in-out",
+			delay = 0,
+			duration = 1000,
+			repeat = false,
+			on_finish = null,
+		}) {
+			const e = this;
+
+			// Keep a single keyframe state for delays.
+			function keep_state(index) {
+				e.animate(
+					[
+					keyframes[index],
+					keyframes[index],
+					], 
+					{
+						duration: delay,
+					}
+					);
+			}
+
+			// Do an animation.
+			function do_animation(index) {
+
+				// Animate.
+				if (index + 1 < keyframes.length) {
+					const from = keyframes[index];
+					const to = keyframes[index + 1];
+					e.animate(
+						[
+						from, 
+						to,
+						], 
+						{
+							duration: from.duration || duration,
+							// easing: from.easing || easing,
+						}
+						);
+					if (to.delay != null && to.delay > 0) {
+						setTimeout(() => keep_state(index + 1), from.duration || duration);
+						setTimeout(() => do_animation(index + 1), (from.duration || duration) + (to.delay || 0));
+					} else {
+						setTimeout(() => do_animation(index + 1), from.duration || duration);
+					}
+				}
+
+				// Repeat when finished.
+				else if (repeat) {
+
+					// Keep last state till delay.
+					if (delay > 0) {
+						keep_state(keyframes.length - 1);
+						setTimeout(() => do_animation(0), delay);
+
+					}
+
+					// No delay.
+					else {
+						const delay = keyframes[keyframes.length - 1].duration || duration;
+						setTimeout(() => do_animation(0), delay);
+					}
+
+				}
+
+				// Finished.
+				else if (on_finish != null) {
+					on_finish(e);
+				}
+			}
+
+			// Start.
+			setTimeout(() => do_animation(0), delay || 0);
+			return this;
+
+			// ============================================
+			// v1.
+			/*
+
+			// Use default animation when the keyframes do not contain key "duration" or "delay".
+			const default_animation = true;
+			for (let i = 0; i < keyframes.length; i++) {
+				if (keyframes[i].duration != null || keyframes[i].delay != null) {
+					default_animation = false;
+					break;
+				}
+			}
+
+			// Default animation.
+			if (default_animation) {
+				if (options.iterations == "infinite") {
+					options.iterations = Infinity;
+				}
+				if (options.iterations == "infinite") {
+					options.iterations = Infinity;
+				}
+				const animation = this.animate(keyframes, options);
+				if (on_finish !== null) {
+					const e = this;
+					animation.onfinish = function() {
+						on_finish(e);
+					}
+				}
+				return this;
+			}
+
+			// const { keyframes, options: animationOptions, on_finish } = options;
+
+			// List of properties that require the "px" unit
+	  		const padded_properties = [
+				"top",
+				"left",
+				"right",
+				"bottom",
+				"width",
+				"height",
+				"margin",
+				"margin-top",
+				"margin-bottom",
+				"margin-left",
+				"margin-right",
+				"padding",
+				"padding-top",
+				"padding-bottom",
+				"padding-left",
+				"padding-right",
+				"border-width",
+				"border-top-width",
+				"border-bottom-width",
+				"border-left-width",
+				"border-right-width",
+				"border-radius",
+	  		];
+
+	    	const animate_frame = (index) => {
+		        if (index >= keyframes.length) {
+		            if (options.iterations === "infinite") {
+		                // Repeat the animation if iterations are set to "infinite"
+		                requestAnimationFrame(() => animate_frame(0));
+		            } else if (typeof options.iterations === "number" && options.iterations > 1) {
+		                // Repeat the animation a finite number of times
+		                requestAnimationFrame(() => animate_frame(0));
+		                options.iterations--;
+		            } else if (on_finish) {
+		                // Animation finished, call the on_finish callback
+		                on_finish();
+		            }
+		            return;
+		        }
+
+		        const keyframe = keyframes[index];
+		        const next_keyframe = keyframes[index + 1] || keyframes[0];
+
+		        const duration = keyframe.duration || options.duration || 1000; // Default duration if not provided
+		        const delay = keyframe.delay || options.delay || 0; // Default duration if not provided
+		        const start_time = Date.now();
+
+		        const animate_step = () => {
+		            const elapsed = Date.now() - start_time;
+		            const delay_progress = delay == 0 ? 1 : Math.min(elapsed / delay, 1);
+		            const progress = duration == 0 ? 1 : Math.min((elapsed - delay) / duration, 1);
+
+		            if (delay_progress >= 1) {
+			            for (let property in keyframe) {
+			            	const from = keyframe[property];
+			            	const to = next_keyframe[property];
+
+			            	// Apply "px" unit to properties that require it.
+			            	if (padded_properties.includes(property)) {
+			            		let padding;
+			            		if (vweb.utils.is_string(from)) {
+			            			if (from.includes("px")) {
+			            				from = parseFloat(from.substr(0, from.length - 2));
+			            				padding = "px";
+			            			} else if (from.includes("%")) {
+			            				from = parseFloat(from.substr(0, from.length - 1));
+			            				padding = "%";
+			            			}
+			            		} else {
+			            			padding = "px";
+			            		}
+				                const current = (to - from) * progress + from;
+								this.style[property] = current + padding;
+							}
+
+							// Apply non-numeric animation directly.
+							else if (progress >= 1){
+								this.style[property] = to;
+							}
+
+			            }
+			         }
+
+		            if (delay_progress < 1 || progress < 1) {
+		                requestAnimationFrame(animate_step);
+		            } else {
+		                requestAnimationFrame(() => animate_frame(index + 1));
+		            }
+		        };
+
+		        animate_step();
+		    };
+
+		    animate_frame(0);
+
+			return this;
+			*/
+		}
+
+		// ---------------------------------------------------------
+		// Events.
+
+		// Script to be run when the element is being clicked
+		on_click(value) {
+			this.style.cursor = "pointer";
+			this.onclick = value;
+			return this;
+		}
+
+		// Script to be run when an element's scrollbar is being scrolled.
+        /*	@docs: {
+         *	@title: On scroll
+         *	@description: 
+         *		Script to be run when an element's scrollbar is being scrolled.
+         *		The equivalent of HTML attribute `onscroll`.
+         *		
+         *		The first parameter of the callback is the `Element` object.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        on_scroll(callback, delay = 25) {
+            if (callback == null) { return this.onscroll; }
+            let timer;
+        	const e = this;
+        	this.onscroll = function(t) {
+        		clearTimeout(timer);
+        		setTimeout(() => callback(e, t), delay);
+        	}
+        	return this;
+        }
+
+	    // Script to be run when the browser window is being resized.
+	    /*	@docs: {
+	     *	@title: On resize
+	     *	@description: 
+	     *		Script to be run when the browser window is being resized.
+	     *		
+	     *		The first parameter of the callback is the `VElement` object.
+	     *	@return: 
+	     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+	     *	@parameter: {
+	     *		@name: value
+	     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+	     *	}: 
+	     *	@inherit: false
+		 } */ 
+		on_window_resize({callback, once = false, delay = 25}) {
+		 	if (callback == null) { return window.onresize; }
+		 	const e = this;
+		 	window.addEventListener('resize', () => {
+		 		if (once && e.on_window_resize_timer != null) {
+		 			clearTimeout(e.on_window_resize_timer)
+		 		}
+		 		e.on_window_resize_timer = setTimeout(() => callback(e), delay);
+		 	});
+		 	return this;
+		}
+
+	    // Custom on attachment drop event.
+	    on_attachment_drop({handler, compress = false}) {
+	    	this.on_drag_over(function(e) {
+	    		e.preventDefault();
+	    		e.dataTransfer.dropEffect = "copy";
+	    	});
+	    	this.on_drop(function(e) {
+	    		e.preventDefault();
+	    		const files = e.dataTransfer.files;
+	    		for (let i = 0; i < files.length; i++) {
+	    			const file = files[i];
+	    			const reader = new FileReader();
+	    			reader.onload = (event) => {
+	    				if (compress == true) {
+	    					handler(file.name, vweb.utils.compress(event.target.result), file);
+	    				} else {
+	    					handler(file.name, event.target.result, file);
+	    				}
+	    			};
+	    			reader.readAsText(file);
+	    		}
+	    	});
+	    	return this;
+	    }
+
+	    // Event when a element appears to the user.
+	    on_appear({callback, repeat = false}) {
+	    	let is_called = false;
+	    	const observer = new IntersectionObserver((entries, observer) => {
+	    		entries.forEach(entry => {
+	    			if (entry.isIntersecting && !is_called) {
+	    				if (callback != null) {
+	    					const e = this;
+	    					callback(e);
+	    				}
+	    				if (!repeat) {
+	    					observer.unobserve(entry.target);
+	    				}
+	    				is_called = true;
+	    			} else if (!entry.isIntersecting) {
+	    				is_called = false;
+	    			}
+	    		});
+	    	});
+	    	observer.observe(this);
+	    	return this;
+	    }
+
+	    // ---------------------------------------------------------
+		// Pseudo element styles.
+
+		// Style the before object.
+		// Returns style object of the pseudo-element.
+		// before() {
+		// 	const pseudo = getComputedStyle(this, '::before');
+		// 	const e = new VElement();
+		// 	e.element = pseudo;
+		// 	return e;
+		// }
+
+		// Style the after object.
+		// Returns style object of the pseudo-element.
+		// after() {
+		// 	const pseudo = getComputedStyle(this, '::after');
+		// 	const e = new VElement();
+		// 	e.element = pseudo;
+		// 	return e;
+		// }
+
+		// ---------------------------------------------------------
+		// Other functions.
+
+		// Get the children.
+		// children() {
+		// 	return this.children;
+		// }
+
+		// Get a child by index.
+		// child(index) {
+		// 	return this.children[index];
+		// }
+
+		// Get the first child.
+		first_child() {
+			return this.firstChild;
+		}
+
+		// Get the last child.
+		last_child() {
+			return this.lastChild;
+		}
+
+		// Set the current element as the default.
+		// Leave parameter "Type" null to set the current styles to the current object's default styles.
+		set_default(Type) {
+			if (Type == null) {
+				return this.set_default(E);
+			}
+			Type.default_style = this.styles();
+			return this;
+		}
+
+		// ---------------------------------------------------------
+		// Custom functions for some derived classes.
+
+		// Get or set the parent element.
+		// Only assigned when this is a child element of a specific Element derived class, such as LoaderButton.
+		parent(value) {
+			if (value == null) {
+				return this.parent_e;
+			}
+			this.parent_e = value;
+			return this;
+		}
+
+		// ---------------------------------------------------------
+		// Cast functions.
+		
+		// Cast to string.
+		toString() {
+			return this.outerHTML;
+		}
+
+        
+
+        // ---------------------------------------------------------
+        // Automatically generated CSS functions. 
+        // Reference: https://www.w3schools.com/cssref/index.php. 
+
+        // Specifies an accent color for user-interface controls.
+        /*	@docs: {
+         *	@title: Accent color
+         *	@description: 
+         *		Specifies an accent color for user-interface controls.
+         *		The equivalent of CSS attribute `accentColor`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        accent_color(value) {
+            if (value == null) { return this.style.accentColor; }
+            this.style.accentColor = value;
+            return this;
+        }
+
+        // Specifies the alignment between the lines inside a flexible container when the items do not use all available space.
+        /*	@docs: {
+         *	@title: Align content
+         *	@description: 
+         *		Specifies the alignment between the lines inside a flexible container when the items do not use all available space.
+         *		The equivalent of CSS attribute `alignContent`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        align_content(value) {
+            if (value == null) { return this.style.alignContent; }
+            this.style.alignContent = value;
+            this.style.msAlignContent = value;
+            this.style.webkitAlignContent = value;
+            this.style.MozAlignContent = value;
+            this.style.OAlignContent = value;
+            return this;
+        }
+
+        // Specifies the alignment for items inside a flexible container.
+        /*	@docs: {
+         *	@title: Align items
+         *	@description: 
+         *		Specifies the alignment for items inside a flexible container.
+         *		The equivalent of CSS attribute `alignItems`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        align_items(value) {
+            if (value == null) { return this.style.alignItems; }
+            this.style.alignItems = value;
+            this.style.msAlignItems = value;
+            this.style.webkitAlignItems = value;
+            this.style.MozAlignItems = value;
+            this.style.OAlignItems = value;
+            return this;
+        }
+
+        // Specifies the alignment for selected items inside a flexible container.
+        /*	@docs: {
+         *	@title: Align self
+         *	@description: 
+         *		Specifies the alignment for selected items inside a flexible container.
+         *		The equivalent of CSS attribute `alignSelf`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        align_self(value) {
+            if (value == null) { return this.style.alignSelf; }
+            this.style.alignSelf = value;
+            this.style.msAlignSelf = value;
+            this.style.webkitAlignSelf = value;
+            this.style.MozAlignSelf = value;
+            this.style.OAlignSelf = value;
+            return this;
+        }
+
+        // Resets all properties (except unicode-bidi and direction).
+        /*	@docs: {
+         *	@title: All
+         *	@description: 
+         *		Resets all properties (except unicode-bidi and direction).
+         *		The equivalent of CSS attribute `all`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        all(value) {
+            if (value == null) { return this.style.all; }
+            this.style.all = value;
+            return this;
+        }
+
+        // A shorthand property for all the animation-* properties.
+        /*	@docs: {
+         *	@title: Animation
+         *	@description: 
+         *		A shorthand property for all the animation-* properties.
+         *		The equivalent of CSS attribute `animation`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        animation(value) {
+            if (value == null) { return this.style.animation; }
+            this.style.animation = value;
+            this.style.msAnimation = value;
+            this.style.webkitAnimation = value;
+            this.style.MozAnimation = value;
+            this.style.OAnimation = value;
+            return this;
+        }
+
+        // Specifies a delay for the start of an animation.
+        /*	@docs: {
+         *	@title: Animation delay
+         *	@description: 
+         *		Specifies a delay for the start of an animation.
+         *		The equivalent of CSS attribute `animationDelay`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        animation_delay(value) {
+            if (value == null) { return this.style.animationDelay; }
+            this.style.animationDelay = value;
+            this.style.msAnimationDelay = value;
+            this.style.webkitAnimationDelay = value;
+            this.style.MozAnimationDelay = value;
+            this.style.OAnimationDelay = value;
+            return this;
+        }
+
+        // Specifies whether an animation should be played forwards, backwards or in alternate cycles.
+        /*	@docs: {
+         *	@title: Animation direction
+         *	@description: 
+         *		Specifies whether an animation should be played forwards, backwards or in alternate cycles.
+         *		The equivalent of CSS attribute `animationDirection`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        animation_direction(value) {
+            if (value == null) { return this.style.animationDirection; }
+            this.style.animationDirection = value;
+            this.style.msAnimationDirection = value;
+            this.style.webkitAnimationDirection = value;
+            this.style.MozAnimationDirection = value;
+            this.style.OAnimationDirection = value;
+            return this;
+        }
+
+        // Specifies how long an animation should take to complete one cycle.
+        /*	@docs: {
+         *	@title: Animation duration
+         *	@description: 
+         *		Specifies how long an animation should take to complete one cycle.
+         *		The equivalent of CSS attribute `animationDuration`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        animation_duration(value) {
+            if (value == null) { return this.style.animationDuration; }
+            this.style.animationDuration = value;
+            this.style.msAnimationDuration = value;
+            this.style.webkitAnimationDuration = value;
+            this.style.MozAnimationDuration = value;
+            this.style.OAnimationDuration = value;
+            return this;
+        }
+
+        // Specifies a style for the element when the animation is not playing (before it starts, after it ends, or both).
+        /*	@docs: {
+         *	@title: Animation fill mode
+         *	@description: 
+         *		Specifies a style for the element when the animation is not playing (before it starts, after it ends, or both).
+         *		The equivalent of CSS attribute `animationFillMode`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        animation_fill_mode(value) {
+            if (value == null) { return this.style.animationFillMode; }
+            this.style.animationFillMode = value;
+            this.style.msAnimationFillMode = value;
+            this.style.webkitAnimationFillMode = value;
+            this.style.MozAnimationFillMode = value;
+            this.style.OAnimationFillMode = value;
+            return this;
+        }
+
+        // Specifies the number of times an animation should be played.
+        /*	@docs: {
+         *	@title: Animation iteration count
+         *	@description: 
+         *		Specifies the number of times an animation should be played.
+         *		The equivalent of CSS attribute `animationIterationCount`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        animation_iteration_count(value) {
+            if (value == null) { return this.style.animationIterationCount; }
+            this.style.animationIterationCount = value;
+            this.style.msAnimationIterationCount = value;
+            this.style.webkitAnimationIterationCount = value;
+            this.style.MozAnimationIterationCount = value;
+            this.style.OAnimationIterationCount = value;
+            return this;
+        }
+
+        // Specifies a name for the @keyframes animation.
+        /*	@docs: {
+         *	@title: Animation name
+         *	@description: 
+         *		Specifies a name for the @keyframes animation.
+         *		The equivalent of CSS attribute `animationName`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        animation_name(value) {
+            if (value == null) { return this.style.animationName; }
+            this.style.animationName = value;
+            this.style.msAnimationName = value;
+            this.style.webkitAnimationName = value;
+            this.style.MozAnimationName = value;
+            this.style.OAnimationName = value;
+            return this;
+        }
+
+        // Specifies whether the animation is running or paused.
+        /*	@docs: {
+         *	@title: Animation play state
+         *	@description: 
+         *		Specifies whether the animation is running or paused.
+         *		The equivalent of CSS attribute `animationPlayState`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        animation_play_state(value) {
+            if (value == null) { return this.style.animationPlayState; }
+            this.style.animationPlayState = value;
+            this.style.msAnimationPlayState = value;
+            this.style.webkitAnimationPlayState = value;
+            this.style.MozAnimationPlayState = value;
+            this.style.OAnimationPlayState = value;
+            return this;
+        }
+
+        // Specifies the speed curve of an animation.
+        /*	@docs: {
+         *	@title: Animation timing function
+         *	@description: 
+         *		Specifies the speed curve of an animation.
+         *		The equivalent of CSS attribute `animationTimingFunction`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        animation_timing_function(value) {
+            if (value == null) { return this.style.animationTimingFunction; }
+            this.style.animationTimingFunction = value;
+            this.style.msAnimationTimingFunction = value;
+            this.style.webkitAnimationTimingFunction = value;
+            this.style.MozAnimationTimingFunction = value;
+            this.style.OAnimationTimingFunction = value;
+            return this;
+        }
+
+        // Specifies preferred aspect ratio of an element.
+        /*	@docs: {
+         *	@title: Aspect ratio
+         *	@description: 
+         *		Specifies preferred aspect ratio of an element.
+         *		The equivalent of CSS attribute `aspectRatio`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        aspect_ratio(value) {
+            if (value == null) { return this.style.aspectRatio; }
+            this.style.aspectRatio = value;
+            return this;
+        }
+
+        // Defines a graphical effect to the area behind an element.
+        /*	@docs: {
+         *	@title: Backdrop filter
+         *	@description: 
+         *		Defines a graphical effect to the area behind an element.
+         *		The equivalent of CSS attribute `backdropFilter`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        backdrop_filter(value) {
+            if (value == null) { return this.style.backdropFilter; }
+            this.style.backdropFilter = value;
+            this.style.msBackdropFilter = value;
+            this.style.webkitBackdropFilter = value;
+            this.style.MozBackdropFilter = value;
+            this.style.OBackdropFilter = value;
+            return this;
+        }
+
+        // Defines whether or not the back face of an element should be visible when facing the user.
+        /*	@docs: {
+         *	@title: Backface visibility
+         *	@description: 
+         *		Defines whether or not the back face of an element should be visible when facing the user.
+         *		The equivalent of CSS attribute `backfaceVisibility`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        backface_visibility(value) {
+            if (value == null) { return this.style.backfaceVisibility; }
+            this.style.backfaceVisibility = value;
+            this.style.msBackfaceVisibility = value;
+            this.style.webkitBackfaceVisibility = value;
+            this.style.MozBackfaceVisibility = value;
+            this.style.OBackfaceVisibility = value;
+            return this;
+        }
+
+        // A shorthand property for all the background-* properties.
+        /*	@docs: {
+         *	@title: Background
+         *	@description: 
+         *		A shorthand property for all the background-* properties.
+         *		The equivalent of CSS attribute `background`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        background(value) {
+            if (value == null) { return this.style.background; }
+            this.style.background = value;
+            return this;
+        }
+
+        // Sets whether a background image scrolls with the rest of the page, or is fixed.
+        /*	@docs: {
+         *	@title: Background attachment
+         *	@description: 
+         *		Sets whether a background image scrolls with the rest of the page, or is fixed.
+         *		The equivalent of CSS attribute `backgroundAttachment`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        background_attachment(value) {
+            if (value == null) { return this.style.backgroundAttachment; }
+            this.style.backgroundAttachment = value;
+            return this;
+        }
+
+        // Specifies the blending mode of each background layer (color/image).
+        /*	@docs: {
+         *	@title: Background blend mode
+         *	@description: 
+         *		Specifies the blending mode of each background layer (color/image).
+         *		The equivalent of CSS attribute `backgroundBlendMode`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        background_blend_mode(value) {
+            if (value == null) { return this.style.backgroundBlendMode; }
+            this.style.backgroundBlendMode = value;
+            return this;
+        }
+
+        // Defines how far the background (color or image) should extend within an element.
+        /*	@docs: {
+         *	@title: Background clip
+         *	@description: 
+         *		Defines how far the background (color or image) should extend within an element.
+         *		The equivalent of CSS attribute `backgroundClip`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        background_clip(value) {
+            if (value == null) { return this.style.backgroundClip; }
+            this.style.backgroundClip = value;
+            this.style.msBackgroundClip = value;
+            this.style.webkitBackgroundClip = value;
+            this.style.MozBackgroundClip = value;
+            this.style.OBackgroundClip = value;
+            return this;
+        }
+
+        // Specifies the background color of an element.
+        /*	@docs: {
+         *	@title: Background color
+         *	@description: 
+         *		Specifies the background color of an element.
+         *		The equivalent of CSS attribute `backgroundColor`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        background_color(value) {
+            if (value == null) { return this.style.backgroundColor; }
+            this.style.backgroundColor = value;
+            return this;
+        }
+
+        // Specifies one or more background images for an element.
+        /*	@docs: {
+         *	@title: Background image
+         *	@description: 
+         *		Specifies one or more background images for an element.
+         *		The equivalent of CSS attribute `backgroundImage`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        background_image(value) {
+            if (value == null) { return this.style.backgroundImage; }
+            this.style.backgroundImage = value;
+            return this;
+        }
+
+        // Specifies the origin position of a background image.
+        /*	@docs: {
+         *	@title: Background origin
+         *	@description: 
+         *		Specifies the origin position of a background image.
+         *		The equivalent of CSS attribute `backgroundOrigin`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        background_origin(value) {
+            if (value == null) { return this.style.backgroundOrigin; }
+            this.style.backgroundOrigin = value;
+            this.style.msBackgroundOrigin = value;
+            this.style.webkitBackgroundOrigin = value;
+            this.style.MozBackgroundOrigin = value;
+            this.style.OBackgroundOrigin = value;
+            return this;
+        }
+
+        // Specifies the position of a background image.
+        /*	@docs: {
+         *	@title: Background position
+         *	@description: 
+         *		Specifies the position of a background image.
+         *		The equivalent of CSS attribute `backgroundPosition`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        background_position(value) {
+            if (value == null) { return this.style.backgroundPosition; }
+            this.style.backgroundPosition = value;
+            return this;
+        }
+
+        // Specifies the position of a background image on x-axis.
+        /*	@docs: {
+         *	@title: Background position x
+         *	@description: 
+         *		Specifies the position of a background image on x-axis.
+         *		The equivalent of CSS attribute `backgroundPositionX`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        background_position_x(value) {
+            if (value == null) { return this.style.backgroundPositionX; }
+            this.style.backgroundPositionX = value;
+            return this;
+        }
+
+        // Specifies the position of a background image on y-axis.
+        /*	@docs: {
+         *	@title: Background position y
+         *	@description: 
+         *		Specifies the position of a background image on y-axis.
+         *		The equivalent of CSS attribute `backgroundPositionY`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        background_position_y(value) {
+            if (value == null) { return this.style.backgroundPositionY; }
+            this.style.backgroundPositionY = value;
+            return this;
+        }
+
+        // Sets if/how a background image will be repeated.
+        /*	@docs: {
+         *	@title: Background repeat
+         *	@description: 
+         *		Sets if/how a background image will be repeated.
+         *		The equivalent of CSS attribute `backgroundRepeat`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        background_repeat(value) {
+            if (value == null) { return this.style.backgroundRepeat; }
+            this.style.backgroundRepeat = value;
+            return this;
+        }
+
+        // Specifies the size of the background images.
+        /*	@docs: {
+         *	@title: Background size
+         *	@description: 
+         *		Specifies the size of the background images.
+         *		The equivalent of CSS attribute `backgroundSize`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        background_size(value) {
+            if (value == null) { return this.style.backgroundSize; }
+            this.style.backgroundSize = this.pad_numeric(value);
+            this.style.msBackgroundSize = this.pad_numeric(value);
+            this.style.webkitBackgroundSize = this.pad_numeric(value);
+            this.style.MozBackgroundSize = this.pad_numeric(value);
+            this.style.OBackgroundSize = this.pad_numeric(value);
+            return this;
+        }
+
+        // Specifies the size of an element in block direction.
+        /*	@docs: {
+         *	@title: Block size
+         *	@description: 
+         *		Specifies the size of an element in block direction.
+         *		The equivalent of CSS attribute `blockSize`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        block_size(value) {
+            if (value == null) { return this.style.blockSize; }
+            this.style.blockSize = this.pad_numeric(value);
+            return this;
+        }
+
+        // A shorthand property for border-width, border-style and border-color.
+        // border(value) {
+        //     if (value == null) { return this.style.border; }
+        //     this.style.border = value;
+        //     return this;
+        // }
+
+        // A shorthand property for border-block-width, border-block-style and border-block-color.
+        /*	@docs: {
+         *	@title: Border block
+         *	@description: 
+         *		A shorthand property for border-block-width, border-block-style and border-block-color.
+         *		The equivalent of CSS attribute `borderBlock`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        border_block(value) {
+            if (value == null) { return this.style.borderBlock; }
+            this.style.borderBlock = value;
+            return this;
+        }
+
+        // Sets the color of the borders at start and end in the block direction.
+        /*	@docs: {
+         *	@title: Border block color
+         *	@description: 
+         *		Sets the color of the borders at start and end in the block direction.
+         *		The equivalent of CSS attribute `borderBlockColor`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        border_block_color(value) {
+            if (value == null) { return this.style.borderBlockColor; }
+            this.style.borderBlockColor = value;
+            return this;
+        }
+
+        // Sets the color of the border at the end in the block direction.
+        /*	@docs: {
+         *	@title: Border block end color
+         *	@description: 
+         *		Sets the color of the border at the end in the block direction.
+         *		The equivalent of CSS attribute `borderBlockEndColor`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        border_block_end_color(value) {
+            if (value == null) { return this.style.borderBlockEndColor; }
+            this.style.borderBlockEndColor = value;
+            return this;
+        }
+
+        // Sets the style of the border at the end in the block direction.
+        /*	@docs: {
+         *	@title: Border block end style
+         *	@description: 
+         *		Sets the style of the border at the end in the block direction.
+         *		The equivalent of CSS attribute `borderBlockEndStyle`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        border_block_end_style(value) {
+            if (value == null) { return this.style.borderBlockEndStyle; }
+            this.style.borderBlockEndStyle = value;
+            return this;
+        }
+
+        // Sets the width of the border at the end in the block direction.
+        /*	@docs: {
+         *	@title: Border block end width
+         *	@description: 
+         *		Sets the width of the border at the end in the block direction.
+         *		The equivalent of CSS attribute `borderBlockEndWidth`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        border_block_end_width(value) {
+            if (value == null) { return this.style.borderBlockEndWidth; }
+            this.style.borderBlockEndWidth = this.pad_numeric(value);
+            return this;
+        }
+
+        // Sets the color of the border at the start in the block direction.
+        /*	@docs: {
+         *	@title: Border block start color
+         *	@description: 
+         *		Sets the color of the border at the start in the block direction.
+         *		The equivalent of CSS attribute `borderBlockStartColor`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        border_block_start_color(value) {
+            if (value == null) { return this.style.borderBlockStartColor; }
+            this.style.borderBlockStartColor = value;
+            return this;
+        }
+
+        // Sets the style of the border at the start in the block direction.
+        /*	@docs: {
+         *	@title: Border block start style
+         *	@description: 
+         *		Sets the style of the border at the start in the block direction.
+         *		The equivalent of CSS attribute `borderBlockStartStyle`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        border_block_start_style(value) {
+            if (value == null) { return this.style.borderBlockStartStyle; }
+            this.style.borderBlockStartStyle = value;
+            return this;
+        }
+
+        // Sets the width of the border at the start in the block direction.
+        /*	@docs: {
+         *	@title: Border block start width
+         *	@description: 
+         *		Sets the width of the border at the start in the block direction.
+         *		The equivalent of CSS attribute `borderBlockStartWidth`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        border_block_start_width(value) {
+            if (value == null) { return this.style.borderBlockStartWidth; }
+            this.style.borderBlockStartWidth = this.pad_numeric(value);
+            return this;
+        }
+
+        // Sets the style of the borders at start and end in the block direction.
+        /*	@docs: {
+         *	@title: Border block style
+         *	@description: 
+         *		Sets the style of the borders at start and end in the block direction.
+         *		The equivalent of CSS attribute `borderBlockStyle`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        border_block_style(value) {
+            if (value == null) { return this.style.borderBlockStyle; }
+            this.style.borderBlockStyle = value;
+            return this;
+        }
+
+        // Sets the width of the borders at start and end in the block direction.
+        /*	@docs: {
+         *	@title: Border block width
+         *	@description: 
+         *		Sets the width of the borders at start and end in the block direction.
+         *		The equivalent of CSS attribute `borderBlockWidth`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        border_block_width(value) {
+            if (value == null) { return this.style.borderBlockWidth; }
+            this.style.borderBlockWidth = this.pad_numeric(value);
+            return this;
+        }
+
+        // A shorthand property for border-bottom-width, border-bottom-style and border-bottom-color.
+        /*	@docs: {
+         *	@title: Border bottom
+         *	@description: 
+         *		A shorthand property for border-bottom-width, border-bottom-style and border-bottom-color.
+         *		The equivalent of CSS attribute `borderBottom`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        border_bottom(value) {
+            if (value == null) { return this.style.borderBottom; }
+            this.style.borderBottom = this.pad_numeric(value);
+            return this;
+        }
+
+        // Sets the color of the bottom border.
+        /*	@docs: {
+         *	@title: Border bottom color
+         *	@description: 
+         *		Sets the color of the bottom border.
+         *		The equivalent of CSS attribute `borderBottomColor`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        border_bottom_color(value) {
+            if (value == null) { return this.style.borderBottomColor; }
+            this.style.borderBottomColor = value;
+            return this;
+        }
+
+        // Defines the radius of the border of the bottom-left corner.
+        /*	@docs: {
+         *	@title: Border bottom left radius
+         *	@description: 
+         *		Defines the radius of the border of the bottom-left corner.
+         *		The equivalent of CSS attribute `borderBottomLeftRadius`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        border_bottom_left_radius(value) {
+            if (value == null) { return this.style.borderBottomLeftRadius; }
+            this.style.borderBottomLeftRadius = this.pad_numeric(value);
+            return this;
+        }
+
+        // Defines the radius of the border of the bottom-right corner.
+        /*	@docs: {
+         *	@title: Border bottom right radius
+         *	@description: 
+         *		Defines the radius of the border of the bottom-right corner.
+         *		The equivalent of CSS attribute `borderBottomRightRadius`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        border_bottom_right_radius(value) {
+            if (value == null) { return this.style.borderBottomRightRadius; }
+            this.style.borderBottomRightRadius = this.pad_numeric(value);
+            return this;
+        }
+
+        // Sets the style of the bottom border.
+        /*	@docs: {
+         *	@title: Border bottom style
+         *	@description: 
+         *		Sets the style of the bottom border.
+         *		The equivalent of CSS attribute `borderBottomStyle`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        border_bottom_style(value) {
+            if (value == null) { return this.style.borderBottomStyle; }
+            this.style.borderBottomStyle = value;
+            return this;
+        }
+
+        // Sets the width of the bottom border.
+        /*	@docs: {
+         *	@title: Border bottom width
+         *	@description: 
+         *		Sets the width of the bottom border.
+         *		The equivalent of CSS attribute `borderBottomWidth`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        border_bottom_width(value) {
+            if (value == null) { return this.style.borderBottomWidth; }
+            this.style.borderBottomWidth = this.pad_numeric(value);
+            return this;
+        }
+
+        // Sets whether table borders should collapse into a single border or be separated.
+        /*	@docs: {
+         *	@title: Border collapse
+         *	@description: 
+         *		Sets whether table borders should collapse into a single border or be separated.
+         *		The equivalent of CSS attribute `borderCollapse`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        border_collapse(value) {
+            if (value == null) { return this.style.borderCollapse; }
+            this.style.borderCollapse = value;
+            return this;
+        }
+
+        // Sets the color of the four borders.
+        /*	@docs: {
+         *	@title: Border color
+         *	@description: 
+         *		Sets the color of the four borders.
+         *		The equivalent of CSS attribute `borderColor`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        border_color(value) {
+            if (value == null) { return this.style.borderColor; }
+            this.style.borderColor = value;
+            return this;
+        }
+
+        // A shorthand property for all the border-image-* properties.
+        /*	@docs: {
+         *	@title: Border image
+         *	@description: 
+         *		A shorthand property for all the border-image-* properties.
+         *		The equivalent of CSS attribute `borderImage`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        border_image(value) {
+            if (value == null) { return this.style.borderImage; }
+            this.style.borderImage = value;
+            this.style.msBorderImage = value;
+            this.style.webkitBorderImage = value;
+            this.style.MozBorderImage = value;
+            this.style.OBorderImage = value;
+            return this;
+        }
+
+        // Specifies the amount by which the border image area extends beyond the border box.
+        /*	@docs: {
+         *	@title: Border image outset
+         *	@description: 
+         *		Specifies the amount by which the border image area extends beyond the border box.
+         *		The equivalent of CSS attribute `borderImageOutset`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        border_image_outset(value) {
+            if (value == null) { return this.style.borderImageOutset; }
+            this.style.borderImageOutset = value;
+            return this;
+        }
+
+        // Specifies whether the border image should be repeated, rounded or stretched.
+        /*	@docs: {
+         *	@title: Border image repeat
+         *	@description: 
+         *		Specifies whether the border image should be repeated, rounded or stretched.
+         *		The equivalent of CSS attribute `borderImageRepeat`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        border_image_repeat(value) {
+            if (value == null) { return this.style.borderImageRepeat; }
+            this.style.borderImageRepeat = value;
+            return this;
+        }
+
+        // Specifies how to slice the border image.
+        /*	@docs: {
+         *	@title: Border image slice
+         *	@description: 
+         *		Specifies how to slice the border image.
+         *		The equivalent of CSS attribute `borderImageSlice`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        border_image_slice(value) {
+            if (value == null) { return this.style.borderImageSlice; }
+            this.style.borderImageSlice = value;
+            return this;
+        }
+
+        // Specifies the path to the image to be used as a border.
+        /*	@docs: {
+         *	@title: Border image source
+         *	@description: 
+         *		Specifies the path to the image to be used as a border.
+         *		The equivalent of CSS attribute `borderImageSource`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        border_image_source(value) {
+            if (value == null) { return this.style.borderImageSource; }
+            this.style.borderImageSource = value;
+            return this;
+        }
+
+        // Specifies the width of the border image.
+        /*	@docs: {
+         *	@title: Border image width
+         *	@description: 
+         *		Specifies the width of the border image.
+         *		The equivalent of CSS attribute `borderImageWidth`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        border_image_width(value) {
+            if (value == null) { return this.style.borderImageWidth; }
+            this.style.borderImageWidth = this.pad_numeric(value);
+            return this;
+        }
+
+        // A shorthand property for border-inline-width, border-inline-style and border-inline-color.
+        /*	@docs: {
+         *	@title: Border inline
+         *	@description: 
+         *		A shorthand property for border-inline-width, border-inline-style and border-inline-color.
+         *		The equivalent of CSS attribute `borderInline`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        border_inline(value) {
+            if (value == null) { return this.style.borderInline; }
+            this.style.borderInline = value;
+            return this;
+        }
+
+        // Sets the color of the borders at start and end in the inline direction.
+        /*	@docs: {
+         *	@title: Border inline color
+         *	@description: 
+         *		Sets the color of the borders at start and end in the inline direction.
+         *		The equivalent of CSS attribute `borderInlineColor`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        border_inline_color(value) {
+            if (value == null) { return this.style.borderInlineColor; }
+            this.style.borderInlineColor = value;
+            return this;
+        }
+
+        // Sets the color of the border at the end in the inline direction.
+        /*	@docs: {
+         *	@title: Border inline end color
+         *	@description: 
+         *		Sets the color of the border at the end in the inline direction.
+         *		The equivalent of CSS attribute `borderInlineEndColor`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        border_inline_end_color(value) {
+            if (value == null) { return this.style.borderInlineEndColor; }
+            this.style.borderInlineEndColor = value;
+            return this;
+        }
+
+        // Sets the style of the border at the end in the inline direction.
+        /*	@docs: {
+         *	@title: Border inline end style
+         *	@description: 
+         *		Sets the style of the border at the end in the inline direction.
+         *		The equivalent of CSS attribute `borderInlineEndStyle`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        border_inline_end_style(value) {
+            if (value == null) { return this.style.borderInlineEndStyle; }
+            this.style.borderInlineEndStyle = value;
+            return this;
+        }
+
+        // Sets the width of the border at the end in the inline direction.
+        /*	@docs: {
+         *	@title: Border inline end width
+         *	@description: 
+         *		Sets the width of the border at the end in the inline direction.
+         *		The equivalent of CSS attribute `borderInlineEndWidth`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        border_inline_end_width(value) {
+            if (value == null) { return this.style.borderInlineEndWidth; }
+            this.style.borderInlineEndWidth = this.pad_numeric(value);
+            return this;
+        }
+
+        // Sets the color of the border at the start in the inline direction.
+        /*	@docs: {
+         *	@title: Border inline start color
+         *	@description: 
+         *		Sets the color of the border at the start in the inline direction.
+         *		The equivalent of CSS attribute `borderInlineStartColor`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        border_inline_start_color(value) {
+            if (value == null) { return this.style.borderInlineStartColor; }
+            this.style.borderInlineStartColor = value;
+            return this;
+        }
+
+        // Sets the style of the border at the start in the inline direction.
+        /*	@docs: {
+         *	@title: Border inline start style
+         *	@description: 
+         *		Sets the style of the border at the start in the inline direction.
+         *		The equivalent of CSS attribute `borderInlineStartStyle`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        border_inline_start_style(value) {
+            if (value == null) { return this.style.borderInlineStartStyle; }
+            this.style.borderInlineStartStyle = value;
+            return this;
+        }
+
+        // Sets the width of the border at the start in the inline direction.
+        /*	@docs: {
+         *	@title: Border inline start width
+         *	@description: 
+         *		Sets the width of the border at the start in the inline direction.
+         *		The equivalent of CSS attribute `borderInlineStartWidth`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        border_inline_start_width(value) {
+            if (value == null) { return this.style.borderInlineStartWidth; }
+            this.style.borderInlineStartWidth = this.pad_numeric(value);
+            return this;
+        }
+
+        // Sets the style of the borders at start and end in the inline direction.
+        /*	@docs: {
+         *	@title: Border inline style
+         *	@description: 
+         *		Sets the style of the borders at start and end in the inline direction.
+         *		The equivalent of CSS attribute `borderInlineStyle`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        border_inline_style(value) {
+            if (value == null) { return this.style.borderInlineStyle; }
+            this.style.borderInlineStyle = value;
+            return this;
+        }
+
+        // Sets the width of the borders at start and end in the inline direction.
+        /*	@docs: {
+         *	@title: Border inline width
+         *	@description: 
+         *		Sets the width of the borders at start and end in the inline direction.
+         *		The equivalent of CSS attribute `borderInlineWidth`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        border_inline_width(value) {
+            if (value == null) { return this.style.borderInlineWidth; }
+            this.style.borderInlineWidth = this.pad_numeric(value);
+            return this;
+        }
+
+        // A shorthand property for all the border-left-* properties.
+        /*	@docs: {
+         *	@title: Border left
+         *	@description: 
+         *		A shorthand property for all the border-left-* properties.
+         *		The equivalent of CSS attribute `borderLeft`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        border_left(value) {
+            if (value == null) { return this.style.borderLeft; }
+            this.style.borderLeft = this.pad_numeric(value);
+            return this;
+        }
+
+        // Sets the color of the left border.
+        /*	@docs: {
+         *	@title: Border left color
+         *	@description: 
+         *		Sets the color of the left border.
+         *		The equivalent of CSS attribute `borderLeftColor`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        border_left_color(value) {
+            if (value == null) { return this.style.borderLeftColor; }
+            this.style.borderLeftColor = value;
+            return this;
+        }
+
+        // Sets the style of the left border.
+        /*	@docs: {
+         *	@title: Border left style
+         *	@description: 
+         *		Sets the style of the left border.
+         *		The equivalent of CSS attribute `borderLeftStyle`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        border_left_style(value) {
+            if (value == null) { return this.style.borderLeftStyle; }
+            this.style.borderLeftStyle = value;
+            return this;
+        }
+
+        // Sets the width of the left border.
+        /*	@docs: {
+         *	@title: Border left width
+         *	@description: 
+         *		Sets the width of the left border.
+         *		The equivalent of CSS attribute `borderLeftWidth`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        border_left_width(value) {
+            if (value == null) { return this.style.borderLeftWidth; }
+            this.style.borderLeftWidth = this.pad_numeric(value);
+            return this;
+        }
+
+        // A shorthand property for the four border-*-radius properties.
+        /*	@docs: {
+         *	@title: Border radius
+         *	@description: 
+         *		A shorthand property for the four border-*-radius properties.
+         *		The equivalent of CSS attribute `borderRadius`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        border_radius(value) {
+            if (value == null) { return this.style.borderRadius; }
+            this.style.borderRadius = this.pad_numeric(value);
+            this.style.msBorderRadius = this.pad_numeric(value);
+            this.style.webkitBorderRadius = this.pad_numeric(value);
+            this.style.MozBorderRadius = this.pad_numeric(value);
+            this.style.OBorderRadius = this.pad_numeric(value);
+            return this;
+        }
+
+        // A shorthand property for all the border-right-* properties.
+        /*	@docs: {
+         *	@title: Border right
+         *	@description: 
+         *		A shorthand property for all the border-right-* properties.
+         *		The equivalent of CSS attribute `borderRight`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        border_right(value) {
+            if (value == null) { return this.style.borderRight; }
+            this.style.borderRight = this.pad_numeric(value);
+            return this;
+        }
+
+        // Sets the color of the right border.
+        /*	@docs: {
+         *	@title: Border right color
+         *	@description: 
+         *		Sets the color of the right border.
+         *		The equivalent of CSS attribute `borderRightColor`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        border_right_color(value) {
+            if (value == null) { return this.style.borderRightColor; }
+            this.style.borderRightColor = value;
+            return this;
+        }
+
+        // Sets the style of the right border.
+        /*	@docs: {
+         *	@title: Border right style
+         *	@description: 
+         *		Sets the style of the right border.
+         *		The equivalent of CSS attribute `borderRightStyle`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        border_right_style(value) {
+            if (value == null) { return this.style.borderRightStyle; }
+            this.style.borderRightStyle = value;
+            return this;
+        }
+
+        // Sets the width of the right border.
+        /*	@docs: {
+         *	@title: Border right width
+         *	@description: 
+         *		Sets the width of the right border.
+         *		The equivalent of CSS attribute `borderRightWidth`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        border_right_width(value) {
+            if (value == null) { return this.style.borderRightWidth; }
+            this.style.borderRightWidth = this.pad_numeric(value);
+            return this;
+        }
+
+        // Sets the distance between the borders of adjacent cells.
+        /*	@docs: {
+         *	@title: Border spacing
+         *	@description: 
+         *		Sets the distance between the borders of adjacent cells.
+         *		The equivalent of CSS attribute `borderSpacing`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        border_spacing(value) {
+            if (value == null) { return this.style.borderSpacing; }
+            this.style.borderSpacing = value;
+            return this;
+        }
+
+        // Sets the style of the four borders.
+        /*	@docs: {
+         *	@title: Border style
+         *	@description: 
+         *		Sets the style of the four borders.
+         *		The equivalent of CSS attribute `borderStyle`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        border_style(value) {
+            if (value == null) { return this.style.borderStyle; }
+            this.style.borderStyle = value;
+            return this;
+        }
+
+        // A shorthand property for border-top-width, border-top-style and border-top-color.
+        /*	@docs: {
+         *	@title: Border top
+         *	@description: 
+         *		A shorthand property for border-top-width, border-top-style and border-top-color.
+         *		The equivalent of CSS attribute `borderTop`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        border_top(value) {
+            if (value == null) { return this.style.borderTop; }
+            this.style.borderTop = this.pad_numeric(value);
+            return this;
+        }
+
+        // Sets the color of the top border.
+        /*	@docs: {
+         *	@title: Border top color
+         *	@description: 
+         *		Sets the color of the top border.
+         *		The equivalent of CSS attribute `borderTopColor`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        border_top_color(value) {
+            if (value == null) { return this.style.borderTopColor; }
+            this.style.borderTopColor = value;
+            return this;
+        }
+
+        // Defines the radius of the border of the top-left corner.
+        /*	@docs: {
+         *	@title: Border top left radius
+         *	@description: 
+         *		Defines the radius of the border of the top-left corner.
+         *		The equivalent of CSS attribute `borderTopLeftRadius`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        border_top_left_radius(value) {
+            if (value == null) { return this.style.borderTopLeftRadius; }
+            this.style.borderTopLeftRadius = this.pad_numeric(value);
+            return this;
+        }
+
+        // Defines the radius of the border of the top-right corner.
+        /*	@docs: {
+         *	@title: Border top right radius
+         *	@description: 
+         *		Defines the radius of the border of the top-right corner.
+         *		The equivalent of CSS attribute `borderTopRightRadius`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        border_top_right_radius(value) {
+            if (value == null) { return this.style.borderTopRightRadius; }
+            this.style.borderTopRightRadius = this.pad_numeric(value);
+            return this;
+        }
+
+        // Sets the style of the top border.
+        /*	@docs: {
+         *	@title: Border top style
+         *	@description: 
+         *		Sets the style of the top border.
+         *		The equivalent of CSS attribute `borderTopStyle`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        border_top_style(value) {
+            if (value == null) { return this.style.borderTopStyle; }
+            this.style.borderTopStyle = value;
+            return this;
+        }
+
+        // Sets the width of the top border.
+        /*	@docs: {
+         *	@title: Border top width
+         *	@description: 
+         *		Sets the width of the top border.
+         *		The equivalent of CSS attribute `borderTopWidth`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        border_top_width(value) {
+            if (value == null) { return this.style.borderTopWidth; }
+            this.style.borderTopWidth = this.pad_numeric(value);
+            return this;
+        }
+
+        // Sets the width of the four borders.
+        /*	@docs: {
+         *	@title: Border width
+         *	@description: 
+         *		Sets the width of the four borders.
+         *		The equivalent of CSS attribute `borderWidth`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        border_width(value) {
+            if (value == null) { return this.style.borderWidth; }
+            this.style.borderWidth = this.pad_numeric(value);
+            return this;
+        }
+
+        // Sets the elements position, from the bottom of its parent element.
+        /*	@docs: {
+         *	@title: Bottom
+         *	@description: 
+         *		Sets the elements position, from the bottom of its parent element.
+         *		The equivalent of CSS attribute `bottom`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        bottom(value) {
+            if (value == null) { return this.style.bottom; }
+            this.style.bottom = this.pad_numeric(value);
+            return this;
+        }
+
+        // Sets the behavior of the background and border of an element at page-break, or, for in-line elements, at line-break.
+        /*	@docs: {
+         *	@title: Box decoration break
+         *	@description: 
+         *		Sets the behavior of the background and border of an element at page-break, or, for in-line elements, at line-break.
+         *		The equivalent of CSS attribute `boxDecorationBreak`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        box_decoration_break(value) {
+            if (value == null) { return this.style.boxDecorationBreak; }
+            this.style.boxDecorationBreak = value;
+            return this;
+        }
+
+        // The box-reflect property is used to create a reflection of an element.
+        /*	@docs: {
+         *	@title: Box reflect
+         *	@description: 
+         *		The box-reflect property is used to create a reflection of an element.
+         *		The equivalent of CSS attribute `boxReflect`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        box_reflect(value) {
+            if (value == null) { return this.style.boxReflect; }
+            this.style.boxReflect = value;
+            return this;
+        }
+
+        // Attaches one or more shadows to an element.
+        /*	@docs: {
+         *	@title: Box shadow
+         *	@description: 
+         *		Attaches one or more shadows to an element.
+         *		The equivalent of CSS attribute `boxShadow`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        box_shadow(value) {
+            if (value == null) { return this.style.boxShadow; }
+            this.style.boxShadow = value;
+            this.style.msBoxShadow = value;
+            this.style.webkitBoxShadow = value;
+            this.style.MozBoxShadow = value;
+            this.style.OBoxShadow = value;
+            return this;
+        }
+
+        // Defines how the width and height of an element are calculated: should they include padding and borders, or not.
+        /*	@docs: {
+         *	@title: Box sizing
+         *	@description: 
+         *		Defines how the width and height of an element are calculated: should they include padding and borders, or not.
+         *		The equivalent of CSS attribute `boxSizing`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        box_sizing(value) {
+            if (value == null) { return this.style.boxSizing; }
+            this.style.boxSizing = value;
+            this.style.msBoxSizing = value;
+            this.style.webkitBoxSizing = value;
+            this.style.MozBoxSizing = value;
+            this.style.OBoxSizing = value;
+            return this;
+        }
+
+        // Specifies whether or not a page-, column-, or region-break should occur after the specified element.
+        /*	@docs: {
+         *	@title: Break after
+         *	@description: 
+         *		Specifies whether or not a page-, column-, or region-break should occur after the specified element.
+         *		The equivalent of CSS attribute `breakAfter`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        break_after(value) {
+            if (value == null) { return this.style.breakAfter; }
+            this.style.breakAfter = value;
+            return this;
+        }
+
+        // Specifies whether or not a page-, column-, or region-break should occur before the specified element.
+        /*	@docs: {
+         *	@title: Break before
+         *	@description: 
+         *		Specifies whether or not a page-, column-, or region-break should occur before the specified element.
+         *		The equivalent of CSS attribute `breakBefore`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        break_before(value) {
+            if (value == null) { return this.style.breakBefore; }
+            this.style.breakBefore = value;
+            return this;
+        }
+
+        // Specifies whether or not a page-, column-, or region-break should occur inside the specified element.
+        /*	@docs: {
+         *	@title: Break inside
+         *	@description: 
+         *		Specifies whether or not a page-, column-, or region-break should occur inside the specified element.
+         *		The equivalent of CSS attribute `breakInside`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        break_inside(value) {
+            if (value == null) { return this.style.breakInside; }
+            this.style.breakInside = value;
+            return this;
+        }
+
+        // Specifies the placement of a table caption.
+        /*	@docs: {
+         *	@title: Caption side
+         *	@description: 
+         *		Specifies the placement of a table caption.
+         *		The equivalent of CSS attribute `captionSide`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        caption_side(value) {
+            if (value == null) { return this.style.captionSide; }
+            this.style.captionSide = value;
+            return this;
+        }
+
+        // Specifies the color of the cursor (caret) in inputs, textareas, or any element that is editable.
+        /*	@docs: {
+         *	@title: Caret color
+         *	@description: 
+         *		Specifies the color of the cursor (caret) in inputs, textareas, or any element that is editable.
+         *		The equivalent of CSS attribute `caretColor`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        caret_color(value) {
+            if (value == null) { return this.style.caretColor; }
+            this.style.caretColor = value;
+            return this;
+        }
+
+        // Specifies what should happen with the element that is next to a floating element.
+        /*	@docs: {
+         *	@title: Clear
+         *	@description: 
+         *		Specifies what should happen with the element that is next to a floating element.
+         *		The equivalent of CSS attribute `clear`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        clear(value) {
+            if (value == null) { return this.style.clear; }
+            this.style.clear = value;
+            return this;
+        }
+
+        // Clips an absolutely positioned element.
+        /*	@docs: {
+         *	@title: Clip
+         *	@description: 
+         *		Clips an absolutely positioned element.
+         *		The equivalent of CSS attribute `clip`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        clip(value) {
+            if (value == null) { return this.style.clip; }
+            this.style.clip = value;
+            return this;
+        }
+
+        // Sets the color of text.
+        // color(value) {
+        //     if (value == null) { return this.style.color; }
+        //     this.style.color = value;
+        //     return this;
+        // }
+
+        // Specifies the number of columns an element should be divided into.
+        /*	@docs: {
+         *	@title: Column count
+         *	@description: 
+         *		Specifies the number of columns an element should be divided into.
+         *		The equivalent of CSS attribute `columnCount`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        column_count(value) {
+            if (value == null) { return this.style.columnCount; }
+            this.style.columnCount = value;
+            this.style.msColumnCount = value;
+            this.style.webkitColumnCount = value;
+            this.style.MozColumnCount = value;
+            this.style.OColumnCount = value;
+            return this;
+        }
+
+        // Specifies how to fill columns, balanced or not.
+        /*	@docs: {
+         *	@title: Column fill
+         *	@description: 
+         *		Specifies how to fill columns, balanced or not.
+         *		The equivalent of CSS attribute `columnFill`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        column_fill(value) {
+            if (value == null) { return this.style.columnFill; }
+            this.style.columnFill = value;
+            return this;
+        }
+
+        // Specifies the gap between the columns.
+        /*	@docs: {
+         *	@title: Column gap
+         *	@description: 
+         *		Specifies the gap between the columns.
+         *		The equivalent of CSS attribute `columnGap`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        column_gap(value) {
+            if (value == null) { return this.style.columnGap; }
+            this.style.columnGap = value;
+            this.style.msColumnGap = value;
+            this.style.webkitColumnGap = value;
+            this.style.MozColumnGap = value;
+            this.style.OColumnGap = value;
+            return this;
+        }
+
+        // A shorthand property for all the column-rule-* properties.
+        /*	@docs: {
+         *	@title: Column rule
+         *	@description: 
+         *		A shorthand property for all the column-rule-* properties.
+         *		The equivalent of CSS attribute `columnRule`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        column_rule(value) {
+            if (value == null) { return this.style.columnRule; }
+            this.style.columnRule = value;
+            this.style.msColumnRule = value;
+            this.style.webkitColumnRule = value;
+            this.style.MozColumnRule = value;
+            this.style.OColumnRule = value;
+            return this;
+        }
+
+        // Specifies the color of the rule between columns.
+        /*	@docs: {
+         *	@title: Column rule color
+         *	@description: 
+         *		Specifies the color of the rule between columns.
+         *		The equivalent of CSS attribute `columnRuleColor`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        column_rule_color(value) {
+            if (value == null) { return this.style.columnRuleColor; }
+            this.style.columnRuleColor = value;
+            this.style.msColumnRuleColor = value;
+            this.style.webkitColumnRuleColor = value;
+            this.style.MozColumnRuleColor = value;
+            this.style.OColumnRuleColor = value;
+            return this;
+        }
+
+        // Specifies the style of the rule between columns.
+        /*	@docs: {
+         *	@title: Column rule style
+         *	@description: 
+         *		Specifies the style of the rule between columns.
+         *		The equivalent of CSS attribute `columnRuleStyle`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        column_rule_style(value) {
+            if (value == null) { return this.style.columnRuleStyle; }
+            this.style.columnRuleStyle = value;
+            this.style.msColumnRuleStyle = value;
+            this.style.webkitColumnRuleStyle = value;
+            this.style.MozColumnRuleStyle = value;
+            this.style.OColumnRuleStyle = value;
+            return this;
+        }
+
+        // Specifies the width of the rule between columns.
+        /*	@docs: {
+         *	@title: Column rule width
+         *	@description: 
+         *		Specifies the width of the rule between columns.
+         *		The equivalent of CSS attribute `columnRuleWidth`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        column_rule_width(value) {
+            if (value == null) { return this.style.columnRuleWidth; }
+            this.style.columnRuleWidth = this.pad_numeric(value);
+            this.style.msColumnRuleWidth = this.pad_numeric(value);
+            this.style.webkitColumnRuleWidth = this.pad_numeric(value);
+            this.style.MozColumnRuleWidth = this.pad_numeric(value);
+            this.style.OColumnRuleWidth = this.pad_numeric(value);
+            return this;
+        }
+
+        // Specifies how many columns an element should span across.
+        /*	@docs: {
+         *	@title: Column span
+         *	@description: 
+         *		Specifies how many columns an element should span across.
+         *		The equivalent of CSS attribute `columnSpan`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        column_span(value) {
+            if (value == null) { return this.style.columnSpan; }
+            this.style.columnSpan = value;
+            return this;
+        }
+
+        // Specifies the column width.
+        /*	@docs: {
+         *	@title: Column width
+         *	@description: 
+         *		Specifies the column width.
+         *		The equivalent of CSS attribute `columnWidth`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        column_width(value) {
+            if (value == null) { return this.style.columnWidth; }
+            this.style.columnWidth = this.pad_numeric(value);
+            this.style.msColumnWidth = this.pad_numeric(value);
+            this.style.webkitColumnWidth = this.pad_numeric(value);
+            this.style.MozColumnWidth = this.pad_numeric(value);
+            this.style.OColumnWidth = this.pad_numeric(value);
+            return this;
+        }
+
+        // A shorthand property for column-width and column-count.
+        /*	@docs: {
+         *	@title: Columns
+         *	@description: 
+         *		A shorthand property for column-width and column-count.
+         *		The equivalent of CSS attribute `columns`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        columns(value) {
+            if (value == null) { return this.style.columns; }
+            this.style.columns = value;
+            return this;
+        }
+
+        // Used with the :before and :after pseudo-elements, to insert generated content.
+        /*	@docs: {
+         *	@title: Content
+         *	@description: 
+         *		Used with the :before and :after pseudo-elements, to insert generated content.
+         *		The equivalent of CSS attribute `content`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        content(value) {
+            if (value == null) { return this.style.content; }
+            this.style.content = value;
+            return this;
+        }
+
+        // Increases or decreases the value of one or more CSS counters.
+        /*	@docs: {
+         *	@title: Counter increment
+         *	@description: 
+         *		Increases or decreases the value of one or more CSS counters.
+         *		The equivalent of CSS attribute `counterIncrement`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        counter_increment(value) {
+            if (value == null) { return this.style.counterIncrement; }
+            this.style.counterIncrement = value;
+            return this;
+        }
+
+        // Creates or resets one or more CSS counters.
+        /*	@docs: {
+         *	@title: Counter reset
+         *	@description: 
+         *		Creates or resets one or more CSS counters.
+         *		The equivalent of CSS attribute `counterReset`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        counter_reset(value) {
+            if (value == null) { return this.style.counterReset; }
+            this.style.counterReset = value;
+            return this;
+        }
+
+        // Specifies the mouse cursor to be displayed when pointing over an element.
+        /*	@docs: {
+         *	@title: Cursor
+         *	@description: 
+         *		Specifies the mouse cursor to be displayed when pointing over an element.
+         *		The equivalent of CSS attribute `cursor`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        cursor(value) {
+            if (value == null) { return this.style.cursor; }
+            this.style.cursor = value;
+            return this;
+        }
+
+        // Specifies the text direction/writing direction.
+        /*	@docs: {
+         *	@title: Direction
+         *	@description: 
+         *		Specifies the text direction/writing direction.
+         *		The equivalent of CSS attribute `direction`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        direction(value) {
+            if (value == null) { return this.style.direction; }
+            this.style.direction = value;
+            return this;
+        }
+
+        // Specifies how a certain HTML element should be displayed.
+        // display(value) {
+        //     if (value == null) { return this.style.display; }
+        //     this.style.display = value;
+        //     return this;
+        // }
+
+        // Specifies whether or not to display borders and background on empty cells in a table.
+        /*	@docs: {
+         *	@title: Empty cells
+         *	@description: 
+         *		Specifies whether or not to display borders and background on empty cells in a table.
+         *		The equivalent of CSS attribute `emptyCells`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        empty_cells(value) {
+            if (value == null) { return this.style.emptyCells; }
+            this.style.emptyCells = value;
+            return this;
+        }
+
+        // Defines effects (e.g. blurring or color shifting) on an element before the element is displayed.
+        /*	@docs: {
+         *	@title: Filter
+         *	@description: 
+         *		Defines effects (e.g. blurring or color shifting) on an element before the element is displayed.
+         *		The equivalent of CSS attribute `filter`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        filter(value) {
+            if (value == null) { return this.style.filter; }
+            this.style.filter = value;
+            this.style.msFilter = value;
+            this.style.webkitFilter = value;
+            this.style.MozFilter = value;
+            this.style.OFilter = value;
+            return this;
+        }
+
+        // A shorthand property for the flex-grow, flex-shrink, and the flex-basis properties.
+        /*	@docs: {
+         *	@title: Flex
+         *	@description: 
+         *		A shorthand property for the flex-grow, flex-shrink, and the flex-basis properties.
+         *		The equivalent of CSS attribute `flex`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        flex(value) {
+            if (value == null) { return this.style.flex; }
+            this.style.flex = value;
+            this.style.msFlex = value;
+            this.style.webkitFlex = value;
+            this.style.MozFlex = value;
+            this.style.OFlex = value;
+            return this;
+        }
+
+        // Specifies the initial length of a flexible item.
+        /*	@docs: {
+         *	@title: Flex basis
+         *	@description: 
+         *		Specifies the initial length of a flexible item.
+         *		The equivalent of CSS attribute `flexBasis`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        flex_basis(value) {
+            if (value == null) { return this.style.flexBasis; }
+            this.style.flexBasis = value;
+            this.style.msFlexBasis = value;
+            this.style.webkitFlexBasis = value;
+            this.style.MozFlexBasis = value;
+            this.style.OFlexBasis = value;
+            return this;
+        }
+
+        // Specifies the direction of the flexible items.
+        /*	@docs: {
+         *	@title: Flex direction
+         *	@description: 
+         *		Specifies the direction of the flexible items.
+         *		The equivalent of CSS attribute `flexDirection`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        flex_direction(value) {
+            if (value == null) { return this.style.flexDirection; }
+            this.style.flexDirection = value;
+            this.style.msFlexDirection = value;
+            this.style.webkitFlexDirection = value;
+            this.style.MozFlexDirection = value;
+            this.style.OFlexDirection = value;
+            return this;
+        }
+
+        // A shorthand property for the flex-direction and the flex-wrap properties.
+        /*	@docs: {
+         *	@title: Flex flow
+         *	@description: 
+         *		A shorthand property for the flex-direction and the flex-wrap properties.
+         *		The equivalent of CSS attribute `flexFlow`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        flex_flow(value) {
+            if (value == null) { return this.style.flexFlow; }
+            this.style.flexFlow = value;
+            this.style.msFlexFlow = value;
+            this.style.webkitFlexFlow = value;
+            this.style.MozFlexFlow = value;
+            this.style.OFlexFlow = value;
+            return this;
+        }
+
+        // Specifies how much the item will grow relative to the rest.
+        /*	@docs: {
+         *	@title: Flex grow
+         *	@description: 
+         *		Specifies how much the item will grow relative to the rest.
+         *		The equivalent of CSS attribute `flexGrow`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        flex_grow(value) {
+            if (value == null) { return this.style.flexGrow; }
+            this.style.flexGrow = value;
+            this.style.msFlexGrow = value;
+            this.style.webkitFlexGrow = value;
+            this.style.MozFlexGrow = value;
+            this.style.OFlexGrow = value;
+            return this;
+        }
+
+        // Specifies how the item will shrink relative to the rest.
+        /*	@docs: {
+         *	@title: Flex shrink
+         *	@description: 
+         *		Specifies how the item will shrink relative to the rest.
+         *		The equivalent of CSS attribute `flexShrink`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        flex_shrink(value) {
+            if (value == null) { return this.style.flexShrink; }
+            this.style.flexShrink = value;
+            this.style.msFlexShrink = value;
+            this.style.webkitFlexShrink = value;
+            this.style.MozFlexShrink = value;
+            this.style.OFlexShrink = value;
+            return this;
+        }
+
+        // Specifies whether the flexible items should wrap or not.
+        /*	@docs: {
+         *	@title: Flex wrap
+         *	@description: 
+         *		Specifies whether the flexible items should wrap or not.
+         *		The equivalent of CSS attribute `flexWrap`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        flex_wrap(value) {
+            if (value == null) { return this.style.flexWrap; }
+            this.style.flexWrap = value;
+            this.style.msFlexWrap = value;
+            this.style.webkitFlexWrap = value;
+            this.style.MozFlexWrap = value;
+            this.style.OFlexWrap = value;
+            return this;
+        }
+
+        // Specifies whether an element should float to the left, right, or not at all.
+        /*	@docs: {
+         *	@title: Float
+         *	@description: 
+         *		Specifies whether an element should float to the left, right, or not at all.
+         *		The equivalent of CSS attribute `float`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        float(value) {
+            if (value == null) { return this.style.float; }
+            this.style.float = value;
+            return this;
+        }
+
+        // A shorthand property for the font-style, font-variant, font-weight, font-size/line-height, and the font-family properties.
+        /*	@docs: {
+         *	@title: Font
+         *	@description: 
+         *		A shorthand property for the font-style, font-variant, font-weight, font-size/line-height, and the font-family properties.
+         *		The equivalent of CSS attribute `font`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        font(value) {
+            if (value == null) { return this.style.font; }
+            this.style.font = value;
+            return this;
+        }
+
+        // Specifies the font family for text.
+        /*	@docs: {
+         *	@title: Font family
+         *	@description: 
+         *		Specifies the font family for text.
+         *		The equivalent of CSS attribute `fontFamily`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        font_family(value) {
+            if (value == null) { return this.style.fontFamily; }
+            this.style.fontFamily = value;
+            return this;
+        }
+
+        // Allows control over advanced typographic features in OpenType fonts.
+        /*	@docs: {
+         *	@title: Font feature settings
+         *	@description: 
+         *		Allows control over advanced typographic features in OpenType fonts.
+         *		The equivalent of CSS attribute `fontFeatureSettings`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        font_feature_settings(value) {
+            if (value == null) { return this.style.fontFeatureSettings; }
+            this.style.fontFeatureSettings = value;
+            return this;
+        }
+
+        // Controls the usage of the kerning information (how letters are spaced).
+        /*	@docs: {
+         *	@title: Font kerning
+         *	@description: 
+         *		Controls the usage of the kerning information (how letters are spaced).
+         *		The equivalent of CSS attribute `fontKerning`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        font_kerning(value) {
+            if (value == null) { return this.style.fontKerning; }
+            this.style.fontKerning = value;
+            return this;
+        }
+
+        // Controls the usage of language-specific glyphs in a typeface.
+        /*	@docs: {
+         *	@title: Font language override
+         *	@description: 
+         *		Controls the usage of language-specific glyphs in a typeface.
+         *		The equivalent of CSS attribute `fontLanguageOverride`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        font_language_override(value) {
+            if (value == null) { return this.style.fontLanguageOverride; }
+            this.style.fontLanguageOverride = value;
+            return this;
+        }
+
+        // Specifies the font size of text.
+        /*	@docs: {
+         *	@title: Font size
+         *	@description: 
+         *		Specifies the font size of text.
+         *		The equivalent of CSS attribute `fontSize`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        font_size(value) {
+            if (value == null) { return this.style.fontSize; }
+            this.style.fontSize = this.pad_numeric(value);
+            return this;
+        }
+
+        // Preserves the readability of text when font fallback occurs.
+        /*	@docs: {
+         *	@title: Font size adjust
+         *	@description: 
+         *		Preserves the readability of text when font fallback occurs.
+         *		The equivalent of CSS attribute `fontSizeAdjust`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        font_size_adjust(value) {
+            if (value == null) { return this.style.fontSizeAdjust; }
+            this.style.fontSizeAdjust = value;
+            return this;
+        }
+
+        // Selects a normal, condensed, or expanded face from a font family.
+        /*	@docs: {
+         *	@title: Font stretch
+         *	@description: 
+         *		Selects a normal, condensed, or expanded face from a font family.
+         *		The equivalent of CSS attribute `fontStretch`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        font_stretch(value) {
+            if (value == null) { return this.style.fontStretch; }
+            this.style.fontStretch = value;
+            return this;
+        }
+
+        // Specifies the font style for text.
+        /*	@docs: {
+         *	@title: Font style
+         *	@description: 
+         *		Specifies the font style for text.
+         *		The equivalent of CSS attribute `fontStyle`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        font_style(value) {
+            if (value == null) { return this.style.fontStyle; }
+            this.style.fontStyle = value;
+            return this;
+        }
+
+        // Controls which missing typefaces (bold or italic) may be synthesized by the browser.
+        /*	@docs: {
+         *	@title: Font synthesis
+         *	@description: 
+         *		Controls which missing typefaces (bold or italic) may be synthesized by the browser.
+         *		The equivalent of CSS attribute `fontSynthesis`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        font_synthesis(value) {
+            if (value == null) { return this.style.fontSynthesis; }
+            this.style.fontSynthesis = value;
+            return this;
+        }
+
+        // Specifies whether or not a text should be displayed in a small-caps font.
+        /*	@docs: {
+         *	@title: Font variant
+         *	@description: 
+         *		Specifies whether or not a text should be displayed in a small-caps font.
+         *		The equivalent of CSS attribute `fontVariant`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        font_variant(value) {
+            if (value == null) { return this.style.fontVariant; }
+            this.style.fontVariant = value;
+            return this;
+        }
+
+        // Controls the usage of alternate glyphs associated to alternative names defined in @font-feature-values.
+        /*	@docs: {
+         *	@title: Font variant alternates
+         *	@description: 
+         *		Controls the usage of alternate glyphs associated to alternative names defined in @font-feature-values.
+         *		The equivalent of CSS attribute `fontVariantAlternates`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        font_variant_alternates(value) {
+            if (value == null) { return this.style.fontVariantAlternates; }
+            this.style.fontVariantAlternates = value;
+            return this;
+        }
+
+        // Controls the usage of alternate glyphs for capital letters.
+        /*	@docs: {
+         *	@title: Font variant caps
+         *	@description: 
+         *		Controls the usage of alternate glyphs for capital letters.
+         *		The equivalent of CSS attribute `fontVariantCaps`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        font_variant_caps(value) {
+            if (value == null) { return this.style.fontVariantCaps; }
+            this.style.fontVariantCaps = value;
+            return this;
+        }
+
+        // Controls the usage of alternate glyphs for East Asian scripts (e.g Japanese and Chinese).
+        /*	@docs: {
+         *	@title: Font variant east asian
+         *	@description: 
+         *		Controls the usage of alternate glyphs for East Asian scripts (e.g Japanese and Chinese).
+         *		The equivalent of CSS attribute `fontVariantEastAsian`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        font_variant_east_asian(value) {
+            if (value == null) { return this.style.fontVariantEastAsian; }
+            this.style.fontVariantEastAsian = value;
+            return this;
+        }
+
+        // Controls which ligatures and contextual forms are used in textual content of the elements it applies to.
+        /*	@docs: {
+         *	@title: Font variant ligatures
+         *	@description: 
+         *		Controls which ligatures and contextual forms are used in textual content of the elements it applies to.
+         *		The equivalent of CSS attribute `fontVariantLigatures`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        font_variant_ligatures(value) {
+            if (value == null) { return this.style.fontVariantLigatures; }
+            this.style.fontVariantLigatures = value;
+            return this;
+        }
+
+        // Controls the usage of alternate glyphs for numbers, fractions, and ordinal markers.
+        /*	@docs: {
+         *	@title: Font variant numeric
+         *	@description: 
+         *		Controls the usage of alternate glyphs for numbers, fractions, and ordinal markers.
+         *		The equivalent of CSS attribute `fontVariantNumeric`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        font_variant_numeric(value) {
+            if (value == null) { return this.style.fontVariantNumeric; }
+            this.style.fontVariantNumeric = value;
+            return this;
+        }
+
+        // Controls the usage of alternate glyphs of smaller size positioned as superscript or subscript regarding the baseline of the font.
+        /*	@docs: {
+         *	@title: Font variant position
+         *	@description: 
+         *		Controls the usage of alternate glyphs of smaller size positioned as superscript or subscript regarding the baseline of the font.
+         *		The equivalent of CSS attribute `fontVariantPosition`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        font_variant_position(value) {
+            if (value == null) { return this.style.fontVariantPosition; }
+            this.style.fontVariantPosition = value;
+            return this;
+        }
+
+        // Specifies the weight of a font.
+        /*	@docs: {
+         *	@title: Font weight
+         *	@description: 
+         *		Specifies the weight of a font.
+         *		The equivalent of CSS attribute `fontWeight`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        font_weight(value) {
+            if (value == null) { return this.style.fontWeight; }
+            this.style.fontWeight = value;
+            return this;
+        }
+
+        // A shorthand property for the row-gap and the column-gap properties.
+        /*	@docs: {
+         *	@title: Gap
+         *	@description: 
+         *		A shorthand property for the row-gap and the column-gap properties.
+         *		The equivalent of CSS attribute `gap`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        gap(value) {
+            if (value == null) { return this.style.gap; }
+            this.style.gap = value;
+            return this;
+        }
+
+        // A shorthand property for the grid-template-rows, grid-template-columns, grid-template-areas, grid-auto-rows, grid-auto-columns, and the grid-auto-flow properties.
+        /*	@docs: {
+         *	@title: Grid
+         *	@description: 
+         *		A shorthand property for the grid-template-rows, grid-template-columns, grid-template-areas, grid-auto-rows, grid-auto-columns, and the grid-auto-flow properties.
+         *		The equivalent of CSS attribute `grid`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        grid(value) {
+            if (value == null) { return this.style.grid; }
+            this.style.grid = value;
+            return this;
+        }
+
+        // Either specifies a name for the grid item, or this property is a shorthand property for the grid-row-start, grid-column-start, grid-row-end, and grid-column-end properties.
+        /*	@docs: {
+         *	@title: Grid area
+         *	@description: 
+         *		Either specifies a name for the grid item, or this property is a shorthand property for the grid-row-start, grid-column-start, grid-row-end, and grid-column-end properties.
+         *		The equivalent of CSS attribute `gridArea`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        grid_area(value) {
+            if (value == null) { return this.style.gridArea; }
+            this.style.gridArea = value;
+            return this;
+        }
+
+        // Specifies a default column size.
+        /*	@docs: {
+         *	@title: Grid auto columns
+         *	@description: 
+         *		Specifies a default column size.
+         *		The equivalent of CSS attribute `gridAutoColumns`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        grid_auto_columns(value) {
+            if (value == null) { return this.style.gridAutoColumns; }
+            this.style.gridAutoColumns = value;
+            return this;
+        }
+
+        // Specifies how auto-placed items are inserted in the grid.
+        /*	@docs: {
+         *	@title: Grid auto flow
+         *	@description: 
+         *		Specifies how auto-placed items are inserted in the grid.
+         *		The equivalent of CSS attribute `gridAutoFlow`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        grid_auto_flow(value) {
+            if (value == null) { return this.style.gridAutoFlow; }
+            this.style.gridAutoFlow = value;
+            return this;
+        }
+
+        // Specifies a default row size.
+        /*	@docs: {
+         *	@title: Grid auto rows
+         *	@description: 
+         *		Specifies a default row size.
+         *		The equivalent of CSS attribute `gridAutoRows`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        grid_auto_rows(value) {
+            if (value == null) { return this.style.gridAutoRows; }
+            this.style.gridAutoRows = value;
+            return this;
+        }
+
+        // A shorthand property for the grid-column-start and the grid-column-end properties.
+        /*	@docs: {
+         *	@title: Grid column
+         *	@description: 
+         *		A shorthand property for the grid-column-start and the grid-column-end properties.
+         *		The equivalent of CSS attribute `gridColumn`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        grid_column(value) {
+            if (value == null) { return this.style.gridColumn; }
+            this.style.gridColumn = value;
+            return this;
+        }
+
+        // Specifies where to end the grid item.
+        /*	@docs: {
+         *	@title: Grid column end
+         *	@description: 
+         *		Specifies where to end the grid item.
+         *		The equivalent of CSS attribute `gridColumnEnd`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        grid_column_end(value) {
+            if (value == null) { return this.style.gridColumnEnd; }
+            this.style.gridColumnEnd = value;
+            return this;
+        }
+
+        // Specifies the size of the gap between columns.
+        /*	@docs: {
+         *	@title: Grid column gap
+         *	@description: 
+         *		Specifies the size of the gap between columns.
+         *		The equivalent of CSS attribute `gridColumnGap`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        grid_column_gap(value) {
+            if (value == null) { return this.style.gridColumnGap; }
+            this.style.gridColumnGap = value;
+            return this;
+        }
+
+        // Specifies where to start the grid item.
+        /*	@docs: {
+         *	@title: Grid column start
+         *	@description: 
+         *		Specifies where to start the grid item.
+         *		The equivalent of CSS attribute `gridColumnStart`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        grid_column_start(value) {
+            if (value == null) { return this.style.gridColumnStart; }
+            this.style.gridColumnStart = value;
+            return this;
+        }
+
+        // A shorthand property for the grid-row-gap and grid-column-gap properties.
+        /*	@docs: {
+         *	@title: Grid gap
+         *	@description: 
+         *		A shorthand property for the grid-row-gap and grid-column-gap properties.
+         *		The equivalent of CSS attribute `gridGap`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        grid_gap(value) {
+            if (value == null) { return this.style.gridGap; }
+            this.style.gridGap = value;
+            return this;
+        }
+
+        // A shorthand property for the grid-row-start and the grid-row-end properties.
+        /*	@docs: {
+         *	@title: Grid row
+         *	@description: 
+         *		A shorthand property for the grid-row-start and the grid-row-end properties.
+         *		The equivalent of CSS attribute `gridRow`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        grid_row(value) {
+            if (value == null) { return this.style.gridRow; }
+            this.style.gridRow = value;
+            return this;
+        }
+
+        // Specifies where to end the grid item.
+        /*	@docs: {
+         *	@title: Grid row end
+         *	@description: 
+         *		Specifies where to end the grid item.
+         *		The equivalent of CSS attribute `gridRowEnd`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        grid_row_end(value) {
+            if (value == null) { return this.style.gridRowEnd; }
+            this.style.gridRowEnd = value;
+            return this;
+        }
+
+        // Specifies the size of the gap between rows.
+        /*	@docs: {
+         *	@title: Grid row gap
+         *	@description: 
+         *		Specifies the size of the gap between rows.
+         *		The equivalent of CSS attribute `gridRowGap`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        grid_row_gap(value) {
+            if (value == null) { return this.style.gridRowGap; }
+            this.style.gridRowGap = value;
+            return this;
+        }
+
+        // Specifies where to start the grid item.
+        /*	@docs: {
+         *	@title: Grid row start
+         *	@description: 
+         *		Specifies where to start the grid item.
+         *		The equivalent of CSS attribute `gridRowStart`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        grid_row_start(value) {
+            if (value == null) { return this.style.gridRowStart; }
+            this.style.gridRowStart = value;
+            return this;
+        }
+
+        // A shorthand property for the grid-template-rows, grid-template-columns and grid-areas properties.
+        /*	@docs: {
+         *	@title: Grid template
+         *	@description: 
+         *		A shorthand property for the grid-template-rows, grid-template-columns and grid-areas properties.
+         *		The equivalent of CSS attribute `gridTemplate`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        grid_template(value) {
+            if (value == null) { return this.style.gridTemplate; }
+            this.style.gridTemplate = value;
+            return this;
+        }
+
+        // Specifies how to display columns and rows, using named grid items.
+        /*	@docs: {
+         *	@title: Grid template areas
+         *	@description: 
+         *		Specifies how to display columns and rows, using named grid items.
+         *		The equivalent of CSS attribute `gridTemplateAreas`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        grid_template_areas(value) {
+            if (value == null) { return this.style.gridTemplateAreas; }
+            this.style.gridTemplateAreas = value;
+            return this;
+        }
+
+        // Specifies the size of the columns, and how many columns in a grid layout.
+        /*	@docs: {
+         *	@title: Grid template columns
+         *	@description: 
+         *		Specifies the size of the columns, and how many columns in a grid layout.
+         *		The equivalent of CSS attribute `gridTemplateColumns`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        grid_template_columns(value) {
+            if (value == null) { return this.style.gridTemplateColumns; }
+            this.style.gridTemplateColumns = value;
+            return this;
+        }
+
+        // Specifies the size of the rows in a grid layout.
+        /*	@docs: {
+         *	@title: Grid template rows
+         *	@description: 
+         *		Specifies the size of the rows in a grid layout.
+         *		The equivalent of CSS attribute `gridTemplateRows`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        grid_template_rows(value) {
+            if (value == null) { return this.style.gridTemplateRows; }
+            this.style.gridTemplateRows = value;
+            return this;
+        }
+
+        // Specifies whether a punctuation character may be placed outside the line box.
+        /*	@docs: {
+         *	@title: Hanging punctuation
+         *	@description: 
+         *		Specifies whether a punctuation character may be placed outside the line box.
+         *		The equivalent of CSS attribute `hangingPunctuation`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        hanging_punctuation(value) {
+            if (value == null) { return this.style.hangingPunctuation; }
+            this.style.hangingPunctuation = value;
+            return this;
+        }
+
+        // Sets the height of an element.
+        // height(value) {
+        //     if (value == null) { return this.style.height; }
+        //     this.style.height = this.pad_numeric(value);
+        //     return this;
+        // }
+
+        // Sets how to split words to improve the layout of paragraphs.
+        /*	@docs: {
+         *	@title: Hyphens
+         *	@description: 
+         *		Sets how to split words to improve the layout of paragraphs.
+         *		The equivalent of CSS attribute `hyphens`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        hyphens(value) {
+            if (value == null) { return this.style.hyphens; }
+            this.style.hyphens = value;
+            return this;
+        }
+
+        // Specifies the type of algorithm to use for image scaling.
+        /*	@docs: {
+         *	@title: Image rendering
+         *	@description: 
+         *		Specifies the type of algorithm to use for image scaling.
+         *		The equivalent of CSS attribute `imageRendering`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        image_rendering(value) {
+            if (value == null) { return this.style.imageRendering; }
+            this.style.imageRendering = value;
+            return this;
+        }
+
+        // Specifies the size of an element in the inline direction.
+        /*	@docs: {
+         *	@title: Inline size
+         *	@description: 
+         *		Specifies the size of an element in the inline direction.
+         *		The equivalent of CSS attribute `inlineSize`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        inline_size(value) {
+            if (value == null) { return this.style.inlineSize; }
+            this.style.inlineSize = this.pad_numeric(value);
+            return this;
+        }
+
+        // Specifies the distance between an element and the parent element.
+        /*	@docs: {
+         *	@title: Inset
+         *	@description: 
+         *		Specifies the distance between an element and the parent element.
+         *		The equivalent of CSS attribute `inset`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        inset(value) {
+            if (value == null) { return this.style.inset; }
+            this.style.inset = value;
+            return this;
+        }
+
+        // Specifies the distance between an element and the parent element in the block direction.
+        /*	@docs: {
+         *	@title: Inset block
+         *	@description: 
+         *		Specifies the distance between an element and the parent element in the block direction.
+         *		The equivalent of CSS attribute `insetBlock`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        inset_block(value) {
+            if (value == null) { return this.style.insetBlock; }
+            this.style.insetBlock = value;
+            return this;
+        }
+
+        // Specifies the distance between the end of an element and the parent element in the block direction.
+        /*	@docs: {
+         *	@title: Inset block end
+         *	@description: 
+         *		Specifies the distance between the end of an element and the parent element in the block direction.
+         *		The equivalent of CSS attribute `insetBlockEnd`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        inset_block_end(value) {
+            if (value == null) { return this.style.insetBlockEnd; }
+            this.style.insetBlockEnd = value;
+            return this;
+        }
+
+        // Specifies the distance between the start of an element and the parent element in the block direction.
+        /*	@docs: {
+         *	@title: Inset block start
+         *	@description: 
+         *		Specifies the distance between the start of an element and the parent element in the block direction.
+         *		The equivalent of CSS attribute `insetBlockStart`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        inset_block_start(value) {
+            if (value == null) { return this.style.insetBlockStart; }
+            this.style.insetBlockStart = value;
+            return this;
+        }
+
+        // Specifies the distance between an element and the parent element in the inline direction.
+        /*	@docs: {
+         *	@title: Inset inline
+         *	@description: 
+         *		Specifies the distance between an element and the parent element in the inline direction.
+         *		The equivalent of CSS attribute `insetInline`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        inset_inline(value) {
+            if (value == null) { return this.style.insetInline; }
+            this.style.insetInline = value;
+            return this;
+        }
+
+        // Specifies the distance between the end of an element and the parent element in the inline direction.
+        /*	@docs: {
+         *	@title: Inset inline end
+         *	@description: 
+         *		Specifies the distance between the end of an element and the parent element in the inline direction.
+         *		The equivalent of CSS attribute `insetInlineEnd`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        inset_inline_end(value) {
+            if (value == null) { return this.style.insetInlineEnd; }
+            this.style.insetInlineEnd = value;
+            return this;
+        }
+
+        // Specifies the distance between the start of an element and the parent element in the inline direction.
+        /*	@docs: {
+         *	@title: Inset inline start
+         *	@description: 
+         *		Specifies the distance between the start of an element and the parent element in the inline direction.
+         *		The equivalent of CSS attribute `insetInlineStart`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        inset_inline_start(value) {
+            if (value == null) { return this.style.insetInlineStart; }
+            this.style.insetInlineStart = value;
+            return this;
+        }
+
+        // Defines whether an element must create a new stacking content.
+        /*	@docs: {
+         *	@title: Isolation
+         *	@description: 
+         *		Defines whether an element must create a new stacking content.
+         *		The equivalent of CSS attribute `isolation`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        isolation(value) {
+            if (value == null) { return this.style.isolation; }
+            this.style.isolation = value;
+            return this;
+        }
+
+        // Specifies the alignment between the items inside a flexible container when the items do not use all available space.
+        /*	@docs: {
+         *	@title: Justify content
+         *	@description: 
+         *		Specifies the alignment between the items inside a flexible container when the items do not use all available space.
+         *		The equivalent of CSS attribute `justifyContent`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        justify_content(value) {
+            if (value == null) { return this.style.justifyContent; }
+            this.style.justifyContent = value;
+            this.style.msJustifyContent = value;
+            this.style.webkitJustifyContent = value;
+            this.style.MozJustifyContent = value;
+            this.style.OJustifyContent = value;
+            return this;
+        }
+
+        // Is set on the grid container. Specifies the alignment of grid items in the inline direction.
+        /*	@docs: {
+         *	@title: Justify items
+         *	@description: 
+         *		Is set on the grid container. Specifies the alignment of grid items in the inline direction.
+         *		The equivalent of CSS attribute `justifyItems`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        justify_items(value) {
+            if (value == null) { return this.style.justifyItems; }
+            this.style.justifyItems = value;
+            return this;
+        }
+
+        // Is set on the grid item. Specifies the alignment of the grid item in the inline direction.
+        /*	@docs: {
+         *	@title: Justify self
+         *	@description: 
+         *		Is set on the grid item. Specifies the alignment of the grid item in the inline direction.
+         *		The equivalent of CSS attribute `justifySelf`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        justify_self(value) {
+            if (value == null) { return this.style.justifySelf; }
+            this.style.justifySelf = value;
+            return this;
+        }
+
+        // Specifies the left position of a positioned element.
+        /*	@docs: {
+         *	@title: Left
+         *	@description: 
+         *		Specifies the left position of a positioned element.
+         *		The equivalent of CSS attribute `left`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        left(value) {
+            if (value == null) { return this.style.left; }
+            this.style.left = this.pad_numeric(value);
+            return this;
+        }
+
+        // Increases or decreases the space between characters in a text.
+        /*	@docs: {
+         *	@title: Letter spacing
+         *	@description: 
+         *		Increases or decreases the space between characters in a text.
+         *		The equivalent of CSS attribute `letterSpacing`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        letter_spacing(value) {
+            if (value == null) { return this.style.letterSpacing; }
+            this.style.letterSpacing = value;
+            return this;
+        }
+
+        // Specifies how/if to break lines.
+        /*	@docs: {
+         *	@title: Line break
+         *	@description: 
+         *		Specifies how/if to break lines.
+         *		The equivalent of CSS attribute `lineBreak`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        line_break(value) {
+            if (value == null) { return this.style.lineBreak; }
+            this.style.lineBreak = value;
+            return this;
+        }
+
+        // Sets the line height.
+        /*	@docs: {
+         *	@title: Line height
+         *	@description: 
+         *		Sets the line height.
+         *		The equivalent of CSS attribute `lineHeight`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        line_height(value) {
+            if (value == null) { return this.style.lineHeight; }
+            this.style.lineHeight = this.pad_numeric(value);
+            return this;
+        }
+
+        // Sets all the properties for a list in one declaration.
+        /*	@docs: {
+         *	@title: List style
+         *	@description: 
+         *		Sets all the properties for a list in one declaration.
+         *		The equivalent of CSS attribute `listStyle`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        list_style(value) {
+            if (value == null) { return this.style.listStyle; }
+            this.style.listStyle = value;
+            return this;
+        }
+
+        // Specifies an image as the list-item marker.
+        /*	@docs: {
+         *	@title: List style image
+         *	@description: 
+         *		Specifies an image as the list-item marker.
+         *		The equivalent of CSS attribute `listStyleImage`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        list_style_image(value) {
+            if (value == null) { return this.style.listStyleImage; }
+            this.style.listStyleImage = value;
+            return this;
+        }
+
+        // Specifies the position of the list-item markers (bullet points).
+        /*	@docs: {
+         *	@title: List style position
+         *	@description: 
+         *		Specifies the position of the list-item markers (bullet points).
+         *		The equivalent of CSS attribute `listStylePosition`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        list_style_position(value) {
+            if (value == null) { return this.style.listStylePosition; }
+            this.style.listStylePosition = value;
+            return this;
+        }
+
+        // Specifies the type of list-item marker.
+        /*	@docs: {
+         *	@title: List style type
+         *	@description: 
+         *		Specifies the type of list-item marker.
+         *		The equivalent of CSS attribute `listStyleType`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        list_style_type(value) {
+            if (value == null) { return this.style.listStyleType; }
+            this.style.listStyleType = value;
+            return this;
+        }
+
+        // Sets all the margin properties in one declaration.
+        // margin(value) {
+        //     if (value == null) { return this.style.margin; }
+        //     this.style.margin = value;
+        //     return this;
+        // }
+
+        // Specifies the margin in the block direction.
+        /*	@docs: {
+         *	@title: Margin block
+         *	@description: 
+         *		Specifies the margin in the block direction.
+         *		The equivalent of CSS attribute `marginBlock`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        margin_block(value) {
+            if (value == null) { return this.style.marginBlock; }
+            this.style.marginBlock = value;
+            return this;
+        }
+
+        // Specifies the margin at the end in the block direction.
+        /*	@docs: {
+         *	@title: Margin block end
+         *	@description: 
+         *		Specifies the margin at the end in the block direction.
+         *		The equivalent of CSS attribute `marginBlockEnd`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        margin_block_end(value) {
+            if (value == null) { return this.style.marginBlockEnd; }
+            this.style.marginBlockEnd = value;
+            return this;
+        }
+
+        // Specifies the margin at the start in the block direction.
+        /*	@docs: {
+         *	@title: Margin block start
+         *	@description: 
+         *		Specifies the margin at the start in the block direction.
+         *		The equivalent of CSS attribute `marginBlockStart`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        margin_block_start(value) {
+            if (value == null) { return this.style.marginBlockStart; }
+            this.style.marginBlockStart = value;
+            return this;
+        }
+
+        // Sets the bottom margin of an element.
+        /*	@docs: {
+         *	@title: Margin bottom
+         *	@description: 
+         *		Sets the bottom margin of an element.
+         *		The equivalent of CSS attribute `marginBottom`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        margin_bottom(value) {
+            if (value == null) { return this.style.marginBottom; }
+            this.style.marginBottom = this.pad_numeric(value);
+            return this;
+        }
+
+        // Specifies the margin in the inline direction.
+        /*	@docs: {
+         *	@title: Margin inline
+         *	@description: 
+         *		Specifies the margin in the inline direction.
+         *		The equivalent of CSS attribute `marginInline`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        margin_inline(value) {
+            if (value == null) { return this.style.marginInline; }
+            this.style.marginInline = value;
+            return this;
+        }
+
+        // Specifies the margin at the end in the inline direction.
+        /*	@docs: {
+         *	@title: Margin inline end
+         *	@description: 
+         *		Specifies the margin at the end in the inline direction.
+         *		The equivalent of CSS attribute `marginInlineEnd`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        margin_inline_end(value) {
+            if (value == null) { return this.style.marginInlineEnd; }
+            this.style.marginInlineEnd = value;
+            return this;
+        }
+
+        // Specifies the margin at the start in the inline direction.
+        /*	@docs: {
+         *	@title: Margin inline start
+         *	@description: 
+         *		Specifies the margin at the start in the inline direction.
+         *		The equivalent of CSS attribute `marginInlineStart`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        margin_inline_start(value) {
+            if (value == null) { return this.style.marginInlineStart; }
+            this.style.marginInlineStart = value;
+            return this;
+        }
+
+        // Sets the left margin of an element.
+        /*	@docs: {
+         *	@title: Margin left
+         *	@description: 
+         *		Sets the left margin of an element.
+         *		The equivalent of CSS attribute `marginLeft`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        margin_left(value) {
+            if (value == null) { return this.style.marginLeft; }
+            this.style.marginLeft = this.pad_numeric(value);
+            return this;
+        }
+
+        // Sets the right margin of an element.
+        /*	@docs: {
+         *	@title: Margin right
+         *	@description: 
+         *		Sets the right margin of an element.
+         *		The equivalent of CSS attribute `marginRight`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        margin_right(value) {
+            if (value == null) { return this.style.marginRight; }
+            this.style.marginRight = this.pad_numeric(value);
+            return this;
+        }
+
+        // Sets the top margin of an element.
+        /*	@docs: {
+         *	@title: Margin top
+         *	@description: 
+         *		Sets the top margin of an element.
+         *		The equivalent of CSS attribute `marginTop`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        margin_top(value) {
+            if (value == null) { return this.style.marginTop; }
+            this.style.marginTop = this.pad_numeric(value);
+            return this;
+        }
+
+        // Hides parts of an element by masking or clipping an image at specific places.
+        /*	@docs: {
+         *	@title: Mask
+         *	@description: 
+         *		Hides parts of an element by masking or clipping an image at specific places.
+         *		The equivalent of CSS attribute `mask`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        mask(value) {
+            if (value == null) { return this.style.mask; }
+            this.style.mask = value;
+            this.style.msMask = value;
+            this.style.webkitMask = value;
+            this.style.MozMask = value;
+            this.style.OMask = value;
+            return this;
+        }
+
+        // Specifies the mask area.
+        /*	@docs: {
+         *	@title: Mask clip
+         *	@description: 
+         *		Specifies the mask area.
+         *		The equivalent of CSS attribute `maskClip`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        mask_clip(value) {
+            if (value == null) { return this.style.maskClip; }
+            this.style.maskClip = value;
+            return this;
+        }
+
+        // Represents a compositing operation used on the current mask layer with the mask layers below it.
+        /*	@docs: {
+         *	@title: Mask composite
+         *	@description: 
+         *		Represents a compositing operation used on the current mask layer with the mask layers below it.
+         *		The equivalent of CSS attribute `maskComposite`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        mask_composite(value) {
+            if (value == null) { return this.style.maskComposite; }
+            this.style.maskComposite = value;
+            this.style.msMaskComposite = value;
+            this.style.webkitMaskComposite = value;
+            this.style.MozMaskComposite = value;
+            this.style.OMaskComposite = value;
+            return this;
+        }
+
+        // Specifies an image to be used as a mask layer for an element.
+        /*	@docs: {
+         *	@title: Mask image
+         *	@description: 
+         *		Specifies an image to be used as a mask layer for an element.
+         *		The equivalent of CSS attribute `maskImage`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        mask_image(value) {
+            if (value == null) { return this.style.maskImage; }
+            this.style.maskImage = value;
+            return this;
+        }
+
+        // Specifies whether the mask layer image is treated as a luminance mask or as an alpha mask.
+        /*	@docs: {
+         *	@title: Mask mode
+         *	@description: 
+         *		Specifies whether the mask layer image is treated as a luminance mask or as an alpha mask.
+         *		The equivalent of CSS attribute `maskMode`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        mask_mode(value) {
+            if (value == null) { return this.style.maskMode; }
+            this.style.maskMode = value;
+            return this;
+        }
+
+        // Specifies the origin position (the mask position area) of a mask layer image.
+        /*	@docs: {
+         *	@title: Mask origin
+         *	@description: 
+         *		Specifies the origin position (the mask position area) of a mask layer image.
+         *		The equivalent of CSS attribute `maskOrigin`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        mask_origin(value) {
+            if (value == null) { return this.style.maskOrigin; }
+            this.style.maskOrigin = value;
+            return this;
+        }
+
+        // Sets the starting position of a mask layer image (relative to the mask position area).
+        /*	@docs: {
+         *	@title: Mask position
+         *	@description: 
+         *		Sets the starting position of a mask layer image (relative to the mask position area).
+         *		The equivalent of CSS attribute `maskPosition`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        mask_position(value) {
+            if (value == null) { return this.style.maskPosition; }
+            this.style.maskPosition = value;
+            return this;
+        }
+
+        // Specifies how the mask layer image is repeated.
+        /*	@docs: {
+         *	@title: Mask repeat
+         *	@description: 
+         *		Specifies how the mask layer image is repeated.
+         *		The equivalent of CSS attribute `maskRepeat`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        mask_repeat(value) {
+            if (value == null) { return this.style.maskRepeat; }
+            this.style.maskRepeat = value;
+            return this;
+        }
+
+        // Specifies the size of a mask layer image.
+        /*	@docs: {
+         *	@title: Mask size
+         *	@description: 
+         *		Specifies the size of a mask layer image.
+         *		The equivalent of CSS attribute `maskSize`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        mask_size(value) {
+            if (value == null) { return this.style.maskSize; }
+            this.style.maskSize = this.pad_numeric(value);
+            return this;
+        }
+
+        // Specifies whether an SVG <mask> element is treated as a luminance mask or as an alpha mask.
+        /*	@docs: {
+         *	@title: Mask type
+         *	@description: 
+         *		Specifies whether an SVG <mask> element is treated as a luminance mask or as an alpha mask.
+         *		The equivalent of CSS attribute `maskType`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        mask_type(value) {
+            if (value == null) { return this.style.maskType; }
+            this.style.maskType = value;
+            return this;
+        }
+
+        // Sets the maximum height of an element.
+        /*	@docs: {
+         *	@title: Max height
+         *	@description: 
+         *		Sets the maximum height of an element.
+         *		The equivalent of CSS attribute `maxHeight`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        max_height(value) {
+            if (value == null) { return this.style.maxHeight; }
+            this.style.maxHeight = this.pad_numeric(value);
+            return this;
+        }
+
+        // Sets the maximum width of an element.
+        /*	@docs: {
+         *	@title: Max width
+         *	@description: 
+         *		Sets the maximum width of an element.
+         *		The equivalent of CSS attribute `maxWidth`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        max_width(value) {
+            if (value == null) { return this.style.maxWidth; }
+            this.style.maxWidth = this.pad_numeric(value);
+            return this;
+        }
+
+        // Sets the maximum size of an element in the block direction.
+        /*	@docs: {
+         *	@title: Max block size
+         *	@description: 
+         *		Sets the maximum size of an element in the block direction.
+         *		The equivalent of CSS attribute `maxBlockSize`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        max_block_size(value) {
+            if (value == null) { return this.style.maxBlockSize; }
+            this.style.maxBlockSize = this.pad_numeric(value);
+            return this;
+        }
+
+        // Sets the maximum size of an element in the inline direction.
+        /*	@docs: {
+         *	@title: Max inline size
+         *	@description: 
+         *		Sets the maximum size of an element in the inline direction.
+         *		The equivalent of CSS attribute `maxInlineSize`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        max_inline_size(value) {
+            if (value == null) { return this.style.maxInlineSize; }
+            this.style.maxInlineSize = this.pad_numeric(value);
+            return this;
+        }
+
+        // Sets the minimum size of an element in the block direction.
+        /*	@docs: {
+         *	@title: Min block size
+         *	@description: 
+         *		Sets the minimum size of an element in the block direction.
+         *		The equivalent of CSS attribute `minBlockSize`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        min_block_size(value) {
+            if (value == null) { return this.style.minBlockSize; }
+            this.style.minBlockSize = this.pad_numeric(value);
+            return this;
+        }
+
+        // Sets the minimum size of an element in the inline direction.
+        /*	@docs: {
+         *	@title: Min inline size
+         *	@description: 
+         *		Sets the minimum size of an element in the inline direction.
+         *		The equivalent of CSS attribute `minInlineSize`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        min_inline_size(value) {
+            if (value == null) { return this.style.minInlineSize; }
+            this.style.minInlineSize = this.pad_numeric(value);
+            return this;
+        }
+
+        // Sets the minimum height of an element.
+        /*	@docs: {
+         *	@title: Min height
+         *	@description: 
+         *		Sets the minimum height of an element.
+         *		The equivalent of CSS attribute `minHeight`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        min_height(value) {
+            if (value == null) { return this.style.minHeight; }
+            this.style.minHeight = this.pad_numeric(value);
+            return this;
+        }
+
+        // Sets the minimum width of an element.
+        /*	@docs: {
+         *	@title: Min width
+         *	@description: 
+         *		Sets the minimum width of an element.
+         *		The equivalent of CSS attribute `minWidth`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        min_width(value) {
+            if (value == null) { return this.style.minWidth; }
+            this.style.minWidth = this.pad_numeric(value);
+            return this;
+        }
+
+        // Specifies how an element's content should blend with its direct parent background.
+        /*	@docs: {
+         *	@title: Mix blend mode
+         *	@description: 
+         *		Specifies how an element's content should blend with its direct parent background.
+         *		The equivalent of CSS attribute `mixBlendMode`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        mix_blend_mode(value) {
+            if (value == null) { return this.style.mixBlendMode; }
+            this.style.mixBlendMode = value;
+            return this;
+        }
+
+        // Specifies how the contents of a replaced element should be fitted to the box established by its used height and width.
+        /*	@docs: {
+         *	@title: Object fit
+         *	@description: 
+         *		Specifies how the contents of a replaced element should be fitted to the box established by its used height and width.
+         *		The equivalent of CSS attribute `objectFit`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        object_fit(value) {
+            if (value == null) { return this.style.objectFit; }
+            this.style.objectFit = value;
+            return this;
+        }
+
+        // Specifies the alignment of the replaced element inside its box.
+        /*	@docs: {
+         *	@title: Object position
+         *	@description: 
+         *		Specifies the alignment of the replaced element inside its box.
+         *		The equivalent of CSS attribute `objectPosition`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        object_position(value) {
+            if (value == null) { return this.style.objectPosition; }
+            this.style.objectPosition = value;
+            return this;
+        }
+
+        // Is a shorthand, and specifies how to animate an element along a path.
+        /*	@docs: {
+         *	@title: Offset
+         *	@description: 
+         *		Is a shorthand, and specifies how to animate an element along a path.
+         *		The equivalent of CSS attribute `offset`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        offset(value) {
+            if (value == null) { return this.style.offset; }
+            this.style.offset = value;
+            return this;
+        }
+
+        // Specifies a point on an element that is fixed to the path it is animated along.
+        /*	@docs: {
+         *	@title: Offset anchor
+         *	@description: 
+         *		Specifies a point on an element that is fixed to the path it is animated along.
+         *		The equivalent of CSS attribute `offsetAnchor`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        offset_anchor(value) {
+            if (value == null) { return this.style.offsetAnchor; }
+            this.style.offsetAnchor = value;
+            return this;
+        }
+
+        // Specifies the position along a path where an animated element is placed.
+        /*	@docs: {
+         *	@title: Offset distance
+         *	@description: 
+         *		Specifies the position along a path where an animated element is placed.
+         *		The equivalent of CSS attribute `offsetDistance`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        offset_distance(value) {
+            if (value == null) { return this.style.offsetDistance; }
+            this.style.offsetDistance = value;
+            return this;
+        }
+
+        // Specifies the path an element is animated along.
+        /*	@docs: {
+         *	@title: Offset path
+         *	@description: 
+         *		Specifies the path an element is animated along.
+         *		The equivalent of CSS attribute `offsetPath`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        offset_path(value) {
+            if (value == null) { return this.style.offsetPath; }
+            this.style.offsetPath = value;
+            return this;
+        }
+
+        // Specifies rotation of an element as it is animated along a path.
+        /*	@docs: {
+         *	@title: Offset rotate
+         *	@description: 
+         *		Specifies rotation of an element as it is animated along a path.
+         *		The equivalent of CSS attribute `offsetRotate`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        offset_rotate(value) {
+            if (value == null) { return this.style.offsetRotate; }
+            this.style.offsetRotate = value;
+            return this;
+        }
+
+        // Sets the opacity level for an element.
+        /*	@docs: {
+         *	@title: Opacity
+         *	@description: 
+         *		Sets the opacity level for an element.
+         *		The equivalent of CSS attribute `opacity`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        opacity(value) {
+            if (value == null) { return this.style.opacity; }
+            this.style.opacity = value;
+            return this;
+        }
+
+        // Sets the order of the flexible item, relative to the rest.
+        /*	@docs: {
+         *	@title: Order
+         *	@description: 
+         *		Sets the order of the flexible item, relative to the rest.
+         *		The equivalent of CSS attribute `order`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        order(value) {
+            if (value == null) { return this.style.order; }
+            this.style.order = value;
+            this.style.msOrder = value;
+            this.style.webkitOrder = value;
+            this.style.MozOrder = value;
+            this.style.OOrder = value;
+            return this;
+        }
+
+        // Sets the minimum number of lines that must be left at the bottom of a page or column.
+        /*	@docs: {
+         *	@title: Orphans
+         *	@description: 
+         *		Sets the minimum number of lines that must be left at the bottom of a page or column.
+         *		The equivalent of CSS attribute `orphans`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        orphans(value) {
+            if (value == null) { return this.style.orphans; }
+            this.style.orphans = value;
+            return this;
+        }
+
+        // A shorthand property for the outline-width, outline-style, and the outline-color properties.
+        /*	@docs: {
+         *	@title: Outline
+         *	@description: 
+         *		A shorthand property for the outline-width, outline-style, and the outline-color properties.
+         *		The equivalent of CSS attribute `outline`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        outline(value) {
+            if (value == null) { return this.style.outline; }
+            this.style.outline = value;
+            return this;
+        }
+
+        // Sets the color of an outline.
+        /*	@docs: {
+         *	@title: Outline color
+         *	@description: 
+         *		Sets the color of an outline.
+         *		The equivalent of CSS attribute `outlineColor`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        outline_color(value) {
+            if (value == null) { return this.style.outlineColor; }
+            this.style.outlineColor = value;
+            return this;
+        }
+
+        // Offsets an outline, and draws it beyond the border edge.
+        /*	@docs: {
+         *	@title: Outline offset
+         *	@description: 
+         *		Offsets an outline, and draws it beyond the border edge.
+         *		The equivalent of CSS attribute `outlineOffset`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        outline_offset(value) {
+            if (value == null) { return this.style.outlineOffset; }
+            this.style.outlineOffset = value;
+            return this;
+        }
+
+        // Sets the style of an outline.
+        /*	@docs: {
+         *	@title: Outline style
+         *	@description: 
+         *		Sets the style of an outline.
+         *		The equivalent of CSS attribute `outlineStyle`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        outline_style(value) {
+            if (value == null) { return this.style.outlineStyle; }
+            this.style.outlineStyle = value;
+            return this;
+        }
+
+        // Sets the width of an outline.
+        /*	@docs: {
+         *	@title: Outline width
+         *	@description: 
+         *		Sets the width of an outline.
+         *		The equivalent of CSS attribute `outlineWidth`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        outline_width(value) {
+            if (value == null) { return this.style.outlineWidth; }
+            this.style.outlineWidth = this.pad_numeric(value);
+            return this;
+        }
+
+        // Specifies what happens if content overflows an element's box.
+        /*	@docs: {
+         *	@title: Overflow
+         *	@description: 
+         *		Specifies what happens if content overflows an element's box.
+         *		The equivalent of CSS attribute `overflow`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        overflow(value) {
+            if (value == null) { return this.style.overflow; }
+            this.style.overflow = value;
+            return this;
+        }
+
+        // Specifies whether or not content in viewable area in a scrollable contianer should be pushed down when new content is loaded above.
+        /*	@docs: {
+         *	@title: Overflow anchor
+         *	@description: 
+         *		Specifies whether or not content in viewable area in a scrollable contianer should be pushed down when new content is loaded above.
+         *		The equivalent of CSS attribute `overflowAnchor`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        overflow_anchor(value) {
+            if (value == null) { return this.style.overflowAnchor; }
+            this.style.overflowAnchor = value;
+            return this;
+        }
+
+        // Specifies whether or not the browser can break lines with long words, if they overflow the container.
+        /*	@docs: {
+         *	@title: Overflow wrap
+         *	@description: 
+         *		Specifies whether or not the browser can break lines with long words, if they overflow the container.
+         *		The equivalent of CSS attribute `overflowWrap`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        overflow_wrap(value) {
+            if (value == null) { return this.style.overflowWrap; }
+            this.style.overflowWrap = value;
+            return this;
+        }
+
+        // Specifies whether or not to clip the left/right edges of the content, if it overflows the element's content area.
+        /*	@docs: {
+         *	@title: Overflow x
+         *	@description: 
+         *		Specifies whether or not to clip the left/right edges of the content, if it overflows the element's content area.
+         *		The equivalent of CSS attribute `overflowX`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        overflow_x(value) {
+            if (value == null) { return this.style.overflowX; }
+            this.style.overflowX = value;
+            return this;
+        }
+
+        // Specifies whether or not to clip the top/bottom edges of the content, if it overflows the element's content area.
+        /*	@docs: {
+         *	@title: Overflow y
+         *	@description: 
+         *		Specifies whether or not to clip the top/bottom edges of the content, if it overflows the element's content area.
+         *		The equivalent of CSS attribute `overflowY`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        overflow_y(value) {
+            if (value == null) { return this.style.overflowY; }
+            this.style.overflowY = value;
+            return this;
+        }
+
+        // Specifies whether to have scroll chaining or overscroll affordance in x- and y-directions.
+        /*	@docs: {
+         *	@title: Overscroll behavior
+         *	@description: 
+         *		Specifies whether to have scroll chaining or overscroll affordance in x- and y-directions.
+         *		The equivalent of CSS attribute `overscrollBehavior`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        overscroll_behavior(value) {
+            if (value == null) { return this.style.overscrollBehavior; }
+            this.style.overscrollBehavior = value;
+            return this;
+        }
+
+        // Specifies whether to have scroll chaining or overscroll affordance in the block direction.
+        /*	@docs: {
+         *	@title: Overscroll behavior block
+         *	@description: 
+         *		Specifies whether to have scroll chaining or overscroll affordance in the block direction.
+         *		The equivalent of CSS attribute `overscrollBehaviorBlock`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        overscroll_behavior_block(value) {
+            if (value == null) { return this.style.overscrollBehaviorBlock; }
+            this.style.overscrollBehaviorBlock = value;
+            return this;
+        }
+
+        // Specifies whether to have scroll chaining or overscroll affordance in the inline direction.
+        /*	@docs: {
+         *	@title: Overscroll behavior inline
+         *	@description: 
+         *		Specifies whether to have scroll chaining or overscroll affordance in the inline direction.
+         *		The equivalent of CSS attribute `overscrollBehaviorInline`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        overscroll_behavior_inline(value) {
+            if (value == null) { return this.style.overscrollBehaviorInline; }
+            this.style.overscrollBehaviorInline = value;
+            return this;
+        }
+
+        // Specifies whether to have scroll chaining or overscroll affordance in x-direction.
+        /*	@docs: {
+         *	@title: Overscroll behavior x
+         *	@description: 
+         *		Specifies whether to have scroll chaining or overscroll affordance in x-direction.
+         *		The equivalent of CSS attribute `overscrollBehaviorX`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        overscroll_behavior_x(value) {
+            if (value == null) { return this.style.overscrollBehaviorX; }
+            this.style.overscrollBehaviorX = value;
+            return this;
+        }
+
+        // Specifies whether to have scroll chaining or overscroll affordance in y-directions.
+        /*	@docs: {
+         *	@title: Overscroll behavior y
+         *	@description: 
+         *		Specifies whether to have scroll chaining or overscroll affordance in y-directions.
+         *		The equivalent of CSS attribute `overscrollBehaviorY`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        overscroll_behavior_y(value) {
+            if (value == null) { return this.style.overscrollBehaviorY; }
+            this.style.overscrollBehaviorY = value;
+            return this;
+        }
+
+        // A shorthand property for all the padding-* properties.
+        // padding(value) {
+        //     if (value == null) { return this.style.padding; }
+        //     this.style.padding = value;
+        //     return this;
+        // }
+
+        // Specifies the padding in the block direction.
+        /*	@docs: {
+         *	@title: Padding block
+         *	@description: 
+         *		Specifies the padding in the block direction.
+         *		The equivalent of CSS attribute `paddingBlock`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        padding_block(value) {
+            if (value == null) { return this.style.paddingBlock; }
+            this.style.paddingBlock = value;
+            return this;
+        }
+
+        // Specifies the padding at the end in the block direction.
+        /*	@docs: {
+         *	@title: Padding block end
+         *	@description: 
+         *		Specifies the padding at the end in the block direction.
+         *		The equivalent of CSS attribute `paddingBlockEnd`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        padding_block_end(value) {
+            if (value == null) { return this.style.paddingBlockEnd; }
+            this.style.paddingBlockEnd = value;
+            return this;
+        }
+
+        // Specifies the padding at the start in the block direction.
+        /*	@docs: {
+         *	@title: Padding block start
+         *	@description: 
+         *		Specifies the padding at the start in the block direction.
+         *		The equivalent of CSS attribute `paddingBlockStart`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        padding_block_start(value) {
+            if (value == null) { return this.style.paddingBlockStart; }
+            this.style.paddingBlockStart = value;
+            return this;
+        }
+
+        // Sets the bottom padding of an element.
+        /*	@docs: {
+         *	@title: Padding bottom
+         *	@description: 
+         *		Sets the bottom padding of an element.
+         *		The equivalent of CSS attribute `paddingBottom`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        padding_bottom(value) {
+            if (value == null) { return this.style.paddingBottom; }
+            this.style.paddingBottom = this.pad_numeric(value);
+            return this;
+        }
+
+        // Specifies the padding in the inline direction.
+        /*	@docs: {
+         *	@title: Padding inline
+         *	@description: 
+         *		Specifies the padding in the inline direction.
+         *		The equivalent of CSS attribute `paddingInline`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        padding_inline(value) {
+            if (value == null) { return this.style.paddingInline; }
+            this.style.paddingInline = value;
+            return this;
+        }
+
+        // Specifies the padding at the end in the inline direction.
+        /*	@docs: {
+         *	@title: Padding inline end
+         *	@description: 
+         *		Specifies the padding at the end in the inline direction.
+         *		The equivalent of CSS attribute `paddingInlineEnd`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        padding_inline_end(value) {
+            if (value == null) { return this.style.paddingInlineEnd; }
+            this.style.paddingInlineEnd = value;
+            return this;
+        }
+
+        // Specifies the padding at the start in the inline direction.
+        /*	@docs: {
+         *	@title: Padding inline start
+         *	@description: 
+         *		Specifies the padding at the start in the inline direction.
+         *		The equivalent of CSS attribute `paddingInlineStart`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        padding_inline_start(value) {
+            if (value == null) { return this.style.paddingInlineStart; }
+            this.style.paddingInlineStart = value;
+            return this;
+        }
+
+        // Sets the left padding of an element.
+        /*	@docs: {
+         *	@title: Padding left
+         *	@description: 
+         *		Sets the left padding of an element.
+         *		The equivalent of CSS attribute `paddingLeft`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        padding_left(value) {
+            if (value == null) { return this.style.paddingLeft; }
+            this.style.paddingLeft = this.pad_numeric(value);
+            return this;
+        }
+
+        // Sets the right padding of an element.
+        /*	@docs: {
+         *	@title: Padding right
+         *	@description: 
+         *		Sets the right padding of an element.
+         *		The equivalent of CSS attribute `paddingRight`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        padding_right(value) {
+            if (value == null) { return this.style.paddingRight; }
+            this.style.paddingRight = this.pad_numeric(value);
+            return this;
+        }
+
+        // Sets the top padding of an element.
+        /*	@docs: {
+         *	@title: Padding top
+         *	@description: 
+         *		Sets the top padding of an element.
+         *		The equivalent of CSS attribute `paddingTop`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        padding_top(value) {
+            if (value == null) { return this.style.paddingTop; }
+            this.style.paddingTop = this.pad_numeric(value);
+            return this;
+        }
+
+        // Sets the page-break behavior after an element.
+        /*	@docs: {
+         *	@title: Page break after
+         *	@description: 
+         *		Sets the page-break behavior after an element.
+         *		The equivalent of CSS attribute `pageBreakAfter`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        page_break_after(value) {
+            if (value == null) { return this.style.pageBreakAfter; }
+            this.style.pageBreakAfter = value;
+            return this;
+        }
+
+        // Sets the page-break behavior before an element.
+        /*	@docs: {
+         *	@title: Page break before
+         *	@description: 
+         *		Sets the page-break behavior before an element.
+         *		The equivalent of CSS attribute `pageBreakBefore`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        page_break_before(value) {
+            if (value == null) { return this.style.pageBreakBefore; }
+            this.style.pageBreakBefore = value;
+            return this;
+        }
+
+        // Sets the page-break behavior inside an element.
+        /*	@docs: {
+         *	@title: Page break inside
+         *	@description: 
+         *		Sets the page-break behavior inside an element.
+         *		The equivalent of CSS attribute `pageBreakInside`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        page_break_inside(value) {
+            if (value == null) { return this.style.pageBreakInside; }
+            this.style.pageBreakInside = value;
+            return this;
+        }
+
+        // Sets the order of how an SVG element or text is painted.
+        /*	@docs: {
+         *	@title: Paint order
+         *	@description: 
+         *		Sets the order of how an SVG element or text is painted.
+         *		The equivalent of CSS attribute `paintOrder`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        paint_order(value) {
+            if (value == null) { return this.style.paintOrder; }
+            this.style.paintOrder = value;
+            return this;
+        }
+
+        // Gives a 3D-positioned element some perspective.
+        /*	@docs: {
+         *	@title: Perspective
+         *	@description: 
+         *		Gives a 3D-positioned element some perspective.
+         *		The equivalent of CSS attribute `perspective`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        perspective(value) {
+            if (value == null) { return this.style.perspective; }
+            this.style.perspective = value;
+            this.style.msPerspective = value;
+            this.style.webkitPerspective = value;
+            this.style.MozPerspective = value;
+            this.style.OPerspective = value;
+            return this;
+        }
+
+        // Defines at which position the user is looking at the 3D-positioned element.
+        /*	@docs: {
+         *	@title: Perspective origin
+         *	@description: 
+         *		Defines at which position the user is looking at the 3D-positioned element.
+         *		The equivalent of CSS attribute `perspectiveOrigin`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        perspective_origin(value) {
+            if (value == null) { return this.style.perspectiveOrigin; }
+            this.style.perspectiveOrigin = value;
+            this.style.msPerspectiveOrigin = value;
+            this.style.webkitPerspectiveOrigin = value;
+            this.style.MozPerspectiveOrigin = value;
+            this.style.OPerspectiveOrigin = value;
+            return this;
+        }
+
+        // Specifies align-content and justify-content property values for flexbox and grid layouts.
+        /*	@docs: {
+         *	@title: Place content
+         *	@description: 
+         *		Specifies align-content and justify-content property values for flexbox and grid layouts.
+         *		The equivalent of CSS attribute `placeContent`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        place_content(value) {
+            if (value == null) { return this.style.placeContent; }
+            this.style.placeContent = value;
+            return this;
+        }
+
+        // Specifies align-items and justify-items property values for grid layouts.
+        /*	@docs: {
+         *	@title: Place items
+         *	@description: 
+         *		Specifies align-items and justify-items property values for grid layouts.
+         *		The equivalent of CSS attribute `placeItems`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        place_items(value) {
+            if (value == null) { return this.style.placeItems; }
+            this.style.placeItems = value;
+            return this;
+        }
+
+        // Specifies align-self and justify-self property values for grid layouts.
+        /*	@docs: {
+         *	@title: Place self
+         *	@description: 
+         *		Specifies align-self and justify-self property values for grid layouts.
+         *		The equivalent of CSS attribute `placeSelf`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        place_self(value) {
+            if (value == null) { return this.style.placeSelf; }
+            this.style.placeSelf = value;
+            return this;
+        }
+
+        // Defines whether or not an element reacts to pointer events.
+        /*	@docs: {
+         *	@title: Pointer events
+         *	@description: 
+         *		Defines whether or not an element reacts to pointer events.
+         *		The equivalent of CSS attribute `pointerEvents`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        pointer_events(value) {
+            if (value == null) { return this.style.pointerEvents; }
+            this.style.pointerEvents = value;
+            return this;
+        }
+
+        // Specifies the type of positioning method used for an element (static, relative, absolute or fixed).
+        // position(value) {
+        //     if (value == null) { return this.style.position; }
+        //     this.style.position = value;
+        //     return this;
+        // }
+
+        // Sets the type of quotation marks for embedded quotations.
+        /*	@docs: {
+         *	@title: Quotes
+         *	@description: 
+         *		Sets the type of quotation marks for embedded quotations.
+         *		The equivalent of CSS attribute `quotes`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        quotes(value) {
+            if (value == null) { return this.style.quotes; }
+            this.style.quotes = value;
+            return this;
+        }
+
+        // Defines if (and how) an element is resizable by the user.
+        /*	@docs: {
+         *	@title: Resize
+         *	@description: 
+         *		Defines if (and how) an element is resizable by the user.
+         *		The equivalent of CSS attribute `resize`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        resize(value) {
+            if (value == null) { return this.style.resize; }
+            this.style.resize = value;
+            return this;
+        }
+
+        // Specifies the right position of a positioned element.
+        /*	@docs: {
+         *	@title: Right
+         *	@description: 
+         *		Specifies the right position of a positioned element.
+         *		The equivalent of CSS attribute `right`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        right(value) {
+            if (value == null) { return this.style.right; }
+            this.style.right = this.pad_numeric(value);
+            return this;
+        }
+
+        // Specifies the rotation of an element.
+        /*	@docs: {
+         *	@title: Rotate
+         *	@description: 
+         *		Specifies the rotation of an element.
+         *		The equivalent of CSS attribute `rotate`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        rotate(value) {
+            if (value == null) { return this.style.rotate; }
+            this.style.rotate = value;
+            return this;
+        }
+
+        // Specifies the gap between the grid rows.
+        /*	@docs: {
+         *	@title: Row gap
+         *	@description: 
+         *		Specifies the gap between the grid rows.
+         *		The equivalent of CSS attribute `rowGap`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        row_gap(value) {
+            if (value == null) { return this.style.rowGap; }
+            this.style.rowGap = value;
+            return this;
+        }
+
+        // Specifies the size of an element by scaling up or down.
+        /*	@docs: {
+         *	@title: Scale
+         *	@description: 
+         *		Specifies the size of an element by scaling up or down.
+         *		The equivalent of CSS attribute `scale`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        scale(value) {
+            if (value == null) { return this.style.scale; }
+            this.style.scale = value;
+            return this;
+        }
+
+        // Specifies whether to smoothly animate the scroll position in a scrollable box, instead of a straight jump.
+        /*	@docs: {
+         *	@title: Scroll behavior
+         *	@description: 
+         *		Specifies whether to smoothly animate the scroll position in a scrollable box, instead of a straight jump.
+         *		The equivalent of CSS attribute `scrollBehavior`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        scroll_behavior(value) {
+            if (value == null) { return this.style.scrollBehavior; }
+            this.style.scrollBehavior = value;
+            return this;
+        }
+
+        // Specifies the margin between the snap position and the container.
+        /*	@docs: {
+         *	@title: Scroll margin
+         *	@description: 
+         *		Specifies the margin between the snap position and the container.
+         *		The equivalent of CSS attribute `scrollMargin`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        scroll_margin(value) {
+            if (value == null) { return this.style.scrollMargin; }
+            this.style.scrollMargin = value;
+            return this;
+        }
+
+        // Specifies the margin between the snap position and the container in the block direction.
+        /*	@docs: {
+         *	@title: Scroll margin block
+         *	@description: 
+         *		Specifies the margin between the snap position and the container in the block direction.
+         *		The equivalent of CSS attribute `scrollMarginBlock`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        scroll_margin_block(value) {
+            if (value == null) { return this.style.scrollMarginBlock; }
+            this.style.scrollMarginBlock = value;
+            return this;
+        }
+
+        // Specifies the end margin between the snap position and the container in the block direction.
+        /*	@docs: {
+         *	@title: Scroll margin block end
+         *	@description: 
+         *		Specifies the end margin between the snap position and the container in the block direction.
+         *		The equivalent of CSS attribute `scrollMarginBlockEnd`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        scroll_margin_block_end(value) {
+            if (value == null) { return this.style.scrollMarginBlockEnd; }
+            this.style.scrollMarginBlockEnd = value;
+            return this;
+        }
+
+        // Specifies the start margin between the snap position and the container in the block direction.
+        /*	@docs: {
+         *	@title: Scroll margin block start
+         *	@description: 
+         *		Specifies the start margin between the snap position and the container in the block direction.
+         *		The equivalent of CSS attribute `scrollMarginBlockStart`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        scroll_margin_block_start(value) {
+            if (value == null) { return this.style.scrollMarginBlockStart; }
+            this.style.scrollMarginBlockStart = value;
+            return this;
+        }
+
+        // Specifies the margin between the snap position on the bottom side and the container.
+        /*	@docs: {
+         *	@title: Scroll margin bottom
+         *	@description: 
+         *		Specifies the margin between the snap position on the bottom side and the container.
+         *		The equivalent of CSS attribute `scrollMarginBottom`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        scroll_margin_bottom(value) {
+            if (value == null) { return this.style.scrollMarginBottom; }
+            this.style.scrollMarginBottom = this.pad_numeric(value);
+            return this;
+        }
+
+        // Specifies the margin between the snap position and the container in the inline direction.
+        /*	@docs: {
+         *	@title: Scroll margin inline
+         *	@description: 
+         *		Specifies the margin between the snap position and the container in the inline direction.
+         *		The equivalent of CSS attribute `scrollMarginInline`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        scroll_margin_inline(value) {
+            if (value == null) { return this.style.scrollMarginInline; }
+            this.style.scrollMarginInline = value;
+            return this;
+        }
+
+        // Specifies the end margin between the snap position and the container in the inline direction.
+        /*	@docs: {
+         *	@title: Scroll margin inline end
+         *	@description: 
+         *		Specifies the end margin between the snap position and the container in the inline direction.
+         *		The equivalent of CSS attribute `scrollMarginInlineEnd`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        scroll_margin_inline_end(value) {
+            if (value == null) { return this.style.scrollMarginInlineEnd; }
+            this.style.scrollMarginInlineEnd = value;
+            return this;
+        }
+
+        // Specifies the start margin between the snap position and the container in the inline direction.
+        /*	@docs: {
+         *	@title: Scroll margin inline start
+         *	@description: 
+         *		Specifies the start margin between the snap position and the container in the inline direction.
+         *		The equivalent of CSS attribute `scrollMarginInlineStart`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        scroll_margin_inline_start(value) {
+            if (value == null) { return this.style.scrollMarginInlineStart; }
+            this.style.scrollMarginInlineStart = value;
+            return this;
+        }
+
+        // Specifies the margin between the snap position on the left side and the container.
+        /*	@docs: {
+         *	@title: Scroll margin left
+         *	@description: 
+         *		Specifies the margin between the snap position on the left side and the container.
+         *		The equivalent of CSS attribute `scrollMarginLeft`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        scroll_margin_left(value) {
+            if (value == null) { return this.style.scrollMarginLeft; }
+            this.style.scrollMarginLeft = this.pad_numeric(value);
+            return this;
+        }
+
+        // Specifies the margin between the snap position on the right side and the container.
+        /*	@docs: {
+         *	@title: Scroll margin right
+         *	@description: 
+         *		Specifies the margin between the snap position on the right side and the container.
+         *		The equivalent of CSS attribute `scrollMarginRight`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        scroll_margin_right(value) {
+            if (value == null) { return this.style.scrollMarginRight; }
+            this.style.scrollMarginRight = this.pad_numeric(value);
+            return this;
+        }
+
+        // Specifies the margin between the snap position on the top side and the container.
+        /*	@docs: {
+         *	@title: Scroll margin top
+         *	@description: 
+         *		Specifies the margin between the snap position on the top side and the container.
+         *		The equivalent of CSS attribute `scrollMarginTop`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        scroll_margin_top(value) {
+            if (value == null) { return this.style.scrollMarginTop; }
+            this.style.scrollMarginTop = this.pad_numeric(value);
+            return this;
+        }
+
+        // Specifies the distance from the container to the snap position on the child elements.
+        /*	@docs: {
+         *	@title: Scroll padding
+         *	@description: 
+         *		Specifies the distance from the container to the snap position on the child elements.
+         *		The equivalent of CSS attribute `scrollPadding`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        scroll_padding(value) {
+            if (value == null) { return this.style.scrollPadding; }
+            this.style.scrollPadding = value;
+            return this;
+        }
+
+        // Specifies the distance in block direction from the container to the snap position on the child elements.
+        /*	@docs: {
+         *	@title: Scroll padding block
+         *	@description: 
+         *		Specifies the distance in block direction from the container to the snap position on the child elements.
+         *		The equivalent of CSS attribute `scrollPaddingBlock`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        scroll_padding_block(value) {
+            if (value == null) { return this.style.scrollPaddingBlock; }
+            this.style.scrollPaddingBlock = value;
+            return this;
+        }
+
+        // Specifies the distance in block direction from the end of the container to the snap position on the child elements.
+        /*	@docs: {
+         *	@title: Scroll padding block end
+         *	@description: 
+         *		Specifies the distance in block direction from the end of the container to the snap position on the child elements.
+         *		The equivalent of CSS attribute `scrollPaddingBlockEnd`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        scroll_padding_block_end(value) {
+            if (value == null) { return this.style.scrollPaddingBlockEnd; }
+            this.style.scrollPaddingBlockEnd = value;
+            return this;
+        }
+
+        // Specifies the distance in block direction from the start of the container to the snap position on the child elements.
+        /*	@docs: {
+         *	@title: Scroll padding block start
+         *	@description: 
+         *		Specifies the distance in block direction from the start of the container to the snap position on the child elements.
+         *		The equivalent of CSS attribute `scrollPaddingBlockStart`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        scroll_padding_block_start(value) {
+            if (value == null) { return this.style.scrollPaddingBlockStart; }
+            this.style.scrollPaddingBlockStart = value;
+            return this;
+        }
+
+        // Specifies the distance from the bottom of the container to the snap position on the child elements.
+        /*	@docs: {
+         *	@title: Scroll padding bottom
+         *	@description: 
+         *		Specifies the distance from the bottom of the container to the snap position on the child elements.
+         *		The equivalent of CSS attribute `scrollPaddingBottom`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        scroll_padding_bottom(value) {
+            if (value == null) { return this.style.scrollPaddingBottom; }
+            this.style.scrollPaddingBottom = this.pad_numeric(value);
+            return this;
+        }
+
+        // Specifies the distance in inline direction from the container to the snap position on the child elements.
+        /*	@docs: {
+         *	@title: Scroll padding inline
+         *	@description: 
+         *		Specifies the distance in inline direction from the container to the snap position on the child elements.
+         *		The equivalent of CSS attribute `scrollPaddingInline`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        scroll_padding_inline(value) {
+            if (value == null) { return this.style.scrollPaddingInline; }
+            this.style.scrollPaddingInline = value;
+            return this;
+        }
+
+        // Specifies the distance in inline direction from the end of the container to the snap position on the child elements.
+        /*	@docs: {
+         *	@title: Scroll padding inline end
+         *	@description: 
+         *		Specifies the distance in inline direction from the end of the container to the snap position on the child elements.
+         *		The equivalent of CSS attribute `scrollPaddingInlineEnd`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        scroll_padding_inline_end(value) {
+            if (value == null) { return this.style.scrollPaddingInlineEnd; }
+            this.style.scrollPaddingInlineEnd = value;
+            return this;
+        }
+
+        // Specifies the distance in inline direction from the start of the container to the snap position on the child elements.
+        /*	@docs: {
+         *	@title: Scroll padding inline start
+         *	@description: 
+         *		Specifies the distance in inline direction from the start of the container to the snap position on the child elements.
+         *		The equivalent of CSS attribute `scrollPaddingInlineStart`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        scroll_padding_inline_start(value) {
+            if (value == null) { return this.style.scrollPaddingInlineStart; }
+            this.style.scrollPaddingInlineStart = value;
+            return this;
+        }
+
+        // Specifies the distance from the left side of the container to the snap position on the child elements.
+        /*	@docs: {
+         *	@title: Scroll padding left
+         *	@description: 
+         *		Specifies the distance from the left side of the container to the snap position on the child elements.
+         *		The equivalent of CSS attribute `scrollPaddingLeft`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        scroll_padding_left(value) {
+            if (value == null) { return this.style.scrollPaddingLeft; }
+            this.style.scrollPaddingLeft = this.pad_numeric(value);
+            return this;
+        }
+
+        // Specifies the distance from the right side of the container to the snap position on the child elements.
+        /*	@docs: {
+         *	@title: Scroll padding right
+         *	@description: 
+         *		Specifies the distance from the right side of the container to the snap position on the child elements.
+         *		The equivalent of CSS attribute `scrollPaddingRight`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        scroll_padding_right(value) {
+            if (value == null) { return this.style.scrollPaddingRight; }
+            this.style.scrollPaddingRight = this.pad_numeric(value);
+            return this;
+        }
+
+        // Specifies the distance from the top of the container to the snap position on the child elements.
+        /*	@docs: {
+         *	@title: Scroll padding top
+         *	@description: 
+         *		Specifies the distance from the top of the container to the snap position on the child elements.
+         *		The equivalent of CSS attribute `scrollPaddingTop`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        scroll_padding_top(value) {
+            if (value == null) { return this.style.scrollPaddingTop; }
+            this.style.scrollPaddingTop = this.pad_numeric(value);
+            return this;
+        }
+
+        // Specifies where to position elements when the user stops scrolling.
+        /*	@docs: {
+         *	@title: Scroll snap align
+         *	@description: 
+         *		Specifies where to position elements when the user stops scrolling.
+         *		The equivalent of CSS attribute `scrollSnapAlign`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        scroll_snap_align(value) {
+            if (value == null) { return this.style.scrollSnapAlign; }
+            this.style.scrollSnapAlign = value;
+            return this;
+        }
+
+        // Specifies scroll behaviour after fast swipe on trackpad or touch screen.
+        /*	@docs: {
+         *	@title: Scroll snap stop
+         *	@description: 
+         *		Specifies scroll behaviour after fast swipe on trackpad or touch screen.
+         *		The equivalent of CSS attribute `scrollSnapStop`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        scroll_snap_stop(value) {
+            if (value == null) { return this.style.scrollSnapStop; }
+            this.style.scrollSnapStop = value;
+            return this;
+        }
+
+        // Specifies how snap behaviour should be when scrolling.
+        /*	@docs: {
+         *	@title: Scroll snap type
+         *	@description: 
+         *		Specifies how snap behaviour should be when scrolling.
+         *		The equivalent of CSS attribute `scrollSnapType`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        scroll_snap_type(value) {
+            if (value == null) { return this.style.scrollSnapType; }
+            this.style.scrollSnapType = value;
+            return this;
+        }
+
+        // Specifies the color of the scrollbar of an element.
+        /*	@docs: {
+         *	@title: Scrollbar color
+         *	@description: 
+         *		Specifies the color of the scrollbar of an element.
+         *		The equivalent of CSS attribute `scrollbarColor`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        scrollbar_color(value) {
+            if (value == null) { return this.style.scrollbarColor; }
+            this.style.scrollbarColor = value;
+            return this;
+        }
+
+        // Specifies the width of a tab character.
+        /*	@docs: {
+         *	@title: Tab size
+         *	@description: 
+         *		Specifies the width of a tab character.
+         *		The equivalent of CSS attribute `tabSize`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        tab_size(value) {
+            if (value == null) { return this.style.tabSize; }
+            this.style.tabSize = this.pad_numeric(value);
+            return this;
+        }
+
+        // Defines the algorithm used to lay out table cells, rows, and columns.
+        /*	@docs: {
+         *	@title: Table layout
+         *	@description: 
+         *		Defines the algorithm used to lay out table cells, rows, and columns.
+         *		The equivalent of CSS attribute `tableLayout`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        table_layout(value) {
+            if (value == null) { return this.style.tableLayout; }
+            this.style.tableLayout = value;
+            return this;
+        }
+
+        // Specifies the horizontal alignment of text.
+        /*	@docs: {
+         *	@title: Text align
+         *	@description: 
+         *		Specifies the horizontal alignment of text.
+         *		The equivalent of CSS attribute `textAlign`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        text_align(value) {
+            if (value == null) { return this.style.textAlign; }
+            this.style.textAlign = value;
+            return this;
+        }
+
+        // Describes how the last line of a block or a line right before a forced line break is aligned when text-align is "justify".
+        /*	@docs: {
+         *	@title: Text align last
+         *	@description: 
+         *		Describes how the last line of a block or a line right before a forced line break is aligned when text-align is "justify".
+         *		The equivalent of CSS attribute `textAlignLast`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        text_align_last(value) {
+            if (value == null) { return this.style.textAlignLast; }
+            this.style.textAlignLast = value;
+            return this;
+        }
+
+        // Specifies the combination of multiple characters into the space of a single character.
+        /*	@docs: {
+         *	@title: Text combine upright
+         *	@description: 
+         *		Specifies the combination of multiple characters into the space of a single character.
+         *		The equivalent of CSS attribute `textCombineUpright`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        text_combine_upright(value) {
+            if (value == null) { return this.style.textCombineUpright; }
+            this.style.textCombineUpright = value;
+            return this;
+        }
+
+        // Specifies the decoration added to text.
+        /*	@docs: {
+         *	@title: Text decoration
+         *	@description: 
+         *		Specifies the decoration added to text.
+         *		The equivalent of CSS attribute `textDecoration`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        text_decoration(value) {
+            if (value == null) { return this.style.textDecoration; }
+            this.style.textDecoration = value;
+            return this;
+        }
+
+        // Specifies the color of the text-decoration.
+        /*	@docs: {
+         *	@title: Text decoration color
+         *	@description: 
+         *		Specifies the color of the text-decoration.
+         *		The equivalent of CSS attribute `textDecorationColor`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        text_decoration_color(value) {
+            if (value == null) { return this.style.textDecorationColor; }
+            this.style.textDecorationColor = value;
+            return this;
+        }
+
+        // Specifies the type of line in a text-decoration.
+        /*	@docs: {
+         *	@title: Text decoration line
+         *	@description: 
+         *		Specifies the type of line in a text-decoration.
+         *		The equivalent of CSS attribute `textDecorationLine`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        text_decoration_line(value) {
+            if (value == null) { return this.style.textDecorationLine; }
+            this.style.textDecorationLine = value;
+            return this;
+        }
+
+        // Specifies the style of the line in a text decoration.
+        /*	@docs: {
+         *	@title: Text decoration style
+         *	@description: 
+         *		Specifies the style of the line in a text decoration.
+         *		The equivalent of CSS attribute `textDecorationStyle`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        text_decoration_style(value) {
+            if (value == null) { return this.style.textDecorationStyle; }
+            this.style.textDecorationStyle = value;
+            return this;
+        }
+
+        // Specifies the thickness of the decoration line.
+        /*	@docs: {
+         *	@title: Text decoration thickness
+         *	@description: 
+         *		Specifies the thickness of the decoration line.
+         *		The equivalent of CSS attribute `textDecorationThickness`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        text_decoration_thickness(value) {
+            if (value == null) { return this.style.textDecorationThickness; }
+            this.style.textDecorationThickness = value;
+            return this;
+        }
+
+        // Applies emphasis marks to text.
+        /*	@docs: {
+         *	@title: Text emphasis
+         *	@description: 
+         *		Applies emphasis marks to text.
+         *		The equivalent of CSS attribute `textEmphasis`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        text_emphasis(value) {
+            if (value == null) { return this.style.textEmphasis; }
+            this.style.textEmphasis = value;
+            return this;
+        }
+
+        // Specifies the indentation of the first line in a text-block.
+        /*	@docs: {
+         *	@title: Text indent
+         *	@description: 
+         *		Specifies the indentation of the first line in a text-block.
+         *		The equivalent of CSS attribute `textIndent`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        text_indent(value) {
+            if (value == null) { return this.style.textIndent; }
+            this.style.textIndent = value;
+            return this;
+        }
+
+        // Specifies the justification method used when text-align is "justify".
+        /*	@docs: {
+         *	@title: Text justify
+         *	@description: 
+         *		Specifies the justification method used when text-align is "justify".
+         *		The equivalent of CSS attribute `textJustify`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        text_justify(value) {
+            if (value == null) { return this.style.textJustify; }
+            this.style.textJustify = value;
+            return this;
+        }
+
+        // Defines the orientation of characters in a line.
+        /*	@docs: {
+         *	@title: Text orientation
+         *	@description: 
+         *		Defines the orientation of characters in a line.
+         *		The equivalent of CSS attribute `textOrientation`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        text_orientation(value) {
+            if (value == null) { return this.style.textOrientation; }
+            this.style.textOrientation = value;
+            return this;
+        }
+
+        // Specifies what should happen when text overflows the containing element.
+        /*	@docs: {
+         *	@title: Text overflow
+         *	@description: 
+         *		Specifies what should happen when text overflows the containing element.
+         *		The equivalent of CSS attribute `textOverflow`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        text_overflow(value) {
+            if (value == null) { return this.style.textOverflow; }
+            this.style.textOverflow = value;
+            return this;
+        }
+
+        // Adds shadow to text.
+        /*	@docs: {
+         *	@title: Text shadow
+         *	@description: 
+         *		Adds shadow to text.
+         *		The equivalent of CSS attribute `textShadow`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        text_shadow(value) {
+            if (value == null) { return this.style.textShadow; }
+            this.style.textShadow = value;
+            return this;
+        }
+
+        // Controls the capitalization of text.
+        /*	@docs: {
+         *	@title: Text transform
+         *	@description: 
+         *		Controls the capitalization of text.
+         *		The equivalent of CSS attribute `textTransform`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        text_transform(value) {
+            if (value == null) { return this.style.textTransform; }
+            this.style.textTransform = value;
+            return this;
+        }
+
+        // Specifies the position of the underline which is set using the text-decoration property.
+        /*	@docs: {
+         *	@title: Text underline position
+         *	@description: 
+         *		Specifies the position of the underline which is set using the text-decoration property.
+         *		The equivalent of CSS attribute `textUnderlinePosition`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        text_underline_position(value) {
+            if (value == null) { return this.style.textUnderlinePosition; }
+            this.style.textUnderlinePosition = value;
+            return this;
+        }
+
+        // Specifies the top position of a positioned element.
+        /*	@docs: {
+         *	@title: Top
+         *	@description: 
+         *		Specifies the top position of a positioned element.
+         *		The equivalent of CSS attribute `top`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        top(value) {
+            if (value == null) { return this.style.top; }
+            this.style.top = this.pad_numeric(value);
+            return this;
+        }
+
+        // Applies a 2D or 3D transformation to an element.
+        /*	@docs: {
+         *	@title: Transform
+         *	@description: 
+         *		Applies a 2D or 3D transformation to an element.
+         *		The equivalent of CSS attribute `transform`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        transform(value) {
+            if (value == null) { return this.style.transform; }
+            this.style.transform = value;
+            this.style.msTransform = value;
+            this.style.webkitTransform = value;
+            this.style.MozTransform = value;
+            this.style.OTransform = value;
+            return this;
+        }
+
+        // Allows you to change the position on transformed elements.
+        /*	@docs: {
+         *	@title: Transform origin
+         *	@description: 
+         *		Allows you to change the position on transformed elements.
+         *		The equivalent of CSS attribute `transformOrigin`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        transform_origin(value) {
+            if (value == null) { return this.style.transformOrigin; }
+            this.style.transformOrigin = value;
+            this.style.msTransformOrigin = value;
+            this.style.webkitTransformOrigin = value;
+            this.style.MozTransformOrigin = value;
+            this.style.OTransformOrigin = value;
+            return this;
+        }
+
+        // Specifies how nested elements are rendered in 3D space.
+        /*	@docs: {
+         *	@title: Transform style
+         *	@description: 
+         *		Specifies how nested elements are rendered in 3D space.
+         *		The equivalent of CSS attribute `transformStyle`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        transform_style(value) {
+            if (value == null) { return this.style.transformStyle; }
+            this.style.transformStyle = value;
+            this.style.msTransformStyle = value;
+            this.style.webkitTransformStyle = value;
+            this.style.MozTransformStyle = value;
+            this.style.OTransformStyle = value;
+            return this;
+        }
+
+        // A shorthand property for all the transition-* properties.
+        /*	@docs: {
+         *	@title: Transition
+         *	@description: 
+         *		A shorthand property for all the transition-* properties.
+         *		The equivalent of CSS attribute `transition`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        transition(value) {
+            if (value == null) { return this.style.transition; }
+            this.style.transition = value;
+            this.style.msTransition = value;
+            this.style.webkitTransition = value;
+            this.style.MozTransition = value;
+            this.style.OTransition = value;
+            return this;
+        }
+
+        // Specifies when the transition effect will start.
+        /*	@docs: {
+         *	@title: Transition delay
+         *	@description: 
+         *		Specifies when the transition effect will start.
+         *		The equivalent of CSS attribute `transitionDelay`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        transition_delay(value) {
+            if (value == null) { return this.style.transitionDelay; }
+            this.style.transitionDelay = value;
+            this.style.msTransitionDelay = value;
+            this.style.webkitTransitionDelay = value;
+            this.style.MozTransitionDelay = value;
+            this.style.OTransitionDelay = value;
+            return this;
+        }
+
+        // Specifies how many seconds or milliseconds a transition effect takes to complete.
+        /*	@docs: {
+         *	@title: Transition duration
+         *	@description: 
+         *		Specifies how many seconds or milliseconds a transition effect takes to complete.
+         *		The equivalent of CSS attribute `transitionDuration`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        transition_duration(value) {
+            if (value == null) { return this.style.transitionDuration; }
+            this.style.transitionDuration = value;
+            this.style.msTransitionDuration = value;
+            this.style.webkitTransitionDuration = value;
+            this.style.MozTransitionDuration = value;
+            this.style.OTransitionDuration = value;
+            return this;
+        }
+
+        // Specifies the name of the CSS property the transition effect is for.
+        /*	@docs: {
+         *	@title: Transition property
+         *	@description: 
+         *		Specifies the name of the CSS property the transition effect is for.
+         *		The equivalent of CSS attribute `transitionProperty`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        transition_property(value) {
+            if (value == null) { return this.style.transitionProperty; }
+            this.style.transitionProperty = value;
+            this.style.msTransitionProperty = value;
+            this.style.webkitTransitionProperty = value;
+            this.style.MozTransitionProperty = value;
+            this.style.OTransitionProperty = value;
+            return this;
+        }
+
+        // Specifies the speed curve of the transition effect.
+        /*	@docs: {
+         *	@title: Transition timing function
+         *	@description: 
+         *		Specifies the speed curve of the transition effect.
+         *		The equivalent of CSS attribute `transitionTimingFunction`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        transition_timing_function(value) {
+            if (value == null) { return this.style.transitionTimingFunction; }
+            this.style.transitionTimingFunction = value;
+            this.style.msTransitionTimingFunction = value;
+            this.style.webkitTransitionTimingFunction = value;
+            this.style.MozTransitionTimingFunction = value;
+            this.style.OTransitionTimingFunction = value;
+            return this;
+        }
+
+        // Specifies the position of an element.
+        /*	@docs: {
+         *	@title: Translate
+         *	@description: 
+         *		Specifies the position of an element.
+         *		The equivalent of CSS attribute `translate`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        translate(value) {
+            if (value == null) { return this.style.translate; }
+            this.style.translate = value;
+            return this;
+        }
+
+        // Used together with the direction property to set or return whether the text should be overridden to support multiple languages in the same document.
+        /*	@docs: {
+         *	@title: Unicode bidi
+         *	@description: 
+         *		Used together with the direction property to set or return whether the text should be overridden to support multiple languages in the same document.
+         *		The equivalent of CSS attribute `unicodeBidi`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        unicode_bidi(value) {
+            if (value == null) { return this.style.unicodeBidi; }
+            this.style.unicodeBidi = value;
+            return this;
+        }
+
+        // Specifies whether the text of an element can be selected.
+        /*	@docs: {
+         *	@title: User select
+         *	@description: 
+         *		Specifies whether the text of an element can be selected.
+         *		The equivalent of CSS attribute `userSelect`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        user_select(value) {
+            if (value == null) { return this.style.userSelect; }
+            this.style.userSelect = value;
+            this.style.msUserSelect = value;
+            this.style.webkitUserSelect = value;
+            this.style.MozUserSelect = value;
+            this.style.OUserSelect = value;
+            return this;
+        }
+
+        // Sets the vertical alignment of an element.
+        // vertical_align(value) {
+        //     if (value == null) { return this.style.verticalAlign; }
+        //     this.style.verticalAlign = value;
+        //     return this;
+        // }
+
+        // Specifies whether or not an element is visible.
+        /*	@docs: {
+         *	@title: Visibility
+         *	@description: 
+         *		Specifies whether or not an element is visible.
+         *		The equivalent of CSS attribute `visibility`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        visibility(value) {
+            if (value == null) { return this.style.visibility; }
+            this.style.visibility = value;
+            return this;
+        }
+
+        // Specifies how white-space inside an element is handled.
+        /*	@docs: {
+         *	@title: White space
+         *	@description: 
+         *		Specifies how white-space inside an element is handled.
+         *		The equivalent of CSS attribute `whiteSpace`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        white_space(value) {
+            if (value == null) { return this.style.whiteSpace; }
+            this.style.whiteSpace = value;
+            return this;
+        }
+
+        // Sets the minimum number of lines that must be left at the top of a page or column.
+        /*	@docs: {
+         *	@title: Widows
+         *	@description: 
+         *		Sets the minimum number of lines that must be left at the top of a page or column.
+         *		The equivalent of CSS attribute `widows`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        widows(value) {
+            if (value == null) { return this.style.widows; }
+            this.style.widows = value;
+            return this;
+        }
+
+        // Sets the width of an element.
+        // width(value) {
+        //     if (value == null) { return this.style.width; }
+        //     this.style.width = this.pad_numeric(value);
+        //     return this;
+        // }
+
+        // Specifies how words should break when reaching the end of a line.
+        /*	@docs: {
+         *	@title: Word break
+         *	@description: 
+         *		Specifies how words should break when reaching the end of a line.
+         *		The equivalent of CSS attribute `wordBreak`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        word_break(value) {
+            if (value == null) { return this.style.wordBreak; }
+            this.style.wordBreak = value;
+            return this;
+        }
+
+        // Increases or decreases the space between words in a text.
+        /*	@docs: {
+         *	@title: Word spacing
+         *	@description: 
+         *		Increases or decreases the space between words in a text.
+         *		The equivalent of CSS attribute `wordSpacing`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        word_spacing(value) {
+            if (value == null) { return this.style.wordSpacing; }
+            this.style.wordSpacing = value;
+            return this;
+        }
+
+        // Allows long, unbreakable words to be broken and wrap to the next line.
+        /*	@docs: {
+         *	@title: Word wrap
+         *	@description: 
+         *		Allows long, unbreakable words to be broken and wrap to the next line.
+         *		The equivalent of CSS attribute `wordWrap`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        word_wrap(value) {
+            if (value == null) { return this.style.wordWrap; }
+            this.style.wordWrap = value;
+            return this;
+        }
+
+        // Specifies whether lines of text are laid out horizontally or vertically.
+        /*	@docs: {
+         *	@title: Writing mode
+         *	@description: 
+         *		Specifies whether lines of text are laid out horizontally or vertically.
+         *		The equivalent of CSS attribute `writingMode`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        writing_mode(value) {
+            if (value == null) { return this.style.writingMode; }
+            this.style.writingMode = value;
+            return this;
+        }
+
+        // ---------------------------------------------------------
+        // Automatically generated HTML attribute functions. 
+        // Reference: https://www.w3schools.com/tags/ref_attributes.asp. 
+
+        // Specifies the types of files that the server accepts (only for type="file").
+        /*	@docs: {
+         *	@title: Accept
+         *	@description: 
+         *		Specifies the types of files that the server accepts (only for type="file").
+         *		The equivalent of HTML attribute `accept`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        accept(value) {
+            if (value == null) { return this.getAttribute('accept'); }
+        	this.setAttribute('accept', value);
+        	return this;
+        }
+
+        // Specifies the character encodings that are to be used for the form submission.
+        /*	@docs: {
+         *	@title: Accept charset
+         *	@description: 
+         *		Specifies the character encodings that are to be used for the form submission.
+         *		The equivalent of HTML attribute `accept_charset`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        accept_charset(value) {
+            if (value == null) { return this.getAttribute('accept_charset'); }
+        	this.setAttribute('accept_charset', value);
+        	return this;
+        }
+
+        // Specifies where to send the form-data when a form is submitted.
+        /*	@docs: {
+         *	@title: Action
+         *	@description: 
+         *		Specifies where to send the form-data when a form is submitted.
+         *		The equivalent of HTML attribute `action`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        action(value) {
+            if (value == null) { return this.getAttribute('action'); }
+        	this.setAttribute('action', value);
+        	return this;
+        }
+
+        // Specifies an alternate text when the original element fails to display.
+        /*	@docs: {
+         *	@title: Alt
+         *	@description: 
+         *		Specifies an alternate text when the original element fails to display.
+         *		The equivalent of HTML attribute `alt`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        alt(value) {
+            if (value == null) { return this.getAttribute('alt'); }
+        	this.setAttribute('alt', value);
+        	return this;
+        }
+
+        // Specifies that the script is executed asynchronously (only for external scripts).
+        /*	@docs: {
+         *	@title: Async
+         *	@description: 
+         *		Specifies that the script is executed asynchronously (only for external scripts).
+         *		The equivalent of HTML attribute `async`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        async(value) {
+            if (value == null) { return this.getAttribute('async'); }
+        	this.setAttribute('async', value);
+        	return this;
+        }
+
+        // Specifies whether the <form> or the <input> element should have autocomplete enabled.
+        /*	@docs: {
+         *	@title: Auto complete
+         *	@description: 
+         *		Specifies whether the <form> or the <input> element should have autocomplete enabled.
+         *		The equivalent of HTML attribute `autocomplete`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        auto_complete(value) {
+            if (value == null) { return this.getAttribute('autocomplete'); }
+        	this.setAttribute('autocomplete', value);
+        	return this;
+        }
+
+        // Specifies that the element should automatically get focus when the page loads.
+        /*	@docs: {
+         *	@title: Auto focus
+         *	@description: 
+         *		Specifies that the element should automatically get focus when the page loads.
+         *		The equivalent of HTML attribute `autofocus`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        auto_focus(value) {
+            if (value == null) { return this.getAttribute('autofocus'); }
+        	this.setAttribute('autofocus', value);
+        	return this;
+        }
+
+        // Specifies that the audio/video will start playing as soon as it is ready.
+        /*	@docs: {
+         *	@title: Auto play
+         *	@description: 
+         *		Specifies that the audio/video will start playing as soon as it is ready.
+         *		The equivalent of HTML attribute `autoplay`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        auto_play(value) {
+            if (value == null) { return this.getAttribute('autoplay'); }
+        	this.setAttribute('autoplay', value);
+        	return this;
+        }
+
+        // Specifies the character encoding.
+        /*	@docs: {
+         *	@title: Charset
+         *	@description: 
+         *		Specifies the character encoding.
+         *		The equivalent of HTML attribute `charset`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        charset(value) {
+            if (value == null) { return this.getAttribute('charset'); }
+        	this.setAttribute('charset', value);
+        	return this;
+        }
+
+        // Specifies that an <input> element should be pre-selected when the page loads (for type="checkbox" or type="radio").
+        /*	@docs: {
+         *	@title: Checked
+         *	@description: 
+         *		Specifies that an <input> element should be pre-selected when the page loads (for type="checkbox" or type="radio").
+         *		The equivalent of HTML attribute `checked`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        checked(value) {
+            if (value == null) { return this.getAttribute('checked'); }
+        	this.setAttribute('checked', value);
+        	return this;
+        }
+
+        // Specifies a URL which explains the quote/deleted/inserted text.
+        /*	@docs: {
+         *	@title: Cite
+         *	@description: 
+         *		Specifies a URL which explains the quote/deleted/inserted text.
+         *		The equivalent of HTML attribute `cite`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        cite(value) {
+            if (value == null) { return this.getAttribute('cite'); }
+        	this.setAttribute('cite', value);
+        	return this;
+        }
+
+        // Specifies one or more classnames for an element (refers to a class in a style sheet).
+        // class(value) {
+        //     if (value == null) { return this.getAttribute('class'); }
+        // 	this.setAttribute('class', value);
+        // 	return this;
+        // }
+
+        // Specifies the visible width of a text area.
+        /*	@docs: {
+         *	@title: Cols
+         *	@description: 
+         *		Specifies the visible width of a text area.
+         *		The equivalent of HTML attribute `cols`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        cols(value) {
+            if (value == null) { return this.getAttribute('cols'); }
+        	this.setAttribute('cols', value);
+        	return this;
+        }
+
+        // Specifies the number of columns a table cell should span.
+        /*	@docs: {
+         *	@title: Colspan
+         *	@description: 
+         *		Specifies the number of columns a table cell should span.
+         *		The equivalent of HTML attribute `colspan`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        colspan(value) {
+            if (value == null) { return this.getAttribute('colspan'); }
+        	this.setAttribute('colspan', value);
+        	return this;
+        }
+
+        // Gives the value associated with the http-equiv or name attribute.
+        /*	@docs: {
+         *	@title: Content
+         *	@description: 
+         *		Gives the value associated with the http-equiv or name attribute.
+         *		The equivalent of HTML attribute `content`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        content(value) {
+            if (value == null) { return this.getAttribute('content'); }
+        	this.setAttribute('content', value);
+        	return this;
+        }
+
+        // Specifies whether the content of an element is editable or not.
+        /*	@docs: {
+         *	@title: Content editable
+         *	@description: 
+         *		Specifies whether the content of an element is editable or not.
+         *		The equivalent of HTML attribute `contenteditable`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        content_editable(value) {
+            if (value == null) { return this.getAttribute('contenteditable'); }
+        	this.setAttribute('contenteditable', value);
+        	return this;
+        }
+
+        // Specifies that audio/video controls should be displayed (such as a play/pause button etc).
+        /*	@docs: {
+         *	@title: Controls
+         *	@description: 
+         *		Specifies that audio/video controls should be displayed (such as a play/pause button etc).
+         *		The equivalent of HTML attribute `controls`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        controls(value) {
+            if (value == null) { return this.getAttribute('controls'); }
+        	this.setAttribute('controls', value);
+        	return this;
+        }
+
+        // Specifies the coordinates of the area.
+        /*	@docs: {
+         *	@title: Coords
+         *	@description: 
+         *		Specifies the coordinates of the area.
+         *		The equivalent of HTML attribute `coords`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        coords(value) {
+            if (value == null) { return this.getAttribute('coords'); }
+        	this.setAttribute('coords', value);
+        	return this;
+        }
+
+        // Specifies the URL of the resource to be used by the object.
+        /*	@docs: {
+         *	@title: Data
+         *	@description: 
+         *		Specifies the URL of the resource to be used by the object.
+         *		The equivalent of HTML attribute `data`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        data(value) {
+            if (value == null) { return this.getAttribute('data'); }
+        	this.setAttribute('data', value);
+        	return this;
+        }
+
+        // Specifies the date and time.
+        /*	@docs: {
+         *	@title: Datetime
+         *	@description: 
+         *		Specifies the date and time.
+         *		The equivalent of HTML attribute `datetime`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        datetime(value) {
+            if (value == null) { return this.getAttribute('datetime'); }
+        	this.setAttribute('datetime', value);
+        	return this;
+        }
+
+        // Specifies that the track is to be enabled if the user's preferences do not indicate that another track would be more appropriate.
+        /*	@docs: {
+         *	@title: Default
+         *	@description: 
+         *		Specifies that the track is to be enabled if the user's preferences do not indicate that another track would be more appropriate.
+         *		The equivalent of HTML attribute `default`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        default(value) {
+            if (value == null) { return this.getAttribute('default'); }
+        	this.setAttribute('default', value);
+        	return this;
+        }
+
+        // Specifies that the script is executed when the page has finished parsing (only for external scripts).
+        /*	@docs: {
+         *	@title: Defer
+         *	@description: 
+         *		Specifies that the script is executed when the page has finished parsing (only for external scripts).
+         *		The equivalent of HTML attribute `defer`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        defer(value) {
+            if (value == null) { return this.getAttribute('defer'); }
+        	this.setAttribute('defer', value);
+        	return this;
+        }
+
+        // Specifies the text direction for the content in an element.
+        /*	@docs: {
+         *	@title: Dir
+         *	@description: 
+         *		Specifies the text direction for the content in an element.
+         *		The equivalent of HTML attribute `dir`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        dir(value) {
+            if (value == null) { return this.getAttribute('dir'); }
+        	this.setAttribute('dir', value);
+        	return this;
+        }
+
+        // Specifies that the text direction will be submitted.
+        /*	@docs: {
+         *	@title: Dirname
+         *	@description: 
+         *		Specifies that the text direction will be submitted.
+         *		The equivalent of HTML attribute `dirname`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        dirname(value) {
+            if (value == null) { return this.getAttribute('dirname'); }
+        	this.setAttribute('dirname', value);
+        	return this;
+        }
+
+        // Specifies that the specified element/group of elements should be disabled.
+        /*	@docs: {
+         *	@title: Disabled
+         *	@description: 
+         *		Specifies that the specified element/group of elements should be disabled.
+         *		The equivalent of HTML attribute `disabled`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        disabled(value) {
+            if (value == null) { return this.getAttribute('disabled'); }
+        	this.setAttribute('disabled', value);
+        	return this;
+        }
+
+        // Specifies that the target will be downloaded when a user clicks on the hyperlink.
+        /*	@docs: {
+         *	@title: Download
+         *	@description: 
+         *		Specifies that the target will be downloaded when a user clicks on the hyperlink.
+         *		The equivalent of HTML attribute `download`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        download(value) {
+            if (value == null) { return this.getAttribute('download'); }
+        	this.setAttribute('download', value);
+        	return this;
+        }
+
+        // Specifies whether an element is draggable or not.
+        /*	@docs: {
+         *	@title: Draggable
+         *	@description: 
+         *		Specifies whether an element is draggable or not.
+         *		The equivalent of HTML attribute `draggable`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        draggable(value) {
+            if (value == null) { return this.getAttribute('draggable'); }
+        	this.setAttribute('draggable', value);
+        	return this;
+        }
+
+        // Specifies how the form-data should be encoded when submitting it to the server (only for method="post").
+        /*	@docs: {
+         *	@title: Enctype
+         *	@description: 
+         *		Specifies how the form-data should be encoded when submitting it to the server (only for method="post").
+         *		The equivalent of HTML attribute `enctype`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        enctype(value) {
+            if (value == null) { return this.getAttribute('enctype'); }
+        	this.setAttribute('enctype', value);
+        	return this;
+        }
+
+        // Specifies which form element(s) a label/calculation is bound to.
+        /*	@docs: {
+         *	@title: For
+         *	@description: 
+         *		Specifies which form element(s) a label/calculation is bound to.
+         *		The equivalent of HTML attribute `for`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        for(value) {
+            if (value == null) { return this.getAttribute('for'); }
+        	this.setAttribute('for', value);
+        	return this;
+        }
+
+        // Specifies the name of the form the element belongs to.
+        /*	@docs: {
+         *	@title: Form
+         *	@description: 
+         *		Specifies the name of the form the element belongs to.
+         *		The equivalent of HTML attribute `form`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        form(value) {
+            if (value == null) { return this.getAttribute('form'); }
+        	this.setAttribute('form', value);
+        	return this;
+        }
+
+        // Specifies where to send the form-data when a form is submitted. Only for type="submit".
+        /*	@docs: {
+         *	@title: Form action
+         *	@description: 
+         *		Specifies where to send the form-data when a form is submitted. Only for type="submit".
+         *		The equivalent of HTML attribute `formaction`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        form_action(value) {
+            if (value == null) { return this.getAttribute('formaction'); }
+        	this.setAttribute('formaction', value);
+        	return this;
+        }
+
+        // Specifies one or more headers cells a cell is related to.
+        /*	@docs: {
+         *	@title: Headers
+         *	@description: 
+         *		Specifies one or more headers cells a cell is related to.
+         *		The equivalent of HTML attribute `headers`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        headers(value) {
+            if (value == null) { return this.getAttribute('headers'); }
+        	this.setAttribute('headers', value);
+        	return this;
+        }
+
+        // Specifies the height of the element.
+        // height(value) {
+        //     if (value == null) { return this.getAttribute('height'); }
+        // 	this.setAttribute('height', this.pad_numeric(value));
+        // 	return this;
+        // }
+
+        // Specifies that an element is not yet, or is no longer, relevant.
+        // hidden(value) {
+        //     if (value == null) { return this.getAttribute('hidden'); }
+        // 	this.setAttribute('hidden', value);
+        // 	return this;
+        // }
+
+        // Specifies the range that is considered to be a high value.
+        /*	@docs: {
+         *	@title: High
+         *	@description: 
+         *		Specifies the range that is considered to be a high value.
+         *		The equivalent of HTML attribute `high`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        high(value) {
+            if (value == null) { return this.getAttribute('high'); }
+        	this.setAttribute('high', value);
+        	return this;
+        }
+
+        // Specifies the URL of the page the link goes to.
+        /*	@docs: {
+         *	@title: Href
+         *	@description: 
+         *		Specifies the URL of the page the link goes to.
+         *		The equivalent of HTML attribute `href`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        href(value) {
+            if (value == null) { return this.getAttribute('href'); }
+        	this.setAttribute('href', value);
+        	return this;
+        }
+
+        // Specifies the language of the linked document.
+        /*	@docs: {
+         *	@title: Href lang
+         *	@description: 
+         *		Specifies the language of the linked document.
+         *		The equivalent of HTML attribute `hreflang`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        href_lang(value) {
+            if (value == null) { return this.getAttribute('hreflang'); }
+        	this.setAttribute('hreflang', value);
+        	return this;
+        }
+
+        // Provides an HTTP header for the information/value of the content attribute.
+        /*	@docs: {
+         *	@title: Http equiv
+         *	@description: 
+         *		Provides an HTTP header for the information/value of the content attribute.
+         *		The equivalent of HTML attribute `http_equiv`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        http_equiv(value) {
+            if (value == null) { return this.getAttribute('http_equiv'); }
+        	this.setAttribute('http_equiv', value);
+        	return this;
+        }
+
+        // Specifies a unique id for an element.
+        /*	@docs: {
+         *	@title: Id
+         *	@description: 
+         *		Specifies a unique id for an element.
+         *		The equivalent of HTML attribute `id`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        id(value) {
+            if (value == null) { return this.getAttribute('id'); }
+        	this.setAttribute('id', value);
+        	return this;
+        }
+
+        // Specifies an image as a server-side image map.
+        /*	@docs: {
+         *	@title: Is map
+         *	@description: 
+         *		Specifies an image as a server-side image map.
+         *		The equivalent of HTML attribute `ismap`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        is_map(value) {
+            if (value == null) { return this.getAttribute('ismap'); }
+        	this.setAttribute('ismap', value);
+        	return this;
+        }
+
+        // Specifies the kind of text track.
+        /*	@docs: {
+         *	@title: Kind
+         *	@description: 
+         *		Specifies the kind of text track.
+         *		The equivalent of HTML attribute `kind`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        kind(value) {
+            if (value == null) { return this.getAttribute('kind'); }
+        	this.setAttribute('kind', value);
+        	return this;
+        }
+
+        // Specifies the title of the text track.
+        /*	@docs: {
+         *	@title: Label
+         *	@description: 
+         *		Specifies the title of the text track.
+         *		The equivalent of HTML attribute `label`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        label(value) {
+            if (value == null) { return this.getAttribute('label'); }
+        	this.setAttribute('label', value);
+        	return this;
+        }
+
+        // Specifies the language of the element's content.
+        /*	@docs: {
+         *	@title: Lang
+         *	@description: 
+         *		Specifies the language of the element's content.
+         *		The equivalent of HTML attribute `lang`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        lang(value) {
+            if (value == null) { return this.getAttribute('lang'); }
+        	this.setAttribute('lang', value);
+        	return this;
+        }
+
+        // Refers to a <datalist> element that contains pre-defined options for an <input> element.
+        /*	@docs: {
+         *	@title: List
+         *	@description: 
+         *		Refers to a <datalist> element that contains pre-defined options for an <input> element.
+         *		The equivalent of HTML attribute `list`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        list(value) {
+            if (value == null) { return this.getAttribute('list'); }
+        	this.setAttribute('list', value);
+        	return this;
+        }
+
+        // Specifies that the audio/video will start over again, every time it is finished.
+        /*	@docs: {
+         *	@title: Loop
+         *	@description: 
+         *		Specifies that the audio/video will start over again, every time it is finished.
+         *		The equivalent of HTML attribute `loop`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        loop(value) {
+            if (value == null) { return this.getAttribute('loop'); }
+        	this.setAttribute('loop', value);
+        	return this;
+        }
+
+        // Specifies the range that is considered to be a low value.
+        /*	@docs: {
+         *	@title: Low
+         *	@description: 
+         *		Specifies the range that is considered to be a low value.
+         *		The equivalent of HTML attribute `low`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        low(value) {
+            if (value == null) { return this.getAttribute('low'); }
+        	this.setAttribute('low', value);
+        	return this;
+        }
+
+        // Specifies the maximum value.
+        /*	@docs: {
+         *	@title: Max
+         *	@description: 
+         *		Specifies the maximum value.
+         *		The equivalent of HTML attribute `max`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        max(value) {
+            if (value == null) { return this.getAttribute('max'); }
+        	this.setAttribute('max', value);
+        	return this;
+        }
+
+        // Specifies the maximum number of characters allowed in an element.
+        /*	@docs: {
+         *	@title: Max length
+         *	@description: 
+         *		Specifies the maximum number of characters allowed in an element.
+         *		The equivalent of HTML attribute `maxlength`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        max_length(value) {
+            if (value == null) { return this.getAttribute('maxlength'); }
+        	this.setAttribute('maxlength', value);
+        	return this;
+        }
+
+        // Specifies what media/device the linked document is optimized for.
+        // media(value) {
+        //     if (value == null) { return this.getAttribute('media'); }
+        // 	this.setAttribute('media', value);
+        // 	return this;
+        // }
+
+        // Specifies the HTTP method to use when sending form-data.
+        /*	@docs: {
+         *	@title: Method
+         *	@description: 
+         *		Specifies the HTTP method to use when sending form-data.
+         *		The equivalent of HTML attribute `method`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        method(value) {
+            if (value == null) { return this.getAttribute('method'); }
+        	this.setAttribute('method', value);
+        	return this;
+        }
+
+        // Specifies a minimum value.
+        /*	@docs: {
+         *	@title: Min
+         *	@description: 
+         *		Specifies a minimum value.
+         *		The equivalent of HTML attribute `min`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        min(value) {
+            if (value == null) { return this.getAttribute('min'); }
+        	this.setAttribute('min', value);
+        	return this;
+        }
+
+        // Specifies that a user can enter more than one value.
+        /*	@docs: {
+         *	@title: Multiple
+         *	@description: 
+         *		Specifies that a user can enter more than one value.
+         *		The equivalent of HTML attribute `multiple`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        multiple(value) {
+            if (value == null) { return this.getAttribute('multiple'); }
+        	this.setAttribute('multiple', value);
+        	return this;
+        }
+
+        // Specifies that the audio output of the video should be muted.
+        /*	@docs: {
+         *	@title: Muted
+         *	@description: 
+         *		Specifies that the audio output of the video should be muted.
+         *		The equivalent of HTML attribute `muted`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        muted(value) {
+            if (value == null) { return this.getAttribute('muted'); }
+        	this.setAttribute('muted', value);
+        	return this;
+        }
+
+        // Specifies the name of the element.
+        // name(value) {
+        //     if (value == null) { return this.getAttribute('name'); }
+        // 	this.setAttribute('name', value);
+        // 	return this;
+        // }
+
+        // Specifies that the form should not be validated when submitted.
+        /*	@docs: {
+         *	@title: No validate
+         *	@description: 
+         *		Specifies that the form should not be validated when submitted.
+         *		The equivalent of HTML attribute `novalidate`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        no_validate(value) {
+            if (value == null) { return this.getAttribute('novalidate'); }
+        	this.setAttribute('novalidate', value);
+        	return this;
+        }
+
+        // Specifies that the details should be visible (open) to the user.
+        /*	@docs: {
+         *	@title: Open
+         *	@description: 
+         *		Specifies that the details should be visible (open) to the user.
+         *		The equivalent of HTML attribute `open`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        open(value) {
+            if (value == null) { return this.getAttribute('open'); }
+        	this.setAttribute('open', value);
+        	return this;
+        }
+
+        // Specifies what value is the optimal value for the gauge.
+        /*	@docs: {
+         *	@title: Optimum
+         *	@description: 
+         *		Specifies what value is the optimal value for the gauge.
+         *		The equivalent of HTML attribute `optimum`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        optimum(value) {
+            if (value == null) { return this.getAttribute('optimum'); }
+        	this.setAttribute('optimum', value);
+        	return this;
+        }
+
+        // Specifies a regular expression that an <input> element's value is checked against.
+        /*	@docs: {
+         *	@title: Pattern
+         *	@description: 
+         *		Specifies a regular expression that an <input> element's value is checked against.
+         *		The equivalent of HTML attribute `pattern`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        pattern(value) {
+            if (value == null) { return this.getAttribute('pattern'); }
+        	this.setAttribute('pattern', value);
+        	return this;
+        }
+
+        // Specifies a short hint that describes the expected value of the element.
+        /*	@docs: {
+         *	@title: Placeholder
+         *	@description: 
+         *		Specifies a short hint that describes the expected value of the element.
+         *		The equivalent of HTML attribute `placeholder`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        placeholder(value) {
+            if (value == null) { return this.getAttribute('placeholder'); }
+        	this.setAttribute('placeholder', value);
+        	return this;
+        }
+
+        // Specifies an image to be shown while the video is downloading, or until the user hits the play button.
+        /*	@docs: {
+         *	@title: Poster
+         *	@description: 
+         *		Specifies an image to be shown while the video is downloading, or until the user hits the play button.
+         *		The equivalent of HTML attribute `poster`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        poster(value) {
+            if (value == null) { return this.getAttribute('poster'); }
+        	this.setAttribute('poster', value);
+        	return this;
+        }
+
+        // Specifies if and how the author thinks the audio/video should be loaded when the page loads.
+        /*	@docs: {
+         *	@title: Preload
+         *	@description: 
+         *		Specifies if and how the author thinks the audio/video should be loaded when the page loads.
+         *		The equivalent of HTML attribute `preload`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        preload(value) {
+            if (value == null) { return this.getAttribute('preload'); }
+        	this.setAttribute('preload', value);
+        	return this;
+        }
+
+        // Specifies that the element is read-only.
+        /*	@docs: {
+         *	@title: Readonly
+         *	@description: 
+         *		Specifies that the element is read-only.
+         *		The equivalent of HTML attribute `readonly`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        readonly(value) {
+            if (value == null) { return this.getAttribute('readonly'); }
+        	this.setAttribute('readonly', value);
+        	return this;
+        }
+
+        // Specifies the relationship between the current document and the linked document.
+        /*	@docs: {
+         *	@title: Rel
+         *	@description: 
+         *		Specifies the relationship between the current document and the linked document.
+         *		The equivalent of HTML attribute `rel`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        rel(value) {
+            if (value == null) { return this.getAttribute('rel'); }
+        	this.setAttribute('rel', value);
+        	return this;
+        }
+
+        // Specifies that the element must be filled out before submitting the form.
+        /*	@docs: {
+         *	@title: Required
+         *	@description: 
+         *		Specifies that the element must be filled out before submitting the form.
+         *		The equivalent of HTML attribute `required`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        required(value) {
+            if (value == null) { return this.getAttribute('required'); }
+        	this.setAttribute('required', value);
+        	return this;
+        }
+
+        // Specifies that the list order should be descending (9,8,7...).
+        /*	@docs: {
+         *	@title: Reversed
+         *	@description: 
+         *		Specifies that the list order should be descending (9,8,7...).
+         *		The equivalent of HTML attribute `reversed`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        reversed(value) {
+            if (value == null) { return this.getAttribute('reversed'); }
+        	this.setAttribute('reversed', value);
+        	return this;
+        }
+
+        // Specifies the visible number of lines in a text area.
+        /*	@docs: {
+         *	@title: Rows
+         *	@description: 
+         *		Specifies the visible number of lines in a text area.
+         *		The equivalent of HTML attribute `rows`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        rows(value) {
+            if (value == null) { return this.getAttribute('rows'); }
+        	this.setAttribute('rows', value);
+        	return this;
+        }
+
+        // Specifies the number of rows a table cell should span.
+        /*	@docs: {
+         *	@title: Row span
+         *	@description: 
+         *		Specifies the number of rows a table cell should span.
+         *		The equivalent of HTML attribute `rowspan`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        row_span(value) {
+            if (value == null) { return this.getAttribute('rowspan'); }
+        	this.setAttribute('rowspan', value);
+        	return this;
+        }
+
+        // Enables an extra set of restrictions for the content in an <iframe>.
+        /*	@docs: {
+         *	@title: Sandbox
+         *	@description: 
+         *		Enables an extra set of restrictions for the content in an <iframe>.
+         *		The equivalent of HTML attribute `sandbox`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        sandbox(value) {
+            if (value == null) { return this.getAttribute('sandbox'); }
+        	this.setAttribute('sandbox', value);
+        	return this;
+        }
+
+        // Specifies whether a header cell is a header for a column, row, or group of columns or rows.
+        /*	@docs: {
+         *	@title: Scope
+         *	@description: 
+         *		Specifies whether a header cell is a header for a column, row, or group of columns or rows.
+         *		The equivalent of HTML attribute `scope`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        scope(value) {
+            if (value == null) { return this.getAttribute('scope'); }
+        	this.setAttribute('scope', value);
+        	return this;
+        }
+
+        // Specifies that an option should be pre-selected when the page loads.
+        /*	@docs: {
+         *	@title: Selected
+         *	@description: 
+         *		Specifies that an option should be pre-selected when the page loads.
+         *		The equivalent of HTML attribute `selected`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        selected(value) {
+            if (value == null) { return this.getAttribute('selected'); }
+        	this.setAttribute('selected', value);
+        	return this;
+        }
+
+        // Specifies the shape of the area.
+        /*	@docs: {
+         *	@title: Shape
+         *	@description: 
+         *		Specifies the shape of the area.
+         *		The equivalent of HTML attribute `shape`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        shape(value) {
+            if (value == null) { return this.getAttribute('shape'); }
+        	this.setAttribute('shape', value);
+        	return this;
+        }
+
+        // Specifies the width, in characters (for <input>) or specifies the number of visible options (for <select>).
+        /*	@docs: {
+         *	@title: Size
+         *	@description: 
+         *		Specifies the width, in characters (for <input>) or specifies the number of visible options (for <select>).
+         *		The equivalent of HTML attribute `size`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        size(value) {
+            if (value == null) { return this.getAttribute('size'); }
+        	this.setAttribute('size', value);
+        	return this;
+        }
+
+        // Specifies the size of the linked resource.
+        /*	@docs: {
+         *	@title: Sizes
+         *	@description: 
+         *		Specifies the size of the linked resource.
+         *		The equivalent of HTML attribute `sizes`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        sizes(value) {
+            if (value == null) { return this.getAttribute('sizes'); }
+        	this.setAttribute('sizes', value);
+        	return this;
+        }
+
+        // Specifies the number of columns to span.
+        /*	@docs: {
+         *	@title: Span
+         *	@description: 
+         *		Specifies the number of columns to span.
+         *		The equivalent of HTML attribute `span`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        span(value) {
+            if (value == null) { return this.getAttribute('span'); }
+        	this.setAttribute('span', value);
+        	return this;
+        }
+
+        // Specifies whether the element is to have its spelling and grammar checked or not.
+        /*	@docs: {
+         *	@title: Spell check
+         *	@description: 
+         *		Specifies whether the element is to have its spelling and grammar checked or not.
+         *		The equivalent of HTML attribute `spellcheck`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        spell_check(value) {
+            if (value == null) { return this.getAttribute('spellcheck'); }
+        	this.setAttribute('spellcheck', value);
+        	return this;
+        }
+
+        // Specifies the URL of the media file.
+        /*	@docs: {
+         *	@title: Src
+         *	@description: 
+         *		Specifies the URL of the media file.
+         *		The equivalent of HTML attribute `src`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        src(value) {
+            if (value == null) { return this.getAttribute('src'); }
+        	this.setAttribute('src', value);
+        	return this;
+        }
+
+        // Specifies the HTML content of the page to show in the <iframe>.
+        /*	@docs: {
+         *	@title: Src doc
+         *	@description: 
+         *		Specifies the HTML content of the page to show in the <iframe>.
+         *		The equivalent of HTML attribute `srcdoc`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        src_doc(value) {
+            if (value == null) { return this.getAttribute('srcdoc'); }
+        	this.setAttribute('srcdoc', value);
+        	return this;
+        }
+
+        // Specifies the language of the track text data (required if kind="subtitles").
+        /*	@docs: {
+         *	@title: Src lang
+         *	@description: 
+         *		Specifies the language of the track text data (required if kind="subtitles").
+         *		The equivalent of HTML attribute `srclang`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        src_lang(value) {
+            if (value == null) { return this.getAttribute('srclang'); }
+        	this.setAttribute('srclang', value);
+        	return this;
+        }
+
+        // Specifies the URL of the image to use in different situations.
+        /*	@docs: {
+         *	@title: Rrsrc set
+         *	@description: 
+         *		Specifies the URL of the image to use in different situations.
+         *		The equivalent of HTML attribute `srcset`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        rrsrc_set(value) {
+            if (value == null) { return this.getAttribute('srcset'); }
+        	this.setAttribute('srcset', value);
+        	return this;
+        }
+
+        // Specifies the start value of an ordered list.
+        /*	@docs: {
+         *	@title: Start
+         *	@description: 
+         *		Specifies the start value of an ordered list.
+         *		The equivalent of HTML attribute `start`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        start(value) {
+            if (value == null) { return this.getAttribute('start'); }
+        	this.setAttribute('start', value);
+        	return this;
+        }
+
+        // Specifies the legal number intervals for an input field.
+        /*	@docs: {
+         *	@title: Step
+         *	@description: 
+         *		Specifies the legal number intervals for an input field.
+         *		The equivalent of HTML attribute `step`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        step(value) {
+            if (value == null) { return this.getAttribute('step'); }
+        	this.setAttribute('step', value);
+        	return this;
+        }
+
+        // Specifies an inline CSS style for an element.
+        // style(value) {
+        //     if (value == null) { return this.getAttribute('style'); }
+        // 	this.setAttribute('style', value);
+        // 	return this;
+        // }
+
+        // Specifies the tabbing order of an element.
+        /*	@docs: {
+         *	@title: Tab index
+         *	@description: 
+         *		Specifies the tabbing order of an element.
+         *		The equivalent of HTML attribute `tabindex`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        tab_index(value) {
+            if (value == null) { return this.getAttribute('tabindex'); }
+        	this.setAttribute('tabindex', value);
+        	return this;
+        }
+
+        // Specifies the target for where to open the linked document or where to submit the form.
+        /*	@docs: {
+         *	@title: Target
+         *	@description: 
+         *		Specifies the target for where to open the linked document or where to submit the form.
+         *		The equivalent of HTML attribute `target`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        target(value) {
+            if (value == null) { return this.getAttribute('target'); }
+        	this.setAttribute('target', value);
+        	return this;
+        }
+
+        // Specifies extra information about an element.
+        /*	@docs: {
+         *	@title: Title
+         *	@description: 
+         *		Specifies extra information about an element.
+         *		The equivalent of HTML attribute `title`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        title(value) {
+            if (value == null) { return this.getAttribute('title'); }
+        	this.setAttribute('title', value);
+        	return this;
+        }
+
+        // Specifies whether the content of an element should be translated or not.
+        /*	@docs: {
+         *	@title: Translate
+         *	@description: 
+         *		Specifies whether the content of an element should be translated or not.
+         *		The equivalent of HTML attribute `translate`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        translate(value) {
+            if (value == null) { return this.getAttribute('translate'); }
+        	this.setAttribute('translate', value);
+        	return this;
+        }
+
+        // Specifies the type of element.
+        /*	@docs: {
+         *	@title: Type
+         *	@description: 
+         *		Specifies the type of element.
+         *		The equivalent of HTML attribute `type`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        type(value) {
+            if (value == null) { return this.getAttribute('type'); }
+        	this.setAttribute('type', value);
+        	return this;
+        }
+
+        // Specifies an image as a client-side image map.
+        /*	@docs: {
+         *	@title: Use map
+         *	@description: 
+         *		Specifies an image as a client-side image map.
+         *		The equivalent of HTML attribute `usemap`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        use_map(value) {
+            if (value == null) { return this.getAttribute('usemap'); }
+        	this.setAttribute('usemap', value);
+        	return this;
+        }
+
+        // Specifies the value of the element.
+        /*	@docs: {
+         *	@title: Value
+         *	@description: 
+         *		Specifies the value of the element.
+         *		The equivalent of HTML attribute `value`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        value(value) {
+            if (value == null) { return this.getAttribute('value'); }
+        	this.setAttribute('value', value);
+        	return this;
+        }
+
+        // Specifies the width of the element.
+        // width(value) {
+        //     if (value == null) { return this.getAttribute('width'); }
+        // 	this.setAttribute('width', this.pad_numeric(value));
+        // 	return this;
+        // }
+
+        // Specifies how the text in a text area is to be wrapped when submitted in a form.
+        // wrap(value) {
+        //     if (value == null) { return this.getAttribute('wrap'); }
+        // 	this.setAttribute('wrap', value);
+        // 	return this;
+        // }
+
+        // Script to be run after the document is printed.
+        /*	@docs: {
+         *	@title: On after print
+         *	@description: 
+         *		Script to be run after the document is printed.
+         *		The equivalent of HTML attribute `onafterprint`.
+         *		
+         *		The first parameter of the callback is the `Element` object.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        on_after_print(callback) {
+            if (callback == null) { return this.onafterprint; }
+        	const e = this;
+        	this.onafterprint = (t) => callback(e, t);
+        	return this;
+        }
+
+        // Script to be run before the document is printed.
+        /*	@docs: {
+         *	@title: On before print
+         *	@description: 
+         *		Script to be run before the document is printed.
+         *		The equivalent of HTML attribute `onbeforeprint`.
+         *		
+         *		The first parameter of the callback is the `Element` object.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        on_before_print(callback) {
+            if (callback == null) { return this.onbeforeprint; }
+        	const e = this;
+        	this.onbeforeprint = (t) => callback(e, t);
+        	return this;
+        }
+
+        // Script to be run when the document is about to be unloaded.
+        /*	@docs: {
+         *	@title: On before unload
+         *	@description: 
+         *		Script to be run when the document is about to be unloaded.
+         *		The equivalent of HTML attribute `onbeforeunload`.
+         *		
+         *		The first parameter of the callback is the `Element` object.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        on_before_unload(callback) {
+            if (callback == null) { return this.onbeforeunload; }
+        	const e = this;
+        	this.onbeforeunload = (t) => callback(e, t);
+        	return this;
+        }
+
+        // Script to be run when an error occurs.
+        /*	@docs: {
+         *	@title: On error
+         *	@description: 
+         *		Script to be run when an error occurs.
+         *		The equivalent of HTML attribute `onerror`.
+         *		
+         *		The first parameter of the callback is the `Element` object.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        on_error(callback) {
+            if (callback == null) { return this.onerror; }
+        	const e = this;
+        	this.onerror = (t) => callback(e, t);
+        	return this;
+        }
+
+        // Script to be run when there has been changes to the anchor part of the a URL.
+        /*	@docs: {
+         *	@title: On hash change
+         *	@description: 
+         *		Script to be run when there has been changes to the anchor part of the a URL.
+         *		The equivalent of HTML attribute `onhashchange`.
+         *		
+         *		The first parameter of the callback is the `Element` object.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        on_hash_change(callback) {
+            if (callback == null) { return this.onhashchange; }
+        	const e = this;
+        	this.onhashchange = (t) => callback(e, t);
+        	return this;
+        }
+
+        // Fires after the page is finished loading.
+        /*	@docs: {
+         *	@title: On load
+         *	@description: 
+         *		Fires after the page is finished loading.
+         *		The equivalent of HTML attribute `onload`.
+         *		
+         *		The first parameter of the callback is the `Element` object.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        on_load(callback) {
+            if (callback == null) { return this.onload; }
+        	const e = this;
+        	this.onload = (t) => callback(e, t);
+        	return this;
+        }
+
+        // Script to be run when the message is triggered.
+        /*	@docs: {
+         *	@title: On message
+         *	@description: 
+         *		Script to be run when the message is triggered.
+         *		The equivalent of HTML attribute `onmessage`.
+         *		
+         *		The first parameter of the callback is the `Element` object.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        on_message(callback) {
+            if (callback == null) { return this.onmessage; }
+        	const e = this;
+        	this.onmessage = (t) => callback(e, t);
+        	return this;
+        }
+
+        // Script to be run when the browser starts to work offline.
+        /*	@docs: {
+         *	@title: On offline
+         *	@description: 
+         *		Script to be run when the browser starts to work offline.
+         *		The equivalent of HTML attribute `onoffline`.
+         *		
+         *		The first parameter of the callback is the `Element` object.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        on_offline(callback) {
+            if (callback == null) { return this.onoffline; }
+        	const e = this;
+        	this.onoffline = (t) => callback(e, t);
+        	return this;
+        }
+
+        // Script to be run when the browser starts to work online.
+        /*	@docs: {
+         *	@title: On online
+         *	@description: 
+         *		Script to be run when the browser starts to work online.
+         *		The equivalent of HTML attribute `ononline`.
+         *		
+         *		The first parameter of the callback is the `Element` object.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        on_online(callback) {
+            if (callback == null) { return this.ononline; }
+        	const e = this;
+        	this.ononline = (t) => callback(e, t);
+        	return this;
+        }
+
+        // Script to be run when a user navigates away from a page.
+        /*	@docs: {
+         *	@title: On page hide
+         *	@description: 
+         *		Script to be run when a user navigates away from a page.
+         *		The equivalent of HTML attribute `onpagehide`.
+         *		
+         *		The first parameter of the callback is the `Element` object.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        on_page_hide(callback) {
+            if (callback == null) { return this.onpagehide; }
+        	const e = this;
+        	this.onpagehide = (t) => callback(e, t);
+        	return this;
+        }
+
+        // Script to be run when a user navigates to a page.
+        /*	@docs: {
+         *	@title: On page show
+         *	@description: 
+         *		Script to be run when a user navigates to a page.
+         *		The equivalent of HTML attribute `onpageshow`.
+         *		
+         *		The first parameter of the callback is the `Element` object.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        on_page_show(callback) {
+            if (callback == null) { return this.onpageshow; }
+        	const e = this;
+        	this.onpageshow = (t) => callback(e, t);
+        	return this;
+        }
+
+        // Script to be run when the window's history changes.
+        /*	@docs: {
+         *	@title: On popstate
+         *	@description: 
+         *		Script to be run when the window's history changes.
+         *		The equivalent of HTML attribute `onpopstate`.
+         *		
+         *		The first parameter of the callback is the `Element` object.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        on_popstate(callback) {
+            if (callback == null) { return this.onpopstate; }
+        	const e = this;
+        	this.onpopstate = (t) => callback(e, t);
+        	return this;
+        }
+
+        // Fires when the browser window is resized.
+        /*	@docs: {
+         *	@title: On resize
+         *	@description: 
+         *		Fires when the browser window is resized.
+         *		The equivalent of HTML attribute `onresize`.
+         *		
+         *		The first parameter of the callback is the `Element` object.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        on_resize(callback) {
+            if (callback == null) { return this.onresize; }
+        	const e = this;
+        	this.onresize = (t) => callback(e, t);
+        	return this;
+        }
+
+        // Script to be run when a Web Storage area is updated.
+        /*	@docs: {
+         *	@title: On storage
+         *	@description: 
+         *		Script to be run when a Web Storage area is updated.
+         *		The equivalent of HTML attribute `onstorage`.
+         *		
+         *		The first parameter of the callback is the `Element` object.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        on_storage(callback) {
+            if (callback == null) { return this.onstorage; }
+        	const e = this;
+        	this.onstorage = (t) => callback(e, t);
+        	return this;
+        }
+
+        // Fires once a page has unloaded (or the browser window has been closed).
+        /*	@docs: {
+         *	@title: On unload
+         *	@description: 
+         *		Fires once a page has unloaded (or the browser window has been closed).
+         *		The equivalent of HTML attribute `onunload`.
+         *		
+         *		The first parameter of the callback is the `Element` object.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        on_unload(callback) {
+            if (callback == null) { return this.onunload; }
+        	const e = this;
+        	this.onunload = (t) => callback(e, t);
+        	return this;
+        }
+
+        // Fires the moment that the element loses focus.
+        /*	@docs: {
+         *	@title: On blur
+         *	@description: 
+         *		Fires the moment that the element loses focus.
+         *		The equivalent of HTML attribute `onblur`.
+         *		
+         *		The first parameter of the callback is the `Element` object.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        on_blur(callback) {
+            if (callback == null) { return this.onblur; }
+        	const e = this;
+        	this.onblur = (t) => callback(e, t);
+        	return this;
+        }
+
+        // Fires the moment when the value of the element is changed.
+        /*	@docs: {
+         *	@title: On change
+         *	@description: 
+         *		Fires the moment when the value of the element is changed.
+         *		The equivalent of HTML attribute `onchange`.
+         *		
+         *		The first parameter of the callback is the `Element` object.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        on_change(callback) {
+            if (callback == null) { return this.onchange; }
+        	const e = this;
+        	this.onchange = (t) => callback(e, t);
+        	return this;
+        }
+
+        // Script to be run when a context menu is triggered.
+        /*	@docs: {
+         *	@title: On context menu
+         *	@description: 
+         *		Script to be run when a context menu is triggered.
+         *		The equivalent of HTML attribute `oncontextmenu`.
+         *		
+         *		The first parameter of the callback is the `Element` object.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        on_context_menu(callback) {
+            if (callback == null) { return this.oncontextmenu; }
+        	const e = this;
+        	this.oncontextmenu = (t) => callback(e, t);
+        	return this;
+        }
+
+        // Fires the moment when the element gets focus.
+        /*	@docs: {
+         *	@title: On focus
+         *	@description: 
+         *		Fires the moment when the element gets focus.
+         *		The equivalent of HTML attribute `onfocus`.
+         *		
+         *		The first parameter of the callback is the `Element` object.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        on_focus(callback) {
+            if (callback == null) { return this.onfocus; }
+        	const e = this;
+        	this.onfocus = (t) => callback(e, t);
+        	return this;
+        }
+
+        // Script to be run when an element gets user input.
+        /*	@docs: {
+         *	@title: On input
+         *	@description: 
+         *		Script to be run when an element gets user input.
+         *		The equivalent of HTML attribute `oninput`.
+         *		
+         *		The first parameter of the callback is the `Element` object.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        on_input(callback) {
+            if (callback == null) { return this.oninput; }
+        	const e = this;
+        	this.oninput = (t) => callback(e, t);
+        	return this;
+        }
+
+        // Script to be run when an element is invalid.
+        /*	@docs: {
+         *	@title: On invalid
+         *	@description: 
+         *		Script to be run when an element is invalid.
+         *		The equivalent of HTML attribute `oninvalid`.
+         *		
+         *		The first parameter of the callback is the `Element` object.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        on_invalid(callback) {
+            if (callback == null) { return this.oninvalid; }
+        	const e = this;
+        	this.oninvalid = (t) => callback(e, t);
+        	return this;
+        }
+
+        // Fires when the Reset button in a form is clicked.
+        /*	@docs: {
+         *	@title: On reset
+         *	@description: 
+         *		Fires when the Reset button in a form is clicked.
+         *		The equivalent of HTML attribute `onreset`.
+         *		
+         *		The first parameter of the callback is the `Element` object.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        on_reset(callback) {
+            if (callback == null) { return this.onreset; }
+        	const e = this;
+        	this.onreset = (t) => callback(e, t);
+        	return this;
+        }
+
+        // Fires when the user writes something in a search field (for <input="search">).
+        /*	@docs: {
+         *	@title: On search
+         *	@description: 
+         *		Fires when the user writes something in a search field (for <input="search">).
+         *		The equivalent of HTML attribute `onsearch`.
+         *		
+         *		The first parameter of the callback is the `Element` object.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        on_search(callback) {
+            if (callback == null) { return this.onsearch; }
+        	const e = this;
+        	this.onsearch = (t) => callback(e, t);
+        	return this;
+        }
+
+        // Fires after some text has been selected in an element.
+        /*	@docs: {
+         *	@title: On select
+         *	@description: 
+         *		Fires after some text has been selected in an element.
+         *		The equivalent of HTML attribute `onselect`.
+         *		
+         *		The first parameter of the callback is the `Element` object.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        on_select(callback) {
+            if (callback == null) { return this.onselect; }
+        	const e = this;
+        	this.onselect = (t) => callback(e, t);
+        	return this;
+        }
+
+        // Fires when a form is submitted.
+        /*	@docs: {
+         *	@title: On submit
+         *	@description: 
+         *		Fires when a form is submitted.
+         *		The equivalent of HTML attribute `onsubmit`.
+         *		
+         *		The first parameter of the callback is the `Element` object.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        on_submit(callback) {
+            if (callback == null) { return this.onsubmit; }
+        	const e = this;
+        	this.onsubmit = (t) => callback(e, t);
+        	return this;
+        }
+
+        // Fires when a user is pressing a key.
+        /*	@docs: {
+         *	@title: On key down
+         *	@description: 
+         *		Fires when a user is pressing a key.
+         *		The equivalent of HTML attribute `onkeydown`.
+         *		
+         *		The first parameter of the callback is the `Element` object.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        on_key_down(callback) {
+            if (callback == null) { return this.onkeydown; }
+        	const e = this;
+        	this.onkeydown = (t) => callback(e, t);
+        	return this;
+        }
+
+        // Fires when a user presses a key.
+        /*	@docs: {
+         *	@title: On key press
+         *	@description: 
+         *		Fires when a user presses a key.
+         *		The equivalent of HTML attribute `onkeypress`.
+         *		
+         *		The first parameter of the callback is the `Element` object.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        on_key_press(callback) {
+            if (callback == null) { return this.onkeypress; }
+        	const e = this;
+        	this.onkeypress = (t) => callback(e, t);
+        	return this;
+        }
+
+        // Fires when a user releases a key.
+        /*	@docs: {
+         *	@title: On key up
+         *	@description: 
+         *		Fires when a user releases a key.
+         *		The equivalent of HTML attribute `onkeyup`.
+         *		
+         *		The first parameter of the callback is the `Element` object.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        on_key_up(callback) {
+            if (callback == null) { return this.onkeyup; }
+        	const e = this;
+        	this.onkeyup = (t) => callback(e, t);
+        	return this;
+        }
+
+        // Fires on a mouse click on the element.
+        // on_click(callback) {
+        //     if (callback == null) { return this.onclick; }
+        // 	const e = this;
+        // 	this.onclick = (t) => callback(e, t);
+        // 	return this;
+        // }
+
+        // Fires on a mouse double-click on the element.
+        /*	@docs: {
+         *	@title: On dbl click
+         *	@description: 
+         *		Fires on a mouse double-click on the element.
+         *		The equivalent of HTML attribute `ondblclick`.
+         *		
+         *		The first parameter of the callback is the `Element` object.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        on_dbl_click(callback) {
+            if (callback == null) { return this.ondblclick; }
+        	const e = this;
+        	this.ondblclick = (t) => callback(e, t);
+        	return this;
+        }
+
+        // Fires when a mouse button is pressed down on an element.
+        /*	@docs: {
+         *	@title: On mouse down
+         *	@description: 
+         *		Fires when a mouse button is pressed down on an element.
+         *		The equivalent of HTML attribute `onmousedown`.
+         *		
+         *		The first parameter of the callback is the `Element` object.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        on_mouse_down(callback) {
+            if (callback == null) { return this.onmousedown; }
+        	const e = this;
+        	this.onmousedown = (t) => callback(e, t);
+        	return this;
+        }
+
+        // Fires when the mouse pointer is moving while it is over an element.
+        /*	@docs: {
+         *	@title: On mouse move
+         *	@description: 
+         *		Fires when the mouse pointer is moving while it is over an element.
+         *		The equivalent of HTML attribute `onmousemove`.
+         *		
+         *		The first parameter of the callback is the `Element` object.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        on_mouse_move(callback) {
+            if (callback == null) { return this.onmousemove; }
+        	const e = this;
+        	this.onmousemove = (t) => callback(e, t);
+        	return this;
+        }
+
+        // Fires when the mouse pointer moves out of an element.
+        /*	@docs: {
+         *	@title: On mouse out
+         *	@description: 
+         *		Fires when the mouse pointer moves out of an element.
+         *		The equivalent of HTML attribute `onmouseout`.
+         *		
+         *		The first parameter of the callback is the `Element` object.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        on_mouse_out(callback) {
+            if (callback == null) { return this.onmouseout; }
+        	const e = this;
+        	this.onmouseout = (t) => callback(e, t);
+        	return this;
+        }
+
+        // Fires when the mouse pointer moves over an element.
+        /*	@docs: {
+         *	@title: On mouse over
+         *	@description: 
+         *		Fires when the mouse pointer moves over an element.
+         *		The equivalent of HTML attribute `onmouseover`.
+         *		
+         *		The first parameter of the callback is the `Element` object.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        on_mouse_over(callback) {
+            if (callback == null) { return this.onmouseover; }
+        	const e = this;
+        	this.onmouseover = (t) => callback(e, t);
+        	return this;
+        }
+
+        // Fires when a mouse button is released over an element.
+        /*	@docs: {
+         *	@title: On mouse up
+         *	@description: 
+         *		Fires when a mouse button is released over an element.
+         *		The equivalent of HTML attribute `onmouseup`.
+         *		
+         *		The first parameter of the callback is the `Element` object.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        on_mouse_up(callback) {
+            if (callback == null) { return this.onmouseup; }
+        	const e = this;
+        	this.onmouseup = (t) => callback(e, t);
+        	return this;
+        }
+
+        // Deprecated. Use the onwheel attribute instead.
+        /*	@docs: {
+         *	@title: On mouse wheel
+         *	@description: 
+         *		Deprecated. Use the onwheel attribute instead.
+         *		The equivalent of HTML attribute `onmousewheel`.
+         *		
+         *		The first parameter of the callback is the `Element` object.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        on_mouse_wheel(callback) {
+            if (callback == null) { return this.onmousewheel; }
+        	const e = this;
+        	this.onmousewheel = (t) => callback(e, t);
+        	return this;
+        }
+
+        // Fires when the mouse wheel rolls up or down over an element.
+        /*	@docs: {
+         *	@title: On wheel
+         *	@description: 
+         *		Fires when the mouse wheel rolls up or down over an element.
+         *		The equivalent of HTML attribute `onwheel`.
+         *		
+         *		The first parameter of the callback is the `Element` object.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        on_wheel(callback) {
+            if (callback == null) { return this.onwheel; }
+        	const e = this;
+        	this.onwheel = (t) => callback(e, t);
+        	return this;
+        }
+
+        // Script to be run when an element is dragged.
+        /*	@docs: {
+         *	@title: On drag
+         *	@description: 
+         *		Script to be run when an element is dragged.
+         *		The equivalent of HTML attribute `ondrag`.
+         *		
+         *		The first parameter of the callback is the `Element` object.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        on_drag(callback) {
+            if (callback == null) { return this.ondrag; }
+        	const e = this;
+        	this.ondrag = (t) => callback(e, t);
+        	return this;
+        }
+
+        // Script to be run at the end of a drag operation.
+        /*	@docs: {
+         *	@title: On drag end
+         *	@description: 
+         *		Script to be run at the end of a drag operation.
+         *		The equivalent of HTML attribute `ondragend`.
+         *		
+         *		The first parameter of the callback is the `Element` object.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        on_drag_end(callback) {
+            if (callback == null) { return this.ondragend; }
+        	const e = this;
+        	this.ondragend = (t) => callback(e, t);
+        	return this;
+        }
+
+        // Script to be run when an element has been dragged to a valid drop target.
+        /*	@docs: {
+         *	@title: On drag enter
+         *	@description: 
+         *		Script to be run when an element has been dragged to a valid drop target.
+         *		The equivalent of HTML attribute `ondragenter`.
+         *		
+         *		The first parameter of the callback is the `Element` object.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        on_drag_enter(callback) {
+            if (callback == null) { return this.ondragenter; }
+        	const e = this;
+        	this.ondragenter = (t) => callback(e, t);
+        	return this;
+        }
+
+        // Script to be run when an element leaves a valid drop target.
+        /*	@docs: {
+         *	@title: On drag leave
+         *	@description: 
+         *		Script to be run when an element leaves a valid drop target.
+         *		The equivalent of HTML attribute `ondragleave`.
+         *		
+         *		The first parameter of the callback is the `Element` object.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        on_drag_leave(callback) {
+            if (callback == null) { return this.ondragleave; }
+        	const e = this;
+        	this.ondragleave = (t) => callback(e, t);
+        	return this;
+        }
+
+        // Script to be run when an element is being dragged over a valid drop target.
+        /*	@docs: {
+         *	@title: On drag over
+         *	@description: 
+         *		Script to be run when an element is being dragged over a valid drop target.
+         *		The equivalent of HTML attribute `ondragover`.
+         *		
+         *		The first parameter of the callback is the `Element` object.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        on_drag_over(callback) {
+            if (callback == null) { return this.ondragover; }
+        	const e = this;
+        	this.ondragover = (t) => callback(e, t);
+        	return this;
+        }
+
+        // Script to be run at the start of a drag operation.
+        /*	@docs: {
+         *	@title: On drag start
+         *	@description: 
+         *		Script to be run at the start of a drag operation.
+         *		The equivalent of HTML attribute `ondragstart`.
+         *		
+         *		The first parameter of the callback is the `Element` object.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        on_drag_start(callback) {
+            if (callback == null) { return this.ondragstart; }
+        	const e = this;
+        	this.ondragstart = (t) => callback(e, t);
+        	return this;
+        }
+
+        // Script to be run when dragged element is being dropped.
+        /*	@docs: {
+         *	@title: On drop
+         *	@description: 
+         *		Script to be run when dragged element is being dropped.
+         *		The equivalent of HTML attribute `ondrop`.
+         *		
+         *		The first parameter of the callback is the `Element` object.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        on_drop(callback) {
+            if (callback == null) { return this.ondrop; }
+        	const e = this;
+        	this.ondrop = (t) => callback(e, t);
+        	return this;
+        }
+
+        // Fires when the user copies the content of an element.
+        /*	@docs: {
+         *	@title: On copy
+         *	@description: 
+         *		Fires when the user copies the content of an element.
+         *		The equivalent of HTML attribute `oncopy`.
+         *		
+         *		The first parameter of the callback is the `Element` object.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        on_copy(callback) {
+            if (callback == null) { return this.oncopy; }
+        	const e = this;
+        	this.oncopy = (t) => callback(e, t);
+        	return this;
+        }
+
+        // Fires when the user cuts the content of an element.
+        /*	@docs: {
+         *	@title: On cut
+         *	@description: 
+         *		Fires when the user cuts the content of an element.
+         *		The equivalent of HTML attribute `oncut`.
+         *		
+         *		The first parameter of the callback is the `Element` object.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        on_cut(callback) {
+            if (callback == null) { return this.oncut; }
+        	const e = this;
+        	this.oncut = (t) => callback(e, t);
+        	return this;
+        }
+
+        // Fires when the user pastes some content in an element.
+        /*	@docs: {
+         *	@title: On paste
+         *	@description: 
+         *		Fires when the user pastes some content in an element.
+         *		The equivalent of HTML attribute `onpaste`.
+         *		
+         *		The first parameter of the callback is the `Element` object.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        on_paste(callback) {
+            if (callback == null) { return this.onpaste; }
+        	const e = this;
+        	this.onpaste = (t) => callback(e, t);
+        	return this;
+        }
+
+        // Script to be run on abort.
+        /*	@docs: {
+         *	@title: On abort
+         *	@description: 
+         *		Script to be run on abort.
+         *		The equivalent of HTML attribute `onabort`.
+         *		
+         *		The first parameter of the callback is the `Element` object.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        on_abort(callback) {
+            if (callback == null) { return this.onabort; }
+        	const e = this;
+        	this.onabort = (t) => callback(e, t);
+        	return this;
+        }
+
+        // Script to be run when a file is ready to start playing (when it has buffered enough to begin).
+        /*	@docs: {
+         *	@title: On canplay
+         *	@description: 
+         *		Script to be run when a file is ready to start playing (when it has buffered enough to begin).
+         *		The equivalent of HTML attribute `oncanplay`.
+         *		
+         *		The first parameter of the callback is the `Element` object.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        on_canplay(callback) {
+            if (callback == null) { return this.oncanplay; }
+        	const e = this;
+        	this.oncanplay = (t) => callback(e, t);
+        	return this;
+        }
+
+        // Script to be run when a file can be played all the way to the end without pausing for buffering.
+        /*	@docs: {
+         *	@title: On canplay through
+         *	@description: 
+         *		Script to be run when a file can be played all the way to the end without pausing for buffering.
+         *		The equivalent of HTML attribute `oncanplaythrough`.
+         *		
+         *		The first parameter of the callback is the `Element` object.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        on_canplay_through(callback) {
+            if (callback == null) { return this.oncanplaythrough; }
+        	const e = this;
+        	this.oncanplaythrough = (t) => callback(e, t);
+        	return this;
+        }
+
+        // Script to be run when the cue changes in a <track> element.
+        /*	@docs: {
+         *	@title: On cue change
+         *	@description: 
+         *		Script to be run when the cue changes in a <track> element.
+         *		The equivalent of HTML attribute `oncuechange`.
+         *		
+         *		The first parameter of the callback is the `Element` object.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        on_cue_change(callback) {
+            if (callback == null) { return this.oncuechange; }
+        	const e = this;
+        	this.oncuechange = (t) => callback(e, t);
+        	return this;
+        }
+
+        // Script to be run when the length of the media changes.
+        /*	@docs: {
+         *	@title: On duration change
+         *	@description: 
+         *		Script to be run when the length of the media changes.
+         *		The equivalent of HTML attribute `ondurationchange`.
+         *		
+         *		The first parameter of the callback is the `Element` object.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        on_duration_change(callback) {
+            if (callback == null) { return this.ondurationchange; }
+        	const e = this;
+        	this.ondurationchange = (t) => callback(e, t);
+        	return this;
+        }
+
+        // Script to be run when something bad happens and the file is suddenly unavailable (like unexpectedly disconnects).
+        /*	@docs: {
+         *	@title: On emptied
+         *	@description: 
+         *		Script to be run when something bad happens and the file is suddenly unavailable (like unexpectedly disconnects).
+         *		The equivalent of HTML attribute `onemptied`.
+         *		
+         *		The first parameter of the callback is the `Element` object.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        on_emptied(callback) {
+            if (callback == null) { return this.onemptied; }
+        	const e = this;
+        	this.onemptied = (t) => callback(e, t);
+        	return this;
+        }
+
+        // Script to be run when the media has reach the end (a useful event for messages like "thanks for listening").
+        /*	@docs: {
+         *	@title: On ended
+         *	@description: 
+         *		Script to be run when the media has reach the end (a useful event for messages like "thanks for listening").
+         *		The equivalent of HTML attribute `onended`.
+         *		
+         *		The first parameter of the callback is the `Element` object.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        on_ended(callback) {
+            if (callback == null) { return this.onended; }
+        	const e = this;
+        	this.onended = (t) => callback(e, t);
+        	return this;
+        }
+
+        // Script to be run when an error occurs when the file is being loaded.
+        /*	@docs: {
+         *	@title: On error
+         *	@description: 
+         *		Script to be run when an error occurs when the file is being loaded.
+         *		The equivalent of HTML attribute `onerror`.
+         *		
+         *		The first parameter of the callback is the `Element` object.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        on_error(callback) {
+            if (callback == null) { return this.onerror; }
+        	const e = this;
+        	this.onerror = (t) => callback(e, t);
+        	return this;
+        }
+
+        // Script to be run when media data is loaded.
+        /*	@docs: {
+         *	@title: On loaded data
+         *	@description: 
+         *		Script to be run when media data is loaded.
+         *		The equivalent of HTML attribute `onloadeddata`.
+         *		
+         *		The first parameter of the callback is the `Element` object.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        on_loaded_data(callback) {
+            if (callback == null) { return this.onloadeddata; }
+        	const e = this;
+        	this.onloadeddata = (t) => callback(e, t);
+        	return this;
+        }
+
+        // Script to be run when meta data (like dimensions and duration) are loaded.
+        /*	@docs: {
+         *	@title: On loaded metadata
+         *	@description: 
+         *		Script to be run when meta data (like dimensions and duration) are loaded.
+         *		The equivalent of HTML attribute `onloadedmetadata`.
+         *		
+         *		The first parameter of the callback is the `Element` object.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        on_loaded_metadata(callback) {
+            if (callback == null) { return this.onloadedmetadata; }
+        	const e = this;
+        	this.onloadedmetadata = (t) => callback(e, t);
+        	return this;
+        }
+
+        // Script to be run just as the file begins to load before anything is actually loaded.
+        /*	@docs: {
+         *	@title: On load start
+         *	@description: 
+         *		Script to be run just as the file begins to load before anything is actually loaded.
+         *		The equivalent of HTML attribute `onloadstart`.
+         *		
+         *		The first parameter of the callback is the `Element` object.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        on_load_start(callback) {
+            if (callback == null) { return this.onloadstart; }
+        	const e = this;
+        	this.onloadstart = (t) => callback(e, t);
+        	return this;
+        }
+
+        // Script to be run when the media is paused either by the user or programmatically.
+        /*	@docs: {
+         *	@title: On pause
+         *	@description: 
+         *		Script to be run when the media is paused either by the user or programmatically.
+         *		The equivalent of HTML attribute `onpause`.
+         *		
+         *		The first parameter of the callback is the `Element` object.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        on_pause(callback) {
+            if (callback == null) { return this.onpause; }
+        	const e = this;
+        	this.onpause = (t) => callback(e, t);
+        	return this;
+        }
+
+        // Script to be run when the media is ready to start playing.
+        /*	@docs: {
+         *	@title: On play
+         *	@description: 
+         *		Script to be run when the media is ready to start playing.
+         *		The equivalent of HTML attribute `onplay`.
+         *		
+         *		The first parameter of the callback is the `Element` object.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        on_play(callback) {
+            if (callback == null) { return this.onplay; }
+        	const e = this;
+        	this.onplay = (t) => callback(e, t);
+        	return this;
+        }
+
+        // Script to be run when the media actually has started playing.
+        /*	@docs: {
+         *	@title: On playing
+         *	@description: 
+         *		Script to be run when the media actually has started playing.
+         *		The equivalent of HTML attribute `onplaying`.
+         *		
+         *		The first parameter of the callback is the `Element` object.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        on_playing(callback) {
+            if (callback == null) { return this.onplaying; }
+        	const e = this;
+        	this.onplaying = (t) => callback(e, t);
+        	return this;
+        }
+
+        // Script to be run when the browser is in the process of getting the media data.
+        /*	@docs: {
+         *	@title: Onprogress
+         *	@description: 
+         *		Script to be run when the browser is in the process of getting the media data.
+         *		The equivalent of HTML attribute `onprogress`.
+         *		
+         *		The first parameter of the callback is the `Element` object.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        onprogress(callback) {
+            if (callback == null) { return this.onprogress; }
+        	const e = this;
+        	this.onprogress = (t) => callback(e, t);
+        	return this;
+        }
+
+        // Script to be run each time the playback rate changes (like when a user switches to a slow motion or fast forward mode).
+        /*	@docs: {
+         *	@title: On rate change
+         *	@description: 
+         *		Script to be run each time the playback rate changes (like when a user switches to a slow motion or fast forward mode).
+         *		The equivalent of HTML attribute `onratechange`.
+         *		
+         *		The first parameter of the callback is the `Element` object.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        on_rate_change(callback) {
+            if (callback == null) { return this.onratechange; }
+        	const e = this;
+        	this.onratechange = (t) => callback(e, t);
+        	return this;
+        }
+
+        // Script to be run when the seeking attribute is set to false indicating that seeking has ended.
+        /*	@docs: {
+         *	@title: On seeked
+         *	@description: 
+         *		Script to be run when the seeking attribute is set to false indicating that seeking has ended.
+         *		The equivalent of HTML attribute `onseeked`.
+         *		
+         *		The first parameter of the callback is the `Element` object.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        on_seeked(callback) {
+            if (callback == null) { return this.onseeked; }
+        	const e = this;
+        	this.onseeked = (t) => callback(e, t);
+        	return this;
+        }
+
+        // Script to be run when the seeking attribute is set to true indicating that seeking is active.
+        /*	@docs: {
+         *	@title: On seeking
+         *	@description: 
+         *		Script to be run when the seeking attribute is set to true indicating that seeking is active.
+         *		The equivalent of HTML attribute `onseeking`.
+         *		
+         *		The first parameter of the callback is the `Element` object.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        on_seeking(callback) {
+            if (callback == null) { return this.onseeking; }
+        	const e = this;
+        	this.onseeking = (t) => callback(e, t);
+        	return this;
+        }
+
+        // Script to be run when the browser is unable to fetch the media data for whatever reason.
+        /*	@docs: {
+         *	@title: On stalled
+         *	@description: 
+         *		Script to be run when the browser is unable to fetch the media data for whatever reason.
+         *		The equivalent of HTML attribute `onstalled`.
+         *		
+         *		The first parameter of the callback is the `Element` object.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        on_stalled(callback) {
+            if (callback == null) { return this.onstalled; }
+        	const e = this;
+        	this.onstalled = (t) => callback(e, t);
+        	return this;
+        }
+
+        // Script to be run when fetching the media data is stopped before it is completely loaded for whatever reason.
+        /*	@docs: {
+         *	@title: On suspend
+         *	@description: 
+         *		Script to be run when fetching the media data is stopped before it is completely loaded for whatever reason.
+         *		The equivalent of HTML attribute `onsuspend`.
+         *		
+         *		The first parameter of the callback is the `Element` object.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        on_suspend(callback) {
+            if (callback == null) { return this.onsuspend; }
+        	const e = this;
+        	this.onsuspend = (t) => callback(e, t);
+        	return this;
+        }
+
+        // Script to be run when the playing position has changed (like when the user fast forwards to a different point in the media).
+        /*	@docs: {
+         *	@title: On time update
+         *	@description: 
+         *		Script to be run when the playing position has changed (like when the user fast forwards to a different point in the media).
+         *		The equivalent of HTML attribute `ontimeupdate`.
+         *		
+         *		The first parameter of the callback is the `Element` object.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        on_time_update(callback) {
+            if (callback == null) { return this.ontimeupdate; }
+        	const e = this;
+        	this.ontimeupdate = (t) => callback(e, t);
+        	return this;
+        }
+
+        // Script to be run each time the volume is changed which (includes setting the volume to "mute").
+        /*	@docs: {
+         *	@title: On volume change
+         *	@description: 
+         *		Script to be run each time the volume is changed which (includes setting the volume to "mute").
+         *		The equivalent of HTML attribute `onvolumechange`.
+         *		
+         *		The first parameter of the callback is the `Element` object.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        on_volume_change(callback) {
+            if (callback == null) { return this.onvolumechange; }
+        	const e = this;
+        	this.onvolumechange = (t) => callback(e, t);
+        	return this;
+        }
+
+        // Script to be run when the media has paused but is expected to resume (like when the media pauses to buffer more data).
+        /*	@docs: {
+         *	@title: On waiting
+         *	@description: 
+         *		Script to be run when the media has paused but is expected to resume (like when the media pauses to buffer more data).
+         *		The equivalent of HTML attribute `onwaiting`.
+         *		
+         *		The first parameter of the callback is the `Element` object.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        on_waiting(callback) {
+            if (callback == null) { return this.onwaiting; }
+        	const e = this;
+        	this.onwaiting = (t) => callback(e, t);
+        	return this;
+        }
+
+        // Fires when the user opens or closes the <details> element.
+        /*	@docs: {
+         *	@title: On toggle
+         *	@description: 
+         *		Fires when the user opens or closes the <details> element.
+         *		The equivalent of HTML attribute `ontoggle`.
+         *		
+         *		The first parameter of the callback is the `Element` object.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        on_toggle(callback) {
+            if (callback == null) { return this.ontoggle; }
+        	const e = this;
+        	this.ontoggle = (t) => callback(e, t);
+        	return this;
+        }
+
+ 	};
+
+	// Register.
+	customElements.define("v-base-" + type.toLowerCase(), E, {extends: tag});
+
+	// Return class.
+	return E;
 };
 
-// Register custom type.
-vweb.utils.register_custom_type(VElement);
+// Element class.
+@vweb_constructor_wrapper
+const VElementElement = CreateVElementClass({type: "VElement", tag: "div"}); // should always remain a "div" since some elements like LoaderButton rely on the behaviour of a div.

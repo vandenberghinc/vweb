@@ -21,6 +21,8 @@ int main() {
 		.source = js,
 		.include_order = {
 			"modules/wrapper.js",
+			"modules/utils.js",
+			"modules/elements.js",
 			"ui/element.js",
 		},
 		.exclude = {

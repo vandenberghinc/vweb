@@ -4,27 +4,26 @@
  */
 
 // Link.
-class Link extends VElement {
-	
-	// Default vars.
-	static s_type = "Link";
-	static s_tag = "a";
-
-	// Default styling.
-	static default_styling = {
+@vweb_constructor_wrapper
+@vweb_register_element
+class LinkElement extends CreateVElementClass({
+	type: "Link",
+	tag: "a",
+	default_style: {
 		"font-family": "inherit",
 		"color": "rgb(85, 108, 214)",
 		"text-decoration": "underline",
 		"text-underline-position": "auto",
 		"cursor": "pointer",
-	};
+	},
+}) {
 	
 	// Constructor.
 	constructor(text, href) {
 		
 		// Initialize base class.
-		super(Link.s_type, Link.s_tag, Link.default_styling);
-		
+		super();
+
 		// Set text.
 		this.text(text);
 		
@@ -34,6 +33,3 @@ class Link extends VElement {
 	}
 		
 }
-
-// Register custom type.
-vweb.utils.register_custom_type(Link);

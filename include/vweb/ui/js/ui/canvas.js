@@ -12,21 +12,19 @@
  *	@warning:
  *		This class is still experimental and may be subjec to future change.
  } */
-class Canvas extends VElement {
-	
-	// Default vars.
-	static s_type = "Canvas";
-	static s_tag = "canvas";
-
-	// Default styling.
-	static default_styling = {};
+ @vweb_constructor_wrapper
+@vweb_register_element
+class CanvasElement extends CreateVElementClass({
+	type: "Canvas",
+	tag: "canvas",
+}) {
 
 	// ---------------------------------------------------------
 	// Constructors.
 	
 	constructor() {
-		super(Canvas.s_type, Canvas.s_tag, Canvas.default_styling);
-		this.ctx_2d = this.element.getContext("2d");
+		super();
+		this.ctx_2d = this.getContext("2d");
 	}
 
 	// ---------------------------------------------------------
@@ -230,10 +228,7 @@ class Canvas extends VElement {
 
     // Remove all contexts.
     clear() {
-    	this.ctx_2d.clearRect(0, 0, this.element.width, this.element.height);
+    	this.ctx_2d.clearRect(0, 0, this.width, this.height);
     	return this;
     }
 };
-
-// Register custom type.
-vweb.utils.register_custom_type(Canvas);

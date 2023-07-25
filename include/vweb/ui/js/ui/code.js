@@ -4,14 +4,12 @@
  */
 
 // CodeBlock.
-class CodeBlock extends VElement {
-	
-	// Default vars.
-	static s_type = "CodeBlock";
-	static s_tag = "code";
-
-	// Default styling.
-	static default_styling = {
+@vweb_constructor_wrapper
+@vweb_register_element
+class CodeBlockElement extends CreateVElementClass({
+	type: "CodeBlock",
+	tag: "code",
+	default_style: {
 		"margin": "0px 0px 0px 0px",
 		"padding": "15px 20px 15px 20px",
 		"color": "inherit",
@@ -24,13 +22,14 @@ class CodeBlock extends VElement {
 		"border-radius": "15px",
 		"color": "#FFFFFF",
 		"background": "#262F3D",
-	};
+	},
+}) {
 	
 	// Constructor.
 	constructor(code) {
 		
 		// Initialize base class.
-		super(CodeBlock.s_type, CodeBlock.s_tag, CodeBlock.default_styling);
+		super();
 
 		// Set code.
 		if (code != null) {
@@ -40,61 +39,37 @@ class CodeBlock extends VElement {
 			this.text(code.replaceAll("<", "&lt;").replaceAll(">", "&gt;")); 
 		}
 
-		// Zero arguments, may be to set default styling.
-		// if (args.length !== 0) {
-			
-		// 	// Set langauge.
-		// 	if (args.length === 2) {
-		// 		this.attribute("language", args[0]);
-		// 	}
-
-		// 	// Set text.
-		// 	if (args.length === 1) {
-		// 		this.text(args[0].replaceAll("<", "&lt;").replaceAll(">", "&gt;"));
-		// 	} else if (args.length === 2) {
-		// 		this.text(args[1].replaceAll("<", "&lt;").replaceAll(">", "&gt;"));
-		// 	} else {
-		// 		console.error("Invalid number of arguments for function \"CodeBlock()\".");
-		// 	}
-
-		// }
 	}
 
 	// Set language.
 	language(value) {
-		this.element.setAttribute("language", value);
+		this.attr("language", value);
 		return this;
 	}
 
 	// Set show line numbers, true or !true.
 	line_numbers(value) {
-		this.element.setAttribute("line_numbers", value);
+		this.attr("line_numbers", value);
 		return this;
 	}
 
 
 	// Highlight code.
 	highlight(options = {}) {
-		options.element = this.element;
+		options.element = this;
 		vhighlight.highlight(options);
 		return this;
 	}
 
-	
 }
 
-// Register custom type.
-vweb.utils.register_custom_type(CodeBlock);
-
 // CodeLine.
-class CodeLine extends VElement {
-	
-	// Default vars.
-	static s_type = "CodeLine";
-	static s_tag = "span";
-
-	// Default styling.
-	static default_styling = {
+@vweb_constructor_wrapper
+@vweb_register_element
+class CodeLineElement extends CreateVElementClass({
+	type: "CodeLine",
+	tag: "span",
+	default_style: {
 		"font-family": "\"Menlo\", \"Consolas\", monospace",
 		"font-size": "inherit",
 		"font-style": "italic",
@@ -102,13 +77,14 @@ class CodeLine extends VElement {
 		"color": "#FFFFFF",
 		"border-radius": "10px",
 		"padding": "5px 7.5px 5px 7.5px",
-	};
+	},
+}) {
 	
 	// Constructor.
 	constructor(text, href) {
 		
 		// Initialize base class.
-		super(CodeLine.s_type, CodeLine.s_tag, CodeLine.default_styling);
+		super();
 		
 		// Set text.
 		this.text(text);
@@ -116,6 +92,3 @@ class CodeLine extends VElement {
 	}
 		
 }
-
-// Register custom type.
-vweb.utils.register_custom_type(CodeLine);

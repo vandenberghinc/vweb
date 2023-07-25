@@ -804,6 +804,8 @@ int main() {
 		"on_click",
 		"class",
 		"color",
+		"name", // since the class name is required for "vweb.elements.register".
+		"on_scroll", // limits recalling with clearTimeout.
 	};
 	
 	// Pad numeric funcs.
@@ -847,6 +849,7 @@ int main() {
 		"background-clip",
 		"background-origin",
 		"background-size",
+		"backdrop-filter",
 		"border-image",
 		"border-radius",
 		"box-shadow",
@@ -883,11 +886,12 @@ int main() {
 	
 	// Create js.
 	String js;
+	String indent = "        ";
 	
 	// CSS.
-	js << "    // ---------------------------------------------------------\n";
-	js << "    // Automatically generated CSS functions. \n";
-	js << "    // Reference: https://www.w3schools.com/cssref/index.php. \n\n";
+	js << indent << "// ---------------------------------------------------------\n";
+	js << indent << "// Automatically generated CSS functions. \n";
+	js << indent << "// Reference: https://www.w3schools.com/cssref/index.php. \n\n";
 	css_reference.iterate_lines([&](const char* data, const ullong len) {
 		String line(data, len);
 		if (len > 1) {
@@ -952,55 +956,55 @@ int main() {
 			String docs;
 			if (commented_out.is_undefined()) {
 				docs <<
-				"    /*	@docs: {" << "\n" <<
-				"     *	@title: " << docs_name << "\n" <<
-				"     *	@description: " << "\n" <<
-				"     *		" << comment << "\n" <<
-				"     *		The equivalent of CSS attribute `" << jsname << "`." << "\n" <<
-				"     *		" << "\n" <<
-				"     *		Returns the attribute value when parameter `value` is `null`." << "\n" <<
-				"     *	@return: " << "\n" <<
-				"     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned." << "\n" <<
-				"     *	@parameter: {" << "\n" <<
-				"     *		@name: value" << "\n" <<
-				"     *		@description: The value to assign. Leave `null` to retrieve the attribute's value." << "\n" <<
-				"     *	}: " << "\n" <<
-				"     *	@inherit: false" << "\n" <<
-				"     } */ " << "\n";
+				indent << "/*	@docs: {" << "\n" <<
+				indent << " *	@title: " << docs_name << "\n" <<
+				indent << " *	@description: " << "\n" <<
+				indent << " *		" << comment << "\n" <<
+				indent << " *		The equivalent of CSS attribute `" << jsname << "`." << "\n" <<
+				indent << " *		" << "\n" <<
+				indent << " *		Returns the attribute value when parameter `value` is `null`." << "\n" <<
+				indent << " *	@return: " << "\n" <<
+				indent << " *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned." << "\n" <<
+				indent << " *	@parameter: {" << "\n" <<
+				indent << " *		@name: value" << "\n" <<
+				indent << " *		@description: The value to assign. Leave `null` to retrieve the attribute's value." << "\n" <<
+				indent << " *	}: " << "\n" <<
+				indent << " *	@inherit: false" << "\n" <<
+				indent << " } */ " << "\n";
 			}
 			
 			// Create func.
-			js << "    // " << comment << "\n" <<
+			js << indent << "// " << comment << "\n" <<
 			docs <<
-			"    " << commented_out << name << "(value) {" << "\n";
+			indent << commented_out << name << "(value) {" << "\n";
 			
 			if (vendor_prefix_styles.contains(raw_name)) {
 				const String vendor_suffix = String() << vlib::uppercase(jsname[0]) << jsname.slice(1);
 				js <<
-				"    " << commented_out << "    if (value == null) { return this.element.style." << jsname << "; }" << "\n" <<
-				"    " << commented_out << "    this.element.style." << jsname << " = " << padded_value << ";" << "\n" <<
-				"    " << commented_out << "    this.element.style.ms" << vendor_suffix << " = " << padded_value << ";" << "\n" <<
-				"    " << commented_out << "    this.element.style.webkit" << vendor_suffix << " = " << padded_value << ";" << "\n" <<
-				"    " << commented_out << "    this.element.style.Moz" << vendor_suffix << " = " << padded_value << ";" << "\n" <<
-				"    " << commented_out << "    this.element.style.O" << vendor_suffix << " = " << padded_value << ";" << "\n";
+				indent << commented_out << "    if (value == null) { return this.style." << jsname << "; }" << "\n" <<
+				indent << commented_out << "    this.style." << jsname << " = " << padded_value << ";" << "\n" <<
+				indent << commented_out << "    this.style.ms" << vendor_suffix << " = " << padded_value << ";" << "\n" <<
+				indent << commented_out << "    this.style.webkit" << vendor_suffix << " = " << padded_value << ";" << "\n" <<
+				indent << commented_out << "    this.style.Moz" << vendor_suffix << " = " << padded_value << ";" << "\n" <<
+				indent << commented_out << "    this.style.O" << vendor_suffix << " = " << padded_value << ";" << "\n";
 			} else {
 				js <<
-				"    " << commented_out << "    if (value == null) { return this.element.style." << jsname << "; }" << "\n" <<
-				"    " << commented_out << "    this.element.style." << jsname << " = " << padded_value << ";" << "\n";
+				indent << commented_out << "    if (value == null) { return this.style." << jsname << "; }" << "\n" <<
+				indent << commented_out << "    this.style." << jsname << " = " << padded_value << ";" << "\n";
 			}
 			
 			js <<
-			"    " << commented_out << "    return this;" << "\n" <<
-			"    " << commented_out << "}" << "\n" << "\n";
+			indent << commented_out << "    return this;" << "\n" <<
+			indent << commented_out << "}" << "\n" << "\n";
 		}
 	});
 	
 	Array<String> funcs;
 	
 	// All attributes.
-	js << "    // ---------------------------------------------------------\n";
-	js << "    // Automatically generated HTML attribute functions. \n";
-	js << "    // Reference: https://www.w3schools.com/tags/ref_attributes.asp. \n\n";
+	js << indent << "// ---------------------------------------------------------\n";
+	js << indent << "// Automatically generated HTML attribute functions. \n";
+	js << indent << "// Reference: https://www.w3schools.com/tags/ref_attributes.asp. \n\n";
 	attributes_reference.replace_r("\t", "    ");
 	attributes_reference.iterate_lines([&](const char* data, const ullong len) {
 		String line(data, len);
@@ -1072,31 +1076,31 @@ int main() {
 		String docs;
 		if (commented_out.is_undefined()) {
 			docs <<
-			"    /*	@docs: {" << "\n" <<
-			"     *	@title: " << docs_name << "\n" <<
-			"     *	@description: " << "\n" <<
-			"     *		" << comment << "\n" <<
-			"     *		The equivalent of HTML attribute `" << html_name << "`." << "\n" <<
-			"     *		" << "\n" <<
-			"     *		Returns the attribute value when parameter `value` is `null`." << "\n" <<
-			"     *	@return: " << "\n" <<
-			"     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned." << "\n" <<
-			"     *	@parameter: {" << "\n" <<
-			"     *		@name: value" << "\n" <<
-			"     *		@description: The value to assign. Leave `null` to retrieve the attribute's value." << "\n" <<
-			"     *	}: " << "\n" <<
-			"     *	@inherit: false" << "\n" <<
-			"     } */ " << "\n";
+			indent << "/*	@docs: {" << "\n" <<
+			indent << " *	@title: " << docs_name << "\n" <<
+			indent << " *	@description: " << "\n" <<
+			indent << " *		" << comment << "\n" <<
+			indent << " *		The equivalent of HTML attribute `" << html_name << "`." << "\n" <<
+			indent << " *		" << "\n" <<
+			indent << " *		Returns the attribute value when parameter `value` is `null`." << "\n" <<
+			indent << " *	@return: " << "\n" <<
+			indent << " *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned." << "\n" <<
+			indent << " *	@parameter: {" << "\n" <<
+			indent << " *		@name: value" << "\n" <<
+			indent << " *		@description: The value to assign. Leave `null` to retrieve the attribute's value." << "\n" <<
+			indent << " *	}: " << "\n" <<
+			indent << " *	@inherit: false" << "\n" <<
+			indent << " } */ " << "\n";
 		}
 			
 		// Create func.
-		js << "    // " << comment << "\n" <<
+		js << indent << "// " << comment << "\n" <<
 		docs <<
-		"    " << commented_out << converted_name << "(value) {" << "\n" <<
-		"    " << commented_out << "    if (value == null) { return this.element." << html_name << "; }" << "\n" <<
-		"    " << commented_out << "	this.element." << html_name << " = " << padded_value << ";" << "\n" <<
-		"    " << commented_out << "	return this;" << "\n" <<
-		"    " << commented_out << "}" << "\n" << "\n";
+		indent << commented_out << converted_name << "(value) {" << "\n" <<
+		indent << commented_out << "    if (value == null) { return this.getAttribute('" << html_name << "'); }" << "\n" <<
+		indent << commented_out << "	this.setAttribute('" << html_name << "', " << padded_value << ");" << "\n" <<
+		indent << commented_out << "	return this;" << "\n" <<
+		indent << commented_out << "}" << "\n" << "\n";
 		
 		funcs.append(converted_name);
 
@@ -1162,35 +1166,34 @@ int main() {
 		String docs;
 		if (commented_out.is_undefined()) {
 			docs <<
-			"    /*	@docs: {" << "\n" <<
-			"     *	@title: " << docs_name << "\n" <<
-			"     *	@description: " << "\n" <<
-			"     *		" << comment << "\n" <<
-			"     *		The equivalent of HTML attribute `" << html_name << "`." << "\n" <<
-			"     *		" << "\n" <<
-			"     *		The first parameter of the callback is the `Element` object." << "\n" <<
-			"     *		" << "\n" <<
-			"     *		Returns the attribute value when parameter `value` is `null`." << "\n" <<
-			"     *	@return: " << "\n" <<
-			"     *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned." << "\n" <<
-			"     *	@parameter: {" << "\n" <<
-			"     *		@name: value" << "\n" <<
-			"     *		@description: The value to assign. Leave `null` to retrieve the attribute's value." << "\n" <<
-			"     *	}: " << "\n" <<
-			"     *	@inherit: false" << "\n" <<
-			"     } */ " << "\n";
+			indent << "/*	@docs: {" << "\n" <<
+			indent << " *	@title: " << docs_name << "\n" <<
+			indent << " *	@description: " << "\n" <<
+			indent << " *		" << comment << "\n" <<
+			indent << " *		The equivalent of HTML attribute `" << html_name << "`." << "\n" <<
+			indent << " *		" << "\n" <<
+			indent << " *		The first parameter of the callback is the `Element` object." << "\n" <<
+			indent << " *		" << "\n" <<
+			indent << " *		Returns the attribute value when parameter `value` is `null`." << "\n" <<
+			indent << " *	@return: " << "\n" <<
+			indent << " *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned." << "\n" <<
+			indent << " *	@parameter: {" << "\n" <<
+			indent << " *		@name: value" << "\n" <<
+			indent << " *		@description: The value to assign. Leave `null` to retrieve the attribute's value." << "\n" <<
+			indent << " *	}: " << "\n" <<
+			indent << " *	@inherit: false" << "\n" <<
+			indent << " } */ " << "\n";
 		}
 		
 		// Create func.
-		js << "    // " << comment << "\n" <<
+		js << indent << "// " << comment << "\n" <<
 		docs <<
-		"    " << commented_out << converted_name << "(callback) {" << "\n" <<
-		"    " << commented_out << "    if (callback == null) { return this.element." << html_name << "; }" << "\n" <<
-		// "    " << commented_out << "	this.element." << html_name << " = " << padded_value << ";" << "\n" <<
-		"    " << commented_out << "	const e = this;" << "\n" <<
-		"    " << commented_out << "	this.element." << html_name << " = () => callback(e);" << "\n" <<
-		"    " << commented_out << "	return this;" << "\n" <<
-		"    " << commented_out << "}" << "\n" << "\n";
+		indent << commented_out << converted_name << "(callback) {" << "\n" <<
+		indent << commented_out << "    if (callback == null) { return this." << html_name << "; }" << "\n" <<
+		indent << commented_out << "	const e = this;" << "\n" <<
+		indent << commented_out << "	this." << html_name << " = (t) => callback(e, t);" << "\n" <<
+		indent << commented_out << "	return this;" << "\n" <<
+		indent << commented_out << "}" << "\n" << "\n";
 
 	});
 	

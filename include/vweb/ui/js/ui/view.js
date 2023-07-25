@@ -4,14 +4,12 @@
  */
 
 // Scroller.
-class View extends VElement {
-	
-	// Default vars.
-	static s_type = "View";
-	static s_tag = "div";
-
-	// Default styling.
-	static default_styling = {
+@vweb_constructor_wrapper
+@vweb_register_element
+class ViewElement extends CreateVElementClass({
+	type: "View",
+	tag: "div",
+	default_style: {
 		"position": "absolute",
 		"top": "0",
 		"right": "0",
@@ -26,19 +24,18 @@ class View extends VElement {
 		"text-align": "start",
 		"align-content": "flex-start", // align items at start, do not stretch / space when inside HStack.
 		"flex-direction": "column",
-	};
+	},
+}) {
 	
 	// Constructor.
 	constructor(...children) {
 		
 		// Initialize base class.
-		super(View.s_type, View.s_tag, View.default_styling);
-		
-		// Add children.
+		super();
+
+		// Append children.
 		this.append(...children);
+
 	}
 	
 }
-
-// Register custom type.
-vweb.utils.register_custom_type(View);

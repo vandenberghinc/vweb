@@ -4,14 +4,11 @@
  */
 
 // Scroller.
-class Spacer extends VElement {
-	
-	// Default vars.
-	static s_type = "Spacer";
-	static s_tag = "div";
-
-	// Default styling.
-	static default_styling = {
+@vweb_constructor_wrapper
+const SpacerElement = CreateVElementClass({
+	type: "Spacer",
+	tag: "div",
+	default_style: {
 		"margin": "0px",
 		"padding": "0px",
 		"flex": "1",
@@ -19,17 +16,5 @@ class Spacer extends VElement {
 		"background": "#00000000",
 		"filter": "opacity(0)",
 		"justify-content": "stretch",
-	};
-	
-	// Constructor.
-	constructor() {
-		
-		// Initialize base class.
-		super(Spacer.s_type, Spacer.s_tag, Spacer.default_styling);
-		
-	}
-	
-}
-
-// Register custom type.
-vweb.utils.register_custom_type(Spacer);
+	},
+});

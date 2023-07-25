@@ -4,14 +4,12 @@
  */
 
 // Button.
-class Button extends VElement {
-	
-	// Default vars.
-	static s_type = "Button";
-	static s_tag = "a";
-
-	// Default styling.
-	static default_styling = {
+@vweb_constructor_wrapper
+@vweb_register_element
+class ButtonElement extends CreateVElementClass({
+	type: "Button",
+	tag: "a",
+	default_style: {
 		"margin": "0px 0px 0px",
 		"padding": "5px 10px 5px 10px",
 		"border-radius": "10px",
@@ -22,24 +20,20 @@ class Button extends VElement {
 		"display": "grid",
 		"align-items": "center",
 		"white-space": "nowrap",
-	};
-	
-	// Default events.
-	static default_events = {
+	},
+	default_events: {
 		"onmousedown": function() { this.style.filter = "brightness(80%)"; },
 		"onmouseover": function() { this.style.filter = "brightness(90%)"; },
 		"onmouseup": function() { this.style.filter = "brightness(100%)"; },
 		"onmouseout": function() { this.style.filter = "brightness(100%)"; },
-	};
-	
+	},
+}) {
+
 	// Constructor.
 	constructor(text) {
 		
-		// Initialize base class.
-		super(Button.s_type, Button.s_tag, Button.default_styling);
-		
-		// Set events.
-		this.events(Button.default_events);
+		// Initialize base classes.
+		super();
 		
 		// Set text.
 		this.inner_html(text);
@@ -47,20 +41,15 @@ class Button extends VElement {
 		
 }
 
-// Register custom type.
-vweb.utils.register_custom_type(Button);
-
 // BorderButton.
 // Supports a gradient color for the border combined with border radius.
 // Warning: this class is still experimental and may be subject to future change.
-class BorderButton extends VElement {
-	
-	// Default vars.
-	static s_type = "BorderButton";
-	static s_tag = "div";
-
-	// Default styling.
-	static default_styling = {
+@vweb_constructor_wrapper
+@vweb_register_element
+class BorderButtonElement extends CreateVElementClass({
+	type: "BorderButton",
+	tag: "a",
+	default_style: {
 		"margin": "0px 0px 0px 0px",
 		"display": "inline-block",
 		"color": "inherit",
@@ -75,45 +64,41 @@ class BorderButton extends VElement {
 		"--child-border-width": "2px",
 		"--child-border-radius": "10px",
 		"--child-padding": "5px 10px 5px 10px",
-	};
-
-	// Default events.
-	static default_events = {
+	},
+	default_events: {
 		"onmousedown": function() { this.style.filter = "brightness(80%)"; },
 		"onmouseover": function() { this.style.filter = "brightness(90%)"; },
 		"onmouseup": function() { this.style.filter = "brightness(100%)"; },
 		"onmouseout": function() { this.style.filter = "brightness(100%)"; },
-	};
+	},
+}) {
 	
 	// Constructor.
 	constructor(text) {
 		
-		// Initialize base class.
-		super(BorderButton.s_type, BorderButton.s_tag);
+		// Initialize base classes.
+		super();
 		
 		// Set default styling.
-		let styles = { ...BorderButton.default_styling };
-		delete styles["--child-color"];
-		delete styles["--child-background"];
-		delete styles["--child-border-width"];
-		delete styles["--child-padding"];
-		delete styles["--child-background-image"];
-		delete styles["--child-background-clip"];
-		delete styles["--child-webkit-background-clip"];
-		this.styles(styles);
-
-		// Set events.
-		this.events(BorderButton.default_events);
+		// let styles = { ...BorderButton.default_style };
+		// delete styles["--child-color"];
+		// delete styles["--child-background"];
+		// delete styles["--child-border-width"];
+		// delete styles["--child-padding"];
+		// delete styles["--child-background-image"];
+		// delete styles["--child-background-clip"];
+		// delete styles["--child-webkit-background-clip"];
+		// this.styles(styles);
 
 		// Border child.
-		this.border_e = new VElement()
+		this.border_e = VElement()
 			.content("")
 			.position("absolute")
 			.z_index(-1)
 			.inset(0)
-			.padding(BorderButton.default_styling["--child-border-width"])
-			.border_radius(BorderButton.default_styling["--child-border-radius"])
-			.background(BorderButton.default_styling["--child-background"])
+			.padding(BorderButtonElement.default_style["--child-border-width"])
+			.border_radius(BorderButtonElement.default_style["--child-border-radius"])
+			.background(BorderButtonElement.default_style["--child-background"])
 			.mask("linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)")
 			.mask_composite("exclude")
 			.styles({
@@ -123,13 +108,13 @@ class BorderButton extends VElement {
 
 		// Text child.
 		// do not use a Text object since inheritance of text styling is required.
-		this.text_e = new VElement("Div", "div")
-			.color(BorderButton.default_styling["--child-color"])
+		this.text_e = VElement()
+			.color(BorderButtonElement.default_style["--child-color"])
 			.append(text);
-		if (BorderButton.default_styling["--child-color"] == "transparent") {
-			this.text_e.element.style.backgroundImage = BorderButton.default_styling["--child-background-image"];
-	    	this.text_e.element.style.backgroundClip = BorderButton.default_styling["--child-background-clip"];
-	    	this.text_e.element.style["-webkit-background-clip"] = BorderButton.default_styling["--child-webkit-background-clip"];
+		if (BorderButtonElement.default_style["--child-color"] == "transparent") {
+			this.text_e.style.backgroundImage = BorderButtonElement.default_style["--child-background-image"];
+	    	this.text_e.style.backgroundClip = BorderButtonElement.default_style["--child-background-clip"];
+	    	this.text_e.style["-webkit-background-clip"] = BorderButtonElement.default_style["--child-webkit-background-clip"];
 	    }
 
 	    // Append.
@@ -185,16 +170,16 @@ class BorderButton extends VElement {
 
 	// Get the styling attributes.
 	// The values of the children that may have been changed by the custom funcs should be added.
-	style(style_dict) {
+	styles(style_dict) {
 		if (style_dict == null) {
 			let styles = super.styles(null);
 			styles["--child-background"] = this.border_e.background();
 			styles["--child-border-width"] = this.border_e.padding();
 			styles["--child-border-radius"] = this.border_e.border_radius();
 			styles["--child-color"] = this.text_e.color();
-			styles["--child-background-image"] = this.text_e.element.style.backgroundImage;
-			styles["--child-background-clip"] = this.text_e.element.style.backgroundClip;
-			styles["--child-webkit-background-clip"] = this.text_e.element.style["-webkit-background-clip"];
+			styles["--child-background-image"] = this.text_e.style.backgroundImage;
+			styles["--child-background-clip"] = this.text_e.style.backgroundClip;
+			styles["--child-webkit-background-clip"] = this.text_e.style["-webkit-background-clip"];
 			return styles;
 		} else {
 			return super.styles(style_dict);
@@ -203,20 +188,15 @@ class BorderButton extends VElement {
 		
 }
 
-// Register custom type.
-vweb.utils.register_custom_type(BorderButton);
-
 // Loader button.
 // Warning: you should not use function "LoaderButton.loader.hide() / LoaderButton.loader.show()" use "LoaderButton.hide_loader() / LoaderButton.show_loader()" instead.
 // Warning: This class is still experimental and may be subject to future change.
-class LoaderButton extends HStack {
-
-	// Default vars.
-	static s_type = "BorderButton";
-	static s_tag = "div";
+@vweb_constructor_wrapper
+@vweb_register_element
+class LoaderButtonElement extends HStackElement {
 
 	// Default styling.
-	static default_styling = {
+	static default_style = Object.assign({}, HStackElement.default_style, {
 		"margin": "0px",
 		"padding": "12.5px 10px 12.5px 10px",
 		"border-radius": "25px",
@@ -229,14 +209,16 @@ class LoaderButton extends HStack {
 		"--loader-height": "25px",
 		"--loader-margin-right": "15px",
 		"--loader-margin-top": "-2px",
-	};
+	});
 
 	// Constructor.
-	constructor(text = "", loader = new RingLoader()) {
+	constructor(text = "", loader = RingLoader()) {
+
+		// Initialize base classes.
 		super();
 
 		// Set default styling.
-		this.styles(LoaderButton.default_styling);
+		this.styles(LoaderButtonElement.default_style);
 
 		// Set style.
 		this.wrap(false);
@@ -245,15 +227,14 @@ class LoaderButton extends HStack {
 
 		// Children.
 		this.loader = loader
-			.width(LoaderButton.default_styling["--loader-width"])
-			.height(LoaderButton.default_styling["--loader-height"])
-			.margin_right(LoaderButton.default_styling["--loader-margin-right"])
-			.margin_top(LoaderButton.default_styling["--loader-margin-top"])
+			.frame(LoaderButtonElement.default_style["--loader-width"], LoaderButtonElement.default_style["--loader-height"])
+			.margin_right(LoaderButtonElement.default_style["--loader-margin-right"])
+			.margin_top(LoaderButtonElement.default_style["--loader-margin-top"])
 			.background(THEME.button_txt)
 			.update()
 			.hide();
 		this.loader.parent(this);
-		this.text_e = new VElement("Div", "div") // use div to inherit text styles.
+		this.text_e = VElement() // use div to inherit text styles.
 			.text(text)
 			.margin(0)
 			.padding(0);
@@ -261,8 +242,7 @@ class LoaderButton extends HStack {
 		this.padding_e = new VStack()
 			.padding(0)
 			.margin(0)
-			.height(1)
-			.width(25);
+			.frame(25, 1);
 		this.padding_e.parent(this);
 
 		// Add children.
@@ -272,7 +252,7 @@ class LoaderButton extends HStack {
 
 	// Show the loader.
 	show_loader() {
-		this.padding_e.width(this.loader.element.style.width);
+		this.padding_e.frame(this.loader.style.width);
 		this.append(this.padding_e);
 		this.loader.update();
 		this.loader.show();
@@ -288,11 +268,11 @@ class LoaderButton extends HStack {
 
 	// Get the styling attributes.
 	// The values of the children that may have been changed by the custom funcs should be added.
-	style(style_dict) {
+	styles(style_dict) {
 		if (style_dict == null) {
 			let styles = super.styles();
-			styles["--loader-width"] = this.loader.width();
-			styles["--loader-height"] = this.loader.height();
+			styles["--loader-width"] = this.loader.style.width;
+			styles["--loader-height"] = this.loader.style.height;
 			styles["--loader-margin-right"] = this.loader.margin_right();
 			styles["--loader-margin-top"] = this.loader.margin_top();
 			return styles;
@@ -301,7 +281,9 @@ class LoaderButton extends HStack {
 		}
 	}
 
-}
+	// Set default since it inherits HStackElement.
+	set_default() {
+		return super.set_default(LoaderButtonElement);
+	}
 
-// Register custom type.
-vweb.utils.register_custom_type(LoaderButton);
+}
