@@ -38,8 +38,15 @@ struct JSView {
 	String  meta_robots; 		// meta robots content.
 	
 	// ---------------------------------------------------------
-	// Build.
+	// Functions.
 	
+	// Is defined.
+	constexpr
+	bool 	is_defined() const {
+		return source.is_defined();
+	}
+	
+	// Build.
 	constexpr
 	String 	build() const {
 		String data;

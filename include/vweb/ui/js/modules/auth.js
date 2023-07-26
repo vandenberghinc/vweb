@@ -105,7 +105,7 @@ vweb.auth.forgot_password = function({
 	before = null
 }) {
 	return vweb.utils.request({
-		method: "GET",
+		method: "POST",
 		url: "/backend/auth/forgot_password",
 		data: {
 			email: email,

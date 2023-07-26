@@ -1098,8 +1098,10 @@ int main() {
 		js << indent << "// " << comment << "\n" <<
 		docs <<
 		indent << commented_out << converted_name << "(value) {" << "\n" <<
-		indent << commented_out << "    if (value == null) { return this.getAttribute('" << html_name << "'); }" << "\n" <<
-		indent << commented_out << "	this.setAttribute('" << html_name << "', " << padded_value << ");" << "\n" <<
+		// indent << commented_out << "    if (value == null) { return this.getAttribute('" << html_name << "'); }" << "\n" <<
+		// indent << commented_out << "	this.setAttribute('" << html_name << "', " << padded_value << ");" << "\n" <<
+		indent << commented_out << "    if (value == null) { return super." << html_name << "; }" << "\n" <<
+		indent << commented_out << "	super." << html_name << " = " << padded_value << ";" << "\n" <<
 		indent << commented_out << "	return this;" << "\n" <<
 		indent << commented_out << "}" << "\n" << "\n";
 		

@@ -79,6 +79,14 @@ vweb.utils.device_height = function() {
 vweb.utils.endpoint = function() {
 	endpoint = window.location.href.replace("https://", "").replace("http://", "");
 	endpoint = endpoint.substr(endpoint.indexOf('/'), endpoint.length);
+	endpoint = endpoint.replaceAll("//", "/");
+	if (endpoint.length == 0) {
+		return '/'
+	} else {
+		while (endpoint.length > 1 && endpoint[endpoint.length - 1] == '/') {
+			endpoint = endpoint.substr(0, endpoint.length - 1);
+		}
+	}
 	return endpoint;
 }
 

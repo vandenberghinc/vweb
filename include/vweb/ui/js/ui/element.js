@@ -1468,9 +1468,13 @@ function CreateVElementClass({
 		// Events.
 
 		// Script to be run when the element is being clicked
-		on_click(value) {
+		on_click(callback) {
+			if (callback == null) {
+				return this.onclick;
+			}
 			this.style.cursor = "pointer";
-			this.onclick = value;
+			const e = this;
+        	this.onclick = (t) => callback(e, t);
 			return this;
 		}
 
@@ -1492,7 +1496,7 @@ function CreateVElementClass({
          *	}: 
          *	@inherit: false
          } */ 
-        on_scroll(callback, delay = 25) {
+        on_scroll({callback, delay = 25}) {
             if (callback == null) { return this.onscroll; }
             let timer;
         	const e = this;
@@ -1531,7 +1535,7 @@ function CreateVElementClass({
 		}
 
 	    // Custom on attachment drop event.
-	    on_attachment_drop({handler, compress = false}) {
+	    on_attachment_drop({callback, compress = false}) {
 	    	this.on_drag_over(function(e) {
 	    		e.preventDefault();
 	    		e.dataTransfer.dropEffect = "copy";
@@ -1544,9 +1548,9 @@ function CreateVElementClass({
 	    			const reader = new FileReader();
 	    			reader.onload = (event) => {
 	    				if (compress == true) {
-	    					handler(file.name, vweb.utils.compress(event.target.result), file);
+	    					callback(file.name, vweb.utils.compress(event.target.result), file);
 	    				} else {
-	    					handler(file.name, event.target.result, file);
+	    					callback(file.name, event.target.result, file);
 	    				}
 	    			};
 	    			reader.readAsText(file);
@@ -1575,6 +1579,19 @@ function CreateVElementClass({
 	    		});
 	    	});
 	    	observer.observe(this);
+	    	return this;
+	    }
+
+	    // On enter event.
+	    // Mainly used for input and textarea elements.
+	    // Can not me combined "on_key_press()".
+	    on_enter(callback) {
+	    	const e = this;
+	    	super.onkeypress = function(event) {
+	    		if (event.keyCode === 13) {
+	    			callback(e, event);
+	    		}
+	    	}
 	    	return this;
 	    }
 
@@ -6601,21 +6618,6 @@ function CreateVElementClass({
         }
 
         // Sets the opacity level for an element.
-        /*	@docs: {
-         *	@title: Opacity
-         *	@description: 
-         *		Sets the opacity level for an element.
-         *		The equivalent of CSS attribute `opacity`.
-         *		
-         *		Returns the attribute value when parameter `value` is `null`.
-         *	@return: 
-         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
-         *		@name: value
-         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-         *	}: 
-         *	@inherit: false
-         } */ 
         // opacity(value) {
         //     if (value == null) { return this.style.opacity; }
         //     this.style.opacity = value;
@@ -9073,8 +9075,8 @@ function CreateVElementClass({
          *	@inherit: false
          } */ 
         accept(value) {
-            if (value == null) { return this.getAttribute('accept'); }
-        	this.setAttribute('accept', value);
+            if (value == null) { return super.accept; }
+        	super.accept = value;
         	return this;
         }
 
@@ -9095,8 +9097,8 @@ function CreateVElementClass({
          *	@inherit: false
          } */ 
         accept_charset(value) {
-            if (value == null) { return this.getAttribute('accept_charset'); }
-        	this.setAttribute('accept_charset', value);
+            if (value == null) { return super.accept_charset; }
+        	super.accept_charset = value;
         	return this;
         }
 
@@ -9117,8 +9119,8 @@ function CreateVElementClass({
          *	@inherit: false
          } */ 
         action(value) {
-            if (value == null) { return this.getAttribute('action'); }
-        	this.setAttribute('action', value);
+            if (value == null) { return super.action; }
+        	super.action = value;
         	return this;
         }
 
@@ -9139,8 +9141,8 @@ function CreateVElementClass({
          *	@inherit: false
          } */ 
         alt(value) {
-            if (value == null) { return this.getAttribute('alt'); }
-        	this.setAttribute('alt', value);
+            if (value == null) { return super.alt; }
+        	super.alt = value;
         	return this;
         }
 
@@ -9161,8 +9163,8 @@ function CreateVElementClass({
          *	@inherit: false
          } */ 
         async(value) {
-            if (value == null) { return this.getAttribute('async'); }
-        	this.setAttribute('async', value);
+            if (value == null) { return super.async; }
+        	super.async = value;
         	return this;
         }
 
@@ -9183,8 +9185,8 @@ function CreateVElementClass({
          *	@inherit: false
          } */ 
         auto_complete(value) {
-            if (value == null) { return this.getAttribute('autocomplete'); }
-        	this.setAttribute('autocomplete', value);
+            if (value == null) { return super.autocomplete; }
+        	super.autocomplete = value;
         	return this;
         }
 
@@ -9205,8 +9207,8 @@ function CreateVElementClass({
          *	@inherit: false
          } */ 
         auto_focus(value) {
-            if (value == null) { return this.getAttribute('autofocus'); }
-        	this.setAttribute('autofocus', value);
+            if (value == null) { return super.autofocus; }
+        	super.autofocus = value;
         	return this;
         }
 
@@ -9227,8 +9229,8 @@ function CreateVElementClass({
          *	@inherit: false
          } */ 
         auto_play(value) {
-            if (value == null) { return this.getAttribute('autoplay'); }
-        	this.setAttribute('autoplay', value);
+            if (value == null) { return super.autoplay; }
+        	super.autoplay = value;
         	return this;
         }
 
@@ -9249,8 +9251,8 @@ function CreateVElementClass({
          *	@inherit: false
          } */ 
         charset(value) {
-            if (value == null) { return this.getAttribute('charset'); }
-        	this.setAttribute('charset', value);
+            if (value == null) { return super.charset; }
+        	super.charset = value;
         	return this;
         }
 
@@ -9271,8 +9273,8 @@ function CreateVElementClass({
          *	@inherit: false
          } */ 
         checked(value) {
-            if (value == null) { return this.getAttribute('checked'); }
-        	this.setAttribute('checked', value);
+            if (value == null) { return super.checked; }
+        	super.checked = value;
         	return this;
         }
 
@@ -9293,15 +9295,15 @@ function CreateVElementClass({
          *	@inherit: false
          } */ 
         cite(value) {
-            if (value == null) { return this.getAttribute('cite'); }
-        	this.setAttribute('cite', value);
+            if (value == null) { return super.cite; }
+        	super.cite = value;
         	return this;
         }
 
         // Specifies one or more classnames for an element (refers to a class in a style sheet).
         // class(value) {
-        //     if (value == null) { return this.getAttribute('class'); }
-        // 	this.setAttribute('class', value);
+        //     if (value == null) { return super.class; }
+        // 	super.class = value;
         // 	return this;
         // }
 
@@ -9322,8 +9324,8 @@ function CreateVElementClass({
          *	@inherit: false
          } */ 
         cols(value) {
-            if (value == null) { return this.getAttribute('cols'); }
-        	this.setAttribute('cols', value);
+            if (value == null) { return super.cols; }
+        	super.cols = value;
         	return this;
         }
 
@@ -9344,8 +9346,8 @@ function CreateVElementClass({
          *	@inherit: false
          } */ 
         colspan(value) {
-            if (value == null) { return this.getAttribute('colspan'); }
-        	this.setAttribute('colspan', value);
+            if (value == null) { return super.colspan; }
+        	super.colspan = value;
         	return this;
         }
 
@@ -9366,8 +9368,8 @@ function CreateVElementClass({
          *	@inherit: false
          } */ 
         content(value) {
-            if (value == null) { return this.getAttribute('content'); }
-        	this.setAttribute('content', value);
+            if (value == null) { return super.content; }
+        	super.content = value;
         	return this;
         }
 
@@ -9388,8 +9390,8 @@ function CreateVElementClass({
          *	@inherit: false
          } */ 
         content_editable(value) {
-            if (value == null) { return this.getAttribute('contenteditable'); }
-        	this.setAttribute('contenteditable', value);
+            if (value == null) { return super.contenteditable; }
+        	super.contenteditable = value;
         	return this;
         }
 
@@ -9410,8 +9412,8 @@ function CreateVElementClass({
          *	@inherit: false
          } */ 
         controls(value) {
-            if (value == null) { return this.getAttribute('controls'); }
-        	this.setAttribute('controls', value);
+            if (value == null) { return super.controls; }
+        	super.controls = value;
         	return this;
         }
 
@@ -9432,8 +9434,8 @@ function CreateVElementClass({
          *	@inherit: false
          } */ 
         coords(value) {
-            if (value == null) { return this.getAttribute('coords'); }
-        	this.setAttribute('coords', value);
+            if (value == null) { return super.coords; }
+        	super.coords = value;
         	return this;
         }
 
@@ -9454,8 +9456,8 @@ function CreateVElementClass({
          *	@inherit: false
          } */ 
         data(value) {
-            if (value == null) { return this.getAttribute('data'); }
-        	this.setAttribute('data', value);
+            if (value == null) { return super.data; }
+        	super.data = value;
         	return this;
         }
 
@@ -9476,8 +9478,8 @@ function CreateVElementClass({
          *	@inherit: false
          } */ 
         datetime(value) {
-            if (value == null) { return this.getAttribute('datetime'); }
-        	this.setAttribute('datetime', value);
+            if (value == null) { return super.datetime; }
+        	super.datetime = value;
         	return this;
         }
 
@@ -9498,8 +9500,8 @@ function CreateVElementClass({
          *	@inherit: false
          } */ 
         default(value) {
-            if (value == null) { return this.getAttribute('default'); }
-        	this.setAttribute('default', value);
+            if (value == null) { return super.default; }
+        	super.default = value;
         	return this;
         }
 
@@ -9520,8 +9522,8 @@ function CreateVElementClass({
          *	@inherit: false
          } */ 
         defer(value) {
-            if (value == null) { return this.getAttribute('defer'); }
-        	this.setAttribute('defer', value);
+            if (value == null) { return super.defer; }
+        	super.defer = value;
         	return this;
         }
 
@@ -9542,8 +9544,8 @@ function CreateVElementClass({
          *	@inherit: false
          } */ 
         dir(value) {
-            if (value == null) { return this.getAttribute('dir'); }
-        	this.setAttribute('dir', value);
+            if (value == null) { return super.dir; }
+        	super.dir = value;
         	return this;
         }
 
@@ -9564,8 +9566,8 @@ function CreateVElementClass({
          *	@inherit: false
          } */ 
         dirname(value) {
-            if (value == null) { return this.getAttribute('dirname'); }
-        	this.setAttribute('dirname', value);
+            if (value == null) { return super.dirname; }
+        	super.dirname = value;
         	return this;
         }
 
@@ -9586,8 +9588,8 @@ function CreateVElementClass({
          *	@inherit: false
          } */ 
         disabled(value) {
-            if (value == null) { return this.getAttribute('disabled'); }
-        	this.setAttribute('disabled', value);
+            if (value == null) { return super.disabled; }
+        	super.disabled = value;
         	return this;
         }
 
@@ -9608,8 +9610,8 @@ function CreateVElementClass({
          *	@inherit: false
          } */ 
         download(value) {
-            if (value == null) { return this.getAttribute('download'); }
-        	this.setAttribute('download', value);
+            if (value == null) { return super.download; }
+        	super.download = value;
         	return this;
         }
 
@@ -9630,8 +9632,8 @@ function CreateVElementClass({
          *	@inherit: false
          } */ 
         draggable(value) {
-            if (value == null) { return this.getAttribute('draggable'); }
-        	this.setAttribute('draggable', value);
+            if (value == null) { return super.draggable; }
+        	super.draggable = value;
         	return this;
         }
 
@@ -9652,8 +9654,8 @@ function CreateVElementClass({
          *	@inherit: false
          } */ 
         enctype(value) {
-            if (value == null) { return this.getAttribute('enctype'); }
-        	this.setAttribute('enctype', value);
+            if (value == null) { return super.enctype; }
+        	super.enctype = value;
         	return this;
         }
 
@@ -9674,8 +9676,8 @@ function CreateVElementClass({
          *	@inherit: false
          } */ 
         for(value) {
-            if (value == null) { return this.getAttribute('for'); }
-        	this.setAttribute('for', value);
+            if (value == null) { return super.for; }
+        	super.for = value;
         	return this;
         }
 
@@ -9696,8 +9698,8 @@ function CreateVElementClass({
          *	@inherit: false
          } */ 
         form(value) {
-            if (value == null) { return this.getAttribute('form'); }
-        	this.setAttribute('form', value);
+            if (value == null) { return super.form; }
+        	super.form = value;
         	return this;
         }
 
@@ -9718,8 +9720,8 @@ function CreateVElementClass({
          *	@inherit: false
          } */ 
         form_action(value) {
-            if (value == null) { return this.getAttribute('formaction'); }
-        	this.setAttribute('formaction', value);
+            if (value == null) { return super.formaction; }
+        	super.formaction = value;
         	return this;
         }
 
@@ -9740,22 +9742,22 @@ function CreateVElementClass({
          *	@inherit: false
          } */ 
         headers(value) {
-            if (value == null) { return this.getAttribute('headers'); }
-        	this.setAttribute('headers', value);
+            if (value == null) { return super.headers; }
+        	super.headers = value;
         	return this;
         }
 
         // Specifies the height of the element.
         // height(value) {
-        //     if (value == null) { return this.getAttribute('height'); }
-        // 	this.setAttribute('height', this.pad_numeric(value));
+        //     if (value == null) { return super.height; }
+        // 	super.height = this.pad_numeric(value);
         // 	return this;
         // }
 
         // Specifies that an element is not yet, or is no longer, relevant.
         // hidden(value) {
-        //     if (value == null) { return this.getAttribute('hidden'); }
-        // 	this.setAttribute('hidden', value);
+        //     if (value == null) { return super.hidden; }
+        // 	super.hidden = value;
         // 	return this;
         // }
 
@@ -9776,8 +9778,8 @@ function CreateVElementClass({
          *	@inherit: false
          } */ 
         high(value) {
-            if (value == null) { return this.getAttribute('high'); }
-        	this.setAttribute('high', value);
+            if (value == null) { return super.high; }
+        	super.high = value;
         	return this;
         }
 
@@ -9798,8 +9800,8 @@ function CreateVElementClass({
          *	@inherit: false
          } */ 
         href(value) {
-            if (value == null) { return this.getAttribute('href'); }
-        	this.setAttribute('href', value);
+            if (value == null) { return super.href; }
+        	super.href = value;
         	return this;
         }
 
@@ -9820,8 +9822,8 @@ function CreateVElementClass({
          *	@inherit: false
          } */ 
         href_lang(value) {
-            if (value == null) { return this.getAttribute('hreflang'); }
-        	this.setAttribute('hreflang', value);
+            if (value == null) { return super.hreflang; }
+        	super.hreflang = value;
         	return this;
         }
 
@@ -9842,8 +9844,8 @@ function CreateVElementClass({
          *	@inherit: false
          } */ 
         http_equiv(value) {
-            if (value == null) { return this.getAttribute('http_equiv'); }
-        	this.setAttribute('http_equiv', value);
+            if (value == null) { return super.http_equiv; }
+        	super.http_equiv = value;
         	return this;
         }
 
@@ -9864,8 +9866,8 @@ function CreateVElementClass({
          *	@inherit: false
          } */ 
         id(value) {
-            if (value == null) { return this.getAttribute('id'); }
-        	this.setAttribute('id', value);
+            if (value == null) { return super.id; }
+        	super.id = value;
         	return this;
         }
 
@@ -9886,8 +9888,8 @@ function CreateVElementClass({
          *	@inherit: false
          } */ 
         is_map(value) {
-            if (value == null) { return this.getAttribute('ismap'); }
-        	this.setAttribute('ismap', value);
+            if (value == null) { return super.ismap; }
+        	super.ismap = value;
         	return this;
         }
 
@@ -9908,8 +9910,8 @@ function CreateVElementClass({
          *	@inherit: false
          } */ 
         kind(value) {
-            if (value == null) { return this.getAttribute('kind'); }
-        	this.setAttribute('kind', value);
+            if (value == null) { return super.kind; }
+        	super.kind = value;
         	return this;
         }
 
@@ -9930,8 +9932,8 @@ function CreateVElementClass({
          *	@inherit: false
          } */ 
         label(value) {
-            if (value == null) { return this.getAttribute('label'); }
-        	this.setAttribute('label', value);
+            if (value == null) { return super.label; }
+        	super.label = value;
         	return this;
         }
 
@@ -9952,8 +9954,8 @@ function CreateVElementClass({
          *	@inherit: false
          } */ 
         lang(value) {
-            if (value == null) { return this.getAttribute('lang'); }
-        	this.setAttribute('lang', value);
+            if (value == null) { return super.lang; }
+        	super.lang = value;
         	return this;
         }
 
@@ -9974,8 +9976,8 @@ function CreateVElementClass({
          *	@inherit: false
          } */ 
         list(value) {
-            if (value == null) { return this.getAttribute('list'); }
-        	this.setAttribute('list', value);
+            if (value == null) { return super.list; }
+        	super.list = value;
         	return this;
         }
 
@@ -9996,8 +9998,8 @@ function CreateVElementClass({
          *	@inherit: false
          } */ 
         loop(value) {
-            if (value == null) { return this.getAttribute('loop'); }
-        	this.setAttribute('loop', value);
+            if (value == null) { return super.loop; }
+        	super.loop = value;
         	return this;
         }
 
@@ -10018,8 +10020,8 @@ function CreateVElementClass({
          *	@inherit: false
          } */ 
         low(value) {
-            if (value == null) { return this.getAttribute('low'); }
-        	this.setAttribute('low', value);
+            if (value == null) { return super.low; }
+        	super.low = value;
         	return this;
         }
 
@@ -10040,8 +10042,8 @@ function CreateVElementClass({
          *	@inherit: false
          } */ 
         max(value) {
-            if (value == null) { return this.getAttribute('max'); }
-        	this.setAttribute('max', value);
+            if (value == null) { return super.max; }
+        	super.max = value;
         	return this;
         }
 
@@ -10062,15 +10064,15 @@ function CreateVElementClass({
          *	@inherit: false
          } */ 
         max_length(value) {
-            if (value == null) { return this.getAttribute('maxlength'); }
-        	this.setAttribute('maxlength', value);
+            if (value == null) { return super.maxlength; }
+        	super.maxlength = value;
         	return this;
         }
 
         // Specifies what media/device the linked document is optimized for.
         // media(value) {
-        //     if (value == null) { return this.getAttribute('media'); }
-        // 	this.setAttribute('media', value);
+        //     if (value == null) { return super.media; }
+        // 	super.media = value;
         // 	return this;
         // }
 
@@ -10091,8 +10093,8 @@ function CreateVElementClass({
          *	@inherit: false
          } */ 
         method(value) {
-            if (value == null) { return this.getAttribute('method'); }
-        	this.setAttribute('method', value);
+            if (value == null) { return super.method; }
+        	super.method = value;
         	return this;
         }
 
@@ -10113,8 +10115,8 @@ function CreateVElementClass({
          *	@inherit: false
          } */ 
         min(value) {
-            if (value == null) { return this.getAttribute('min'); }
-        	this.setAttribute('min', value);
+            if (value == null) { return super.min; }
+        	super.min = value;
         	return this;
         }
 
@@ -10135,8 +10137,8 @@ function CreateVElementClass({
          *	@inherit: false
          } */ 
         multiple(value) {
-            if (value == null) { return this.getAttribute('multiple'); }
-        	this.setAttribute('multiple', value);
+            if (value == null) { return super.multiple; }
+        	super.multiple = value;
         	return this;
         }
 
@@ -10157,15 +10159,15 @@ function CreateVElementClass({
          *	@inherit: false
          } */ 
         muted(value) {
-            if (value == null) { return this.getAttribute('muted'); }
-        	this.setAttribute('muted', value);
+            if (value == null) { return super.muted; }
+        	super.muted = value;
         	return this;
         }
 
         // Specifies the name of the element.
         // name(value) {
-        //     if (value == null) { return this.getAttribute('name'); }
-        // 	this.setAttribute('name', value);
+        //     if (value == null) { return super.name; }
+        // 	super.name = value;
         // 	return this;
         // }
 
@@ -10186,8 +10188,8 @@ function CreateVElementClass({
          *	@inherit: false
          } */ 
         no_validate(value) {
-            if (value == null) { return this.getAttribute('novalidate'); }
-        	this.setAttribute('novalidate', value);
+            if (value == null) { return super.novalidate; }
+        	super.novalidate = value;
         	return this;
         }
 
@@ -10208,8 +10210,8 @@ function CreateVElementClass({
          *	@inherit: false
          } */ 
         open(value) {
-            if (value == null) { return this.getAttribute('open'); }
-        	this.setAttribute('open', value);
+            if (value == null) { return super.open; }
+        	super.open = value;
         	return this;
         }
 
@@ -10230,8 +10232,8 @@ function CreateVElementClass({
          *	@inherit: false
          } */ 
         optimum(value) {
-            if (value == null) { return this.getAttribute('optimum'); }
-        	this.setAttribute('optimum', value);
+            if (value == null) { return super.optimum; }
+        	super.optimum = value;
         	return this;
         }
 
@@ -10252,8 +10254,8 @@ function CreateVElementClass({
          *	@inherit: false
          } */ 
         pattern(value) {
-            if (value == null) { return this.getAttribute('pattern'); }
-        	this.setAttribute('pattern', value);
+            if (value == null) { return super.pattern; }
+        	super.pattern = value;
         	return this;
         }
 
@@ -10274,8 +10276,8 @@ function CreateVElementClass({
          *	@inherit: false
          } */ 
         placeholder(value) {
-            if (value == null) { return this.getAttribute('placeholder'); }
-        	this.setAttribute('placeholder', value);
+            if (value == null) { return super.placeholder; }
+        	super.placeholder = value;
         	return this;
         }
 
@@ -10296,8 +10298,8 @@ function CreateVElementClass({
          *	@inherit: false
          } */ 
         poster(value) {
-            if (value == null) { return this.getAttribute('poster'); }
-        	this.setAttribute('poster', value);
+            if (value == null) { return super.poster; }
+        	super.poster = value;
         	return this;
         }
 
@@ -10318,8 +10320,8 @@ function CreateVElementClass({
          *	@inherit: false
          } */ 
         preload(value) {
-            if (value == null) { return this.getAttribute('preload'); }
-        	this.setAttribute('preload', value);
+            if (value == null) { return super.preload; }
+        	super.preload = value;
         	return this;
         }
 
@@ -10340,8 +10342,8 @@ function CreateVElementClass({
          *	@inherit: false
          } */ 
         readonly(value) {
-            if (value == null) { return this.getAttribute('readonly'); }
-        	this.setAttribute('readonly', value);
+            if (value == null) { return super.readonly; }
+        	super.readonly = value;
         	return this;
         }
 
@@ -10362,8 +10364,8 @@ function CreateVElementClass({
          *	@inherit: false
          } */ 
         rel(value) {
-            if (value == null) { return this.getAttribute('rel'); }
-        	this.setAttribute('rel', value);
+            if (value == null) { return super.rel; }
+        	super.rel = value;
         	return this;
         }
 
@@ -10384,8 +10386,8 @@ function CreateVElementClass({
          *	@inherit: false
          } */ 
         required(value) {
-            if (value == null) { return this.getAttribute('required'); }
-        	this.setAttribute('required', value);
+            if (value == null) { return super.required; }
+        	super.required = value;
         	return this;
         }
 
@@ -10406,8 +10408,8 @@ function CreateVElementClass({
          *	@inherit: false
          } */ 
         reversed(value) {
-            if (value == null) { return this.getAttribute('reversed'); }
-        	this.setAttribute('reversed', value);
+            if (value == null) { return super.reversed; }
+        	super.reversed = value;
         	return this;
         }
 
@@ -10428,8 +10430,8 @@ function CreateVElementClass({
          *	@inherit: false
          } */ 
         rows(value) {
-            if (value == null) { return this.getAttribute('rows'); }
-        	this.setAttribute('rows', value);
+            if (value == null) { return super.rows; }
+        	super.rows = value;
         	return this;
         }
 
@@ -10450,8 +10452,8 @@ function CreateVElementClass({
          *	@inherit: false
          } */ 
         row_span(value) {
-            if (value == null) { return this.getAttribute('rowspan'); }
-        	this.setAttribute('rowspan', value);
+            if (value == null) { return super.rowspan; }
+        	super.rowspan = value;
         	return this;
         }
 
@@ -10472,8 +10474,8 @@ function CreateVElementClass({
          *	@inherit: false
          } */ 
         sandbox(value) {
-            if (value == null) { return this.getAttribute('sandbox'); }
-        	this.setAttribute('sandbox', value);
+            if (value == null) { return super.sandbox; }
+        	super.sandbox = value;
         	return this;
         }
 
@@ -10494,8 +10496,8 @@ function CreateVElementClass({
          *	@inherit: false
          } */ 
         scope(value) {
-            if (value == null) { return this.getAttribute('scope'); }
-        	this.setAttribute('scope', value);
+            if (value == null) { return super.scope; }
+        	super.scope = value;
         	return this;
         }
 
@@ -10516,8 +10518,8 @@ function CreateVElementClass({
          *	@inherit: false
          } */ 
         selected(value) {
-            if (value == null) { return this.getAttribute('selected'); }
-        	this.setAttribute('selected', value);
+            if (value == null) { return super.selected; }
+        	super.selected = value;
         	return this;
         }
 
@@ -10538,8 +10540,8 @@ function CreateVElementClass({
          *	@inherit: false
          } */ 
         shape(value) {
-            if (value == null) { return this.getAttribute('shape'); }
-        	this.setAttribute('shape', value);
+            if (value == null) { return super.shape; }
+        	super.shape = value;
         	return this;
         }
 
@@ -10560,8 +10562,8 @@ function CreateVElementClass({
          *	@inherit: false
          } */ 
         size(value) {
-            if (value == null) { return this.getAttribute('size'); }
-        	this.setAttribute('size', value);
+            if (value == null) { return super.size; }
+        	super.size = value;
         	return this;
         }
 
@@ -10582,8 +10584,8 @@ function CreateVElementClass({
          *	@inherit: false
          } */ 
         sizes(value) {
-            if (value == null) { return this.getAttribute('sizes'); }
-        	this.setAttribute('sizes', value);
+            if (value == null) { return super.sizes; }
+        	super.sizes = value;
         	return this;
         }
 
@@ -10604,8 +10606,8 @@ function CreateVElementClass({
          *	@inherit: false
          } */ 
         span(value) {
-            if (value == null) { return this.getAttribute('span'); }
-        	this.setAttribute('span', value);
+            if (value == null) { return super.span; }
+        	super.span = value;
         	return this;
         }
 
@@ -10626,8 +10628,8 @@ function CreateVElementClass({
          *	@inherit: false
          } */ 
         spell_check(value) {
-            if (value == null) { return this.getAttribute('spellcheck'); }
-        	this.setAttribute('spellcheck', value);
+            if (value == null) { return super.spellcheck; }
+        	super.spellcheck = value;
         	return this;
         }
 
@@ -10648,8 +10650,8 @@ function CreateVElementClass({
          *	@inherit: false
          } */ 
         src(value) {
-            if (value == null) { return this.getAttribute('src'); }
-        	this.setAttribute('src', value);
+            if (value == null) { return super.src; }
+        	super.src = value;
         	return this;
         }
 
@@ -10670,8 +10672,8 @@ function CreateVElementClass({
          *	@inherit: false
          } */ 
         src_doc(value) {
-            if (value == null) { return this.getAttribute('srcdoc'); }
-        	this.setAttribute('srcdoc', value);
+            if (value == null) { return super.srcdoc; }
+        	super.srcdoc = value;
         	return this;
         }
 
@@ -10692,8 +10694,8 @@ function CreateVElementClass({
          *	@inherit: false
          } */ 
         src_lang(value) {
-            if (value == null) { return this.getAttribute('srclang'); }
-        	this.setAttribute('srclang', value);
+            if (value == null) { return super.srclang; }
+        	super.srclang = value;
         	return this;
         }
 
@@ -10714,8 +10716,8 @@ function CreateVElementClass({
          *	@inherit: false
          } */ 
         rrsrc_set(value) {
-            if (value == null) { return this.getAttribute('srcset'); }
-        	this.setAttribute('srcset', value);
+            if (value == null) { return super.srcset; }
+        	super.srcset = value;
         	return this;
         }
 
@@ -10736,8 +10738,8 @@ function CreateVElementClass({
          *	@inherit: false
          } */ 
         start(value) {
-            if (value == null) { return this.getAttribute('start'); }
-        	this.setAttribute('start', value);
+            if (value == null) { return super.start; }
+        	super.start = value;
         	return this;
         }
 
@@ -10758,15 +10760,15 @@ function CreateVElementClass({
          *	@inherit: false
          } */ 
         step(value) {
-            if (value == null) { return this.getAttribute('step'); }
-        	this.setAttribute('step', value);
+            if (value == null) { return super.step; }
+        	super.step = value;
         	return this;
         }
 
         // Specifies an inline CSS style for an element.
         // style(value) {
-        //     if (value == null) { return this.getAttribute('style'); }
-        // 	this.setAttribute('style', value);
+        //     if (value == null) { return super.style; }
+        // 	super.style = value;
         // 	return this;
         // }
 
@@ -10787,8 +10789,8 @@ function CreateVElementClass({
          *	@inherit: false
          } */ 
         tab_index(value) {
-            if (value == null) { return this.getAttribute('tabindex'); }
-        	this.setAttribute('tabindex', value);
+            if (value == null) { return super.tabindex; }
+        	super.tabindex = value;
         	return this;
         }
 
@@ -10809,8 +10811,8 @@ function CreateVElementClass({
          *	@inherit: false
          } */ 
         target(value) {
-            if (value == null) { return this.getAttribute('target'); }
-        	this.setAttribute('target', value);
+            if (value == null) { return super.target; }
+        	super.target = value;
         	return this;
         }
 
@@ -10831,8 +10833,8 @@ function CreateVElementClass({
          *	@inherit: false
          } */ 
         title(value) {
-            if (value == null) { return this.getAttribute('title'); }
-        	this.setAttribute('title', value);
+            if (value == null) { return super.title; }
+        	super.title = value;
         	return this;
         }
 
@@ -10853,8 +10855,8 @@ function CreateVElementClass({
          *	@inherit: false
          } */ 
         translate(value) {
-            if (value == null) { return this.getAttribute('translate'); }
-        	this.setAttribute('translate', value);
+            if (value == null) { return super.translate; }
+        	super.translate = value;
         	return this;
         }
 
@@ -10875,8 +10877,8 @@ function CreateVElementClass({
          *	@inherit: false
          } */ 
         type(value) {
-            if (value == null) { return this.getAttribute('type'); }
-        	this.setAttribute('type', value);
+            if (value == null) { return super.type; }
+        	super.type = value;
         	return this;
         }
 
@@ -10897,8 +10899,8 @@ function CreateVElementClass({
          *	@inherit: false
          } */ 
         use_map(value) {
-            if (value == null) { return this.getAttribute('usemap'); }
-        	this.setAttribute('usemap', value);
+            if (value == null) { return super.usemap; }
+        	super.usemap = value;
         	return this;
         }
 
@@ -10919,22 +10921,22 @@ function CreateVElementClass({
          *	@inherit: false
          } */ 
         value(value) {
-            if (value == null) { return this.getAttribute('value'); }
-        	this.setAttribute('value', value);
+            if (value == null) { return super.value; }
+        	super.value = value;
         	return this;
         }
 
         // Specifies the width of the element.
         // width(value) {
-        //     if (value == null) { return this.getAttribute('width'); }
-        // 	this.setAttribute('width', this.pad_numeric(value));
+        //     if (value == null) { return super.width; }
+        // 	super.width = this.pad_numeric(value);
         // 	return this;
         // }
 
         // Specifies how the text in a text area is to be wrapped when submitted in a form.
         // wrap(value) {
-        //     if (value == null) { return this.getAttribute('wrap'); }
-        // 	this.setAttribute('wrap', value);
+        //     if (value == null) { return super.wrap; }
+        // 	super.wrap = value;
         // 	return this;
         // }
 
@@ -12020,6 +12022,14 @@ function CreateVElementClass({
         	this.ondrop = (t) => callback(e, t);
         	return this;
         }
+
+        // Script to be run when an element's scrollbar is being scrolled.
+        // on_scroll(callback) {
+        //     if (callback == null) { return this.onscroll; }
+        // 	const e = this;
+        // 	this.onscroll = (t) => callback(e, t);
+        // 	return this;
+        // }
 
         // Fires when the user copies the content of an element.
         /*	@docs: {

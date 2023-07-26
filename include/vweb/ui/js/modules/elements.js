@@ -14,6 +14,11 @@ vweb.elements.get_by_id = function(id) {
 	return vweb.elements.get(id)
 }
 
+// Click an element by id.
+vweb.elements.click = function(id) {
+	document.getElementById(id).click();
+}
+
 // Register a custom type.
 // Parameter "tag" is optional.
 vweb.elements.register = function(type, tag) {

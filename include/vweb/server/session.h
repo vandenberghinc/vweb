@@ -249,12 +249,13 @@ public:
 			// Iterate endpoints.
 			if (response.is_undefined()) {
 				for (auto& endpoint: m_server->m_endpoints) {
-					if (endpoint.m_method == request.method() &&
-						endpoint.m_endpoint == req_endpoint &&
+					// print(request.method(), " ", request.content_type(), " ", req_endpoint, " VS ", endpoint.method.value, " ", endpoint.content_type.value, " ", endpoint.endpoint);
+					if (endpoint.method == request.method() &&
+						endpoint.endpoint == req_endpoint &&
 						(
 						 request.content_type() == vlib::http::content_type::undefined ||
-						 endpoint.m_content_type == request.content_type()
-						 )
+						 endpoint.content_type == request.content_type()
+						)
 					) {
 						
 						SESLOG(4, to_str(
@@ -277,7 +278,7 @@ public:
 						// Does not require authentication.
 						retrieve_auth_key(auth_key, uid, response, request);
 						if (response.is_defined()) {
-							if (endpoint.m_type == 0) {
+							if (!endpoint.is_callback()) {
 								response.reconstruct(
 									vlib::http::version::v1_1,
 									302,
@@ -289,11 +290,11 @@ public:
 						}
 						
 						// Do authentication for an autheticated endpoint.
-						if (endpoint.m_auth & Endpoint::authenticated && !authenticated) {
+						if (endpoint.auth & Endpoint::authenticated && !authenticated) {
 							SESLOG(4, to_str(m_conn->info.ip, ": ", "Doing authentication."));
 							authenticated = do_authentication(uid, response, request, auth_key);
 							if (response.is_defined()) {
-								if (endpoint.m_type == 0) {
+								if (!endpoint.is_callback()) {
 									response.reconstruct(
 										vlib::http::version::v1_1,
 										302,
@@ -306,11 +307,11 @@ public:
 						}
 						
 						// HTML endpoint.
-						if (endpoint.m_type == 0) {
+						if (!endpoint.is_callback()) {
 							SESLOG(4, to_str(m_conn->info.ip, ": ", "View endpoint."));
-							Headers headers = endpoint.m_headers;
+							Headers headers = endpoint.headers;
 							m_server->create_user_cookie(headers, uid);
-							response.reconstruct(vlib::http::version::v1_1, 200, headers, endpoint.m_data);
+							response.reconstruct(vlib::http::version::v1_1, 200, headers, endpoint.data);
 						}
 						
 						// Rest API endpoint.
@@ -585,7 +586,7 @@ public:
 		}
 		
 		// Parameters by body.
-		else if (endpoint.m_type > 2 && endpoint.m_type < 7) {
+		else if (endpoint.callback.type > 2 && endpoint.callback.type < 7) {
 			#if VWEB_CATCH_EXCEPTIONS == true
 			try {
 			#endif
@@ -608,30 +609,30 @@ public:
 		try {
 		#endif
 			
-			switch (endpoint.m_type.value()) {
+			switch (endpoint.callback.type.value()) {
 				case 1:
-					response = endpoint.m_restapi_func_1();
+					response = endpoint.callback.callback_1();
 					return ;
 				case 2:
-					response = endpoint.m_restapi_func_2(*m_server, uid);
+					response = endpoint.callback.callback_2(*m_server, uid);
 					return ;
 				case 3:
-					response = endpoint.m_restapi_func_3(*m_server, params);
+					response = endpoint.callback.callback_3(*m_server, params);
 					return ;
 				case 4:
-					response = endpoint.m_restapi_func_4(*m_server, uid, params);
+					response = endpoint.callback.callback_4(*m_server, uid, params);
 					return ;
 				case 5:
-					response = endpoint.m_restapi_func_5(*m_server, uid, params, request.headers());
+					response = endpoint.callback.callback_5(*m_server, uid, params, request.headers());
 					return ;
 				case 6:
-					response = endpoint.m_restapi_func_6(*m_server, uid, params, request.headers(), m_conn->info);
+					response = endpoint.callback.callback_6(*m_server, uid, params, request.headers(), m_conn->info);
 					return ;
 				case 7:
-					response = endpoint.m_restapi_func_7(*m_server, uid, request);
+					response = endpoint.callback.callback_7(*m_server, uid, request);
 					return ;
 				default:
-					throw vlib::InvalidUsageError("Invalid endpoint type \"", endpoint.m_type, "\".");
+					throw vlib::InvalidUsageError("Invalid endpoint type \"", endpoint.callback.type, "\".");
 			}
 			
 		#if VWEB_CATCH_EXCEPTIONS == true

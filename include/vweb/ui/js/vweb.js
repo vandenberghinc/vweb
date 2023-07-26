@@ -52,6 +52,15 @@ return(window.innerHeight>0)? window.innerHeight:screen.height;
 vweb.utils.endpoint=function(){
 endpoint=window.location.href.replace("https://","").replace("http://","");
 endpoint=endpoint.substr(endpoint.indexOf('/'),endpoint.length);
+endpoint=endpoint.replaceAll("//","/");
+if(endpoint.length==0){
+return '/'
+}else{
+while(endpoint.length>1&&endpoint[endpoint.length-1]=='/'){
+endpoint=endpoint.substr(0,endpoint.length-1);
+}
+}
+console.log(endpoint);
 return endpoint;
 }
 vweb.utils.cookie=function(name){
@@ -160,6 +169,9 @@ return document.getElementById(id);
 }
 vweb.elements.get_by_id=function(id){
 return vweb.elements.get(id)
+}
+vweb.elements.click=function(id){
+document.getElementById(id).click();
 }
 vweb.elements.register=function(type,tag){
 customElements.define("v-"+type.name.toLowerCase(),type,{extends:tag||type.element_tag});
@@ -1176,12 +1188,16 @@ clearTimeout(this.animate_timeout);
 this.animate_timeout=setTimeout(()=>do_animation(0),delay||0);
 return this;
 }
-on_click(value){
+on_click(callback){
+if(callback==null){
+return this.onclick;
+}
 this.style.cursor="pointer";
-this.onclick=value;
+const e=this;
+this.onclick=(t)=>callback(e,t);
 return this;
 }
-on_scroll(callback,delay=25){
+on_scroll({callback,delay=25}){
 if(callback==null){return this.onscroll;}
 let timer;
 const e=this;
@@ -1202,7 +1218,7 @@ e.on_window_resize_timer=setTimeout(()=>callback(e),delay);
 });
 return this;
 }
-on_attachment_drop({handler,compress=false}){
+on_attachment_drop({callback,compress=false}){
 this.on_drag_over(function(e){
 e.preventDefault();
 e.dataTransfer.dropEffect="copy";
@@ -1215,9 +1231,9 @@ const file=files[i];
 const reader=new FileReader();
 reader.onload=(event)=>{
 if(compress==true){
-handler(file.name,vweb.utils.compress(event.target.result),file);
+callback(file.name,vweb.utils.compress(event.target.result),file);
 }else{
-handler(file.name,event.target.result,file);
+callback(file.name,event.target.result,file);
 }
 };
 reader.readAsText(file);
@@ -1244,6 +1260,15 @@ is_called=false;
 });
 });
 observer.observe(this);
+return this;
+}
+on_enter(callback){
+const e=this;
+super.onkeypress=function(event){
+if(event.keyCode===13){
+callback(e,event);
+}
+}
 return this;
 }
 first_child(){
@@ -3098,418 +3123,418 @@ this.style.writingMode=value;
 return this;
 }
 accept(value){
-if(value==null){return this.getAttribute('accept');}
-this.setAttribute('accept',value);
+if(value==null){return super.accept;}
+super.accept=value;
 return this;
 }
 accept_charset(value){
-if(value==null){return this.getAttribute('accept_charset');}
-this.setAttribute('accept_charset',value);
+if(value==null){return super.accept_charset;}
+super.accept_charset=value;
 return this;
 }
 action(value){
-if(value==null){return this.getAttribute('action');}
-this.setAttribute('action',value);
+if(value==null){return super.action;}
+super.action=value;
 return this;
 }
 alt(value){
-if(value==null){return this.getAttribute('alt');}
-this.setAttribute('alt',value);
+if(value==null){return super.alt;}
+super.alt=value;
 return this;
 }
 async(value){
-if(value==null){return this.getAttribute('async');}
-this.setAttribute('async',value);
+if(value==null){return super.async;}
+super.async=value;
 return this;
 }
 auto_complete(value){
-if(value==null){return this.getAttribute('autocomplete');}
-this.setAttribute('autocomplete',value);
+if(value==null){return super.autocomplete;}
+super.autocomplete=value;
 return this;
 }
 auto_focus(value){
-if(value==null){return this.getAttribute('autofocus');}
-this.setAttribute('autofocus',value);
+if(value==null){return super.autofocus;}
+super.autofocus=value;
 return this;
 }
 auto_play(value){
-if(value==null){return this.getAttribute('autoplay');}
-this.setAttribute('autoplay',value);
+if(value==null){return super.autoplay;}
+super.autoplay=value;
 return this;
 }
 charset(value){
-if(value==null){return this.getAttribute('charset');}
-this.setAttribute('charset',value);
+if(value==null){return super.charset;}
+super.charset=value;
 return this;
 }
 checked(value){
-if(value==null){return this.getAttribute('checked');}
-this.setAttribute('checked',value);
+if(value==null){return super.checked;}
+super.checked=value;
 return this;
 }
 cite(value){
-if(value==null){return this.getAttribute('cite');}
-this.setAttribute('cite',value);
+if(value==null){return super.cite;}
+super.cite=value;
 return this;
 }
 cols(value){
-if(value==null){return this.getAttribute('cols');}
-this.setAttribute('cols',value);
+if(value==null){return super.cols;}
+super.cols=value;
 return this;
 }
 colspan(value){
-if(value==null){return this.getAttribute('colspan');}
-this.setAttribute('colspan',value);
+if(value==null){return super.colspan;}
+super.colspan=value;
 return this;
 }
 content(value){
-if(value==null){return this.getAttribute('content');}
-this.setAttribute('content',value);
+if(value==null){return super.content;}
+super.content=value;
 return this;
 }
 content_editable(value){
-if(value==null){return this.getAttribute('contenteditable');}
-this.setAttribute('contenteditable',value);
+if(value==null){return super.contenteditable;}
+super.contenteditable=value;
 return this;
 }
 controls(value){
-if(value==null){return this.getAttribute('controls');}
-this.setAttribute('controls',value);
+if(value==null){return super.controls;}
+super.controls=value;
 return this;
 }
 coords(value){
-if(value==null){return this.getAttribute('coords');}
-this.setAttribute('coords',value);
+if(value==null){return super.coords;}
+super.coords=value;
 return this;
 }
 data(value){
-if(value==null){return this.getAttribute('data');}
-this.setAttribute('data',value);
+if(value==null){return super.data;}
+super.data=value;
 return this;
 }
 datetime(value){
-if(value==null){return this.getAttribute('datetime');}
-this.setAttribute('datetime',value);
+if(value==null){return super.datetime;}
+super.datetime=value;
 return this;
 }
 default(value){
-if(value==null){return this.getAttribute('default');}
-this.setAttribute('default',value);
+if(value==null){return super.default;}
+super.default=value;
 return this;
 }
 defer(value){
-if(value==null){return this.getAttribute('defer');}
-this.setAttribute('defer',value);
+if(value==null){return super.defer;}
+super.defer=value;
 return this;
 }
 dir(value){
-if(value==null){return this.getAttribute('dir');}
-this.setAttribute('dir',value);
+if(value==null){return super.dir;}
+super.dir=value;
 return this;
 }
 dirname(value){
-if(value==null){return this.getAttribute('dirname');}
-this.setAttribute('dirname',value);
+if(value==null){return super.dirname;}
+super.dirname=value;
 return this;
 }
 disabled(value){
-if(value==null){return this.getAttribute('disabled');}
-this.setAttribute('disabled',value);
+if(value==null){return super.disabled;}
+super.disabled=value;
 return this;
 }
 download(value){
-if(value==null){return this.getAttribute('download');}
-this.setAttribute('download',value);
+if(value==null){return super.download;}
+super.download=value;
 return this;
 }
 draggable(value){
-if(value==null){return this.getAttribute('draggable');}
-this.setAttribute('draggable',value);
+if(value==null){return super.draggable;}
+super.draggable=value;
 return this;
 }
 enctype(value){
-if(value==null){return this.getAttribute('enctype');}
-this.setAttribute('enctype',value);
+if(value==null){return super.enctype;}
+super.enctype=value;
 return this;
 }
 for(value){
-if(value==null){return this.getAttribute('for');}
-this.setAttribute('for',value);
+if(value==null){return super.for;}
+super.for=value;
 return this;
 }
 form(value){
-if(value==null){return this.getAttribute('form');}
-this.setAttribute('form',value);
+if(value==null){return super.form;}
+super.form=value;
 return this;
 }
 form_action(value){
-if(value==null){return this.getAttribute('formaction');}
-this.setAttribute('formaction',value);
+if(value==null){return super.formaction;}
+super.formaction=value;
 return this;
 }
 headers(value){
-if(value==null){return this.getAttribute('headers');}
-this.setAttribute('headers',value);
+if(value==null){return super.headers;}
+super.headers=value;
 return this;
 }
 high(value){
-if(value==null){return this.getAttribute('high');}
-this.setAttribute('high',value);
+if(value==null){return super.high;}
+super.high=value;
 return this;
 }
 href(value){
-if(value==null){return this.getAttribute('href');}
-this.setAttribute('href',value);
+if(value==null){return super.href;}
+super.href=value;
 return this;
 }
 href_lang(value){
-if(value==null){return this.getAttribute('hreflang');}
-this.setAttribute('hreflang',value);
+if(value==null){return super.hreflang;}
+super.hreflang=value;
 return this;
 }
 http_equiv(value){
-if(value==null){return this.getAttribute('http_equiv');}
-this.setAttribute('http_equiv',value);
+if(value==null){return super.http_equiv;}
+super.http_equiv=value;
 return this;
 }
 id(value){
-if(value==null){return this.getAttribute('id');}
-this.setAttribute('id',value);
+if(value==null){return super.id;}
+super.id=value;
 return this;
 }
 is_map(value){
-if(value==null){return this.getAttribute('ismap');}
-this.setAttribute('ismap',value);
+if(value==null){return super.ismap;}
+super.ismap=value;
 return this;
 }
 kind(value){
-if(value==null){return this.getAttribute('kind');}
-this.setAttribute('kind',value);
+if(value==null){return super.kind;}
+super.kind=value;
 return this;
 }
 label(value){
-if(value==null){return this.getAttribute('label');}
-this.setAttribute('label',value);
+if(value==null){return super.label;}
+super.label=value;
 return this;
 }
 lang(value){
-if(value==null){return this.getAttribute('lang');}
-this.setAttribute('lang',value);
+if(value==null){return super.lang;}
+super.lang=value;
 return this;
 }
 list(value){
-if(value==null){return this.getAttribute('list');}
-this.setAttribute('list',value);
+if(value==null){return super.list;}
+super.list=value;
 return this;
 }
 loop(value){
-if(value==null){return this.getAttribute('loop');}
-this.setAttribute('loop',value);
+if(value==null){return super.loop;}
+super.loop=value;
 return this;
 }
 low(value){
-if(value==null){return this.getAttribute('low');}
-this.setAttribute('low',value);
+if(value==null){return super.low;}
+super.low=value;
 return this;
 }
 max(value){
-if(value==null){return this.getAttribute('max');}
-this.setAttribute('max',value);
+if(value==null){return super.max;}
+super.max=value;
 return this;
 }
 max_length(value){
-if(value==null){return this.getAttribute('maxlength');}
-this.setAttribute('maxlength',value);
+if(value==null){return super.maxlength;}
+super.maxlength=value;
 return this;
 }
 method(value){
-if(value==null){return this.getAttribute('method');}
-this.setAttribute('method',value);
+if(value==null){return super.method;}
+super.method=value;
 return this;
 }
 min(value){
-if(value==null){return this.getAttribute('min');}
-this.setAttribute('min',value);
+if(value==null){return super.min;}
+super.min=value;
 return this;
 }
 multiple(value){
-if(value==null){return this.getAttribute('multiple');}
-this.setAttribute('multiple',value);
+if(value==null){return super.multiple;}
+super.multiple=value;
 return this;
 }
 muted(value){
-if(value==null){return this.getAttribute('muted');}
-this.setAttribute('muted',value);
+if(value==null){return super.muted;}
+super.muted=value;
 return this;
 }
 no_validate(value){
-if(value==null){return this.getAttribute('novalidate');}
-this.setAttribute('novalidate',value);
+if(value==null){return super.novalidate;}
+super.novalidate=value;
 return this;
 }
 open(value){
-if(value==null){return this.getAttribute('open');}
-this.setAttribute('open',value);
+if(value==null){return super.open;}
+super.open=value;
 return this;
 }
 optimum(value){
-if(value==null){return this.getAttribute('optimum');}
-this.setAttribute('optimum',value);
+if(value==null){return super.optimum;}
+super.optimum=value;
 return this;
 }
 pattern(value){
-if(value==null){return this.getAttribute('pattern');}
-this.setAttribute('pattern',value);
+if(value==null){return super.pattern;}
+super.pattern=value;
 return this;
 }
 placeholder(value){
-if(value==null){return this.getAttribute('placeholder');}
-this.setAttribute('placeholder',value);
+if(value==null){return super.placeholder;}
+super.placeholder=value;
 return this;
 }
 poster(value){
-if(value==null){return this.getAttribute('poster');}
-this.setAttribute('poster',value);
+if(value==null){return super.poster;}
+super.poster=value;
 return this;
 }
 preload(value){
-if(value==null){return this.getAttribute('preload');}
-this.setAttribute('preload',value);
+if(value==null){return super.preload;}
+super.preload=value;
 return this;
 }
 readonly(value){
-if(value==null){return this.getAttribute('readonly');}
-this.setAttribute('readonly',value);
+if(value==null){return super.readonly;}
+super.readonly=value;
 return this;
 }
 rel(value){
-if(value==null){return this.getAttribute('rel');}
-this.setAttribute('rel',value);
+if(value==null){return super.rel;}
+super.rel=value;
 return this;
 }
 required(value){
-if(value==null){return this.getAttribute('required');}
-this.setAttribute('required',value);
+if(value==null){return super.required;}
+super.required=value;
 return this;
 }
 reversed(value){
-if(value==null){return this.getAttribute('reversed');}
-this.setAttribute('reversed',value);
+if(value==null){return super.reversed;}
+super.reversed=value;
 return this;
 }
 rows(value){
-if(value==null){return this.getAttribute('rows');}
-this.setAttribute('rows',value);
+if(value==null){return super.rows;}
+super.rows=value;
 return this;
 }
 row_span(value){
-if(value==null){return this.getAttribute('rowspan');}
-this.setAttribute('rowspan',value);
+if(value==null){return super.rowspan;}
+super.rowspan=value;
 return this;
 }
 sandbox(value){
-if(value==null){return this.getAttribute('sandbox');}
-this.setAttribute('sandbox',value);
+if(value==null){return super.sandbox;}
+super.sandbox=value;
 return this;
 }
 scope(value){
-if(value==null){return this.getAttribute('scope');}
-this.setAttribute('scope',value);
+if(value==null){return super.scope;}
+super.scope=value;
 return this;
 }
 selected(value){
-if(value==null){return this.getAttribute('selected');}
-this.setAttribute('selected',value);
+if(value==null){return super.selected;}
+super.selected=value;
 return this;
 }
 shape(value){
-if(value==null){return this.getAttribute('shape');}
-this.setAttribute('shape',value);
+if(value==null){return super.shape;}
+super.shape=value;
 return this;
 }
 size(value){
-if(value==null){return this.getAttribute('size');}
-this.setAttribute('size',value);
+if(value==null){return super.size;}
+super.size=value;
 return this;
 }
 sizes(value){
-if(value==null){return this.getAttribute('sizes');}
-this.setAttribute('sizes',value);
+if(value==null){return super.sizes;}
+super.sizes=value;
 return this;
 }
 span(value){
-if(value==null){return this.getAttribute('span');}
-this.setAttribute('span',value);
+if(value==null){return super.span;}
+super.span=value;
 return this;
 }
 spell_check(value){
-if(value==null){return this.getAttribute('spellcheck');}
-this.setAttribute('spellcheck',value);
+if(value==null){return super.spellcheck;}
+super.spellcheck=value;
 return this;
 }
 src(value){
-if(value==null){return this.getAttribute('src');}
-this.setAttribute('src',value);
+if(value==null){return super.src;}
+super.src=value;
 return this;
 }
 src_doc(value){
-if(value==null){return this.getAttribute('srcdoc');}
-this.setAttribute('srcdoc',value);
+if(value==null){return super.srcdoc;}
+super.srcdoc=value;
 return this;
 }
 src_lang(value){
-if(value==null){return this.getAttribute('srclang');}
-this.setAttribute('srclang',value);
+if(value==null){return super.srclang;}
+super.srclang=value;
 return this;
 }
 rrsrc_set(value){
-if(value==null){return this.getAttribute('srcset');}
-this.setAttribute('srcset',value);
+if(value==null){return super.srcset;}
+super.srcset=value;
 return this;
 }
 start(value){
-if(value==null){return this.getAttribute('start');}
-this.setAttribute('start',value);
+if(value==null){return super.start;}
+super.start=value;
 return this;
 }
 step(value){
-if(value==null){return this.getAttribute('step');}
-this.setAttribute('step',value);
+if(value==null){return super.step;}
+super.step=value;
 return this;
 }
 tab_index(value){
-if(value==null){return this.getAttribute('tabindex');}
-this.setAttribute('tabindex',value);
+if(value==null){return super.tabindex;}
+super.tabindex=value;
 return this;
 }
 target(value){
-if(value==null){return this.getAttribute('target');}
-this.setAttribute('target',value);
+if(value==null){return super.target;}
+super.target=value;
 return this;
 }
 title(value){
-if(value==null){return this.getAttribute('title');}
-this.setAttribute('title',value);
+if(value==null){return super.title;}
+super.title=value;
 return this;
 }
 translate(value){
-if(value==null){return this.getAttribute('translate');}
-this.setAttribute('translate',value);
+if(value==null){return super.translate;}
+super.translate=value;
 return this;
 }
 type(value){
-if(value==null){return this.getAttribute('type');}
-this.setAttribute('type',value);
+if(value==null){return super.type;}
+super.type=value;
 return this;
 }
 use_map(value){
-if(value==null){return this.getAttribute('usemap');}
-this.setAttribute('usemap',value);
+if(value==null){return super.usemap;}
+super.usemap=value;
 return this;
 }
 value(value){
-if(value==null){return this.getAttribute('value');}
-this.setAttribute('value',value);
+if(value==null){return super.value;}
+super.value=value;
 return this;
 }
 on_after_print(callback){
@@ -6165,7 +6190,7 @@ error=null,
 before=null
 }){
 return vweb.utils.request({
-method:"GET",
+method:"POST",
 url:"/backend/auth/forgot_password",
 data:{
 email:email,
