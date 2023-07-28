@@ -1,7 +1,7 @@
 /*
- Author: Daan van den Bergh
- Copyright: © 2022 Daan van den Bergh.
-*/
+ * Author: Daan van den Bergh
+ * Copyright: © 2022 Daan van den Bergh.
+ */
 
 // Header.
 #ifndef VWEB_SERVER_BLACKLIST_H
@@ -131,9 +131,9 @@ public:
     // Default constructor.
     BlackList()
     {
-		if (vweb_production) {
-			load();
-		}
+		// if (vweb_production) {
+		// 	load();
+		// }
     }
     
     // ---------------------------------------------------------

@@ -1,7 +1,7 @@
 /*
- Author: Daan van den Bergh
- Copyright: © 2022 Daan van den Bergh.
-*/
+ * Author: Daan van den Bergh
+ * Copyright: © 2022 Daan van den Bergh.
+ */
 
 // Header.
 #ifndef VWEB_SERVER_H
@@ -104,12 +104,15 @@ public:
     // Attributes.
     // Requires public for "Session".
     
-    server::Config        		config;               // server configuration.
+    server::Config        		config;		            // server configuration.
     Array<Endpoint>     		m_endpoints;            // all endpoint.
     Len                 		m_max_uid;              // the maximum user id, including deleted users.
     String              		m_hash_key;             // key used for hashing passwords and api keys.
     SMTPArgs            		m_smtp;                 // the smtp client.
 	backend::Backend<Server>	m_backend;
+	
+	// Stripe.
+	Stripe						stripe;
     
     // Mutexes.
     Mutex               		m_mutex_add_del_uid;    // Mutex for adding / deleting an uid.
@@ -1165,6 +1168,37 @@ private:
 			}
 		});
 		
+		// ---------------------------------------------------------
+		// Default user endpoints.
+		
+		// Get user.
+		add_endpoint_h({
+			.method = "POST",
+			.endpoint = "/backend/payments/charge",
+			.content_type  = "application/json",
+			.rate_limit = {
+				.limit = 25,
+				.duration = 60,
+			},
+			.callback = [](Server& server, const Len& uid, const Json& params) {
+				
+				// Response.
+				vlib::http::Response response;
+				
+				// Get params.
+				JArray *products = NULL; // array with product ids.
+				if (!vweb::get_param(response, params, products, "products", 8)) {
+					return response;
+				}
+				
+				// Success.
+				return server.response(
+					vlib::http::status::success,
+					server.get_user(uid).json()
+				);
+			}
+		});
+		
 	}
 	
 	// Get content type from file extension.
@@ -1561,7 +1595,8 @@ public:
     Server(const server::Config& config) :
     config(config),
     m_smtp(config.smtp),
-	m_backend(config, &(*this))
+	m_backend(config, &(*this)),
+	stripe(config.stripe_secret_key)
     {}
     
     // Public.
@@ -1643,6 +1678,10 @@ public:
 		if (!found_robots) {
 			create_robots_txt();
 		}
+		
+		// Stripe.
+		stripe.m_products = config.stripe_products;
+		stripe.check_products(stripe.m_products);
 		
 	}
     

@@ -1,7 +1,7 @@
 /*
- Author: Daan van den Bergh
- Copyright: © 2022 Daan van den Bergh.
-*/
+ * Author: Daan van den Bergh
+ * Copyright: © 2022 Daan van den Bergh.
+ */
 
 // Header.
 #ifndef VWEB_SERVER_CONFIG_H
@@ -40,7 +40,11 @@ struct Config {
 	Int     log_level = 1;      		// log level [0...2].
 	String  domain_name;        		// domain name, e.g. "VInc".
 	String  domain;             		// domain url, e.g. "vandenberghinc.com".
-	vlib::smtp::Client::ConstructArgs smtp; // the smtp client args.
+	String	stripe_secret_key;			// stripe secret key.
+	String	stripe_publishable_key;		// stripe publishable key.
+	
+	Array<Stripe::Product> stripe_products;	// stripe products.
+	vlib::smtp::Client::ConstructArgs smtp; 	// the smtp client args.
 	
 	// Load from file path.
 	/*  @docs {
@@ -74,6 +78,24 @@ struct Config {
 	 *              "name": "My Company",                   // the name of the website.
 	 *              "domain": "mycompany.com",              // the domain url without http:// or https://.
 	 *          },
+	 *
+	 *			// Stripe configuration.
+	 *			"stripe": {
+	 *				"secret_key": null,						// secret key.
+	 *				"publishable_key": null,				// publishable key.
+	 *				"products": [
+	 *					{
+	 *						"id": "mydomain_product_1",				// should be unique accross your stripe account.
+	 *						"name": "Product 1",					// product name.
+	 *						"description": "Product 1 description",	// product description.
+	 *						"currency": "eur",						// three letter ISO currency code.
+	 *						"price": 9.99,							// price with decimals.
+	 *						"recurring": false,						// is recurring price.
+	 *						"interval": "days",						// interval for recurring products.
+	 *						"interval_count": 30,					// interval count for recurring products.
+	 *					}
+	 *				]
+	 *			}
 	 *
 	 *			// TLS configuration.
 	 *          "tls": {
@@ -161,12 +183,41 @@ struct Config {
 				{"timeout", 5 * 1000},
 				{"debug", false},
 			}},
+			{"stripe", Json {
+				{"secret_key", ""},
+				{"publishable_key", ""},
+				{"products", JArray()},
+			}}
 		};
 		json.concat_r(Json::load(path));
 		Json& server = json["server"].asj();
 		Json& domain = json["domain"].asj();
 		Json& tls = json["tls"].asj();
 		Json& smtp = json["smtp"].asj();
+		Json& stripe = json["stripe"].asj();
+		if (!stripe["secret_key"].iss()) {
+			stripe["secret_key"] = String();
+		}
+		if (!stripe["publishable_key"].iss()) {
+			stripe["publishable_key"] = String();
+		}
+		if (!stripe["publishable_key"].isa()) {
+			stripe["publishable_key"] = JArray();
+		}
+		Array<Stripe::Product> stripe_products;
+		for (auto& i: stripe["products"].asa()) {
+			Json& j = i.asj();
+			stripe_products.append({
+				.id = j["id"].ass(),
+				.name = j["name"].ass(),
+				.description = j["description"].ass(),
+				.currency = j["currency"].ass(),
+				.price = j["price"].as<Float>(),
+				.recurring = j["recurring"].asb(),
+				.interval = j["interval"].ass(),
+				.interval_count = j["interval_count"].as<Int>(),
+			});
+		}
 		return {
 			.ip = server["ip"].ass(),
 			.port = server["port"].asi(),
@@ -184,6 +235,9 @@ struct Config {
 			.log_level = server["log_level"].asi(),
 			.domain_name = domain["name"].ass(),
 			.domain = domain["domain"].ass().replace_r("https://", "").replace_r("http://", ""),
+			.stripe_secret_key = stripe["secret_key"].ass(),
+			.stripe_publishable_key = stripe["publishable_key"].ass(),
+			.stripe_products = stripe_products,
 			.smtp = {
 				.host = smtp["host"].ass(),
 				.port = smtp["port"].asi(),

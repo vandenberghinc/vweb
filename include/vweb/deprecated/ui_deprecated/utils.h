@@ -1,7 +1,7 @@
 /*
- Author: Daan van den Bergh
- Copyright: © 2022 Daan van den Bergh.
-*/
+ * Author: Daan van den Bergh
+ * Copyright: © 2022 Daan van den Bergh.
+ */
 
 // Header.
 #ifndef VWEB_UI_UTILS_H

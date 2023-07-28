@@ -1,7 +1,7 @@
 /*
- Author: Daan van den Bergh
- Copyright: © 2022 Daan van den Bergh.
-*/
+ * Author: Daan van den Bergh
+ * Copyright: © 2022 Daan van den Bergh.
+ */
 
 // Header.
 #ifndef VWEB_ENDPOINT_H
@@ -203,7 +203,7 @@ struct EndpointTemplate {
 	Bool			compress = true;
 	Headers 		headers;
     String      	data; // used for direct data.
-	ui::JSView		view; // used for js views.
+	View			view; // used for js views.
 	CallBack		callback; // used for restapi / backend callbacks.
 	
 	// ---------------------------------------------------------

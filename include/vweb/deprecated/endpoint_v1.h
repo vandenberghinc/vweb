@@ -1,7 +1,7 @@
 /*
- Author: Daan van den Bergh
- Copyright: © 2022 Daan van den Bergh.
-*/
+ * Author: Daan van den Bergh
+ * Copyright: © 2022 Daan van den Bergh.
+ */
 
 // Header.
 #ifndef VWEB_ENDPOINT_H
@@ -313,7 +313,7 @@ struct EndpointTemplate {
         clean_url();
     }
     
-	// Constructor from JSView.
+	// Constructor from View.
 	/*  @docs {
 	 *  @title: View Constructor
 	 *  @description:
@@ -340,7 +340,7 @@ struct EndpointTemplate {
 	constexpr
 	EndpointTemplate(
 			 const String& endpoint,
-			 const ui::JSView& view
+			 const ui::View& view
 	) :
 	m_method(vlib::http::method::get),
 	m_endpoint(endpoint),
@@ -402,7 +402,7 @@ struct EndpointTemplate {
 	EndpointTemplate(
 			 const String& endpoint,
 			 const Options& options,
-			 const ui::JSView& view
+			 const ui::View& view
 	) :
 	m_method(vlib::http::method::get),
 	m_endpoint(endpoint),
@@ -438,7 +438,7 @@ struct EndpointTemplate {
 					 const String& method,
 					 const String& endpoint,
 					 const Options& options,
-					 const ui::JSView& view
+					 const ui::View& view
 					 ) :
 	m_method(vlib::http::method::from_str(method)),
 	m_endpoint(endpoint),
@@ -474,7 +474,7 @@ struct EndpointTemplate {
 		const String& endpoint,
 		const Options& options,
 		const Headers& headers,
-		const ui::JSView& view
+		const ui::View& view
 	) :
 	m_method(vlib::http::method::from_str(method)),
 	m_endpoint(endpoint),

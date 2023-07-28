@@ -1,7 +1,7 @@
 /*
- Author: Daan van den Bergh
- Copyright: © 2022 Daan van den Bergh.
-*/
+ * Author: Daan van den Bergh
+ * Copyright: © 2022 Daan van den Bergh.
+ */
 
 #ifndef VWEB_CATCH_EXCEPTIONS
 #define VWEB_CATCH_EXCEPTIONS true
@@ -251,11 +251,11 @@ public:
 				for (auto& endpoint: m_server->m_endpoints) {
 					// print(request.method(), " ", request.content_type(), " ", req_endpoint, " VS ", endpoint.method.value, " ", endpoint.content_type.value, " ", endpoint.endpoint);
 					if (endpoint.method == request.method() &&
-						endpoint.endpoint == req_endpoint &&
-						(
-						 request.content_type() == vlib::http::content_type::undefined ||
-						 endpoint.content_type == request.content_type()
-						)
+						endpoint.endpoint == req_endpoint // &&
+						// (
+						//  request.content_type() == vlib::http::content_type::undefined ||
+						//  endpoint.content_type == request.content_type()
+						// )
 					) {
 						
 						SESLOG(4, to_str(
