@@ -12,11 +12,19 @@ Copyright: © 2022 Daan van den Bergh.
 	-mos-box-sizing: border-box;
 	-ms-box-sizing: border-box;
 	
-	/* Hide scrollbar. */
+	/* Hide scrollbar. 
 	-webkit-scrollbar::display: none;
 	-ms-overflow-style: none;
 	scrollbar-width: none;
+	*/
 	
+}
+
+/* Hide the scrollbar */
+.hide_scrollbar:-webkit-scrollbar {
+	-webkit-scrollbar::display: none;
+	-ms-overflow-style: none;
+	scrollbar-width: none;
 }
 
 /* Ring loader keyframe. */

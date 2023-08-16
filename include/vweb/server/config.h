@@ -24,24 +24,24 @@ namespace server {
  *      Website server config.
  } */
 struct Config {
-	String  ip;                 		// webserver ip.
-	Int     port = -1;          		// webserver port.
-	Path  	cert;               		// path to the certificate.
-	Path  	key;                		// path to the certificate key.
-	String  pass;               		// the password of the certificate.
-	Path  	ca_bundle;          		// path to the ca bundle (optional).
-	Path    source;	            		// path to root directory (automatically assigned).
-	Path    statics;            		// path to static directory.
-	Path    database;           		// path to database.
-	Bool    enable_2fa = true;  		// 2FA required after sign up to activate account and after sign in.
-	Int     keep_alive = 5;     		// keep alive for idle connections in seconds.
-	Int     max_connections = 10000;	// max simultaneous connections.
-	Int     max_threads = 25;   		// max serve clients threads.
-	Int     log_level = 1;      		// log level [0...2].
-	String  domain_name;        		// domain name, e.g. "VInc".
-	String  domain;             		// domain url, e.g. "vandenberghinc.com".
-	String	stripe_secret_key;			// stripe secret key.
-	String	stripe_publishable_key;		// stripe publishable key.
+	String  	ip;                 		// webserver ip.
+	Int     	port = -1;          		// webserver port.
+	Path  		cert;               		// path to the certificate.
+	Path  		key;                		// path to the certificate key.
+	String  	pass;               		// the password of the certificate.
+	Path  		ca_bundle;          		// path to the ca bundle (optional).
+	Path    	source;	            		// path to root directory (automatically assigned).
+	Array<Path>	statics;            		// path to static directory.
+	Path    	database;           		// path to database.
+	Bool    	enable_2fa = true;  		// 2FA required after sign up to activate account and after sign in.
+	Int     	keep_alive = 5;     		// keep alive for idle connections in seconds.
+	Int     	max_connections = 10000;	// max simultaneous connections.
+	Int     	max_threads = 25;   		// max serve clients threads.
+	Int     	log_level = 1;      		// log level [0...2].
+	String  	domain_name;        		// domain name, e.g. "VInc".
+	String  	domain;             		// domain url, e.g. "vandenberghinc.com".
+	String		stripe_secret_key;			// stripe secret key.
+	String		stripe_publishable_key;		// stripe publishable key.
 	
 	Array<Stripe::Product> stripe_products;	// stripe products.
 	vlib::smtp::Client::ConstructArgs smtp; 	// the smtp client args.
@@ -218,6 +218,10 @@ struct Config {
 				.interval_count = j["interval_count"].as<Int>(),
 			});
 		}
+		Array<Path> statics;
+		for (auto& i: server["static"].asa()) {
+			statics.append(i.ass().replace_r("$BASE", base));
+		}
 		return {
 			.ip = server["ip"].ass(),
 			.port = server["port"].asi(),
@@ -226,7 +230,7 @@ struct Config {
 			.pass = tls["pass"].ass(),
 			.ca_bundle = tls["ca_bundle"].ass().replace_r("$BASE", base),
 			.source = base,
-			.statics = server["static"].ass().replace_r("$BASE", base),
+			.statics = statics,
 			.database = server["database"].ass().replace_r("$BASE", base),
 			.enable_2fa = server["enable_2fa"].asb(),
 			.keep_alive = server["keep_alive"].asi(),

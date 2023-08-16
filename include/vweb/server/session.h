@@ -146,7 +146,7 @@ public:
 #endif
 			
 			// Reset.
-			SESLOG(0, "Resetting.");
+			SESLOG(3, "Resetting.");
 			reset();
 			
 		}

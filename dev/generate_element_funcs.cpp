@@ -541,6 +541,9 @@ int main() {
 	"wrap 	<textarea> 	Specifies how the text in a text area is to be wrapped when submitted in a form" "\n"
 	;
 	
+	attributes_references += ""
+	"onbeforeinput 	Script to be run before input" "\n";
+	
 	// Reference: https://www.w3schools.com/tags/ref_eventattributes.asp
 	String events_reference =
 	"onafterprint 	script 	Script to be run after the document is printed" "\n"
@@ -689,6 +692,7 @@ int main() {
 		"onvolumechange",
 		"onwaiting",
 		"ontoggle",
+		"onbeforeinput",
 	};
 	
 	// Names to convert from joined to joiner by _.
@@ -782,6 +786,7 @@ int main() {
 		{"usemap", "use_map"},
 		{"zindex", "z_index"},
 		{"onmessage", "on_message"},
+		{"onbeforeinput", "on_before_input"},
 		// {"async", "_async"},
 		// {"class", "class_name"},
 		// {"for", "_for"},
@@ -828,6 +833,9 @@ int main() {
 		"_top",
 		"_height",
 		"_size",
+	};
+	Array<String> exclude_pad_numeric {
+		"tab_size",
 	};
 	
 	// Platform specific css attributes.
@@ -883,6 +891,7 @@ int main() {
 		"transition-property",
 		"transition-timing-function",
 		"user-select",
+		"tab-size",
 	};
 	
 	// Create js.
@@ -939,7 +948,9 @@ int main() {
 			
 			// Padded value.
 			String padded_value = "value";
-			if (pad_numeric_funcs.contains(name)) {
+			if (exclude_pad_numeric.contains(name)) {
+				// skip.
+			} else if (pad_numeric_funcs.contains(name)) {
 				padded_value = "this.pad_numeric(value)";
 			} else {
 				for (auto& i: pad_numeric_funcs_eq_last) {
@@ -1054,7 +1065,9 @@ int main() {
 		
 		// Padded value.
 		String padded_value = "value";
-		if (pad_numeric_funcs.contains(converted_name)) {
+		if (exclude_pad_numeric.contains(converted_name)) {
+			// skip.
+		} else if (pad_numeric_funcs.contains(converted_name)) {
 			padded_value = "this.pad_numeric(value)";
 		} else {
 			for (auto& i: pad_numeric_funcs_eq_last) {

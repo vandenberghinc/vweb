@@ -63,6 +63,46 @@ class CodeBlockElement extends CreateVElementClass({
 
 }
 
+// CodePre.
+@vweb_constructor_wrapper
+@vweb_register_element
+class CodePreElement extends CreateVElementClass({
+	type: "CodePre",
+	tag: "pre",
+	default_style: {
+		"margin": "0px 0px 0px 0px",
+		"padding": "15px 20px 15px 20px",
+		"color": "inherit",
+		"text-align": "start",
+		"white-space": "wrap",
+		"font-family": "'Menlo', 'Consolas', monospace",
+		"font-size": "13px",
+		"font-weight": "500",
+		"line-height": "18px",
+		"border-radius": "15px",
+		"color": "#FFFFFF",
+		"background": "#262F3D",
+	},
+}) {
+	
+	// Constructor.
+	constructor(code) {
+		
+		// Initialize base class.
+		super();
+
+		// Set code.
+		if (code != null) {
+			while (code.length > 0 && code[code.length - 1] == "\n") {
+				code = code.slice(-code.length, -1);
+			}
+			this.text(code.replaceAll("<", "&lt;").replaceAll(">", "&gt;"));
+		}
+
+	}
+
+}
+
 // CodeLine.
 @vweb_constructor_wrapper
 @vweb_register_element

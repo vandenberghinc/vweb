@@ -10,13 +10,13 @@ class HStackElement extends CreateVElementClass({
 	type: "HStack",
 	tag: "div",
 	default_style: {
-		"position": "relative",
+		// "position": "relative",
 		"margin": "0px",
 		"padding": "0px",
-		"clear": "both",
+		// "clear": "both",
 		"overflow-x": "visible",
 		"overflow-y": "visible",
-		"text-align": "start",
+		// "text-align": "start",
 		"display": "flex",
 		"flex-direction": "row",
 		"align-items": "flex-start", // disable the auto extending of the childs height to the max child height.

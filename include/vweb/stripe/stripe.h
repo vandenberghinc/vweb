@@ -111,6 +111,8 @@ struct Stripe {
 	// ---------------------------------------------------------
 	// Attributes.
 	
+	String 			m_secret_key;
+	String 			m_publishable_key;
 	Client			m_client;
 	Array<Product> 	m_products;
 	
@@ -118,20 +120,45 @@ struct Stripe {
 	// Constructor.
 	
 	// Default constructor.
-	constexpr Stripe() = default;
-	
-	// Constructor.
-	constexpr Stripe(const String& api_key) :
+	constexpr Stripe() :
 	m_client({
 		.host = "https://api.stripe.com",
 		.sni = "api.stripe.com",
 		.headers = {
 			{"Host", "api.stripe.com"},
-			{"Authorization", to_str("Bearer ", api_key)},
 		},
 		.query = true,
 	})
 	{}
+	
+	// Constructor.
+	constexpr Stripe(const String& secret_key, const String& publishable_key) :
+	m_secret_key(secret_key),
+	m_publishable_key(publishable_key),
+	m_client({
+		.host = "https://api.stripe.com",
+		.sni = "api.stripe.com",
+		.headers = {
+			{"Host", "api.stripe.com"},
+			{"Authorization", to_str("Bearer ", secret_key)},
+		},
+		.query = true,
+	})
+	{}
+	
+	// Assign.
+	constexpr
+	void	assign(const String& secret_key, const String& publishable_key) {
+		m_secret_key = secret_key,
+		m_publishable_key = publishable_key,
+		m_client.m_headers["Authorization"] = to_str("Bearer ", secret_key);
+	}
+	
+	// Is defined.
+	constexpr bool is_defined() { return m_secret_key.is_defined(); }
+	
+	// Is undefined.
+	constexpr bool is_undefined() { return m_secret_key.is_undefined(); }
 	
 	// ---------------------------------------------------------
 	// Utils.
@@ -158,8 +185,8 @@ struct Stripe {
 			if ((index = json.find("error", 5)) != NPos::npos) {
 				Json& error = json.value(index).asj();
 				if ((index = error.find("message", 7)) != NPos::npos) {
-					print(error.value(index).ass(), '.');
-					throw StripeError(error.value(index).ass(), '.');
+					print(error.value(index).ass().ensure_end_padding_r('.', 1));
+					throw StripeError(error.value(index).ass().ensure_end_padding_r('.', 1));
 				}
 			}
 		}
@@ -168,6 +195,11 @@ struct Stripe {
 	
 	// ---------------------------------------------------------
 	// Products.
+	
+	// Get the stripe products array.
+	// Should be assigned with all products.
+	constexpr auto& products() { return m_products; }
+	constexpr auto& products() const { return m_products; }
 	
 	// Create a product.
 	// Required for all subscriptions and products.
@@ -193,6 +225,9 @@ struct Stripe {
 	// - Checks if the products array also exists in stripe.
 	// - The id's should be assigned or an exception will be thrown.
 	//   The id's should be unique accross your entire stripe account.
+	void	check_products() {
+		check_products(m_products);
+	}
 	void	check_products(const Array<Product>& products) {
 		Array<Product> current_products = fetch_products();
 		for (auto& product: products) {
@@ -276,7 +311,9 @@ struct Stripe {
 		// Expand the price objects and fill the products array.
 		for (auto& product: products) {
 			if (product.price_id.is_undefined()) {
-				throw StripeError("Price id is undefined.");
+				// Some products no longer have a price object, for example archived products.
+				continue;
+				// throw StripeError("Price id is undefined.");
 			}
 			Json price = request(vlib::http::method::get, to_str("/v1/prices/", product.price_id)).json();
 			JsonValue& val = price.value("currency", 8);
@@ -426,7 +463,8 @@ struct Stripe {
 		const PaymentMethod& 	payment_method,
 		const String& 			description,
 		const Float& 			price,
-		const String& 			currency
+		const String& 			currency,
+		const String& 			return_url
 	) {
 		
 		// Check id.
@@ -436,13 +474,16 @@ struct Stripe {
 		
 		// Make request.
 		String body;
-		body << "amount=" << price / 100 <<
+		body << "amount=" << Int(price.round(2) * 100) <<
 		"&currency=" << currency <<
 		"&description=" << description <<
 		"&customer=" << customer_id <<
 		"&payment_method=" << payment_method.id <<
+		"&payment_method_types[0]=" << payment_method.type <<
+		"&return_url=" << return_url <<
 		"&confirm=true";
 		Json response = request(vlib::http::method::post, "/v1/payment_intents", body).json();
+		print("PAYMENT INTENT: ", response.dump());
 		
 		// Fetch id.
 		ullong index;
@@ -453,9 +494,10 @@ struct Stripe {
 		
 	}
 	String	charge_payment_intent(
-		const String& customer_id,
-		const PaymentMethod& payment_method,
-		const String& product_id
+		const String& 			customer_id,
+		const PaymentMethod& 	payment_method,
+		const String& 			product_id,
+		const String& 			return_url
 	) {
 		Product* product = NULL;
 		for (auto& i: m_products) {
@@ -472,7 +514,8 @@ struct Stripe {
 			payment_method,
 			product->description,
 			product->price,
-			product->currency
+			product->currency,
+			return_url
 		);
 	}
 	
@@ -494,7 +537,8 @@ struct Stripe {
 	Json	charge(
 		const String& 		 	customer_id,
 		const PaymentMethod& 	payment_method,
-		const Array<String>& 	product_ids
+		const Array<String>& 	product_ids,
+		const String& 			return_url
 	) {
 		
 		// Zero products.
@@ -547,7 +591,8 @@ struct Stripe {
 				payment_method,
 				"",
 				one_off_price,
-				currency
+				currency,
+				return_url
 			);
 		}
 		

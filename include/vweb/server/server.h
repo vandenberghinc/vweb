@@ -588,7 +588,6 @@ private:
 		
 		// Append.
 		m_endpoints.append(vlib::move(endpoint.initialize()));
-		
 	}
 	
 	// Create default endpoints.
@@ -598,21 +597,31 @@ private:
 		// Static files.
 		
 		// Add vweb static files.
+        JArray products;
+        for (auto& i: config.stripe_products) {
+            products.append(i.json());
+        }
 		Path include_base = Path(__FILE__).base(2);
-		Array<vlib::Pack<String, String, Path>> packs = {
-			{"text/css", "/vweb/vweb.css", include_base.join("ui/css/vweb.css")},
-			{"text/css", "/vweb/vhighlight.css", include_base.join("ui/css/vhighlight.css")},
-			{"application/javascript", "/vweb/vweb.js", include_base.join("ui/js/vweb.js")},
+		Array<vlib::Pack<String, String, Path, Json>> packs = {
+			{"text/css", "/vweb/vweb.css", include_base.join("ui/css/vweb.css"), {}},
+			{"text/css", "/vweb/vhighlight.css", include_base.join("ui/css/vhighlight.css"), {}},
+			{"application/javascript", "/vweb/vweb.js", include_base.join("ui/js/vweb.js"), {
+                {"STRIPE_PUBLISHABLE_KEY", config.stripe_publishable_key},
+                {"STRIPE_PRODUCTS", products},
+            }},
 			
 			// Deprecated.
 			// {"application/javascript", "/vweb/pre_js.js", include_base.join("html/pre_js.js")},
 			// {"application/javascript", "/vweb/post_js.js", include_base.join("html/post_js.js")},
 		};
-		for (auto& [content_type, endpoint, full_path]: packs) {
+		for (auto& [content_type, endpoint, full_path, templates]: packs) {
 			Code data = full_path.load();
 			if (endpoint == "/vweb/vweb.js") {
 				fill_vweb_decorators(data, full_path);
 			}
+            for (auto& [key, value]: templates.iterate()) {
+                data.replace_r(*key, value->str());
+            }
 			add_endpoint_h({
 				.method = "GET",
 				.endpoint = endpoint,
@@ -1128,7 +1137,6 @@ private:
 				.duration = 60,
 			},
 			.callback = [](Server& server, const Len& uid, const Json& params) {
-				print("GET!");
 				vlib::http::Response response;
 				String *path;
 				if (!vweb::get_param(response, params, path, "path", 4)) {
@@ -1169,9 +1177,9 @@ private:
 		});
 		
 		// ---------------------------------------------------------
-		// Default user endpoints.
+		// Default charge endpoints.
 		
-		// Get user.
+		// Charge.
 		add_endpoint_h({
 			.method = "POST",
 			.endpoint = "/backend/payments/charge",
@@ -1186,19 +1194,69 @@ private:
 				vlib::http::Response response;
 				
 				// Get params.
+                String *return_url = NULL, *payment_type = NULL, *card_number = NULL;
+                Int *card_exp_month = NULL, *card_exp_year = NULL, *card_cvc = NULL;
 				JArray *products = NULL; // array with product ids.
-				if (!vweb::get_param(response, params, products, "products", 8)) {
+
+                // Required params.
+				if (!vweb::get_param(response, params, products, "products", 8) ||
+                    !vweb::get_param(response, params, return_url, "return_url", 10) ||
+                    !vweb::get_param(response, params, payment_type, "payment_type", 12)
+                ) {
 					return response;
 				}
+
+                // Optional params when payment method is card.
+                if (
+                    payment_type->eq("card", 4) &&
+                    (
+                        !vweb::get_param(response, params, card_number, "card_number", 11)// ||
+                        // !vweb::get_param(response, params, card_exp_month, "card_exp_month", 14) ||
+                        // !vweb::get_param(response, params, card_exp_year, "card_exp_year", 13) ||
+                        // !vweb::get_param(response, params, card_cvc, "card_cvc", 8)
+                    )
+                ) {
+                    return response;
+                }
+
+                // Get product ids.
+                Array<String> product_ids;
+                for (auto& i: *products) {
+                    if (!i.iss()) {
+                        return server.error(vlib::http::status::bad_request, "The product ids should be an array with strings.");
+                    }
+                    product_ids.append(move(i.ass()));
+                }
+
+                // Get / create customer id.
+                String customer_id;
+                if (uid == NPos::npos) {
+                    customer_id = server.stripe.create_customer();
+                } else {
+                    return server.error(vlib::http::status::bad_request, "TODO fetch customer id."); // @TODO
+                }
+
+                // Create payment method.
+                Stripe::PaymentMethod payment_method = server.stripe.create_payment_method(
+                    *payment_type,
+                    *card_number,
+                    *card_exp_month,
+                    *card_exp_year,
+                    *card_cvc
+                );
 				
 				// Success.
 				return server.response(
 					vlib::http::status::success,
-					server.get_user(uid).json()
+					server.stripe.charge(
+                        customer_id,
+                        payment_method,
+                        product_ids,
+                        *return_url
+                    )
 				);
 			}
-		});
-		
+		});	
 	}
 	
 	// Get content type from file extension.
@@ -1315,6 +1373,8 @@ private:
 	}
 	
 	// Fill js decorators like "@vweb_constructor_wrapper".
+	public:
+	static
 	void	fill_vweb_decorators(Code& data, const Path& path) {
 		
 		// Util func.
@@ -1456,11 +1516,11 @@ private:
 				++pos;
 			}
 		}
-		
 	}
+	private:
 	
 	// Create static endpoints.
-	void    create_static_endpoints(const Path& path, const Bool& js_views = false) {
+	void    create_static_endpoints(const Path& base, const Path& path) {
 		if (!path.exists()) { return ; }
 		
 		// Load static files.
@@ -1469,42 +1529,29 @@ private:
 				String content_type = get_content_type(child.extension());
 				String& extension = child.extension();
 				Code data;
-				
-				// Javascript views directory.
-				if (js_views) {
 					
-					// CSS.
-					if (extension == "css") {
-						data = child.load();
+				// Javascript.
+				if (extension == "js") {
+					data = child.load();
+					
+					// Join lines like ["Hello World!" "\n"] to ["Hello World!\n"].
+					data = vlib::JavaScript::join_strings(data);
+					
+					// Fill js vweb decorators.
+					fill_vweb_decorators(data, path);
+					
+					// Trim js.
+					if (vweb_production) {
+						data = vlib::JavaScript::trim(data, {
+							.newlines = true,
+							.double_newlines = false,
+							.whitespace = false,
+							.comments = false,
+						});
 					}
-					
-					// Javascript.
-					else if (extension == "js") {
-						data = child.load();
-						
-						// Join lines like ["Hello World!" "\n"] to ["Hello World!\n"].
-						data = vlib::JavaScript::join_strings(data);
-						
-						// Fill js vweb decorators.
-						fill_vweb_decorators(data, path);
-						
-						// Trim js.
-						if (vweb_production) {
-							data = vlib::JavaScript::trim(data, {
-								.newlines = true,
-								.double_newlines = false,
-								.whitespace = false,
-								.comments = false,
-							});
-						}
-					}
-					
-					// Skip.
-					else { continue; }
-					
 				}
 				
-				// No js.
+				// Load.
 				else {
 					data = child.load();
 				}
@@ -1512,7 +1559,7 @@ private:
 				// Add.
 				add_endpoint_h({
 					.method = "GET",
-					.endpoint = js_views ? child.abs().slice(config.source.len()) : child.abs().slice(config.statics.len()),
+					.endpoint = child.abs().slice(base.len()),
 					.content_type = content_type,
 					.compress = false,
 					.data = data,
@@ -1523,7 +1570,6 @@ private:
 				});
 			}
 		}
-		
 	}
 	
 	// Create a robots.txt.
@@ -1596,8 +1642,15 @@ public:
     config(config),
     m_smtp(config.smtp),
 	m_backend(config, &(*this)),
-	stripe(config.stripe_secret_key)
-    {}
+	stripe()
+    {
+    
+		// Assign stripe.
+		if (config.stripe_secret_key.is_defined()) {
+			stripe.assign(config.stripe_secret_key, config.stripe_publishable_key);
+		}
+		
+	}
     
     // Public.
 public:
@@ -1646,14 +1699,24 @@ public:
 		m_max_uid = get_max_uid();
 		
 		// Create media endpoints.
+		Array<String> static_names;
 		if (config.statics.is_defined()) {
-			config.statics.abs_r();
-			create_static_endpoints(config.statics);
+			for (auto& i: config.statics) {
+				i.abs_r();
+				static_names.append(i.full_name());
+				create_static_endpoints(i.base(), i);
+			}
 		}
 		
 		// JS views.
-		create_static_endpoints(config.source.join("views"), true);
-		create_static_endpoints(config.source.join("ui"), true);
+		if (static_names.contains("views")) {
+			const Path path = config.source.join("views");
+			create_static_endpoints(path.base(), path);
+		}
+		if (static_names.contains("ui")) {
+			const Path path = config.source.join("ui");
+			create_static_endpoints(path.base(), path);
+		}
 		
 		// Create sitemap when it does not exist.
 		bool found_sitemap = false;
@@ -1680,8 +1743,10 @@ public:
 		}
 		
 		// Stripe.
-		stripe.m_products = config.stripe_products;
-		stripe.check_products(stripe.m_products);
+		if (stripe.is_defined()) {
+			stripe.products() = config.stripe_products;
+			stripe.check_products();
+		}
 		
 	}
     
@@ -2896,6 +2961,35 @@ public:
                         headers,
                         body
                         );
+    }
+
+    // Return a success response.
+    static inline
+    Response success(const Int& status, const String& message) {
+        return Response(
+            vlib::http::version::v1_1,
+            status.value(),
+            {{"message", message}}
+        );
+    }
+    static inline
+    Response success(const Int& status, const String& message, const Json& body) {
+        return Response(
+            vlib::http::version::v1_1,
+            status.value(),
+            {},
+            body.concat(Json{{"message", message}})
+        );
+    }
+
+    // Return an error response.
+    static inline
+    Response error(const Int& status, const String& message) {
+        return Response(
+            vlib::http::version::v1_1,
+            status.value(),
+            {{"error", message}}
+        );
     }
     
     // ---------------------------------------------------------

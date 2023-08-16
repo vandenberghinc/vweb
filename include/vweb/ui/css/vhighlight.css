@@ -38,6 +38,10 @@
 	color: #EE8378;
 	font-weight: bold;
 }
+.token_operator {
+	color: #EE8378;
+	font-weight: bold;
+}
 .token_preprocessor {
 	color: #EE8378;
 }
@@ -68,6 +72,8 @@
 }
 .token_line_number_divider {
 	background: #818C97;
+}
+.token_foldable {
 }
 
 /* Use display block otherwise the code may not show up. */

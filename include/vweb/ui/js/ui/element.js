@@ -467,9 +467,44 @@ function CreateVElementClass({
 		}
 
 		// Remove children.
+		// Do not use `this.inner_html("")` when a scrollbar has been added.
 		remove_children() {
-			while (this.firstChild) {
-				this.removeChild(this.firstChild);
+			// while (this.firstChild) {
+			// 	this.removeChild(this.firstChild);
+			// }
+			if (this.scrollbar) {
+				this.scrollbar.remove_from_target(this);
+			}
+			this.inner_html("");
+			if (this.scrollbar) {
+				this.scrollbar.add_to_target(this);
+			}
+			return this;
+		}
+
+		// Get child by index.
+		child(index) {
+			return this.children[index];
+		}
+
+		// ---------------------------------------------------------
+		// Scrollbar.
+
+		// Add scrollbar.
+		add_scrollbar(scrollbar) {
+			// The ScrollBar element depends on the property name "scrollbar".
+			this.scrollbar = scrollbar;
+			this.scrollbar.add_to_target(this);
+			return this;
+		}
+
+		// Remove scrollbar.
+		// Parameter "scrollbar" is optional.
+		remove_scrollbar(scrollbar = null) {
+			if (scrollbar == null) {
+				this.scrollbar.remove_from_target(this);
+			} else {
+				scrollbar.remove_from_target(this);
 			}
 			return this;
 		}
@@ -547,6 +582,14 @@ function CreateVElementClass({
 		}
 		offset_height() {
 			return this.offsetHeight;
+		}
+
+		// Get the client width and height.
+		client_width() {
+			return this.clientWidth;
+		}
+		client_height() {
+			return this.clientHeight;
 		}
 
 		// Get the x and y offset
@@ -1003,12 +1046,8 @@ function CreateVElementClass({
 
 	    // Specify if the element is hidden.
 	    // Should not be used with an argument, rather use hide() and show().
-	    // When no argument is passed it returns the visibility boolean.
-	    is_hidden(...args) {
-	    	if (args.length === 0) {
-	    		return this.style.display == "none" || typeof this.style.display === "undefined";
-	    	}
-	    	console.error("Function \"hidden()\" should not be used with arguments, use \"hide()\" and \"show()\" instead.");
+	    is_hidden() {
+	    	return this.style.display == "none" || typeof this.style.display === "undefined";
 	    }
 
 	    // Toggle visibility.
@@ -1676,6 +1715,9 @@ function CreateVElementClass({
 		// Only assigned when this is a child element of a specific Element derived class, such as LoaderButton.
 		parent(value) {
 			if (value == null) {
+				if (this.parent_e == null || this.parent_e === undefined) {
+					return this.parentElement;
+				}
 				return this.parent_e;
 			}
 			this.parent_e = value;
@@ -8208,7 +8250,11 @@ function CreateVElementClass({
          } */ 
         tab_size(value) {
             if (value == null) { return this.style.tabSize; }
-            this.style.tabSize = this.pad_numeric(value);
+            this.style.tabSize = value;
+            this.style.msTabSize = value;
+            this.style.webkitTabSize = value;
+            this.style.MozTabSize = value;
+            this.style.OTabSize = value;
             return this;
         }
 
@@ -11437,6 +11483,31 @@ function CreateVElementClass({
             if (callback == null) { return this.oninput; }
         	const e = this;
         	this.oninput = (t) => callback(e, t);
+        	return this;
+        }
+
+        // Script to be run before an element gets user input.
+        /*	@docs: {
+         *	@title: On input
+         *	@description: 
+         *		Script to be run before an element gets user input.
+         *		The equivalent of HTML attribute `onbeforeinput`.
+         *		
+         *		The first parameter of the callback is the `Element` object.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        on_before_input(callback) {
+            if (callback == null) { return this.onbeforeinput; }
+        	const e = this;
+        	this.onbeforeinput = (t) => callback(e, t);
         	return this;
         }
 

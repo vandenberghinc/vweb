@@ -10,16 +10,16 @@ class VStackElement extends CreateVElementClass({
 	type: "VStack",
 	tag: "div",
 	default_style: {
-		"position": "relative",
+		// "position": "relative",
 		"margin": "0px",
 		"padding": "0px",
-		"clear": "both",
+		// "clear": "both",
 		"display": "flex", // to support vertical spacers.
 		"overflow": "visible",
 		// "flex": "1", // disabled to support horizontal spacers in VStacks.
 		"align-content": "flex-start", // align items at start, do not stretch / space when inside HStack.
 		"flex-direction": "column",
-		"text-align": "start",
+		// "text-align": "start",
 	},
 }) {
 	

@@ -2,6 +2,7 @@
 // Copyright: © 2022 Daan van den Bergh.
 
 #include "/Volumes/persistance/private/vinc/vlib/include/vlib/vlib.h"
+#include "../include/vweb/vweb.h"
 
 using namespace vlib::types::shortcuts;
 
@@ -17,7 +18,7 @@ int main() {
 	vinc.join("vhighlight/include/vhighlight/css/vhighlight.css").cp(css.join("vhighlight.css"));
 	
 	// Bundle js dir.
-	vlib::JavaScript::bundle({
+	Code bundled = vlib::JavaScript::bundle({
 		.source = js,
 		.include_order = {
 			"modules/wrapper.js",
@@ -39,7 +40,10 @@ int main() {
 		.double_newlines = false,
 		.whitespace = false,
 		.comments = false,
-	})
-	.save(js.join("vweb.js"));
+	});
+	
+	vweb::Server::fill_vweb_decorators(bundled, "");
+	
+	bundled.save(js.join("vweb.js"));
 	print_marker("Bundled.");
 }

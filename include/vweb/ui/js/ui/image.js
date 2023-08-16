@@ -56,23 +56,26 @@ class ImageMaskElement extends CreateVElementClass({
 				.background("black")
 				.mask("url('" + src + "') no-repeat center/contain")
 		);
+
+		// Set src.
+		this.src(src);
 	}
 
-	// Override background.
-	background(value) {
+	// Image color.
+	mask_color(value) {
 		this.firstChild.style.background = value;
 		return this;
 	}
 
 	// Override src.
 	src(value) {
-		this.firstElementChild.style.mask = "url('" + value + "') no-repeat center/contain";
+		this.firstChild.style.mask = "url('" + value + "') no-repeat center/contain";
 		return this;
 	}
 
 	// Override mask.
 	mask(value) {
-		this.firstElementChild.style.mask = value;
+		this.firstChild.style.mask = value;
 		return this;
 	}
 		

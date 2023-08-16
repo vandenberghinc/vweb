@@ -99,35 +99,35 @@ struct EndpointTemplate {
 		
 		// Callback 1.
 		constexpr
-		void init(CallBack1&& callback) {
+		void init(const CallBack1& callback) {
 			type = 1;
 			callback_1 = callback;
 		}
 		
 		// Callback 2.
 		constexpr
-		void init(CallBack2&& callback) {
+		void init(const CallBack2& callback) {
 			type = 2;
 			callback_2 = callback;
 		}
 		
 		// Callback 3.
 		constexpr
-		void init(CallBack3&& callback) {
+		void init(const CallBack3& callback) {
 			type = 3;
 			callback_3 = callback;
 		}
 		
 		// Callback 4.
 		constexpr
-		void init(CallBack4&& callback) {
+		void init(const CallBack4& callback) {
 			type = 4;
 			callback_4 = callback;
 		}
 		
 		// Callback 5.
 		constexpr
-		void init(CallBack5&& callback) {
+		void init(const CallBack5& callback) {
 			type = 5;
 			callback_5 = callback;
 		}
@@ -141,7 +141,7 @@ struct EndpointTemplate {
 		
 		// Callback 7.
 		constexpr
-		void init(CallBack7&& callback) {
+		void init(const CallBack7& callback) {
 			type = 7;
 			callback_7 = callback;
 		}

@@ -7,7 +7,7 @@
 vweb.payments = {};
 
 // Initialize stripe.
-vweb.payments.stripe = {};
+vweb.payments.stripe = {};//Stripe({{STRIPE_PUBLISHABLE_KEY}});
 
 /* The products.
  * A product object looks like: 
@@ -21,8 +21,8 @@ vweb.payments.stripe = {};
  *     interval: "day",
  *     interval_count: 30,
  * }
-*/
-vweb.payments.products = [];
+ */
+vweb.payments.products = [];//{{STRIPE_PRODUCTS}};
 vweb.payments.selected_products = [];
 
 // Find a product by id.
@@ -73,6 +73,12 @@ vweb.payments.charge = function({
 		url: "/backend/payments/charge",
 		data: {
 			products: product_ids,
+			payment_type: "ideal",
+			card_number: null,
+			card_exp_month: null,
+			card_exp_year: null,
+			card_cvc: null,
+			return_url: return_url,
 		},
 		success: function(status, response) {
 

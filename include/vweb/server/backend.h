@@ -202,23 +202,18 @@ public:
 					
 					// Accept.
 					try {
-						print("ACCEPTING");
 						conn_fd = sock.accept();
-						print("ACCEPTED");
 					} catch(vlib::BrokenPipeError& e) {
-						print("ACCEPT ERR #1");
-						BACKENDLOG(0, "Broken HTTP server pipe, restarting listening socket.");
+						BACKENDLOG(1, "Broken HTTP server pipe, restarting listening socket.");
 						sock.restart();
 						sock.bind();
 						sock.listen();
 						// pfd.fd = sock.fd().value();
 						continue;
 					} catch(vlib::AcceptError& e) {
-						print("ACCEPT ERR #2");
 						e.dump();
 						continue;
 					} catch(vlib::TimeoutError& e) {
-						print("ACCEPT ERR #3");
 						continue;
 					}
 					
@@ -339,7 +334,7 @@ public:
 				// Poll.
 				int ready = ::poll(&pfd, 1, 1000);
 				if (ready < 0) {
-					BACKENDLOG(0, to_str("[Server::accept_https] Poll Error: ", ::strerror(errno)));
+					BACKENDLOG(1, to_str("[Server::accept_https] Poll Error: ", ::strerror(errno)));
 				} else if (ready == 0) {
 					continue;
 				}
@@ -352,7 +347,7 @@ public:
 					try {
 						ctx = sock.accept();
 					} catch(vlib::BrokenPipeError& e) {
-						BACKENDLOG(0, "Broken HTTPS server pipe, restarting listening socket.");
+						BACKENDLOG(1, "Broken HTTPS server pipe, restarting listening socket.");
 						sock.restart();
 						sock.bind();
 						sock.listen();
@@ -413,7 +408,7 @@ public:
 				
 				// Pipe error.
 				else if (pfd.revents & m_poll_err_event) {
-					BACKENDLOG(0, "Broken HTTPS server pipe, restarting listening socket.");
+					BACKENDLOG(1, "Broken HTTPS server pipe, restarting listening socket.");
 					sock.restart();
 					sock.bind();
 					sock.listen();
@@ -488,7 +483,7 @@ public:
 						conn_index = 0;
 						for (auto& conn: m_conns) {
 							if (conn.not_serving && conn.poll_index != 0 && pfds[conn.poll_index].revents & m_poll_err_event) {
-								BACKENDLOG(0, to_str("Closing connection ", conn_index, " by poll err EINTR."));
+								BACKENDLOG(1, to_str("Closing connection ", conn_index, " by poll err EINTR."));
 								close_connection(conn);
 							}
 							++conn_index;
@@ -497,7 +492,7 @@ public:
 					
 					// Real error.
 					else {
-						BACKENDLOG(0, to_str("Poll error [", ::strerror(errno), "]."));
+						BACKENDLOG(1, to_str("Poll error [", ::strerror(errno), "]."));
 					}
 					
 				// No file descriptors ready so skip to next loop.
@@ -519,7 +514,7 @@ public:
 						// Check ssl context and fd.
 						// Sometimes when a session wakes up the ssl context is deallocated.
 						if (conn.ctx == NULL && conn.fd == -1) {
-							BACKENDLOG(0, to_str("Closing connection ", conn_index, " by deallocated connection context."));
+							BACKENDLOG(1, to_str("Closing connection ", conn_index, " by deallocated connection context."));
 							close_connection(conn);
 							continue;
 						}
@@ -529,7 +524,7 @@ public:
 							
 							// Socket has been closed by peer.
 							if ((peek = TCP::peek(conn.fd)) == 0) {
-								BACKENDLOG(0, to_str("Closing connection ", conn_index, " by closed peer."));
+								BACKENDLOG(1, to_str("Closing connection ", conn_index, " by closed peer."));
 								close_connection(conn);
 								continue;
 							}
@@ -538,7 +533,7 @@ public:
 							else if (peek > 0) {
 								conn.not_serving = false;
 								ullong session_index = select_session();
-								BACKENDLOG(0, to_str("Waking thread ", session_index, "."));
+								BACKENDLOG(2, to_str("Waking thread ", session_index, "."));
 								m_sessions[session_index].m_conn = &conn;
 								m_sessions[session_index].wake();
 							}
@@ -547,7 +542,7 @@ public:
 						
 						// Socket closed or broken.
 						else if (pfd.revents & m_poll_err_event) {
-							BACKENDLOG(0, to_str("Closing connection ", conn_index, " by poll err."));
+							BACKENDLOG(1, to_str("Closing connection ", conn_index, " by poll err."));
 							close_connection(conn);
 							continue;
 						}
@@ -556,7 +551,7 @@ public:
 					
 					// Check expiration.
 					if (conn.not_serving && conn.expiration != 0 && seconds >= conn.expiration) {
-						BACKENDLOG(0, to_str("Closing connection ", conn_index, " by keep alive expiration."));
+						BACKENDLOG(1, to_str("Closing connection ", conn_index, " by keep alive expiration."));
 						close_connection(conn);
 						continue;
 					}

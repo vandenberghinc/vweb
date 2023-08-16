@@ -1,31 +1,37 @@
 // Author: Daan van den Bergh
 // Copyright: © 2022 Daan van den Bergh.
 
+// #include "generate_element_funcs.cpp"
+#include "bundle_js.cpp"
+
+/*
 #include "../include/vweb/vweb.h"
 int main() {
 	
-	vweb::Stripe stripe("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");
-	// vweb::Stripe stripe("c2tfdGVzdF9PWTJrc1F2ZnhPR3FGYXhlRlJwNW5UU2MwMFd0T1BPbXBMOg==");
+	// vweb::Stripe stripe("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");
+	vweb::Stripe stripe ("sk_test_OY2ksQvfxOGqFaxeFRp5nTSc00WtOPOmpL");
 	
 	const vweb::Stripe::Product product = {
-		.id = "vdocs_test_product",
+		.id = "vdocs_test_product_1",
 		.name = "Test product",
 		.description = "Test product description.",
 		.currency = "eur",
-		.price = 4.99,
+		.price = 0.5,
 	};
-	const vlib::String customer = "cus_OLUlDhjfdkBlYt";
 	const vweb::Stripe::PaymentMethod payment_method {
 		.type = "ideal",
 	};
+	// const vlib::String customer = "cus_OLUlDhjfdkBlYt"; // live.
+	const vlib::String customer = "cus_OLqFAhvjpsg4TE"; // test.
 	
-	stripe.charge(customer, payment_method, {product.id});
+	stripe.products() = {product};
+	stripe.check_products();
+	vlib::Json response = stripe.charge(customer, payment_method, {product.id}, "https://mywebsite.com/checkout/success");
+	print(response.dump());
 	
 	// stripe.check_products({product});
 }
-
-// #include "generate_element_funcs.cpp"
-// #include "bundle_js.cpp"
+*/
 
 // #include "../files/hello_world/start.cpp"
 // #include "../main/vweb.cpp"

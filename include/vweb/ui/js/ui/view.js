@@ -21,7 +21,7 @@ class ViewElement extends CreateVElementClass({
 		"overflow-y": "none",
 		"background": "none",
 		"display": "flex", // to support vertical spacers.
-		"text-align": "start",
+		// "text-align": "start",
 		"align-content": "flex-start", // align items at start, do not stretch / space when inside HStack.
 		"flex-direction": "column",
 	},

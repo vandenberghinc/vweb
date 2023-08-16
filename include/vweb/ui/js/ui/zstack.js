@@ -10,11 +10,11 @@ class ZStackElement extends CreateVElementClass({
 	type: "ZStack",
 	tag: "div",
 	default_style: {
-		"position": "relative",
+		// "position": "relative",
 		"margin": "0px",
 		"padding": "0px",
 		"display": "grid",
-		"text-align": "start",
+		// "text-align": "start",
 	},
 }) {
 	
