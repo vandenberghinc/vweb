@@ -8,8 +8,8 @@
 #include "../include/vweb/vweb.h"
 int main() {
 	
-	// vweb::Stripe stripe("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");
-	vweb::Stripe stripe ("sk_test_OY2ksQvfxOGqFaxeFRp5nTSc00WtOPOmpL");
+	// vweb::Stripe stripe("XXX");
+	vweb::Stripe stripe ("XXX");
 	
 	const vweb::Stripe::Product product = {
 		.id = "vdocs_test_product_1",
