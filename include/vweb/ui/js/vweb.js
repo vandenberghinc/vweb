@@ -770,8 +770,10 @@ break;
 default:
 if(value==true){
 this.style.textWrap="wrap";
+this.style.overflowWrap="break-word";
 }else if(value==false){
 this.style.textWrap="nowrap";
+this.style.overflowWrap="normal";
 }else{
 this.style.textWrap=value;
 }
@@ -1309,11 +1311,7 @@ Type.default_style=this.styles();
 return this;
 }
 assign(name,value){
-if(vweb.utils.is_func(value)){
-E.prototype[name]=value;
-}else{
-Object.defineProperty(E.prototype,name,{value});
-}
+this[name]=value;
 return this;
 }
 extend(obj){
@@ -4925,6 +4923,20 @@ this.query+="(max-width: "+value+")";
 return this;
 }
 }
+
+
+class SpanElement extends CreateVElementClass({
+type:"Span",
+tag:"span",
+default_style:{},
+}){
+constructor(inner_html){
+super();
+this.inner_html(inner_html);
+}
+}
+vweb.elements.register(SpanElement);
+function Span(...args){return new SpanElement(...args);}
 
 
 class ButtonElement extends CreateVElementClass({

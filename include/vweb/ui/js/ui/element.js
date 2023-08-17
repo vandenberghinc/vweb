@@ -739,8 +739,10 @@ function CreateVElementClass({
 				default:
 				if (value == true) {
 					this.style.textWrap = "wrap";
+					this.style.overflowWrap = "break-word";
 				} else if (value == false) {
 					this.style.textWrap = "nowrap";
+					this.style.overflowWrap = "normal";
 				} else {
 					this.style.textWrap = value;
 				}
@@ -1691,11 +1693,13 @@ function CreateVElementClass({
 		// Assign a function or property.
 		// You must use function syntax "function() {}" not "() => {}".
 		assign(name, value) {
-			if (vweb.utils.is_func(value)) {
-				E.prototype[name] = value;
-			} else {
-				Object.defineProperty(E.prototype, name, { value });
-			}
+			this[name] = value;
+			// This below does not always work somehow.
+			// if (vweb.utils.is_func(value)) {
+			// 	E.prototype[name] = value;
+			// } else {
+			// 	Object.defineProperty(E.prototype, name, { value });
+			// }
 			return this;
 		}
 
