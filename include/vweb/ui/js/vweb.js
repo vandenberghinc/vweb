@@ -4499,7 +4499,7 @@ default_style:{
 "margin":"0px",
 "padding":"0px",
 "display":"flex","overflow":"visible",
-"align-content":"flex-start","flex-direction":"column",
+"align-content":"flex-start","align-items":"flex-start","flex-direction":"column",
 },
 }){
 constructor(...children){
