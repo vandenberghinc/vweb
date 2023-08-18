@@ -15,7 +15,7 @@ if(delay==null){
 delay=25;
 }
 if(code!=null){
-let res;
+let res=null;
 if(language=="cpp"||language=="c++"||language=="c"){
 res=vhighlight.cpp.highlight(code,{is_func:is_func,vide:vide});
 }else if(language=="markdown"||language=="md"){

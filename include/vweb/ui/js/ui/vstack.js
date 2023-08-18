@@ -18,7 +18,7 @@ class VStackElement extends CreateVElementClass({
 		"overflow": "visible",
 		// "flex": "1", // disabled to support horizontal spacers in VStacks.
 		"align-content": "flex-start", // align items at start, do not stretch / space when inside HStack.
-		"align-items": "flex-start", // otherwise the children automatically expand width to match the vstacks width then the vstack has a flex enabled (inside a hstack).
+		// "align-items": "flex-start", // otherwise the children automatically expand width to match the vstacks width.
 		"flex-direction": "column",
 		// "text-align": "start",
 	},

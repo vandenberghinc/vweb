@@ -24,7 +24,7 @@ class ForEachElement extends CreateVElementClass({
 		
 		// Iterate.
 		for (let i = 0; i < items.length; i++) {
-			this.append(func(items[i]));
+			this.append(func(items[i], i));
 		}
 		
 	}
