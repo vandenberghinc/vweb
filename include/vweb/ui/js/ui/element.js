@@ -289,6 +289,9 @@ function CreateVElementClass({
 				this.events(E.default_events);
 			}
 
+			// Rename some funcs.
+			this.remove_focus = super.blur;
+
 		}
 		
 		// ---------------------------------------------------------
@@ -1537,14 +1540,23 @@ function CreateVElementClass({
          *	}: 
          *	@inherit: false
          } */ 
-        on_scroll({callback, delay = 25}) {
-            if (callback == null) { return this.onscroll; }
-            let timer;
-        	const e = this;
-        	this.onscroll = function(t) {
-        		clearTimeout(timer);
-        		setTimeout(() => callback(e, t), delay);
-        	}
+        on_scroll(opts_or_callback = {callback: null, delay: null}) {
+            if (opts_or_callback == null) { return this.onscroll; }
+            if (vweb.utils.is_func(opts_or_callback)) {
+            	const e = this;
+            	this.onscroll = (event) = opts_or_callback(e, event);
+            } else {
+	        	if (opts_or_callback.delay == null) {
+	        		this.onscroll = opts_or_callback.callback;
+	        	} else {
+	        		let timer;
+	        		const e = this;
+	        		this.onscroll = function(t) {
+	        			clearTimeout(timer);
+	        			setTimeout(() => opts_or_callback.callback(e, t), delay);
+		        	}
+	        	}
+	        }
         	return this;
         }
 
@@ -1712,6 +1724,25 @@ function CreateVElementClass({
 			return this;
 		}
 
+		// Selec the contents of the object.
+		select(overwrite = true) {
+			if (super.select != undefined) {
+				super.select();
+				return this;
+			}
+			this.focus();
+			const range = document.createRange();
+			range.selectNodeContents(this);
+			const selection = window.getSelection();
+			if (overwrite) {
+				selection.removeAllRanges();
+			}
+			selection.addRange(range);
+			console.log(range);
+			console.log(selection);
+			return this;
+		}
+
 		// ---------------------------------------------------------
 		// Custom functions for some derived classes.
 
@@ -1735,8 +1766,6 @@ function CreateVElementClass({
 		toString() {
 			return this.outerHTML;
 		}
-
-        
 
         // ---------------------------------------------------------
         // Automatically generated CSS functions. 

@@ -7,6 +7,8 @@
 using namespace vlib::types::shortcuts;
 
 int main() {
+	// String cause_err = ""
+	// String cause_err = ""
 	
 	// Vars.
 	Path js = Path(__FILE__).base(2).join("include/vweb/ui/js");

@@ -5,3 +5,6 @@
 
 // VWeb module.
 const vweb = {}
+
+// Exports for the bundles files.
+module.exports = vweb;

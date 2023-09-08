@@ -209,7 +209,7 @@ class SelectOptionInputElement extends CreateVElementClass({
 }) {
 	
 	// Constructor.
-	constructor(placeholder) {
+	constructor() {
 		
 		// Initialize base class.
 		super();
@@ -217,11 +217,12 @@ class SelectOptionInputElement extends CreateVElementClass({
 		// Add children.
 		for (let i = 0; i < arguments.length; i++) {
 			let e = document.createElement("option");
+			e.style.font = "inherit";
+			e.value = arguments[i];
+			e.textContent = arguments[i];
 			if (i == 0) {
 				e.selected = true;
-				e.disabled = true;
-			} else {
-				e.value = arguments[i];
+				// e.disabled = true;
 			}
 			this.append(e);
 		}

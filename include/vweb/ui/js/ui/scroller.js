@@ -16,7 +16,7 @@ class ScrollerElement extends CreateVElementClass({
         "padding": "0px",
         // "clear": "both",
         "display": "flex", // to support vertical spacers.
-        "overflow": "visible",
+        "overflow": "hidden",
         // "flex": "1", // disabled to support horizontal spacers in VStacks.
         "align-content": "flex-start", // align items at start, do not stretch / space when inside HStack.
         "flex-direction": "column",
@@ -41,6 +41,7 @@ class ScrollerElement extends CreateVElementClass({
         if (this.position() != "absolute") {
         	this.position("relative"); // is required for attribute "track" 
         }
+        super.overflow("hidden"); // should always be hidden to enable scrolling, and otherwise the thumb not be visible due to overflow width.
 
         // Content.
         this.content = VStack(...children)
@@ -299,6 +300,36 @@ class ScrollerElement extends CreateVElementClass({
     on_scroll(handler) {
         this.content.addEventListener("scroll", handler);
         return this;
+    }
+    remove_on_scroll(handler) {
+        this.content.removeEventListener("scroll", handler);
+        return this;
+    }
+
+    // Small wrapper to set scroll top without triggering a certain on scroll handler.
+    set_scroll_top_without_event(top, handler) {
+    	this.remove_on_scroll(handler);
+    	this.scroll_top(top);
+    	this.on_scroll(handler);
+    }
+
+    // Small wrapper to set scroll left without triggering a certain on scroll handler.
+    set_scroll_left_without_event(left, handler) {
+    	this.remove_on_scroll(handler);
+    	this.scroll_left(left);
+    	this.on_scroll(handler);
+    }
+
+    // Small wrapper to set scroll top / left without triggering a certain on scroll handler.
+    set_scroll_position_without_event(top = null, left = null, handler) {
+    	this.remove_on_scroll(handler);
+    	if (top != null) {
+    		this.scroll_top(top);
+    	}
+    	if (left != null) {
+    		this.scroll_left(left);
+    	}
+    	this.on_scroll(handler);
     }
     
 }
