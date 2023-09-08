@@ -434,7 +434,7 @@ return value+padding;
 return value;
 }
 pad_percentage(value,padding="%"){
-if(vweb.utils.is_float(value)&&value<1.0){
+if(vweb.utils.is_float(value)&&value<=1.0){
 return(value*100)+padding;
 }else if(vweb.utils.is_numeric(value)){
 return value+padding;

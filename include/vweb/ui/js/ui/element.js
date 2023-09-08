@@ -308,7 +308,7 @@ function CreateVElementClass({
 		// Padd a numeric percentage with %.
 		// When the numeric is a float and between 0 and 1 it is also multiplied by 100.
 		pad_percentage(value, padding = "%") {
-			if (vweb.utils.is_float(value) && value < 1.0) {
+			if (vweb.utils.is_float(value) && value <= 1.0) {
 				return (value * 100) + padding;
 			} else if (vweb.utils.is_numeric(value)) {
 				return value + padding;
