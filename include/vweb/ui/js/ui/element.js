@@ -613,6 +613,24 @@ function CreateVElementClass({
 			}
 			return this;
 		}
+		min_frame(width, height) {
+			if (width != null) {
+				this.min_width(width);
+			}
+			if (height != null) {
+				this.min_height(height);
+			}
+			return this;
+		}
+		max_frame(width, height) {
+			if (width != null) {
+				this.max_width(width);
+			}
+			if (height != null) {
+				this.max_height(height);
+			}
+			return this;
+		}
 
 		// Padding, 1 or 4 args.
 		padding(...values) {
