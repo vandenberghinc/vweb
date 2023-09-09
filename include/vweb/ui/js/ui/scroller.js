@@ -66,12 +66,13 @@ class ScrollerElement extends CreateVElementClass({
             .box_shadow("0px 0px 5px #00000020")
         this.track = VStack(this.thumb)
             .parent(this)
-            .position(0, 2.5, 0, null)
+            .position(5, 5, 5, null)
             .width(10)
             .background_color("transparent")
             .border_radius(10)
             .transition("background-color 0.3s linear")
             .assign("background_value", "#28292E")
+            .overflow("visible")
 
         // Add children.
         super.append(this.content, this.track);
@@ -97,6 +98,9 @@ class ScrollerElement extends CreateVElementClass({
 
         // Mouse enter event.
         this.track.addEventListener("mouseenter", (event) => {
+            if (!this.is_scrollable()) {
+                return null;
+            }
             this.track.style.backgroundColor = this.track.__background_value__;
             clearTimeout(this.fadeout_timeout);
             this.thumb.style.opacity = 1; // keep as opacity for box shadow.
@@ -104,6 +108,9 @@ class ScrollerElement extends CreateVElementClass({
 
         // Mouse leave event.
         this.track.addEventListener("mouseleave", (event) => {
+            if (!this.is_scrollable()) {
+                return null;
+            }
             if (!this.thumb.dragging) {
                 this.track.style.backgroundColor = "transparent";
                 this.thumb.style.opacity = 0; // keep as opacity for box shadow.
@@ -114,17 +121,18 @@ class ScrollerElement extends CreateVElementClass({
         this.content.addEventListener("scroll", (event) => {
 
             // Calculate thumb offset.
-            const height = this.content.clientHeight;
+            const height = this.content.clientHeight; 
+            const relative_height = this.track.clientHeight; //this.content.clientHeight;
             const thumb_height = this.thumb.clientHeight;
             const scroll_height = this.content.scrollHeight;
             const scroll_top = this.content.scrollTop;
             let relative_top;
             if (scroll_top >= scroll_height - height) {
-                relative_top = height - thumb_height;
+                relative_top = relative_height - thumb_height;
             } else {
-                relative_top = height * (scroll_top / (scroll_height - height)) - thumb_height / 2;
-                if (relative_top + thumb_height >= height) {
-                    relative_top = height - thumb_height - 3;
+                relative_top = relative_height * (scroll_top / (scroll_height - height)) - thumb_height / 2;
+                if (relative_top + thumb_height >= relative_height) {
+                    relative_top = relative_height - thumb_height - 3;
                 }
             }
             if (relative_top < 0) {
@@ -160,6 +168,11 @@ class ScrollerElement extends CreateVElementClass({
 
         };
         this.thumb.onmousedown = (event) => {
+
+            // Not scrollable.
+            if (!this.is_scrollable()) {
+                return null;
+            }
 
             // Set start y.
             start_y = this.content.getBoundingClientRect().top;
@@ -205,6 +218,11 @@ class ScrollerElement extends CreateVElementClass({
         // Scroll by clicking on the track.
         this.track.onclick = (event) => {
 
+            // Not scrollable.
+            if (!this.is_scrollable()) {
+                return null;
+            }
+
             // Vars.
             const start_y = this.content.getBoundingClientRect().top;
             const y = Math.max(0, event.clientY - start_y);
@@ -222,6 +240,11 @@ class ScrollerElement extends CreateVElementClass({
             this.content.scrollTop = scroll_top; // triggers on scroll which updates the thumb top.
         };
 
+    }
+
+    // Is scrollable.
+    is_scrollable() {
+        return this.content.scrollHeight > this.content.clientHeight || this.content.scrollWidth > this.content.clientWidth;
     }
 
     // Set remove children to content.

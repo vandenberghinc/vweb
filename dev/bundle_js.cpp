@@ -10,6 +10,9 @@ int main() {
 	// String cause_err = ""
 	// String cause_err = ""
 	
+	// Array<Int> x;
+	// auto y = x[0];
+	
 	// Vars.
 	Path js = Path(__FILE__).base(2).join("include/vweb/ui/js");
 	Path css = Path(__FILE__).base(2).join("include/vweb/ui/css");

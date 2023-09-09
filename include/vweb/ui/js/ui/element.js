@@ -812,15 +812,20 @@ function CreateVElementClass({
 			switch (this.element_type) {
 				case "HStack":
 				case "ZStack":
-				this.style.alignItems = value;
-				return this;
+					this.style.alignItems = value;
+					return this;
 				case "VStack":
 				case "Scroller":
-				this.style.justifyContent = value;
-				return this;
+					this.style.justifyContent = value;
+					return this;
+				case "Text":
+					if (this.style.display == null || !this.style.display.includes("flex")) {
+						this.display("flex");
+					}
+					this.style.alignItems = value;
 				default:
-				this.style.textAlign = value;
-				return this;
+					this.style.justifyContent = value;
+					return this;
 			}
 		}
 		leading_vertical() {
