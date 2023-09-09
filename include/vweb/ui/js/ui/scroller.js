@@ -58,7 +58,6 @@ class ScrollerElement extends CreateVElementClass({
             .position(0, 0, null, 0)
             .height(30)
             .border_radius(10)
-            .background("red")
             .overflow("visible") // for thumb shadow.
             .background_color("#CCCCCC")
             .opacity(0)

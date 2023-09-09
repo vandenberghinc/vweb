@@ -4154,7 +4154,6 @@ this.thumb=VStack()
 .position(0,0,null,0)
 .height(30)
 .border_radius(10)
-.background("red")
 .overflow("visible").background_color("#CCCCCC")
 .opacity(0)
 .transition("opacity 0.3s linear")
@@ -4253,7 +4252,6 @@ this.content.clientHeight+
 parseFloat(computed.paddingTop)+
 parseFloat(computed.paddingBottom)
 );
-console.log(event.clientY,y_percentage);
 const scroll_top=Math.round(max_scroll_top*y_percentage);
 this.content.scrollTop=scroll_top;
 }
