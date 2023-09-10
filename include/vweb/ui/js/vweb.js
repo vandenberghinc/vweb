@@ -415,10 +415,6 @@ static default_attributes=default_attributes;
 static default_events=default_events;
 constructor(){
 super();
-if(this.hasAttribute("cloned")){
-console.log("CLONE 1!")
-return undefined;
-}
 this.element_type=type;this.element_display="block";
 if(E.default_style!=null){
 this.styles(E.default_style);
@@ -5361,10 +5357,6 @@ default_style:{
 }){
 constructor(text){
 super();
-if(this.hasAttribute("cloned")){
-console.log("CLONE 2!")
-return undefined;
-}
 this.test_attribute="Hello WOrld!";
 this.inner_html(text);
 }

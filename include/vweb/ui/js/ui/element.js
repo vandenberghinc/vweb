@@ -270,12 +270,6 @@ function CreateVElementClass({
 			// Super base.
 			super();
 
-			// Do nothing is the element is created through "clondeNode()".
-    		if (this.hasAttribute("cloned")) {
-    			console.log("CLONE 1!")
-    			return undefined;
-    		}
-
 			// Attributes.
 			this.element_type = type; // must remain a member attribute.
 			this.element_display = "block";
