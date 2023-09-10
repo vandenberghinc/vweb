@@ -270,6 +270,12 @@ function CreateVElementClass({
 			// Super base.
 			super();
 
+			// Do nothing is the element is created through "clondeNode()".
+    		if (this.hasAttribute("cloned")) {
+    			console.log("CLONE 1!")
+    			return undefined;
+    		}
+
 			// Attributes.
 			this.element_type = type; // must remain a member attribute.
 			this.element_display = "block";
@@ -296,6 +302,83 @@ function CreateVElementClass({
 		
 		// ---------------------------------------------------------
 		// Utils.
+
+		// Clone.
+		// Best to use "clone()" over "cloneNode()" since the "cloneNode()" cloned node may have the default styling applied.
+		// Warning: for now only the frame attributes are set to "auto" when they are not assigned on the original, perhaps some more are required as well.
+		clone(clone_children = true) {
+			// return this.cloneNode(clone_children);
+
+			// Create a new instance of the same class.
+			// const clone = this.cloneNode(false);
+
+			// Create a new instance of the same custom element class
+  			const clone = new this.constructor();
+
+  			// Remove inner html when since some vweb constructors add elements in the constructor.
+  			// And since the target children will also be added none of the constructor elements are required.
+  			if (clone.element_type !== undefined) {
+  				clone.inner_html("");
+  			}
+
+			// Apply computed styles since with cloneNode the styling defined in the constructor will override the cloneNode styling.
+			const styles = window.getComputedStyle(this);
+			clone.style.cssText = Array.from(styles).reduce((str, property) => {
+				return `${str}${property}:${styles.getPropertyValue(property)};`;
+			}, '');
+			// v1.
+			// clone.style.cssText = document.defaultView.getComputedStyle(this, "").cssText;
+			// v2.
+			// const styles = window.getComputedStyle(this);
+			// for (let i = 0; i < styles.length; i++) {
+			// 	const property = styles[i];
+			// 	const value = styles.getPropertyValue(property);
+			// 	clone.style.setProperty(property, value);
+			// }
+
+
+			// Set frame properties.
+			const auto_keys = [
+				"width",
+				"minWidth",
+				"maxWidth",
+				"height",
+				"minHeight",
+				"maxHeight",
+			];
+			for (let i = 0; i < auto_keys.length; i++) {
+				if (this.style[auto_keys[i]] == "auto" || this.style[auto_keys[i]] == "") {
+					clone.style[auto_keys[i]] = "auto";
+				}
+			}
+
+			// Copy attributes and properties from the original element to the clone
+			for (const attr of this.getAttributeNames()) {
+				if (attr != "style") {
+					clone.setAttribute(attr, this.getAttribute(attr));
+				}
+			}
+
+			// Copy properties from the original element to the clone
+			for (const prop in this) {
+				if (this.hasOwnProperty(prop) || typeof this[prop] === "function") {
+					clone[prop] = this[prop];
+				}
+			}
+
+			// Clone children.
+			if (clone_children && this.childNodes != undefined) {
+				for (let i = 0; i < this.childNodes.length; i++) {
+					const child = this.childNodes[i];
+					if (child.element_type === undefined) {
+						clone.appendChild(child.cloneNode(true));
+					} else {
+						clone.appendChild(child.clone());
+					}
+				}
+			}
+			return clone;
+		}
 		
 		// Padd a numeric with px.
 		pad_numeric(value, padding = "px") {
@@ -448,8 +531,15 @@ function CreateVElementClass({
 
 		// Append the children to parent element.
 		append_children_to(parent) {
-			while (this.firstChild) {
-				parent.appendChild(this.firstChild)
+			if (this.element_type == "VirtualScoller") {
+				for (let i = 0; i < parent.children.length; i++) {
+					parent.v_children.push(parent.children[i]);
+				}
+				this.innerHTML = "";
+			} else {
+				while (this.firstChild) {
+					parent.appendChild(this.firstChild)
+				}
 			}
 			return this;
 		}
@@ -472,44 +562,13 @@ function CreateVElementClass({
 		// Remove children.
 		// Do not use `this.inner_html("")` when a scrollbar has been added.
 		remove_children() {
-			// while (this.firstChild) {
-			// 	this.removeChild(this.firstChild);
-			// }
-			if (this.scrollbar) {
-				this.scrollbar.remove_from_target(this);
-			}
 			this.inner_html("");
-			if (this.scrollbar) {
-				this.scrollbar.add_to_target(this);
-			}
 			return this;
 		}
 
 		// Get child by index.
 		child(index) {
 			return this.children[index];
-		}
-
-		// ---------------------------------------------------------
-		// Scrollbar.
-
-		// Add scrollbar.
-		add_scrollbar(scrollbar) {
-			// The ScrollBar element depends on the property name "scrollbar".
-			this.scrollbar = scrollbar;
-			this.scrollbar.add_to_target(this);
-			return this;
-		}
-
-		// Remove scrollbar.
-		// Parameter "scrollbar" is optional.
-		remove_scrollbar(scrollbar = null) {
-			if (scrollbar == null) {
-				this.scrollbar.remove_from_target(this);
-			} else {
-				scrollbar.remove_from_target(this);
-			}
-			return this;
 		}
 
 		// ---------------------------------------------------------
@@ -790,6 +849,7 @@ function CreateVElementClass({
 				return this;
 				case "VStack":
 				case "Scroller":
+				case "VirtualScroller":
 				this.style.alignItems = value;
 				return this;
 				default:
@@ -816,6 +876,7 @@ function CreateVElementClass({
 					return this;
 				case "VStack":
 				case "Scroller":
+				case "VirtualScroller":
 					this.style.justifyContent = value;
 					return this;
 				case "Text":
@@ -1391,9 +1452,7 @@ function CreateVElementClass({
 			}
 
 			// Start.
-			if (this.animate_timeout != null) {
-				clearTimeout(this.animate_timeout);
-			}
+			clearTimeout(this.animate_timeout);
 			this.animate_timeout = setTimeout(() => do_animation(0), delay || 0);
 			return this;
 
@@ -1529,6 +1588,12 @@ function CreateVElementClass({
 
 			return this;
 			*/
+		}
+
+		// Stop the active animation.
+		stop_animation() {
+			clearTimeout(this.animate_timeout);
+			return this;
 		}
 
 		// ---------------------------------------------------------

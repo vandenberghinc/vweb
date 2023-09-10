@@ -8,7 +8,7 @@
 @vweb_constructor_wrapper
 @vweb_register_element
 class ScrollerElement extends CreateVElementClass({
-    type: "ScollerX",
+    type: "Scoller",
     tag: "div",
     default_style: {
         "position": "relative", // is required for attribute "track" 
@@ -356,48 +356,111 @@ class ScrollerElement extends CreateVElementClass({
     
 }
 
-
-/* Scroller.
+/*
+// Scroller.
+// - Warning: Setting padding on element attribute "content" may cause undefined behaviour.
 @vweb_constructor_wrapper
 @vweb_register_element
-class ScrollerElement extends CreateVElementClass({
-	type: "Scoller",
-	tag: "div",
-	default_style: {
-		// "position": "relative",
-		"margin": "0px",
-		"padding": "0px",
-		// "clear": "both",
-		"display": "flex",
-		"overflow": "scroll",
-		"flex-direction": "column",
-		// "text-align": "start",
-		"scroll-behavior": "smooth",
-		"overscroll-behavior": "none", // disable bounces.
-		"height": "fit-content", // set height to max compared to parents non overflow, so scrolling can take effect.
-		"align-content": "flex-start", // align items at start, do not stretch / space when inside HStack.
-		"align-items": "flex-start", // align items at start, do not stretch / space when inside HStack.
-	},
-}) {
-	
-	// Constructor.
-	constructor(...children) {
-		
-		// Initialize base class.
-		super();
+class VirtualScrollerElement extends ScrollerElement {
+    
+    // Constructor.
+    constructor(...children) {
+        
+        // Initialize base class.
+        super();
 
-		// Content.
-		// this.content = VStack()
-		// 	.frame("100%", "100%")
-		// 	.overflow("visible")
+        // Virtual children.
+        this.v_children = [];
 
-		// Scroll bar.
+        // Append children.
+        this.append(...children);
 
-		
-		// Add children.
-		this.append(...children);
-	}
+        // Render.
+        this.render();
 
-	// By default append items to the content.
-	
-}*/
+        // Set scroll event listener.
+        this.content.addEventListener("scroll", () => this.render())
+        // @TODO set_scroll_top_without event wont work with this new scroll event.
+
+    }
+
+    // Render the visible content.
+    render() {
+        const start_y = this.content.scrollTop;
+        const end_y = start_y + this.content.offsetHeight;
+        console.log(start_y, end_y);
+        const fragment = document.createDocumentFragment();
+        let was_visible = true;
+        let total_height = 0;
+        this.v_children.iterate((child) => {
+            const og_visibility = child.style.visibility;
+            child.style.visibility = "hidden";
+            document.body.appendChild(child);
+            const height = child.offsetHeight;
+            document.body.removeChild(child);
+            child.style.visibility = og_visibility;
+
+
+            const child_start_y = total_height;
+            const child_end_y = total_height + height; // Adjust as needed
+            total_height += height;
+
+            console.log("HEIHGT: ", height);
+            console.log(child_start_y, child_end_y);
+            if (child_start_y >= start_y && child_end_y <= end_y) {
+                was_visible = true;
+                fragment.appendChild(child);
+            } else if (was_visible && child_start_y >= start_y) {
+                was_visible = false;
+                fragment.appendChild(child);
+            } else if (child_end_y > end_y) {
+                return false;
+            }
+        })
+        this.content.inner_html("");
+        this.content.appendChild(fragment);
+        return this;
+    }
+
+    // Custom append function.
+    append(...children) {
+        for (let i = 0; i < children.length; i++) {
+            const child = children[i];
+            if (child != null) {
+
+                // VWeb element.
+                if (child.element_type != null) {
+                    if (
+                        child.element_type == "ForEach" ||
+                        child.element_type == "If" ||
+                        child.element_type == "IfDeviceWith"
+                    ) {
+                        child.append_children_to(this);
+                    } else {
+                        this.v_children.push(child);
+                    }
+                }
+
+                // Execute function.
+                else if (vweb.utils.is_func(child)) {
+                    this.append(child());
+                }
+
+                // Node element.
+                else if (child instanceof Node) {
+                    this.v_children.push(child);
+                }
+
+                // Append text.
+                else if (vweb.utils.is_string(child)) {
+                    this.v_children.push(document.createTextNode(child));   
+                }
+            }
+        }
+        // this.v_children.iterate((node) => {
+        //     super.append(node);
+        // })
+        return this;
+    }
+}
+*/

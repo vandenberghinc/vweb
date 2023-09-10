@@ -25,6 +25,15 @@ class TextElement extends CreateVElementClass({
 		
 		// Initialize base class.
 		super();
+
+		// Do nothing is the element is created through "clondeNode()".
+		if (this.hasAttribute("cloned")) {
+			console.log("CLONE 2!")
+			return undefined;
+		}
+
+		// Test attribute.
+		this.test_attribute = "Hello WOrld!";
 	
 		// Set text.
 		this.inner_html(text);

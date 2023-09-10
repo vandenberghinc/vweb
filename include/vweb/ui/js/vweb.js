@@ -415,6 +415,10 @@ static default_attributes=default_attributes;
 static default_events=default_events;
 constructor(){
 super();
+if(this.hasAttribute("cloned")){
+console.log("CLONE 1!")
+return undefined;
+}
 this.element_type=type;this.element_display="block";
 if(E.default_style!=null){
 this.styles(E.default_style);
@@ -426,6 +430,50 @@ if(E.default_events!=null){
 this.events(E.default_events);
 }
 this.remove_focus=super.blur;
+}
+clone(clone_children=true){
+const clone=new this.constructor();
+if(clone.element_type!==undefined){
+clone.inner_html("");
+}
+const styles=window.getComputedStyle(this);
+clone.style.cssText=Array.from(styles).reduce((str,property)=>{
+return `${str}${property}:${styles.getPropertyValue(property)};`;
+},'');
+const auto_keys=[
+"width",
+"minWidth",
+"maxWidth",
+"height",
+"minHeight",
+"maxHeight",
+];
+for(let i=0;i<auto_keys.length;i++){
+if(this.style[auto_keys[i]]=="auto"||this.style[auto_keys[i]]==""){
+clone.style[auto_keys[i]]="auto";
+}
+}
+for(const attr of this.getAttributeNames()){
+if(attr!="style"){
+clone.setAttribute(attr,this.getAttribute(attr));
+}
+}
+for(const prop in this){
+if(this.hasOwnProperty(prop)||typeof this[prop]==="function"){
+clone[prop]=this[prop];
+}
+}
+if(clone_children&&this.childNodes!=undefined){
+for(let i=0;i<this.childNodes.length;i++){
+const child=this.childNodes[i];
+if(child.element_type===undefined){
+clone.appendChild(child.cloneNode(true));
+}else{
+clone.appendChild(child.clone());
+}
+}
+}
+return clone;
 }
 pad_numeric(value,padding="px"){
 if(vweb.utils.is_numeric(value)){
@@ -532,8 +580,15 @@ parent.appendChild(this);
 return this;
 }
 append_children_to(parent){
+if(this.element_type=="VirtualScoller"){
+for(let i=0;i<parent.children.length;i++){
+parent.v_children.push(parent.children[i]);
+}
+this.innerHTML="";
+}else{
 while(this.firstChild){
 parent.appendChild(this.firstChild)
+}
 }
 return this;
 }
@@ -550,30 +605,11 @@ console.error("Invalid parameter type for function \"remove_child()\".");
 return this;
 }
 remove_children(){
-if(this.scrollbar){
-this.scrollbar.remove_from_target(this);
-}
 this.inner_html("");
-if(this.scrollbar){
-this.scrollbar.add_to_target(this);
-}
 return this;
 }
 child(index){
 return this.children[index];
-}
-add_scrollbar(scrollbar){
-this.scrollbar=scrollbar;
-this.scrollbar.add_to_target(this);
-return this;
-}
-remove_scrollbar(scrollbar=null){
-if(scrollbar==null){
-this.scrollbar.remove_from_target(this);
-}else{
-scrollbar.remove_from_target(this);
-}
-return this;
 }
 text(value){
 if(value==null){
@@ -813,6 +849,7 @@ this.style.justifyContent=value;
 return this;
 case "VStack":
 case "Scroller":
+case "VirtualScroller":
 this.style.alignItems=value;
 return this;
 default:
@@ -837,6 +874,7 @@ this.style.alignItems=value;
 return this;
 case "VStack":
 case "Scroller":
+case "VirtualScroller":
 this.style.justifyContent=value;
 return this;
 case "Text":
@@ -1233,10 +1271,12 @@ else if(on_finish!=null){
 on_finish(e);
 }
 }
-if(this.animate_timeout!=null){
 clearTimeout(this.animate_timeout);
-}
 this.animate_timeout=setTimeout(()=>do_animation(0),delay||0);
+return this;
+}
+stop_animation(){
+clearTimeout(this.animate_timeout);
 return this;
 }
 on_click(callback){
@@ -4128,7 +4168,7 @@ function Divider(...args){return new DividerElement(...args);}
 
 
 class ScrollerElement extends CreateVElementClass({
-type:"ScollerX",
+type:"Scoller",
 tag:"div",
 default_style:{
 "position":"relative","margin":"0px",
@@ -4835,13 +4875,14 @@ default_style:{
 }){
 constructor(src){
 super();
-this.append(
-new VStack()
+const vstack=VStack()
 .width("100%")
 .height("100%")
 .background("black")
-.mask("url('"+src+"') no-repeat center/contain")
-);
+if(src!=null){
+vstack.mask("url('"+src+"') no-repeat center/contain");
+}
+this.append(vstack);
 this.src(src);
 }
 mask_color(value){
@@ -5320,6 +5361,11 @@ default_style:{
 }){
 constructor(text){
 super();
+if(this.hasAttribute("cloned")){
+console.log("CLONE 2!")
+return undefined;
+}
+this.test_attribute="Hello WOrld!";
 this.inner_html(text);
 }
 }
@@ -5519,6 +5565,8 @@ return vhighlight.js.highlight(code,return_tokens);
 return vhighlight.json.highlight(code,return_tokens);
 }else if(language=="python"){
 return vhighlight.python.highlight(code,return_tokens);
+}else if(language=="css"){
+return vhighlight.css.highlight(code,return_tokens);
 }else if(language=="bash"||language=="sh"||language=="zsh"||language=="shell"){
 return vhighlight.bash.highlight(code,return_tokens);
 }else{
@@ -5539,6 +5587,8 @@ highlighted_code=vhighlight.js.highlight(code);
 highlighted_code=vhighlight.json.highlight(code);
 }else if(language=="python"){
 highlighted_code=vhighlight.python.highlight(code);
+}else if(language=="css"){
+highlighted_code=vhighlight.css.highlight(code);
 }else if(language=="bash"||language=="sh"||language=="zsh"||language=="shell"){
 highlighted_code=vhighlight.bash.highlight(code);
 }else{
@@ -5690,6 +5740,8 @@ highlighted_code=vhighlight.js.highlight(code);
 highlighted_code=vhighlight.json.highlight(code);
 }else if(language=="python"){
 highlighted_code=vhighlight.python.highlight(code);
+}else if(language=="css"){
+highlighted_code=vhighlight.css.highlight(code);
 }else if(language=="bash"||language=="sh"||language=="zsh"||language=="shell"){
 highlighted_code=vhighlight.bash.highlight(code);
 }else{
@@ -6586,6 +6638,226 @@ inserted+=insert;
 inserted+=str.substr(start);
 return inserted;
 }
+vhighlight.css={};
+vhighlight.css.tokenizer_opts={
+keywords:[
+'ease',
+'ease-in',
+'ease-out',
+'ease-in-out',
+'linear',
+'step-start',
+'step-end',
+'ease-in-quad',
+'ease-in-cubic',
+'ease-in-quart',
+'ease-in-quint',
+'ease-in-sine',
+'ease-in-expo',
+'ease-in-circ',
+'ease-in-back',
+'ease-out-quad',
+'ease-out-cubic',
+'ease-out-quart',
+'ease-out-quint',
+'ease-out-sine',
+'ease-out-expo',
+'ease-out-circ',
+'ease-out-back',
+'ease-in-out-quad',
+'ease-in-out-cubic',
+'ease-in-out-quart',
+'ease-in-out-quint',
+'ease-in-out-sine',
+'ease-in-out-expo',
+'ease-in-out-circ',
+'ease-in-out-back',
+'none',
+'forwards',
+'backwards',
+'both',
+'paused',
+'running',
+'linear-gradient',
+'radial-gradient',
+'conic-gradient',
+'rgb',
+'rgba',
+'hsl',
+'hsla',
+'url',
+'from',
+'to',
+'infinite',
+'alternate',
+'alternate-reverse',
+],
+single_line_comment_start:false,
+multi_line_comment_start:"/*",
+multi_line_comment_end:"*/",
+}
+vhighlight.css.highlight=function(code,return_tokens=false){
+const tokenizer=new Tokenizer(vhighlight.css.tokenizer_opts);
+tokenizer.code=code;
+const numeric_suffixes=[
+'px',
+'em',
+'rem',
+'ex',
+'ch',
+'vw',
+'vh',
+'vmin',
+'vmax',
+'%',
+'in',
+'cm',
+'mm',
+'pt',
+'pc',
+'fr',
+'deg',
+'grad',
+'rad',
+'turn',
+'ms',
+'s',
+'Hz',
+'kHz',
+'dpi',
+'dpcm',
+'dppx',
+'x'
+].join("|");
+const numeric_regex=new RegExp(`^-?\\d+(\\.\\d+)?(${numeric_suffixes})*$`);
+let style_start=null;
+let style_end=null;
+tokenizer.callback=function(char,is_escaped){
+if(char=="@"){
+const end=this.get_first_word_boundary(this.index+1);
+this.append_batch();
+this.append_forward_lookup_batch("token_keyword",this.code.substr(this.index,end-this.index));
+this.resume_on_index(end-1);
+return true;
+}
+if(this.batch==""&&char=="#"){
+const end=this.get_first_word_boundary(this.index+1);
+this.append_batch();
+this.append_forward_lookup_batch("token_string",this.code.substr(this.index,end-this.index));
+this.resume_on_index(end-1);
+return true;
+}
+else if(char=="{"){
+this.append_batch();
+let index=this.tokens.length-1;
+while(true){
+const prev=this.get_prev_token(index,[" ",",","\t",":"]);
+if(prev==null||prev.data=="\n"){
+break;
+}
+else if(
+(prev.token=="token_string")||(prev.token=="token_keyword"&&prev.data.charAt(0)!="@")||
+(prev.token==null&&
+(
+prev.data=="#"||
+prev.data=="."||
+prev.data=="*"||
+prev.data=="-"||
+this.is_alphabetical(prev.data.charAt(0))
+)
+)
+){
+const pprev=this.tokens[prev.index-1];
+if(pprev!=null&&pprev.data==":"){
+prev.token="token_keyword";
+}else{
+prev.token="token_type_def";
+}
+}
+index=prev.index-1;
+}
+}
+else if(char=="("){
+this.append_batch();
+const prev=this.get_prev_token(this.tokens.length-1,[" ","\t","\n"]);
+if(prev!=null&&prev.token==null){
+prev.token="token_type";
+}
+}
+else if(this.curly_depth>0&&char==":"){
+this.append_batch();
+let index=this.tokens.length-1;
+let edits=[];
+let finished=false;
+while(true){
+const prev=this.get_prev_token(index,[" ","\t"]);
+if(prev==null){
+break;
+}
+else if(prev.data=="\n"||prev.data==";"){
+finished=true;
+break;
+}
+else if(prev.token==null){
+edits.push(prev);
+}
+index=prev.index-1;
+}
+if(finished){
+for(let i=0;i<edits.length;i++){
+edits[i].token="token_keyword";
+}
+style_start=this.index;
+for(let i=this.index+1;i<this.code.length;i++){
+const c=this.code.charAt(i);
+if(c=="\n"){
+style_start=null;
+break;
+}else if(c==";"){
+style_end=i;
+break;
+}
+}
+}
+}
+else if(char=="%"&&numeric_regex.test(this.batch+char)){
+this.batch+=char;
+this.append_batch("token_numeric");
+return true;
+}
+else if(this.word_boundaries.includes(char)&&numeric_regex.test(this.batch)){
+this.append_batch("token_numeric");
+}
+else if(style_end!=null&&this.index>=style_end){
+this.append_batch();
+let index=this.tokens.length-1;
+let finished=false;
+const edits=[];
+while(true){
+const prev=this.get_prev_token(index,[" ","\t"]);
+if(prev==null||prev=="\n"){
+break;
+}
+else if(prev.data==":"){
+finished=true;
+break;
+}
+else if(prev.token==null&&!this.str_includes_word_boundary(prev.data)){
+edits.push(prev);
+}
+index=prev.index-1;
+}
+if(finished){
+for(let i=0;i<edits.length;i++){
+edits[i].token="token_keyword";
+}
+}
+style_end=null;
+}
+return false;
+}
+return tokenizer.tokenize(return_tokens);
+}
 class Tokenizer{
 constructor({
 keywords=[],
@@ -6708,6 +6980,17 @@ return end;
 }
 }
 return null;
+}
+get_first_word_boundary(index){
+if(index==null){
+return null;
+}
+for(let i=index;i<this.code.length;i++){
+if(this.word_boundaries.includes(this.code.charAt(i))){
+return i;
+}
+}
+return this.code.length;
 }
 is_whitespace(char){
 return char==" "||char=="\t";
@@ -7840,3 +8123,22 @@ success();
 error:error,
 });
 }
+Array.prototype.iterate=function(start,end,handler){
+if(typeof start==="function"){
+handler=start;
+start=null;
+}
+if(start==null){
+start=0;
+}
+if(end==null){
+end=this.length;
+}
+for(let i=start;i<end;i++){
+const res=handler(this[i]);
+if(res!=null){
+return res;
+}
+}
+return null;
+};

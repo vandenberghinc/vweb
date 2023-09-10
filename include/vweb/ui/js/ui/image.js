@@ -49,13 +49,16 @@ class ImageMaskElement extends CreateVElementClass({
 		super();
 	
 		// Append child.
-		this.append(
-			new VStack()
-				.width("100%")
-				.height("100%")
-				.background("black")
-				.mask("url('" + src + "') no-repeat center/contain")
-		);
+		const vstack = VStack()
+			// .position(0, 0, 0, 0)
+			.width("100%")
+			.height("100%")
+			.background("black")
+		if (src != null) {
+			vstack.mask("url('" + src + "') no-repeat center/contain");
+		}
+		// this.position("relative");
+		this.append(vstack);
 
 		// Set src.
 		this.src(src);
