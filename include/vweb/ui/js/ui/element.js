@@ -845,15 +845,15 @@ function CreateVElementClass({
 			switch (this.element_type) {
 				case "HStack":
 				case "ZStack":
-				this.style.justifyContent = value;
-				return this;
+					this.style.justifyContent = value;
+					return this;
 				case "VStack":
 				case "Scroller":
 				case "VirtualScroller":
-				this.style.alignItems = value;
-				return this;
+					this.style.alignItems = value;
+					return this;
 				default:
-				this.style.textAlign = value;
+					this.style.textAlign = value;
 				return this;
 			}
 		}
