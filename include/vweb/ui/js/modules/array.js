@@ -23,3 +23,25 @@ Array.prototype.iterate = function(start, end, handler) {
     }
     return null;
 };
+
+// Drop an item by the item itself.
+Array.prototype.drop = function(item) {
+    const dropped = [];
+    for (let i = 0; i < this.length; i++) {    
+        if (this[i] != item) {
+            cleaned.push(this[i])
+        }
+    }
+    return dropped;
+};
+
+// Drop an item by index.
+Array.prototype.drop_index = function(index) {
+    const dropped = [];
+    for (let i = 0; i < this.length; i++) {    
+        if (i != index) {
+            cleaned.push(this[i])
+        }
+    }
+    return dropped;
+};
