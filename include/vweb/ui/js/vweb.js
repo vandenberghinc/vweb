@@ -1373,6 +1373,44 @@ return this.firstChild;
 last_child(){
 return this.lastChild;
 }
+iterate_children(start,end,handler){
+if(typeof start==="function"){
+handler=start;
+start=null;
+}
+if(start==null){
+start=0;
+}
+if(end==null){
+end=this.children.length;
+}
+for(let i=start;i<end;i++){
+const res=handler(this.children[i]);
+if(res!=null){
+return res;
+}
+}
+return null;
+};
+iterate_nodes(start,end,handler){
+if(typeof start==="function"){
+handler=start;
+start=null;
+}
+if(start==null){
+start=0;
+}
+if(end==null){
+end=this.childNodes.length;
+}
+for(let i=start;i<end;i++){
+const res=handler(this.childNodes[i]);
+if(res!=null){
+return res;
+}
+}
+return null;
+};
 set_default(Type){
 if(Type==null){
 return this.set_default(E);

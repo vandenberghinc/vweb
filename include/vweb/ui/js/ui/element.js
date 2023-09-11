@@ -1774,6 +1774,48 @@ function CreateVElementClass({
 			return this.lastChild;
 		}
 
+		// Iterate children.
+		iterate_children(start, end, handler) {
+		    if (typeof start === "function") {
+		        handler = start;
+		        start = null;
+		    }
+		    if (start == null) {
+		        start = 0;
+		    }
+		    if (end == null) {
+		        end = this.children.length;
+		    }
+		    for (let i = start; i < end; i++) {    
+		        const res = handler(this.children[i]);
+		        if (res != null) {
+		            return res;
+		        }
+		    }
+		    return null;
+		};
+
+		// Iterate child nodes.
+		iterate_nodes(start, end, handler) {
+		    if (typeof start === "function") {
+		        handler = start;
+		        start = null;
+		    }
+		    if (start == null) {
+		        start = 0;
+		    }
+		    if (end == null) {
+		        end = this.childNodes.length;
+		    }
+		    for (let i = start; i < end; i++) {    
+		        const res = handler(this.childNodes[i]);
+		        if (res != null) {
+		            return res;
+		        }
+		    }
+		    return null;
+		};
+
 		// Set the current element as the default.
 		// Leave parameter "Type" null to set the current styles to the current object's default styles.
 		set_default(Type) {
