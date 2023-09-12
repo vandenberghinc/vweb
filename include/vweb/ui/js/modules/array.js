@@ -26,10 +26,10 @@ Array.prototype.iterate = function(start, end, handler) {
 
 // Drop an item by the item itself.
 Array.prototype.drop = function(item) {
-    const dropped = [];
+    const dropped = new this.constructor(); // for when a class extends Array.
     for (let i = 0; i < this.length; i++) {    
         if (this[i] != item) {
-            cleaned.push(this[i])
+            dropped.push(this[i])
         }
     }
     return dropped;
@@ -37,10 +37,10 @@ Array.prototype.drop = function(item) {
 
 // Drop an item by index.
 Array.prototype.drop_index = function(index) {
-    const dropped = [];
+    const dropped = new this.constructor(); // for when a class extends Array.
     for (let i = 0; i < this.length; i++) {    
         if (i != index) {
-            cleaned.push(this[i])
+            dropped.push(this[i])
         }
     }
     return dropped;

@@ -9,7 +9,7 @@ using namespace vlib::types::shortcuts;
 int main() {
 	// String cause_err = ""
 	// String cause_err = ""
-		aaaaa	aaa	
+		// aaaaa	aaa	
 	// Array<Int> x;
 	// auto y = x[0];
 	

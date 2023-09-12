@@ -8173,19 +8173,17 @@ return res;
 return null;
 };
 Array.prototype.drop=function(item){
-const dropped=[];
-for(let i=0;i<this.length;i++){
+const dropped=new this.constructor();for(let i=0;i<this.length;i++){
 if(this[i]!=item){
-cleaned.push(this[i])
+dropped.push(this[i])
 }
 }
 return dropped;
 };
 Array.prototype.drop_index=function(index){
-const dropped=[];
-for(let i=0;i<this.length;i++){
+const dropped=new this.constructor();for(let i=0;i<this.length;i++){
 if(i!=index){
-cleaned.push(this[i])
+dropped.push(this[i])
 }
 }
 return dropped;
