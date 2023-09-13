@@ -21,18 +21,11 @@
 .token_url {
 	color: #818C97;
 }
-.token_char {
-	color: #D6C986;
-}
 .token_string {
 	color: #D6C986;
 }
 .token_numeric {
 	color: #D6C986;
-}
-.token_bool {
-	color: #EE8378;
-	font-weight: bold;
 }
 .token_keyword {
 	color: #EE8378;
@@ -72,8 +65,6 @@
 }
 .token_line_number_divider {
 	background: #818C97;
-}
-.token_foldable {
 }
 
 /* Use display block otherwise the code may not show up. */

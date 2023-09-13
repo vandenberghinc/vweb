@@ -49,16 +49,16 @@ class ImageMaskElement extends CreateVElementClass({
 		super();
 	
 		// Append child.
-		const vstack = VStack()
+		this.mask_child = VStack()
 			// .position(0, 0, 0, 0)
 			.width("100%")
 			.height("100%")
 			.background("black")
 		if (src != null) {
-			vstack.mask("url('" + src + "') no-repeat center/contain");
+			this.mask_child.mask("url('" + src + "') no-repeat center/contain");
 		}
 		// this.position("relative");
-		this.append(vstack);
+		this.append(this.mask_child);
 
 		// Set src.
 		this.src(src);
@@ -66,19 +66,29 @@ class ImageMaskElement extends CreateVElementClass({
 
 	// Image color.
 	mask_color(value) {
-		this.firstChild.style.background = value;
+		if (value == null) {
+			return this.mask_child.style.background;
+		}
+		this.mask_child.style.background = value;
 		return this;
 	}
 
 	// Override src.
 	src(value) {
-		this.firstChild.style.mask = "url('" + value + "') no-repeat center/contain";
+		if (value == null) {
+			return this._src;
+		}
+		this.mask_child.mask("url('" + value + "') no-repeat center/contain");
+		this._src = value;
 		return this;
 	}
 
 	// Override mask.
 	mask(value) {
-		this.firstChild.style.mask = value;
+		if (value == null) {
+			return this.mask_child.mask();
+		}
+		this.mask_child.mask(value);
 		return this;
 	}
 		

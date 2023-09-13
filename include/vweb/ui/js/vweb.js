@@ -4909,26 +4909,36 @@ default_style:{
 }){
 constructor(src){
 super();
-const vstack=VStack()
+this.mask_child=VStack()
 .width("100%")
 .height("100%")
 .background("black")
 if(src!=null){
-vstack.mask("url('"+src+"') no-repeat center/contain");
+this.mask_child.mask("url('"+src+"') no-repeat center/contain");
 }
-this.append(vstack);
+this.append(this.mask_child);
 this.src(src);
 }
 mask_color(value){
-this.firstChild.style.background=value;
+if(value==null){
+return this.mask_child.style.background;
+}
+this.mask_child.style.background=value;
 return this;
 }
 src(value){
-this.firstChild.style.mask="url('"+value+"') no-repeat center/contain";
+if(value==null){
+return this._src;
+}
+this.mask_child.mask("url('"+value+"') no-repeat center/contain");
+this._src=value;
 return this;
 }
 mask(value){
-this.firstChild.style.mask=value;
+if(value==null){
+return this.mask_child.mask();
+}
+this.mask_child.mask(value);
 return this;
 }
 }
