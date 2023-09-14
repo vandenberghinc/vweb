@@ -8182,6 +8182,22 @@ return res;
 }
 return null;
 };
+Array.prototype.iterate_await=async function(start,end,handler){
+if(typeof start==="function"){
+handler=start;
+start=null;
+}
+if(start==null){
+start=0;
+}
+if(end==null){
+end=this.length;
+}
+for(let i=start;i<end;i++){
+await handler(this[i]);
+}
+return null;
+};
 Array.prototype.drop=function(item){
 const dropped=new this.constructor();for(let i=0;i<this.length;i++){
 if(this[i]!=item){
