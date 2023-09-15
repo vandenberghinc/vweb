@@ -42,6 +42,9 @@ class ScrollerElement extends CreateVElementClass({
         	this.position("relative"); // is required for attribute "track" 
         }
         super.overflow("hidden"); // should always be hidden to enable scrolling, and otherwise the thumb not be visible due to overflow width.
+        this.styles({
+            "content-visibility": "auto",
+        })
 
         // Content.
         this.content = VStack(...children)
@@ -51,6 +54,9 @@ class ScrollerElement extends CreateVElementClass({
             .frame("100%", "100%")
             .flex("1 1 0") // otherwise it expands its parent.
             .overflow("scroll")
+            .styles({
+                "content-visibility": "auto",
+            })
 
         // Scroll bar.
         this.thumb = VStack()
@@ -356,9 +362,10 @@ class ScrollerElement extends CreateVElementClass({
     
 }
 
-/*
 // Scroller.
-// - Warning: Setting padding on element attribute "content" may cause undefined behaviour.
+// @warning: Using content-visibility on the direct or nested children may cause undefined behaviour, it may cause elements to become hidden.
+// @warning: Every element must have a fixed height, otherwise the rendering will cause an error. Any incorrect heights may cause undefined behaviour.
+// @warning: Setting padding on element attribute "content" may cause undefined behaviour.
 @vweb_constructor_wrapper
 @vweb_register_element
 class VirtualScrollerElement extends ScrollerElement {
@@ -375,51 +382,150 @@ class VirtualScrollerElement extends ScrollerElement {
         // Append children.
         this.append(...children);
 
+        // Create the scroll dimension element.
+        this.scroll_dimension = VStack()
+            .frame(0, 0);
+        this.content.append(this.scroll_dimension);
+
+        // Create the visible content.
+        this.visible_content = VStack()
+            .position(0, 0, null, 0)
+            // .overflow_y("visible")
+            // .overflow_x("scroll")
+            .overflow("visible")
+            .styles({
+                "content-visibility": "auto",
+            })
+        // this.content.pointer_events("none");
+        super.insertBefore(this.visible_content, this.content);
+
         // Render.
+        this.top_diff = 0;
         this.render();
 
         // Set scroll event listener.
+        // @todo set_scroll_top_without event wont work with this new scroll event.
         this.content.addEventListener("scroll", () => this.render())
-        // @TODO set_scroll_top_without event wont work with this new scroll event.
 
+    }
+
+    // Set remove children to content.
+    remove_children() {
+        this.v_children = [];
+        this.scroll_dimension.min_frame(0, 0);
+        this.visible_content.inner_html("");
+        return this;
     }
 
     // Render the visible content.
     render() {
-        const start_y = this.content.scrollTop;
-        const end_y = start_y + this.content.offsetHeight;
-        console.log(start_y, end_y);
-        const fragment = document.createDocumentFragment();
-        let was_visible = true;
-        let total_height = 0;
-        this.v_children.iterate((child) => {
-            const og_visibility = child.style.visibility;
-            child.style.visibility = "hidden";
-            document.body.appendChild(child);
-            const height = child.offsetHeight;
-            document.body.removeChild(child);
-            child.style.visibility = og_visibility;
+        clearTimeout(this.render_timeout);
+        this.render_timeout = setTimeout(() => {
 
+            // Align horizontal scroll.
+            this.visible_content.scrollLeft = this.content.scrollLeft;
 
-            const child_start_y = total_height;
-            const child_end_y = total_height + height; // Adjust as needed
-            total_height += height;
+            // Get the start and end y.
+            const start_y = this.content.scrollTop;
+            const end_y = start_y + this.content.offsetHeight + this.top_diff;
+            
+            // Create a fragment.
+            // const fragment = document.createDocumentFragment();
 
-            console.log("HEIHGT: ", height);
-            console.log(child_start_y, child_end_y);
-            if (child_start_y >= start_y && child_end_y <= end_y) {
-                was_visible = true;
-                fragment.appendChild(child);
-            } else if (was_visible && child_start_y >= start_y) {
-                was_visible = false;
-                fragment.appendChild(child);
-            } else if (child_end_y > end_y) {
-                return false;
-            }
-        })
-        this.content.inner_html("");
-        this.content.appendChild(fragment);
+            // Iterate.
+            let is_first = true;
+            let is_visible = false; 
+            let total_height = 0;
+            this.v_children.iterate((child) => {
+
+                // Child vars.
+                const height = this.get_height(child);
+                if (height == 0) {
+                    return null; // no fixed height or no height.
+                }
+                const child_start_y = total_height;
+                const child_end_y = total_height + height; // Adjust as needed
+                total_height += height;
+
+                // First item.
+                if (is_first && child_end_y >= start_y) {
+                    is_first = false;
+                    is_visible = true;
+                    if (!child.rendered) {
+                        this.visible_content.appendChild(child);
+                        child.rendered = true;
+                    }
+                    this.first_child = child;
+                    this.top_diff = (start_y - child_start_y);// + prev_height;
+                    this.visible_content.transform(`translateY(-${this.top_diff}px)`)
+                }
+
+                // Last visible element.
+                else if (is_visible && child_start_y >= end_y) {
+                    is_visible = false;
+                    if (!child.rendered) {
+                        this.visible_content.appendChild(child);
+                        child.rendered = true;
+                    }
+                }
+
+                // Visible elements.
+                else if (is_visible) {
+                    if (!child.rendered) {
+                        this.visible_content.appendChild(child);
+                        child.rendered = true;
+                    }
+                }
+
+                // Invisible elements.
+                else if (child.rendered) {
+                    child.remove();
+                    child.rendered = false;
+                }
+            })
+
+            // Append to overlay.
+            // this.visible_content.inner_html("");
+            // this.visible_content.appendChild(fragment);
+
+            // Set scroll dimension.
+            this.scroll_dimension.min_frame(this.visible_content.scrollWidth, total_height);
+
+        }, 10);
+
+        // Return this.
         return this;
+    }
+
+    // Get the height of an element.
+    get_height(element) {
+
+        // Get fixed height.
+        let height = parseFloat(element.style.height);
+        if (isNaN(height)) {
+            console.error("Every element in the virtual scroller must have a fixed height, ignoring element: " + element);
+            element.style.display = "none";
+            return 0;
+        }
+        const margin_top = parseFloat(element.style.marginTop);
+        if (!isNaN(margin_top)) {
+            height += margin_top;
+        }
+        const margin_bottom = parseFloat(element.style.marginBottom);
+        if (!isNaN(margin_bottom)) {
+            height += margin_bottom;
+        }
+        return height;
+
+        // V1.
+        // Does not require fixed heights but is slow.
+        // const og_visibility = element.style.visibility;
+        // element.style.visibility = "hidden";
+        // document.body.appendChild(element);
+        // const height = element.offsetHeight;
+        // document.body.removeChild(element);
+        // element.style.visibility = og_visibility;
+        // return height;
     }
 
     // Custom append function.
@@ -457,10 +563,6 @@ class VirtualScrollerElement extends ScrollerElement {
                 }
             }
         }
-        // this.v_children.iterate((node) => {
-        //     super.append(node);
-        // })
         return this;
     }
 }
-*/

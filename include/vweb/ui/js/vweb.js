@@ -4217,12 +4217,17 @@ constructor(...children){
 super();
 if(this.position()!="absolute"){
 this.position("relative");}
-super.overflow("hidden");
+super.overflow("hidden");this.styles({
+"content-visibility":"auto",
+})
 this.content=VStack(...children)
 .class("hide_scrollbar")
 .parent(this)
 .position("relative").frame("100%","100%")
 .flex("1 1 0").overflow("scroll")
+.styles({
+"content-visibility":"auto",
+})
 this.thumb=VStack()
 .parent(this)
 .position(0,0,null,0)
@@ -4436,6 +4441,128 @@ this.on_scroll(handler);
 }
 vweb.elements.register(ScrollerElement);
 function Scroller(...args){return new ScrollerElement(...args);}
+
+
+class VirtualScrollerElement extends ScrollerElement{
+constructor(...children){
+super();
+this.v_children=[];
+this.append(...children);
+this.scroll_dimension=VStack()
+.frame(0,0);
+this.content.append(this.scroll_dimension);
+this.visible_content=VStack()
+.position(0,0,null,0)
+.overflow("visible")
+.styles({
+"content-visibility":"auto",
+})
+super.insertBefore(this.visible_content,this.content);
+this.top_diff=0;
+this.render();
+this.content.addEventListener("scroll",()=>this.render())
+}
+remove_children(){
+this.v_children=[];
+this.scroll_dimension.min_frame(0,0);
+this.visible_content.inner_html("");
+return this;
+}
+render(){
+clearTimeout(this.render_timeout);
+this.render_timeout=setTimeout(()=>{
+this.visible_content.scrollLeft=this.content.scrollLeft;
+const start_y=this.content.scrollTop;
+const end_y=start_y+this.content.offsetHeight+this.top_diff;
+let is_first=true;
+let is_visible=false;
+let total_height=0;
+this.v_children.iterate((child)=>{
+const height=this.get_height(child);
+if(height==0){
+return null;}
+const child_start_y=total_height;
+const child_end_y=total_height+height;total_height+=height;
+if(is_first&&child_end_y>=start_y){
+is_first=false;
+is_visible=true;
+if(!child.rendered){
+this.visible_content.appendChild(child);
+child.rendered=true;
+}
+this.first_child=child;
+this.top_diff=(start_y-child_start_y);this.visible_content.transform(`translateY(-${this.top_diff}px)`)
+}
+else if(is_visible&&child_start_y>=end_y){
+is_visible=false;
+if(!child.rendered){
+this.visible_content.appendChild(child);
+child.rendered=true;
+}
+}
+else if(is_visible){
+if(!child.rendered){
+this.visible_content.appendChild(child);
+child.rendered=true;
+}
+}
+else if(child.rendered){
+child.remove();
+child.rendered=false;
+}
+})
+this.scroll_dimension.min_frame(this.visible_content.scrollWidth,total_height);
+},10);
+return this;
+}
+get_height(element){
+let height=parseFloat(element.style.height);
+if(isNaN(height)){
+console.error("Every element in the virtual scroller must have a fixed height, ignoring element: "+element);
+element.style.display="none";
+return 0;
+}
+const margin_top=parseFloat(element.style.marginTop);
+if(!isNaN(margin_top)){
+height+=margin_top;
+}
+const margin_bottom=parseFloat(element.style.marginBottom);
+if(!isNaN(margin_bottom)){
+height+=margin_bottom;
+}
+return height;
+}
+append(...children){
+for(let i=0;i<children.length;i++){
+const child=children[i];
+if(child!=null){
+if(child.element_type!=null){
+if(
+child.element_type=="ForEach"||
+child.element_type=="If"||
+child.element_type=="IfDeviceWith"
+){
+child.append_children_to(this);
+}else{
+this.v_children.push(child);
+}
+}
+else if(vweb.utils.is_func(child)){
+this.append(child());
+}
+else if(child instanceof Node){
+this.v_children.push(child);
+}
+else if(vweb.utils.is_string(child)){
+this.v_children.push(document.createTextNode(child));
+}
+}
+}
+return this;
+}
+}
+vweb.elements.register(VirtualScrollerElement);
+function VirtualScroller(...args){return new VirtualScrollerElement(...args);}
 
 
 class HStackElement extends CreateVElementClass({
@@ -8179,22 +8306,6 @@ const res=handler(this[i]);
 if(res!=null){
 return res;
 }
-}
-return null;
-};
-Array.prototype.iterate_await=async function(start,end,handler){
-if(typeof start==="function"){
-handler=start;
-start=null;
-}
-if(start==null){
-start=0;
-}
-if(end==null){
-end=this.length;
-}
-for(let i=start;i<end;i++){
-await handler(this[i]);
 }
 return null;
 };
