@@ -98,7 +98,13 @@ class FileWatcher {
         this.proc = libproc.spawn({
             command,
             args,
-            {stdio: "inherit"},
+            {
+                stdio: "inherit"
+                env: {
+                     ...process.env,
+                    "VWEB_FILE_WATCHER": "1",
+                },
+            },
         })
         this.proc.on("close", () => {
             this.proc = null;
