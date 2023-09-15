@@ -1,0 +1,134 @@
+/*
+ * Author: Daan van den Bergh
+ * Copyright: © 2022 - 2023 Daan van den Bergh.
+ */
+
+// ---------------------------------------------------------
+// Imports.
+
+const View = require(`${__dirname}/view.js`);
+
+// ---------------------------------------------------------
+// Endpoint.
+
+/*  @docs: {
+    @title: Endpoint
+    @description: The endpoint class.
+    @parameter: {
+        @name: method
+        @description: The method type.
+        @type: string
+    }
+    @parameter: {
+        @name: endpoint
+        @description: The endpoint sub url.
+        @type: string
+    }
+    @parameter: {
+        @name: authenticated
+        @description: Only allow authenticated requests.
+        @type: string
+    }
+    @parameter: {
+        @name: rate_limit
+        @description: The maximum requests per rate limit interval. Leave `null` to disable rate limiting.
+        @type: number
+    }
+    @parameter: {
+        @name: rate_limit_interval
+        @description: The rate limit interval in milliseconds.
+        @type: number
+    }
+    @parameter: {
+        @name: callback
+        @description:
+            The callback that will be executed when a client requests this endpoint.
+            Parameter `callback` precedes over parameter `data` and parameter `view`.
+            The callback can take parameters `request` and `response`.
+        @type: function
+    }
+    @parameter: {
+        @name: view
+        @description:
+            The javascript view that will be executed on the client side.
+            Parameter `view` precedes over parameter `data`.
+        @type: View, object
+    }
+    @parameter: {
+        @name: data
+        @description:
+            The data that will be returned as the response body.
+        @type: number, string, array, object
+    }
+    @parameter: {
+        @name: content_type
+        @description: The content type for parameter `data`.
+        @type: string
+    }
+ } */
+class Endpoint {
+    constructor({
+        method = "GET",
+        endpoint = "/",
+        authenticated = false,
+        rate_limit = null,
+        rate_limit_interval = 60000,
+        callback = null,
+        view = null,
+        data = null,
+        content_type = "text/plain",
+    }) {
+
+        // Attributes.
+        this.method = method;
+        this.endpoint = endpoint;
+        this.authenticated = authenticated;
+        this.rate_limit = rate_limit;
+        this.rate_limit_interval = rate_limit_interval;
+        this.callback = callback;
+        this.data = data;
+        this.content_type = content_type;
+
+        // Argument `view` may also be passed as an object instead of class View.
+        if (view == null) {
+            this.view = null;
+        } else if (view instanceof View) {
+            this.view = view;
+        } else {
+            this.view = new View(view);
+        }
+    }
+
+    // Serve a client.
+    serve(request, response) {
+
+        // Callback.
+        if (this.callback !== null) {
+            this.callback(request, response);
+        }
+
+        // View.
+        else if (this.view !== null) {
+            this.view.serve(request, response);
+        }
+
+        // Data.
+        else if (this.data !== null) {
+            response.send({
+                status: 200, 
+                headers: {'Content-Type': this.content_type}, 
+                data: this.data,
+            });
+        }
+
+        // // Undefined.
+        else {
+            throw new Error(`${this.method} ${this.endpoint}: Undefined behaviour, define one of the following endpoint attributes [callback, view, data].`);
+        }
+    }
+}
+
+// ---------------------------------------------------------
+// Exports.
+
+module.exports = Endpoint;

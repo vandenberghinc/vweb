@@ -1,0 +1,14 @@
+{
+  "name": "demojs",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "node start.js"
+  },
+  "author": "Daan van den Bergh",
+  "license": "ISC",
+  "dependencies": {
+    "http2": "^3.3.7"
+  }
+}
