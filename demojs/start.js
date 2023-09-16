@@ -23,7 +23,10 @@ const server = new Server({
 		`${__dirname}/ui/`,
 	],
     domain: "127.0.0.1:8000",
-    statics: [],
+    statics: [
+        `${__dirname}/media/`,
+        `${__dirname}/ui/`,
+    ],
     database: `${__dirname}/.db/`,
     default_headers: null,
     token_expiration: 86400,
@@ -51,6 +54,7 @@ server.endpoint({
 	method: "GET",
     endpoint: "/",
     meta: meta,
+    authenticated: true,
     view: {
     	includes: ["/ui/my_element.js"],
     	callback: () => {

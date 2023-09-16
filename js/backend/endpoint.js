@@ -123,10 +123,18 @@ class Endpoint {
         // Compression enabled.
         if (this.compress) {
             if (this.data !== null) {
-                this.data = data = zlib.deflateSync(this.data, {level: zlib.constants.Z_BEST_COMPRESSION});;
+                this.data = zlib.gzipSync(this.data, {level: zlib.constants.Z_BEST_COMPRESSION});;
             } else if (this.view !== null) {
-                this.view.html = data = zlib.deflateSync(this.view.html, {level: zlib.constants.Z_BEST_COMPRESSION});
+                this.view.html = zlib.gzipSync(this.view.html, {level: zlib.constants.Z_BEST_COMPRESSION});
             }
+        }
+
+        // Set content length.
+        this.content_length = null;
+        if (this.data !== null) {
+            this.content_length = this.data.length;
+        } else if (this.view !== null) {
+            this.content_length = this.view.html.length;
         }
     }
 
@@ -144,11 +152,16 @@ class Endpoint {
 
         // Set compression headers.
         if (this.callback === null && this.compress) {
-            console.log("FINISHED: ", response.finished);
             response.set_header("Content-Encoding", "gzip");
-            // response.set_header("Vary", "Accept-Encoding");
-            console.log(this.view.html)
+            response.set_header("Vary", "Accept-Encoding");
         }
+
+        // Set content length.
+        if (this.content_length !== null) {
+            response.set_header("Content-Length", this.content_length);
+        }
+
+        response.set_cookie('TestCookie=HelloWorld; SameSite=None; HttpOnly;');
 
         // Callback.
         if (this.callback !== null) {

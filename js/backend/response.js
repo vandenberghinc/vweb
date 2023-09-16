@@ -76,16 +76,19 @@ class Response {
 
         // @todo compress.
         if (compress) {
-            this.res.setHeader("Content-Encoding", "gzip");
+            this.res.setHeader("Content-Encoding", "deflate");
             this.res.setHeader("Vary", "Accept-Encoding");
-            data = zlib.deflateSync(data, {level: zlib.constants.Z_BEST_COMPRESSION});
+            data = zlib.gzipSync(data, {level: zlib.constants.Z_BEST_COMPRESSION});
         }
 
         // Set data.
         if (data != null) {
-            if (typeof data === "string") { this.res.write(data); }
-            else { this.res.write(data.toString()); }
+            this.res.write(data); // do not use toString() here or it will cause issues with writing compressed data.
         }
+
+        // Set content length.a
+
+        // End.
         this.res.end();
     }
 

@@ -187,7 +187,7 @@ class Server {
                 "Content-Security-Policy": 
                     "default-src 'self' *.google-analytics.com https://my.spline.design; " +
                     "img-src 'self' *.google-analytics.com raw.githubusercontent.com www.w3.org; " +
-                    "script-src 'self' ajax.googleapis.com www.googletagmanager.com googletagmanager.com *.google-analytics.com raw.githubusercontent.com code.jquery.com; " +
+                    "script-src 'self' 'unsafe-inline' ajax.googleapis.com www.googletagmanager.com googletagmanager.com *.google-analytics.com raw.githubusercontent.com code.jquery.com; " +
                     "style-src 'self' 'unsafe-inline'; " +
                     "upgrade-insecure-requests; " +
                     "block-all-mixed-content;",
@@ -616,34 +616,39 @@ class Server {
 
         // Get token from cookies.
         console.log("COOKIE:", request.headers.cookie);
-        if (false) {
-            if (false) {
-                response.send({
-                    status: 401, 
-                    data: "Unauthorized.",
-                });
-                return false;
+        // if (false) {
+        //     if (false) {
+        //         response.send({
+        //             status: 401, 
+        //             data: "Unauthorized.",
+        //         });
+        //         return false;
 
-            }
-            return true;
-        }
+        //     }
+        //     return true;
+        // }
 
 
-        // Get api key key from bearer.
-        else if (false) {
-            if (false) {
-                response.send({
-                    status: 302, 
-                    headers: {"Location": `/signin?next=${request.url}`},
-                    data: "Permission denied.",
-                });
-                return false;
+        // // Get api key key from bearer.
+        // else if (false) {
+        //     if (false) {
+        //         response.send({
+        //             status: 302, 
+        //             headers: {"Location": `/signin?next=${request.url}`},
+        //             data: "Permission denied.",
+        //         });
+        //         return false;
 
-            }
-            return true;
-        }
+        //     }
+        //     return true;
+        // }
 
         // Failed.
+        response.send({
+            status: 302, 
+            headers: {"Location": `/signin?next=${request.url}`},
+            data: "Permission denied.",
+        });
         return false;
     }
 
@@ -1002,6 +1007,11 @@ class Server {
 
         // Initialize.
         this._initialize();
+
+        console.log("Endpoints:");
+        this.endpoints.iterate((e) => {
+            console.log(e.method,e.endpoint);
+        })
 
         // Listen.
         this.https.listen(this.port, this.ip, () => {
