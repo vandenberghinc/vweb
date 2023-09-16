@@ -10,6 +10,7 @@ const https = require("https");
 const libfs = require("fs");
 const libpath = require("path")
 const libcrypto = require('crypto');
+const libnodemailer = require('nodemailer');
 
 // ---------------------------------------------------------
 // Imports.
@@ -89,6 +90,22 @@ const FileWatcher = require(`${__dirname}/file_watcher.js`);
  *      @required
  *  }
  *  @parameter: {
+ *      @name: smtp_sender
+ *      @description:
+ *          The smtp sender address may either be a string with the email address, e.g. `your@email.com`.
+ *          Or an array with the sender name and email address, e.g. `["Sender", "your@email.com"]`.
+ *      @type: string, array
+ *      @required
+ *  }
+ *  @parameter: {
+ *      @name: smtp
+ *      @description:
+ *          The smpt arguments object.
+ *          More information about the arguments can be found at the nodemailer <link https://nodemailer.com/smtp/>documentation<link>.
+ *      @type: object
+ *      @required
+ *  }
+ *  @parameter: {
  *      @name: production
  *      @description: Whether the server is in production more, or in development mode.
  *      @type: boolean
@@ -113,28 +130,36 @@ class Server {
         default_headers = null,
         token_expiration = 86400,
         enable_2fa = false,
+        smtp_sender = null,
+        smtp = null,
         production = false,
         file_watcher = null,
     }) {
 
         // Check args.
-        if (typeof ip !=== "string") {
+        if (typeof ip !== "string") {
             throw Error(`Parameter "ip" should be a defined value of type "string".`);
         }
-        if (typeof port !=== "port") {
+        if (typeof port !== "string") {
             throw Error(`Parameter "port" should be a defined value of type "string".`);
         }
-        if (typeof certificate !=== "certificate") {
+        if (typeof certificate !== "string") {
             throw Error(`Parameter "ip" should be certificate defined value of type "string".`);
         }
-        if (typeof private_key !=== "private_key") {
+        if (typeof private_key !== "string") {
             throw Error(`Parameter "ip" should be private_key defined value of type "string".`);
         }
-        if (typeof domain !=== "domain") {
-            throw Error(`Parameter "domain should be a defined value of type "string".`);
+        if (typeof domain !== "string") {
+            throw Error(`Parameter "domain" should be a defined value of type "string".`);
         }
-        if (typeof database !=== "database") {
-            throw Error(`Parameter "ip" should database a defined value of type "string".`);
+        if (typeof database !== "string") {
+            throw Error(`Parameter "database" should be a defined value of type "string".`);
+        }
+        if (typeof smtp_sender !== "string" && !Array.isArray(smtp_sender)) {
+            throw Error(`Parameter "smtp_sender" should database a defined value of type "string" or "array".`);
+        }
+        if (typeof smtp !== "object") {
+            throw Error(`Parameter "smtp" should database a defined value of type "object".`);
         }
 
         // Attributes.
@@ -188,6 +213,10 @@ class Server {
             this.file_watcher.start();
             return null;
         }
+
+        // The smtp instance.
+        this.smtp_sender = smtp_sender;
+        this.smtp = libnodemailer.createTransport({smtp});
         
         // Create an HTTPS server
         this.https = https.createServer({key: this.private_key, cert: this.certificate, passphrase: passphrase}, (request, response) => this._serve(request, response));
@@ -382,7 +411,6 @@ class Server {
             return obj;
         }
         const data = libfs.readFileSync(path);
-        const obj = {};
         const key = 0;
         const info = {line: "", line_number: 0}
         for (let i = 0; i < data.length; i++) {
@@ -575,6 +603,47 @@ class Server {
         return token;
     }
 
+    // Perform authentication on a request.
+    // Returns false when the authentication failed and true when it succeeded.
+    _authenticate(request, response) {
+
+        // Vars.
+        let key;
+        let is_token = true;
+
+        // Get token from cookies.
+        console.log("COOKIE:", request.headers.cookie);
+        if (false) {
+            if (false) {
+                response.send({
+                    status: 401, 
+                    data: "Unauthorized.",
+                });
+                return false;
+
+            }
+            return true;
+        }
+
+
+        // Get api key key from bearer.
+        else if (false) {
+            if (false) {
+                response.send({
+                    status: 302, 
+                    headers: {"Location": `/signin?next=${request.url}`},
+                    data: "Permission denied.",
+                });
+                return false;
+
+            }
+            return true;
+        }
+
+        // Failed.
+        return false;
+    }
+
     // Sign a user in and return a response.
     _sign_in_response(response, uid) {
 
@@ -622,11 +691,11 @@ class Server {
     _create_user_cookie(response, uid) {
         if (uid != null && uid <= this.max_uid) {
             response.set_cookie(`UserID=${uid}; Path=/; SameSite=None; Secure;`);
-            const is_activated = this.enable_2fa ? this.is_activated(uid) : true, 
+            const is_activated = this.enable_2fa ? this.is_activated(uid) : true;
             response.set_cookie(`UserActivated=${is_activated}; Path=/; SameSite=None; Secure;`);
         } else {
             response.set_cookie(`UserID=-1; Path=/; SameSite=None; Secure;`);
-            const is_activated = this.enable_2fa ? false : true,
+            const is_activated = this.enable_2fa ? false : true;
             response.set_cookie(`UserActivated=${is_activated}; Path=/; SameSite=None; Secure;`);
         }
     }
@@ -747,7 +816,7 @@ class Server {
             method: "GET",
             endpoint: "/sitemap.xml",
             data: sitemap,
-            content_type: "application/xml"
+            content_type: "application/xml",
             compress: false,
         }))
     }
@@ -835,12 +904,16 @@ class Server {
     }
 
     // Serve a client.
+    // @todo implement rate limiting.
     _serve(request, response) {
         response = new Response(response);
 
         // Parse the request method and URL
         const { method, url } = request;
         console.log(`${Date.now()}: ${method} ${url}.`);
+
+        // Set default headers.
+        this._set_header_defaults(response);
 
         // Check if the request matches any of the defined endpoints
         const endpoint = this.endpoints.find((endpoint) => {
@@ -857,18 +930,25 @@ class Server {
             return null;
         }
 
+        // Check rate limiting.
+        // @todo.
+
+        // Perform authentication.
+        if (endpoint.authenticated && !this._authenticate(request, response)) {
+            return null;
+        }
+
         // Serve endpoint.
         try {
             endpoint._serve(request, response);
         } catch (err) {
             console.error(`${method} ${url}: Internal Server Error.`);
             console.error(err);
-            response.send({
+            return response.send({
                 status: 500, 
                 headers: {"Content-Type": "text/plain"},
                 data: "Internal Server Error",
             });
-            return null;   
         }
 
         // Check if the response has been sent.
@@ -918,9 +998,6 @@ class Server {
             process.exit(0);
         });
     }
-
-    // ---------------------------------------------------------
-    // Users.
 
     // ---------------------------------------------------------
     // Users.
@@ -1069,7 +1146,7 @@ class Server {
         this.edit_max_uid_mutex.unlock();
         
         // Save sys data.
-        this._sys_save_user(uid, User {
+        this._sys_save_user(uid, {
             first_name: first_name,
             last_name: last_name,
             username: username,
@@ -1606,7 +1683,7 @@ class Server {
             } else if (type === "object") {
                 return {};
             } else {
-                throw Error(`Invalid data type "${type}", the valid options are ["string", "array", "object"].`)''
+                throw Error(`Invalid data type "${type}", the valid options are ["string", "array", "object"].`);
             }
         }
         const data = libfs.readFileSync(path);
@@ -1615,7 +1692,7 @@ class Server {
         } else if (type === "array" || type === "object") {
             return JSON.parse(data);
         } else {
-            throw Error(`Invalid data type "${type}", the valid options are ["string", "array", "object"].`)''
+            throw Error(`Invalid data type "${type}", the valid options are ["string", "array", "object"].`);
         }
     }
     
@@ -1654,7 +1731,7 @@ class Server {
         } else if (type === "array" || type === "object") {
             libfs.writeFileSync(path, JSON.stringify(data));
         } else {
-            throw Error(`Invalid data type "${type}", the valid options are ["string", "array", "object"].`)''
+            throw Error(`Invalid data type "${type}", the valid options are ["string", "array", "object"].`);
         }
     }
     
@@ -1766,7 +1843,7 @@ class Server {
      } */
     verify_api_key(api_key) {
         let pos;
-        if ((pos = api_key.indexOf(':')) != NPos::npos) {
+        if ((pos = api_key.indexOf(':')) != -1) {
             const uid = parseInt(api_key.substr(1, pos - 1));
             if (isNaN(uid)) {
                 return false;
@@ -1830,7 +1907,7 @@ class Server {
      } */
     verify_token(token) {
         let pos;
-        if ((pos = token.indexOf(':')) != NPos::npos) {
+        if ((pos = token.indexOf(':')) != -1) {
             const uid = parseInt(token.substr(1, pos - 1));
             if (isNaN(uid)) {
                 return false;
@@ -2045,7 +2122,7 @@ class Server {
         
         // Generate 2fa.
         const auth = {
-            expiration: Date::now() + expiration * 1000,
+            expiration: Date.now() + expiration * 1000,
             code: this._sys_generate_2fa(),
         };
         this._sys_save_user_2fa(uid, auth);
