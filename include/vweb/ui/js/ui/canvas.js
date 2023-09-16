@@ -112,7 +112,7 @@ class CanvasElement extends CreateVElementClass({
      *	} 
      *	@parameter: {
      *		@name: scale
-     *		@type: bool
+     *		@type: boolean
      *		@description: When enabled all x and y coordinates are treated as a 0.0 till 1.0 scale in relation to the canvas' width and height.
      *	} 
      *	@parameter: {

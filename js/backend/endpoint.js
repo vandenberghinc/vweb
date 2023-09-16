@@ -65,6 +65,11 @@ const View = require(`${__dirname}/view.js`);
         @description: The content type for parameter `data`.
         @type: string
     }
+    @parameter: {
+        @name: compress
+        @description: Compress data, only available when initialized with one of the following parameters `view` or `data`.
+        @type: boolean
+    }
  } */
 class Endpoint {
     constructor({
@@ -77,6 +82,7 @@ class Endpoint {
         view = null,
         data = null,
         content_type = "text/plain",
+        compress = true,
     }) {
 
         // Attributes.
@@ -88,6 +94,13 @@ class Endpoint {
         this.callback = callback;
         this.data = data;
         this.content_type = content_type;
+        this.compress = compress !== false;
+
+        // Clean endpoint url.
+        if (this.endpoint.charAt(0) != "/") {
+            this.endpoint = "/" + this.endpoint;
+        }
+        this.endpoint = this.endpoint.replaceAll("//", "/");
 
         // Argument `view` may also be passed as an object instead of class View.
         if (view == null) {
@@ -100,7 +113,7 @@ class Endpoint {
     }
 
     // Serve a client.
-    serve(request, response) {
+    _serve(request, response) {
 
         // Callback.
         if (this.callback !== null) {
@@ -109,7 +122,7 @@ class Endpoint {
 
         // View.
         else if (this.view !== null) {
-            this.view.serve(request, response);
+            this.view._serve(request, response);
         }
 
         // Data.

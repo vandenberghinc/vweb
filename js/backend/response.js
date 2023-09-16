@@ -8,7 +8,12 @@
 
 class Response {
     constructor(res) {
+
+        // Arguments.
         this.res = res;
+
+        // Attributes.
+        this.cookies = [];
 
         // Copy default functions.
         // this.addTrailers = this.res.addTrailers;
@@ -59,12 +64,45 @@ class Response {
             this.res.setHeader(key, headers[key]);
         });
 
+        // Set cookies.
+        if (this.cookies.length > 0) {
+            this.res.setHeader('Set-Cookie', this.cookies);
+        }
+
         // Set data.
         if (data != null) {
             if (typeof data === "string") { this.res.write(data); }
             else { this.res.write(data.toString()); }
         }
         this.res.end();
+    }
+
+    // Send a response.
+    success({status = 200, headers = {}, data = null}) {
+        return this.send({status: status, headers: headers, data: data});
+    }
+    error({status = 500, headers = {}, data = null}) {
+        return this.send({status: status, headers: headers, data: data});
+    }
+
+    // Set headers.
+    // Does not remove previously assigned headers but adds them to the response instead.
+    set_headers(headers = {}) {
+        if (headers === null) { return null; }
+        Object.keys(headers).forEach((key) => {
+            this.res.setHeader(key, headers[key]);
+        });
+    }
+
+    // Set a cookie(s).
+    // @warning: Will only be added to the response when the user uses `send()`, `success()` or `error()`.
+    set_cookie(cookie) {
+        this.cookies.push(cookie);
+    }
+    set_cookies(cookies) {
+        for (let i = 0; i < cookies.length; i++) {
+            this.cookies.push(cookies[i]);
+        }
     }
 
     // ---------------------------------------------------------

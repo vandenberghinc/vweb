@@ -11,19 +11,12 @@ const libpath = require("path");
 const libproc = require("child_process");
 
 // ---------------------------------------------------------
-// Imports.
-
-const View = require(`${__dirname}/view.js`);
-
-// ---------------------------------------------------------
 // Endpoint.
 
 /*  @docs: {
     @title: FileWatcher
     @description: 
         Used to watch all included files and restart the server when any changes have been made.
-
-        Automatically starts when the object is constructed.
     @parameter: {
         @name: source
         @description: The path to the source directory to watch.
@@ -35,6 +28,11 @@ const View = require(`${__dirname}/view.js`);
         @type: string
     }
     @parameter: {
+        @name: args
+        @description: The additional start arguments.
+        @type: array[string]
+    }
+    @parameter: {
         @name: interval
         @description: The interval in milliseconds between file change checks.
         @type: number
@@ -44,16 +42,27 @@ class FileWatcher {
     constructor({
         source = null,
         target = "start.js",
+        args = [],
         interval = 500,
     }) {
 
         // Arguments.
         this.source = source;
         this.target = target;
+        this.args = [target, ...args];
         this.interval = interval;
+
+        // Check source.
+        if (source == null) {
+            throw Error("Define argument: source.");
+        }
 
         // Attributes.
         this.mtimes = {};
+    }
+
+    // Start.
+    start() {
 
         // Scan initial files.
         this.scan_files(this.source, true);
@@ -79,10 +88,10 @@ class FileWatcher {
         libfs.readdirSync(dir).iterate((name) => {
             const path = libpath.join(dir, name);
             const stat = libfs.statSync(path);
-            this.mtimes[path] = stat.mtimeMs;
             if (this.mtimes[path] != stat.mtimeMs) {
                 this.has_changed = true;
             }
+            this.mtimes[path] = stat.mtimeMs;
             if (stat.isDirectory()) {
                 this.scan_files(path, initial)
             }
@@ -90,29 +99,35 @@ class FileWatcher {
     }
 
     // Spawn process.
-    spawn_process() {
+    spawn_process(forced = false) {
         this.has_changed = false;
-        if (this.proc != null) {
-            this.proc.kill();
-        }
-        this.proc = libproc.spawn({
-            command,
-            args,
-            {
-                stdio: "inherit"
-                env: {
-                     ...process.env,
-                    "VWEB_FILE_WATCHER": "1",
+        if (!forced && this.proc != null) {
+            console.log("Restarting server due too changed files.");
+            this.proc.kill("SIGINT");
+        } else {
+            this.proc = libproc.spawn(
+                "node",
+                this.args,
+                {
+                    cwd: this.source,
+                    stdio: "inherit",
+                    env: {
+                         ...process.env,
+                        "VWEB_FILE_WATCHER": "1",
+                    },
                 },
-            },
-        })
-        this.proc.on("close", () => {
-            this.proc = null;
-        })
+            )
+            this.proc.on("close", () => {
+                this.spawn_process(true);
+            })
+            this.proc.on("error", () => {
+                process.exit(1);
+            })
+        }
     }
 }
 
 // ---------------------------------------------------------
 // Exports.
 
-module.exports = Endpoint;
+module.exports = FileWatcher;

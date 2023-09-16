@@ -461,11 +461,13 @@ private:
     void    sys_delete_user(const Len& uid) const {
         Path::save(to_str(config.database, "/.sys/users/", uid), "D");
         String suid = uid.str();
-        sys_save_uid_by_username(suid, "D");
-        sys_save_uid_by_email(suid, "D");
+        sys_save_uid_by_username(suid, "D");; // @todo contains an error the second arg is the username not the value to be saved.
+        sys_save_uid_by_email(suid, "D"); // @todo contains an error the second arg is the username not the value to be saved.
     }
     
     // Load system user token.
+    // @todo no longer in sync with js, js uses line by line as seperators. Make it as js does it.
+    // @todo no longer in sync with js, js deletes all deleted files while cpp saves "D" to it. Make it as js does it.
     Token   sys_load_user_token(const Len& uid) const {
         String data = sys_load_data(to_str(config.database, "/.sys/tokens/", uid));
         if (!data.eq("D", 1)) {
@@ -522,7 +524,7 @@ private:
 	}
     
     // Save system 2fa by uid.
-    void    sys_save_2fa_by_uid(const String& uid, const TwoFactorAuth& auth) const {
+    void    sys_save_user_2fa(const String& uid, const TwoFactorAuth& auth) const {
         Path::save(
                    to_str(config.database, "/.sys/2fa/", uid),
                    to_str(auth.code, '\n', auth.expiration)
@@ -530,7 +532,7 @@ private:
     }
     
     // Load system 2fa by uid.
-    TwoFactorAuth sys_load_2fa_by_uid(const String& uid) const {
+    TwoFactorAuth sys_load_user_2fa(const String& uid) const {
         try {
             String data = String::load(to_str(config.database, "/.sys/2fa/", uid));
             data.replace_end_r("\n");
@@ -548,7 +550,7 @@ private:
     }
     
     // Delete system 2fa by uid.
-    void    sys_delete_2fa_by_uid(const String& uid) const {
+    void    sys_delete_user_2fa(const String& uid) const {
         Path::remove(to_str(config.database, "/.sys/2fa/", uid));
     }
 	
@@ -2764,7 +2766,7 @@ public:
         while (i-- >= 0) {
             auth.code.concats_r(vlib::random::generate<int>(0, 9));
         }
-        sys_save_2fa_by_uid(uid.str(), auth);
+        sys_save_user_2fa(uid.str(), auth);
         
         // Get user email.
         User user = get_user(uid);
@@ -2815,10 +2817,10 @@ public:
     Bool    verify_2fa(const Len& uid, const String& code) {
         check_uid_within_range(uid);
         String suid = uid.str();
-        TwoFactorAuth auth = sys_load_2fa_by_uid(suid);
+        TwoFactorAuth auth = sys_load_user_2fa(suid);
         Bool status = auth.code.is_defined() && Date::get_seconds() < auth.expiration && auth.code == code;
         if (status) {
-            sys_delete_2fa_by_uid(suid);
+            sys_delete_user_2fa(suid);
         }
         return status;
     }

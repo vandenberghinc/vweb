@@ -21,7 +21,8 @@ const server = new Server({
 	statics: [
 		`${__dirname}/media/`,
 		`${__dirname}/ui/`,
-	]
+	],
+	file_watcher: __dirname,
 })
 
 // Create meta data.
@@ -46,7 +47,7 @@ server.endpoint({
     	callback: () => {
     		vweb.utils.on_load(() => {
     			return View(
-    				MyElement("Hello World!"),
+    				MyElement("Hello World! How are you? Howdy"),
     			);
     		})
     	}

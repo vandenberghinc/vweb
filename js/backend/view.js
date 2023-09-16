@@ -124,7 +124,7 @@ class View {
     }
 
     // Serve a client.
-    serve(request, response) {
+    _serve(request, response) {
         response.send({
             status: 200, 
             headers: {"Content-Type": "text/html"}, 
