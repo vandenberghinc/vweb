@@ -2,13 +2,10 @@
   "name": "demojs",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "start.js",
   "scripts": {
     "start": "node start.js"
   },
   "author": "Daan van den Bergh",
-  "license": "ISC",
-  "devDependencies": {
-    "nodemailer": "^6.9.5"
-  }
+  "license": "ISC"
 }

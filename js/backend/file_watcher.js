@@ -117,8 +117,12 @@ class FileWatcher {
                     },
                 },
             )
-            this.proc.on("close", () => {
-                this.spawn_process(true);
+            this.proc.on("close", (code, signal) => {
+                if (code == 0) {
+                    this.spawn_process(true);
+                } else {
+                    process.exit(code);
+                }
             })
             this.proc.on("error", () => {
                 process.exit(1);

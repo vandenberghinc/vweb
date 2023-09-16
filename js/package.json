@@ -9,6 +9,7 @@
   "author": "Daan van den Bergh",
   "license": "ISC",
   "dependencies": {
-    "http2": "^3.3.7"
+    "nodemailer": "^6.9.5",
+    "pako": "^2.1.0"
   }
 }

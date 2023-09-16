@@ -7,6 +7,7 @@
 // Imports.
 
 const View = require(`${__dirname}/view.js`);
+const zlib = require('zlib');
 
 // ---------------------------------------------------------
 // Endpoint.
@@ -70,6 +71,12 @@ const View = require(`${__dirname}/view.js`);
         @description: Compress data, only available when initialized with one of the following parameters `view` or `data`.
         @type: boolean
     }
+    @parameter: {
+        @name: cache
+        @description: 
+            Parameter cache can define the max age of the cached response in seconds or as a boolean `true`. Anything higher than zero enables caching. When server production mode is enabled caching is done automatically unless `cache` is `false`. When production mode is disabled responses are never cached, even though the parameter is assigned. The response of an endpoint that uses parameter `callback` is never cached.
+        @type: boolean, number
+    }
  } */
 class Endpoint {
     constructor({
@@ -83,6 +90,7 @@ class Endpoint {
         data = null,
         content_type = "text/plain",
         compress = true,
+        cache = null,
     }) {
 
         // Attributes.
@@ -95,6 +103,7 @@ class Endpoint {
         this.data = data;
         this.content_type = content_type;
         this.compress = compress !== false;
+        this.cache = cache !== false;
 
         // Clean endpoint url.
         if (this.endpoint.charAt(0) != "/") {
@@ -110,10 +119,36 @@ class Endpoint {
         } else {
             this.view = new View(view);
         }
+
+        // Compression enabled.
+        if (this.compress) {
+            if (this.data !== null) {
+                this.data = data = zlib.deflateSync(this.data, {level: zlib.constants.Z_BEST_COMPRESSION});;
+            } else if (this.view !== null) {
+                this.view.html = data = zlib.deflateSync(this.view.html, {level: zlib.constants.Z_BEST_COMPRESSION});
+            }
+        }
     }
 
     // Serve a client.
     _serve(request, response) {
+
+        // Set cache headers.
+        if (this.callback === null && this.cache != null && this.cache != false) {
+            if (this.cache == 1) {
+                response.set_header("Cache-Control", "max-age=86400");
+            } else {
+                response.set_header("Cache-Control", `max-age=${this.cache}`);
+            }
+        }
+
+        // Set compression headers.
+        if (this.callback === null && this.compress) {
+            console.log("FINISHED: ", response.finished);
+            response.set_header("Content-Encoding", "gzip");
+            // response.set_header("Vary", "Accept-Encoding");
+            console.log(this.view.html)
+        }
 
         // Callback.
         if (this.callback !== null) {
@@ -134,7 +169,7 @@ class Endpoint {
             });
         }
 
-        // // Undefined.
+        // Undefined.
         else {
             throw new Error(`${this.method} ${this.endpoint}: Undefined behaviour, define one of the following endpoint attributes [callback, view, data].`);
         }

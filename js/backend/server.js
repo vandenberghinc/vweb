@@ -140,8 +140,8 @@ class Server {
         if (typeof ip !== "string") {
             throw Error(`Parameter "ip" should be a defined value of type "string".`);
         }
-        if (typeof port !== "string") {
-            throw Error(`Parameter "port" should be a defined value of type "string".`);
+        if (typeof port !== "number") {
+            throw Error(`Parameter "port" should be a defined value of type "number".`);
         }
         if (typeof certificate !== "string") {
             throw Error(`Parameter "ip" should be certificate defined value of type "string".`);
@@ -155,12 +155,12 @@ class Server {
         if (typeof database !== "string") {
             throw Error(`Parameter "database" should be a defined value of type "string".`);
         }
-        if (typeof smtp_sender !== "string" && !Array.isArray(smtp_sender)) {
-            throw Error(`Parameter "smtp_sender" should database a defined value of type "string" or "array".`);
-        }
-        if (typeof smtp !== "object") {
-            throw Error(`Parameter "smtp" should database a defined value of type "object".`);
-        }
+        // if (typeof smtp_sender !== "string" && !Array.isArray(smtp_sender)) {
+        //     throw Error(`Parameter "smtp_sender" should database a defined value of type "string" or "array".`);
+        // }
+        // if (typeof smtp !== "object") {
+        //     throw Error(`Parameter "smtp" should database a defined value of type "object".`);
+        // }
 
         // Attributes.
         this.port = port;
@@ -215,8 +215,11 @@ class Server {
         }
 
         // The smtp instance.
-        this.smtp_sender = smtp_sender;
-        this.smtp = libnodemailer.createTransport({smtp});
+        this.smtp_enabled = smtp_sender !== null && typeof smtp === "object";
+        if (this.smtp_enabled) {
+            this.smtp_sender = smtp_sender;
+            this.smtp = libnodemailer.createTransport({smtp});
+        }
         
         // Create an HTTPS server
         this.https = https.createServer({key: this.private_key, cert: this.certificate, passphrase: passphrase}, (request, response) => this._serve(request, response));
@@ -345,7 +348,7 @@ class Server {
 
     // Iterate a subpath directory in the database.
     _iter_db_dir(subpath, callback) {
-        libfs.readdirSync(libpath.join(this.database, dir)).iterate(callback);
+        libfs.readdirSync(libpath.join(this.database, subpath)).iterate(callback);
     }
 
     // Check of the uid is within the max uid range.
@@ -840,7 +843,7 @@ class Server {
 
         // Check & create database.
         if (!libfs.existsSync(this.database)) {
-            throw Error(`Database "${this.database}" does not exist.`);
+            this._sys_mkdir(this.database);
         }
         [
             ".sys",
@@ -894,72 +897,96 @@ class Server {
         if (this._find_endpoint("robots.txt") == null) {
             this._create_robots_txt();
         }
+
+        // Set the caching of all endpoints.
+        this.endpoints.iterate((endpoint) => {
+            if (endpoint.callback === null) {
+                if (this.production && endpoint.cache == null) {
+                    endpoint.cache = 3600 * 24;
+                } else if (!this.production) {
+                    endpoint.cache = null;
+                }
+            }
+        })
         
         // Stripe.
         // if (stripe.is_defined()) {
         //     stripe.products() = config.stripe_products;
         //     stripe.check_products();
         // }
-
     }
 
     // Serve a client.
     // @todo implement rate limiting.
-    _serve(request, response) {
-        response = new Response(response);
+    async _serve(request, response) {
+        return new Promise((resolve) => {
+            response = new Response(response);
 
-        // Parse the request method and URL
-        const { method, url } = request;
-        console.log(`${Date.now()}: ${method} ${url}.`);
+            // Log endpoint result.
+            const log_endpoint_result = () => {
+                console.log(`${Date.now()} ${method} ${url}: ${response.status_message} [${response.status_code}].`);
+            }
 
-        // Set default headers.
-        this._set_header_defaults(response);
+            // Parse the request method and URL
+            const { method, url } = request;
 
-        // Check if the request matches any of the defined endpoints
-        const endpoint = this.endpoints.find((endpoint) => {
-            return endpoint.method === method && endpoint.endpoint === url;
-        });
+            // Set default headers.
+            this._set_header_defaults(response);
 
-        // No endpoint found.
-        if (!endpoint) {
-            response.send({
-                status: 404, 
-                headers: {"Content-Type": "text/plain"},
-                data: "Not Found",
+            // Check if the request matches any of the defined endpoints
+            const endpoint = this.endpoints.find((endpoint) => {
+                return endpoint.method === method && endpoint.endpoint === url;
             });
-            return null;
-        }
 
-        // Check rate limiting.
-        // @todo.
+            // No endpoint found.
+            if (!endpoint) {
+                response.send({
+                    status: 404, 
+                    headers: {"Content-Type": "text/plain"},
+                    data: "Not Found",
+                });
+                log_endpoint_result();
+                return resolve();
+            }
 
-        // Perform authentication.
-        if (endpoint.authenticated && !this._authenticate(request, response)) {
-            return null;
-        }
+            // Check rate limiting.
+            // @todo.
 
-        // Serve endpoint.
-        try {
-            endpoint._serve(request, response);
-        } catch (err) {
-            console.error(`${method} ${url}: Internal Server Error.`);
-            console.error(err);
-            return response.send({
-                status: 500, 
-                headers: {"Content-Type": "text/plain"},
-                data: "Internal Server Error",
-            });
-        }
+            // Perform authentication.
+            if (endpoint.authenticated && !this._authenticate(request, response)) {
+                log_endpoint_result();
+                return resolve();
+            }
 
-        // Check if the response has been sent.
-        if (!response.finished) {
-            console.error(`${method} ${url}: Unfinished response.`);
-            response.send({
-                status: 500, 
-                headers: {"Content-Type": "text/plain"},
-                data: "Internal Server Error",
-            });
-        }
+            // Serve endpoint.
+            try {
+                endpoint._serve(request, response);
+            } catch (err) {
+                console.error(`${method} ${url}: Internal Server Error.`);
+                console.error(err);
+                response.send({
+                    status: 500, 
+                    headers: {"Content-Type": "text/plain"},
+                    data: "Internal Server Error",
+                });
+                log_endpoint_result();
+                return resolve();
+            }
+
+            // Check if the response has been sent.
+            if (!response.finished) {
+                console.error(`${method} ${url}: Unfinished response.`);
+                response.send({
+                    status: 500, 
+                    headers: {"Content-Type": "text/plain"},
+                    data: "Internal Server Error",
+                });
+            }
+
+            // Log.
+            log_endpoint_result();
+            return resolve();
+        })
     }
 
     // ---------------------------------------------------------
@@ -2010,6 +2037,9 @@ class Server {
         body = "",
         attachments = [],
     }) {
+        if (!this.smtp_enabled) {
+            throw Error("SMTP is not enabled, define the required server argument on initialization to enable smtp.");
+        }
         return new Promise((resolve, reject) => {
 
             // Check args.
@@ -2153,8 +2183,8 @@ class Server {
         
         // Send mail.
         return this.send_mail({
-            sender: config.domain_name.is_defined() ? vlib::smtp::Address{config.domain_name, m_smtp.email} : vlib::smtp::Address{m_smtp.email},
-            recipients: {user.email},
+            sender: this.smtp_sender,
+            recipients: [user.email],
             subject: "Two Factor Authentication Code",
             body: body,
         });

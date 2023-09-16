@@ -22,7 +22,16 @@ const server = new Server({
 		`${__dirname}/media/`,
 		`${__dirname}/ui/`,
 	],
-	file_watcher: __dirname,
+    domain: "127.0.0.1:8000",
+    statics: [],
+    database: `${__dirname}/.db/`,
+    default_headers: null,
+    token_expiration: 86400,
+    enable_2fa: false,
+    smtp_sender: null,
+    smtp: null,
+    production: false,
+    file_watcher: __dirname,
 })
 
 // Create meta data.

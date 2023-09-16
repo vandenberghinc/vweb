@@ -4,6 +4,11 @@
  */
 
 // ---------------------------------------------------------
+// Imports.
+
+const zlib = require('zlib');
+
+// ---------------------------------------------------------
 // Response object.
 
 class Response {
@@ -17,8 +22,8 @@ class Response {
 
         // Copy default functions.
         // this.addTrailers = this.res.addTrailers;
-        this.cork = this.res.cork;
-        this.end = this.res.end;
+        this.cork = this.res.cork.bind(this.res);
+        this.end = this.res.end.bind(this.res);
         // this.flushHeaders = this.res.flushHeaders;
         // this.getHeader = this.res.getHeader;
         // this.getHeaderNames = this.res.getHeaderNames;
@@ -27,22 +32,22 @@ class Response {
         // this.removeHeader = this.res.removeHeader;
         // this.setHeader = this.res.setHeader;
         // this.setTimeout = this.res.setTimeout;
-        this.uncork = this.res.uncork;
-        this.write = this.res.write;
+        this.uncork = this.res.uncork.bind(this.res);
+        this.write = this.res.write.bind(this.res);
         // this.writeContinue = this.res.writeContinue;
         // this.writeEarlyHints = this.res.writeEarlyHints;
         // this.writeHead = this.res.writeHead;
         // this.writeProcessing = this.res.writeProcessing;
 
         // Create lowercase functions.
-        this.add_trailers = this.res.addTrailers;
-        this.flush_headers = this.res.flushHeaders;
-        this.get_header = this.res.getHeader;
-        this.get_header_names = this.res.getHeaderNames;
-        this.get_headers = this.res.getHeaders;
-        this.has_header = this.res.hasHeader;
-        this.remove_header = this.res.removeHeader;
-        this.set_header = this.res.setHeader;
+        this.add_trailers = this.res.addTrailers.bind(this.res);
+        this.flush_headers = this.res.flushHeaders.bind(this.res);
+        this.get_header = this.res.getHeader.bind(this.res);
+        this.get_header_names = this.res.getHeaderNames.bind(this.res);
+        this.get_headers = this.res.getHeaders.bind(this.res);
+        this.has_header = this.res.hasHeader.bind(this.res);
+        this.remove_header = this.res.removeHeader.bind(this.res);
+        this.set_header = this.res.setHeader.bind(this.res);
         this.set_timeout = this.res.setTimeout;
         // this.write_continue = this.res.writeContinue;
         // this.write_early_hints = this.res.writeEarlyHints;
@@ -54,7 +59,7 @@ class Response {
     // Functions.
 
     // Send a response.
-    send({status = 200, headers = {}, data = null}) {
+    send({status = 200, headers = {}, data = null, compress = false}) {
 
         // Set status code.
         this.res.statusCode = status;
@@ -69,6 +74,13 @@ class Response {
             this.res.setHeader('Set-Cookie', this.cookies);
         }
 
+        // @todo compress.
+        if (compress) {
+            this.res.setHeader("Content-Encoding", "gzip");
+            this.res.setHeader("Vary", "Accept-Encoding");
+            data = zlib.deflateSync(data, {level: zlib.constants.Z_BEST_COMPRESSION});
+        }
+
         // Set data.
         if (data != null) {
             if (typeof data === "string") { this.res.write(data); }
@@ -78,11 +90,11 @@ class Response {
     }
 
     // Send a response.
-    success({status = 200, headers = {}, data = null}) {
-        return this.send({status: status, headers: headers, data: data});
+    success({status = 200, headers = {}, data = null, compress = false}) {
+        return this.send({status: status, headers: headers, data: data, compress: compress});
     }
-    error({status = 500, headers = {}, data = null}) {
-        return this.send({status: status, headers: headers, data: data});
+    error({status = 500, headers = {}, data = null, compress = false}) {
+        return this.send({status: status, headers: headers, data: data, compress: compress});
     }
 
     // Set headers.
