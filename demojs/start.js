@@ -56,7 +56,7 @@ server.endpoint({
     	callback: () => {
     		vweb.utils.on_load(() => {
     			return View(
-    				MyElement("Hello World! How are you? Howdy, I am YES!."),
+    				MyElement("Hello World! How are you? Howdy, I am X!."),
     			);
     		})
     	}

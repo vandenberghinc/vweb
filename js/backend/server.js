@@ -1122,14 +1122,17 @@ class Server {
         process.on('SIGINT', () => this.stop());
     }
 
-    // Stop the server.
+    // Stop the server and exit the program.
     stop() {
+        console.log("STOP 1!");
         if (this.https === undefined) {
             return null; // inside file watcher process.
         }
-        this.https.close((code) => {
-            process.exit(0);
-        });
+        process.exit(0);
+        console.log("STOP 2!");
+        // this.https.close((code) => { // the close handler does not always get executed when run from vide build system.
+        //     process.exit(0);
+        // });
     }
 
     // ---------------------------------------------------------
@@ -1255,7 +1258,7 @@ class Server {
      *          password: "HelloWorld!"
      *      });
      } */
-    create_user({
+    async create_user({
         first_name,
         last_name,
         username,
@@ -1273,7 +1276,7 @@ class Server {
         
         // Get new uid.
         // @todo check for deleted uids.
-        this.edit_max_uid_mutex.lock();
+        await this.edit_max_uid_mutex.lock();
         ++this.max_uid;
         const uid = this.max_uid;
         this.edit_max_uid_mutex.unlock();

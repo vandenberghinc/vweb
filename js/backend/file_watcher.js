@@ -111,16 +111,19 @@ class FileWatcher {
                 {
                     cwd: this.source,
                     stdio: "inherit",
+                    detached: true,
                     env: {
                          ...process.env,
                         "VWEB_FILE_WATCHER": "1",
                     },
                 },
             )
-            this.proc.on("close", (code, signal) => {
+            this.proc.on("exit", (code, signal) => {
                 if (code == 0) {
+                    console.log("RESTART");
                     this.spawn_process(true);
                 } else {
+                    console.log("EXIT");
                     process.exit(code);
                 }
             })

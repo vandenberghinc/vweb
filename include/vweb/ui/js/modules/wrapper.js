@@ -6,5 +6,7 @@
 // VWeb module.
 const vweb = {}
 
-// Exports for the bundles files.
-// module.exports = vweb;
+// Node exports.
+if (module !== undefined) {
+    module.exports = vweb   
+}

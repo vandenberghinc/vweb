@@ -3,6 +3,9 @@
  * Copyright: © 2022 - 2023 Daan van den Bergh.
  */
 const vweb={}
+// if(module!==undefined){
+// module.exports=vweb 
+// }
 vweb.utils={};
 vweb.utils.is_string=function(value){
 return typeof value==='string'||value instanceof String;
@@ -8324,3 +8327,6 @@ dropped.push(this[i])
 }
 return dropped;
 };
+if (module !== undefined) {
+    module.exports = vweb   
+}
