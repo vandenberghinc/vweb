@@ -7,6 +7,7 @@
 // Libraries.
 
 const https = require("https");
+const http = require("http");
 const libfs = require("fs");
 const libpath = require("path")
 const libcrypto = require('crypto');
@@ -223,6 +224,7 @@ class Server {
         
         // Create an HTTPS server
         this.https = https.createServer({key: this.private_key, cert: this.certificate, passphrase: passphrase}, (request, response) => this._serve(request, response));
+        // this.https = http.createServer((request, response) => this._serve(request, response));
 
         // Max uid.
         this.max_uid = null;
@@ -606,50 +608,132 @@ class Server {
         return token;
     }
 
+    // Get a cookie value.
+    // Returns null when the cookie is not found.
+    _get_cookie(name, request) {
+        if (request.headers.cookie === undefined) {
+            return null;
+        }
+        const cookie = request.headers.cookie;
+        let key = "";
+        let value = "";
+        let get_value = false;
+        let skip = false;
+        for (let x = 0; x < cookie.length; x++) {
+            const c = cookie.charAt(y);
+
+            // Skip till next cookie.
+            if (skip) {
+                if (c == ";") {
+                    skip = false;
+                }
+            } else {
+
+                // Skip whitespace in keys.
+                if (!get_value && (c == " " || c == "\t")) {
+                    continue;
+                }
+
+                // End of cookie.
+                else if (c == ";") {
+                    if (get_value) {
+                        return value;
+                    } else {
+                        key = "";
+                    }
+                }
+
+                // End of cookie key.
+                else if (c == "=") {
+                    if (key == name) {
+                        get_value = false;
+                    } else {
+                        skip = true;
+                    }
+                }
+
+                // Add char to value.
+                else if (get_value) {
+                    value += c;
+                }
+
+                // Add char to key.
+                else {
+                    key += c;
+                }
+            }
+        }
+        if (value.length > 0) {
+            return value;
+        }
+        return null;
+    }
+
     // Perform authentication on a request.
-    // Returns false when the authentication failed and true when it succeeded.
+    // Returns the uid of the user when authentication was successfull, otherwise `null`.
     _authenticate(request, response) {
 
-        // Vars.
-        let key;
-        let is_token = true;
+        // // Get api key key from bearer.
+        const authorization = request.headers["Authorization"];
+        if (authorization !== undefined) {
+            if (typeof authorization !== "string") {
+                response.send({
+                    status: 400, 
+                    data: "Bad Request: Invalid authorization header.",
+                });
+            }
+            if (!authorization.eq_first("Bearer ")) {
+                response.send({
+                    status: 400, 
+                    data: "Bad Request: Invalid authorization scheme, the authorization scheme must be \"Bearer\".",
+                });
+            }
+            let api_key = "";
+            for (let i = 7; i < authorization.length; i++) {
+                const c = authorization[i];
+                if (c == " ") {
+                    continue;
+                }
+                api_key += c;
+            }
+            const uid = this.get_uid_by_api_key(api_key);
+            if (!this.verify_api_key_by_uid(uid, api_key)) {
+                response.send({
+                    status: 401, 
+                    data: "Unauthorized.",
+                });
+                return null;
+
+            }
+            return uid;
+        }
 
         // Get token from cookies.
-        console.log("COOKIE:", request.headers.cookie);
-        // if (false) {
-        //     if (false) {
-        //         response.send({
-        //             status: 401, 
-        //             data: "Unauthorized.",
-        //         });
-        //         return false;
+        else {
+            const token = this._get_cookie("T", request);
+            if (token == null) {
+                return null;
+            }
+            const uid = this.get_uid_by_api_key(api_key);
+            if (!this.verify_token_by_uid(uid, api_key)) {
+                response.send({
+                    status: 302, 
+                    headers: {"Location": `/signin?next=${request.url}`},
+                    data: "Permission denied.",
+                });
+                return null;
 
-        //     }
-        //     return true;
-        // }
+            }
+            return uid;
+        }
 
-
-        // // Get api key key from bearer.
-        // else if (false) {
-        //     if (false) {
-        //         response.send({
-        //             status: 302, 
-        //             headers: {"Location": `/signin?next=${request.url}`},
-        //             data: "Permission denied.",
-        //         });
-        //         return false;
-
-        //     }
-        //     return true;
-        // }
-
-        // Failed.
+        // Authentication failed.
         response.send({
             status: 302, 
             headers: {"Location": `/signin?next=${request.url}`},
             data: "Permission denied.",
         });
-        return false;
+        return null;
     }
 
     // Sign a user in and return a response.
@@ -676,10 +760,10 @@ class Server {
     // Add header defaults.
     _set_header_defaults(response) {
         response.set_headers(this.default_headers);
-        if (this.domain != null) {
-            response.set_header("Origin", this.domain);
-            response.set_header("Access-Control-Allow-Origin", this.domain);
-        }
+        // if (this.domain != null) {
+        //     response.set_header("Origin", this.domain);
+        //     response.set_header("Access-Control-Allow-Origin", this.domain);
+        // }
     }
     
     // Create token headers.
@@ -691,20 +775,20 @@ class Server {
         if (typeof token === "object") {
             token = token.token;
         }
-        response.set_cookie(`T=${token}; Max-Age=86400; Path=/; Expires=${expires.toUTCString()}; SameSite=None; Secure; HttpOnly;`);
+        response.set_cookie(`T=${token}; Max-Age=86400; Path=/; Expires=${expires.toUTCString()}; SameSite=Strict; Secure; HttpOnly;`);
     }
     
     // Create user headers.
     //  - Should be called when a user is authenticated.
     _create_user_cookie(response, uid) {
         if (uid != null && uid <= this.max_uid) {
-            response.set_cookie(`UserID=${uid}; Path=/; SameSite=None; Secure;`);
+            response.set_cookie(`UserID=${uid}; Path=/; SameSite=Strict; Secure;`);
             const is_activated = this.enable_2fa ? this.is_activated(uid) : true;
-            response.set_cookie(`UserActivated=${is_activated}; Path=/; SameSite=None; Secure;`);
+            response.set_cookie(`UserActivated=${is_activated}; Path=/; SameSite=Strict; Secure;`);
         } else {
-            response.set_cookie(`UserID=-1; Path=/; SameSite=None; Secure;`);
+            response.set_cookie(`UserID=-1; Path=/; SameSite=Strict; Secure;`);
             const is_activated = this.enable_2fa ? false : true;
-            response.set_cookie(`UserActivated=${is_activated}; Path=/; SameSite=None; Secure;`);
+            response.set_cookie(`UserActivated=${is_activated}; Path=/; SameSite=Strict; Secure;`);
         }
     }
     
@@ -712,23 +796,23 @@ class Server {
     //  - Should be called when a user has just signed in, signed up or changed their account.
     _create_detailed_user_cookie(response, uid) {
         const user = this.get_user(uid);
-        response.set_cookie(`UserName=${user.username}; Path=/; SameSite=None; Secure;`);
-        response.set_cookie(`UserFirstName=${user.first_name} Path=/; SameSite=None; Secure;`);
-        response.set_cookie(`UserLastName=${user.last_name}; Path=/; SameSite=None; Secure;`);
-        response.set_cookie(`UserEmail=${user.email}; Path=/; SameSite=None; Secure;`);
+        response.set_cookie(`UserName=${user.username}; Path=/; SameSite=Strict; Secure;`);
+        response.set_cookie(`UserFirstName=${user.first_name} Path=/; SameSite=Strict; Secure;`);
+        response.set_cookie(`UserLastName=${user.last_name}; Path=/; SameSite=Strict; Secure;`);
+        response.set_cookie(`UserEmail=${user.email}; Path=/; SameSite=Strict; Secure;`);
     }
     
     // Reset all default cookies.
     // - Should be called when a user signs out.
     _reset_cookies(response) {
-        response.set_cookie("Set-Cookie", "T=; Path=/; SameSite=None; Secure; HttpOnly;");
-        response.set_cookie("Set-Cookie", "UserID=-1; Path=/; SameSite=None; Secure;");
-        response.set_cookie("Set-Cookie", "UserActivated=false; Path=/; SameSite=None; Secure;");
-        response.set_cookie("Set-Cookie", "2FAUserID=-1; Path=/; SameSite=None; Secure;");
-        response.set_cookie("Set-Cookie", "UserName=; Path=/; SameSite=None; Secure;");
-        response.set_cookie("Set-Cookie", "UserFirstName=; Path=/; SameSite=None; Secure;");
-        response.set_cookie("Set-Cookie", "UserLastName=; Path=/; SameSite=None; Secure;");
-        response.set_cookie("Set-Cookie", "UserEmail=; Path=/; SameSite=None; Secure;");
+        response.set_cookie("Set-Cookie", "T=; Path=/; SameSite=Strict; Secure; HttpOnly;");
+        response.set_cookie("Set-Cookie", "UserID=-1; Path=/; SameSite=Strict; Secure;");
+        response.set_cookie("Set-Cookie", "UserActivated=false; Path=/; SameSite=Strict; Secure;");
+        response.set_cookie("Set-Cookie", "2FAUserID=-1; Path=/; SameSite=Strict; Secure;");
+        response.set_cookie("Set-Cookie", "UserName=; Path=/; SameSite=Strict; Secure;");
+        response.set_cookie("Set-Cookie", "UserFirstName=; Path=/; SameSite=Strict; Secure;");
+        response.set_cookie("Set-Cookie", "UserLastName=; Path=/; SameSite=Strict; Secure;");
+        response.set_cookie("Set-Cookie", "UserEmail=; Path=/; SameSite=Strict; Secure;");
     }
 
     // ---------------------------------------------------------
@@ -1008,18 +1092,30 @@ class Server {
         // Initialize.
         this._initialize();
 
-        console.log("Endpoints:");
-        this.endpoints.iterate((e) => {
-            console.log(e.method,e.endpoint);
-        })
-
         // Listen.
         this.https.listen(this.port, this.ip, () => {
-            console.log(`Running on ${this.ip}:${this.port}.`);
+            console.log(`Running on ${this.ip}:${this.port}.`); // @warning if you change this running on text you should update vide::BuildSystem since that depends on this log line.
         });
-        this.https.on("error", (err) => {
-            console.error("Server error:", err);
+        this.https.on("error", (error) => {
+            if (error.syscall !== 'listen') {
+                throw error; // This is a system error, not related to server listening
+            }
+            switch (error.code) {
+                case 'EACCES':
+                    console.error(`Error: Address ${this.ip}:${this.port} requires elevated privileges.`);
+                    process.exit(1);
+                    break;
+                case 'EADDRINUSE':
+                    console.error(`Error: Address ${this.ip}:${this.port} is already in use.`);
+                    process.exit(1);
+                    break;
+                default:
+                    throw error;
+            }
         });
+        // this.https.on("close", () => {
+        //     process.exit(0);
+        // })
 
         // Set signals.
         process.on('SIGTERM', () => this.stop());
@@ -1031,7 +1127,7 @@ class Server {
         if (this.https === undefined) {
             return null; // inside file watcher process.
         }
-        this.https.close(() => {
+        this.https.close((code) => {
             process.exit(0);
         });
     }
@@ -1879,15 +1975,7 @@ class Server {
      *      const success = server.verify_api_key("XXXXXX");
      } */
     verify_api_key(api_key) {
-        let pos;
-        if ((pos = api_key.indexOf(':')) != -1) {
-            const uid = parseInt(api_key.substr(1, pos - 1));
-            if (isNaN(uid)) {
-                return false;
-            }
-            return this.verify_api_key_by_uid(uid, api_key);
-        }
-        return false;
+        return this.verify_api_key_by_uid(this.get_uid_by_api_key(api_key), api_key);
     }
     /*  @docs {
      *  @title: Verify API Key By UID
@@ -1943,15 +2031,7 @@ class Server {
      *      const success = server.verify_token("XXXXXX");
      } */
     verify_token(token) {
-        let pos;
-        if ((pos = token.indexOf(':')) != -1) {
-            const uid = parseInt(token.substr(1, pos - 1));
-            if (isNaN(uid)) {
-                return false;
-            }
-            return this.verify_token_by_uid(uid, token);
-        }
-        return false;
+        return this.verify_token_by_uid(this.get_uid_by_api_key(token), token);
     }
     /*  @docs {
      *  @title: Verify Token By UID.
@@ -1976,13 +2056,16 @@ class Server {
      *      const success = server.verify_token_by_uid(0, "XXXXXX");
      } */
     verify_token_by_uid(uid, token) {
+        if (uid == null) {
+            return false;
+        }
         try {
             this._check_uid_within_range(uid);
         } catch (err) {
             return false;
         }
         const correct_token = this._sys_load_user_token(uid);
-        return Date.now() < correct_token.expiration && correct_token.token == this._hmac(token);
+        return correct_token.token != null && Date.now() < correct_token.expiration && correct_token.token == this._hmac(token);
     }
     
     // Send a mail.
@@ -2251,7 +2334,7 @@ class Server {
                 An endpoint parameter can either be a `Endpoint` class or an `object` with the `Endpoint` arguments.
             @type: Endpoint, object
         }
-    } */
+        } */
     endpoint(...endpoints) {
         for (let i = 0; i < endpoints.length; i++) {
             const endpoint = endpoints[i];

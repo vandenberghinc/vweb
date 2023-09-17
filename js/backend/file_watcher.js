@@ -102,7 +102,7 @@ class FileWatcher {
     spawn_process(forced = false) {
         this.has_changed = false;
         if (!forced && this.proc != null) {
-            console.log("Restarting server due too changed files.");
+            console.log("Restarting server due to file changes."); // @warning if you change this running on text you should update vide::BuildSystem since that depends on this log line.
             this.proc.kill("SIGINT");
         } else {
             this.proc = libproc.spawn(

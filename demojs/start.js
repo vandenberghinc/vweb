@@ -23,10 +23,6 @@ const server = new Server({
 		`${__dirname}/ui/`,
 	],
     domain: "127.0.0.1:8000",
-    statics: [
-        `${__dirname}/media/`,
-        `${__dirname}/ui/`,
-    ],
     database: `${__dirname}/.db/`,
     default_headers: null,
     token_expiration: 86400,
@@ -54,13 +50,13 @@ server.endpoint({
 	method: "GET",
     endpoint: "/",
     meta: meta,
-    authenticated: true,
+    // authenticated: true,
     view: {
     	includes: ["/ui/my_element.js"],
     	callback: () => {
     		vweb.utils.on_load(() => {
     			return View(
-    				MyElement("Hello World! How are you? Howdy"),
+    				MyElement("Hello World! How are you? Howdy, I am YES!."),
     			);
     		})
     	}

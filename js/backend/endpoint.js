@@ -121,13 +121,13 @@ class Endpoint {
         }
 
         // Compression enabled.
-        if (this.compress) {
-            if (this.data !== null) {
-                this.data = zlib.gzipSync(this.data, {level: zlib.constants.Z_BEST_COMPRESSION});;
-            } else if (this.view !== null) {
-                this.view.html = zlib.gzipSync(this.view.html, {level: zlib.constants.Z_BEST_COMPRESSION});
-            }
-        }
+        // if (this.compress) {
+        //     if (this.data !== null) {
+        //         this.data = zlib.gzipSync(this.data, {level: zlib.constants.Z_BEST_COMPRESSION});;
+        //     } else if (this.view !== null) {
+        //         this.view.html = zlib.gzipSync(this.view.html, {level: zlib.constants.Z_BEST_COMPRESSION});
+        //     }
+        // }
 
         // Set content length.
         this.content_length = null;
@@ -151,17 +151,15 @@ class Endpoint {
         }
 
         // Set compression headers.
-        if (this.callback === null && this.compress) {
-            response.set_header("Content-Encoding", "gzip");
-            response.set_header("Vary", "Accept-Encoding");
-        }
+        // if (this.callback === null && this.compress) {
+        //     response.set_header("Content-Encoding", "gzip");
+        //     response.set_header("Vary", "Accept-Encoding");
+        // }
 
         // Set content length.
         if (this.content_length !== null) {
             response.set_header("Content-Length", this.content_length);
         }
-
-        response.set_cookie('TestCookie=HelloWorld; SameSite=None; HttpOnly;');
 
         // Callback.
         if (this.callback !== null) {

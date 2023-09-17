@@ -2845,7 +2845,7 @@ public:
             "T=", token,
             "; Max-Age=86400; Path=/; Expires=",
             (Date::now() + (86400 * 1000)).str("%a, %d %b %Y %H:%M:%S %z"),
-            "; SameSite=None; Secure; HttpOnly;"
+            "; SameSite=Strict; Secure; HttpOnly;"
         ));
     }
     
@@ -2857,22 +2857,22 @@ public:
             headers.append("Set-Cookie", to_str(
                 CString("UserID=", 7),
                 uid,
-                CString("; Path=/; SameSite=None; Secure;", 32)
+                CString("; Path=/; SameSite=Strict; Secure;", 32)
             ));
             headers.append("Set-Cookie", to_str(
                 CString("UserActivated=", 14),
 				is_activated(uid), // config.enable_2fa ? is_activated(uid) : Bool(true),
-                CString("; Path=/; SameSite=None; Secure;", 32)
+                CString("; Path=/; SameSite=Strict; Secure;", 32)
             ));
         } else {
             headers.append("Set-Cookie", to_str(
                 CString("UserID=-1", 9),
-                CString("; Path=/; SameSite=None; Secure;", 32)
+                CString("; Path=/; SameSite=Strict; Secure;", 32)
             ));
             headers.append("Set-Cookie", to_str(
                 CString("UserActivated=", 14),
 				false, // config.enable_2fa ? false : true,
-                CString("; Path=/; SameSite=None; Secure;", 32)
+                CString("; Path=/; SameSite=Strict; Secure;", 32)
             ));
         }
     }
@@ -2881,24 +2881,24 @@ public:
     //  - Should be called when a user has just signed in, signed up or changed their account.
     void    create_detailed_user_cookie(Headers& headers, const Len& uid) {
         User user = get_user(uid);
-        headers.append("Set-Cookie", to_str("UserName=", user.username, "; Path=/; SameSite=None; Secure;"));
-        headers.append("Set-Cookie", to_str("UserFirstName=", user.first_name,"; Path=/; SameSite=None; Secure;"));
-        headers.append("Set-Cookie", to_str("UserLastName=", user.last_name, "; Path=/; SameSite=None; Secure;"));
-        headers.append("Set-Cookie", to_str("UserEmail=", user.email, "; Path=/; SameSite=None; Secure;"));
+        headers.append("Set-Cookie", to_str("UserName=", user.username, "; Path=/; SameSite=Strict; Secure;"));
+        headers.append("Set-Cookie", to_str("UserFirstName=", user.first_name,"; Path=/; SameSite=Strict; Secure;"));
+        headers.append("Set-Cookie", to_str("UserLastName=", user.last_name, "; Path=/; SameSite=Strict; Secure;"));
+        headers.append("Set-Cookie", to_str("UserEmail=", user.email, "; Path=/; SameSite=Strict; Secure;"));
     }
     
     // Reset all default cookies.
     // - Should be called when a user signs out.
     constexpr
     void    reset_cookies(Headers& headers) {
-        headers.append("Set-Cookie", "T=; Path=/; SameSite=None; Secure; HttpOnly;");
-        headers.append("Set-Cookie", "UserID=-1; Path=/; SameSite=None; Secure;");
-        headers.append("Set-Cookie", "UserActivated=false; Path=/; SameSite=None; Secure;");
-        headers.append("Set-Cookie", "2FAUserID=-1; Path=/; SameSite=None; Secure;");
-        headers.append("Set-Cookie", "UserName=; Path=/; SameSite=None; Secure;");
-        headers.append("Set-Cookie", "UserFirstName=; Path=/; SameSite=None; Secure;");
-        headers.append("Set-Cookie", "UserLastName=; Path=/; SameSite=None; Secure;");
-        headers.append("Set-Cookie", "UserEmail=; Path=/; SameSite=None; Secure;");
+        headers.append("Set-Cookie", "T=; Path=/; SameSite=Strict; Secure; HttpOnly;");
+        headers.append("Set-Cookie", "UserID=-1; Path=/; SameSite=Strict; Secure;");
+        headers.append("Set-Cookie", "UserActivated=false; Path=/; SameSite=Strict; Secure;");
+        headers.append("Set-Cookie", "2FAUserID=-1; Path=/; SameSite=Strict; Secure;");
+        headers.append("Set-Cookie", "UserName=; Path=/; SameSite=Strict; Secure;");
+        headers.append("Set-Cookie", "UserFirstName=; Path=/; SameSite=Strict; Secure;");
+        headers.append("Set-Cookie", "UserLastName=; Path=/; SameSite=Strict; Secure;");
+        headers.append("Set-Cookie", "UserEmail=; Path=/; SameSite=Strict; Secure;");
     }
     
     // ---------------------------------------------------------

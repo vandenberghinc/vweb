@@ -1,0 +1,21 @@
+{
+    "build_system": "vweb js",
+    "compiler": "g++",
+    "compile_args": [],
+    "source_files": [
+        "/Volumes/persistance/private/vinc/vweb/demojs/start.js"
+    ],
+    "ip": "127.0.0.1",
+    "port": "8000",
+    "executable_args": [],
+    "exclude_path_patterns": [
+        "*.DS_Store",
+        "*.git",
+        "*.xcodeproj",
+        "*node_modules"
+    ],
+    "ssh_remotes": [],
+    "git_username": null,
+    "git_email": null,
+    "git_remotes": []
+}
