@@ -1118,21 +1118,18 @@ class Server {
         // })
 
         // Set signals.
-        process.on('SIGTERM', () => this.stop());
-        process.on('SIGINT', () => this.stop());
+        process.on('SIGTERM', () => process.exit(0)); // the "this.https.close()" handler does not always get executed when run from vide build system, so use "process.exit()" instead.
+        process.on('SIGINT', () => process.exit(0));
     }
 
     // Stop the server and exit the program.
     stop() {
-        console.log("STOP 1!");
         if (this.https === undefined) {
             return null; // inside file watcher process.
         }
-        process.exit(0);
-        console.log("STOP 2!");
-        // this.https.close((code) => { // the close handler does not always get executed when run from vide build system.
-        //     process.exit(0);
-        // });
+        this.https.close((code) => { 
+            process.exit(0);
+        });
     }
 
     // ---------------------------------------------------------

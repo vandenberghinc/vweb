@@ -878,6 +878,7 @@ function CreateVElementClass({
 						this.display("flex");
 					}
 					this.style.alignItems = value;
+					return this;
 				default:
 					this.style.justifyContent = value;
 					return this;

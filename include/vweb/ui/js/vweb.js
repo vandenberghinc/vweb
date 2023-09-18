@@ -3,9 +3,9 @@
  * Copyright: © 2022 - 2023 Daan van den Bergh.
  */
 const vweb={}
-// if(module!==undefined){
-// module.exports=vweb 
-// }
+if(module!==undefined){
+module.exports=vweb 
+}
 vweb.utils={};
 vweb.utils.is_string=function(value){
 return typeof value==='string'||value instanceof String;
@@ -4449,62 +4449,103 @@ class VirtualScrollerElement extends ScrollerElement{
 constructor(...children){
 super();
 this.v_children=[];
+this.top_diff=0;
+this.scroll_top_value=0;
+this.last_v_children=0;
 this.append(...children);
-this.scroll_dimension=VStack()
-.frame(0,0);
-this.content.append(this.scroll_dimension);
-this.visible_content=VStack()
-.position(0,0,null,0)
-.overflow("visible")
+this.visible_container=VStack()
+.position("relative")
+.overflow_x("visible")
+.overflow_y("hidden")
 .styles({
 "content-visibility":"auto",
 })
-super.insertBefore(this.visible_content,this.content);
-this.top_diff=0;
-this.render();
+this.content.append(this.visible_container)
+this.height_measurer=Span()
+.visibility("hidden")
+this.content.append(this.height_measurer)
+this.render(true);
 this.content.addEventListener("scroll",()=>this.render())
+}
+overflow(value){
+if(value==null){
+return this.content.overflow();
+}
+this.content.overflow(value);
+this.visible_container.overflow_x(value.split(" ")[0]);
+return this;
+}
+overflow_x(value){
+if(value==null){
+return this.content.overflow_x();
+}
+this.content.overflow_x(value);
+this.visible_container.overflow_x(value);
+return this;
 }
 remove_children(){
 this.v_children=[];
-this.scroll_dimension.min_frame(0,0);
-this.visible_content.inner_html("");
+this.visible_container.min_height(0);
+this.visible_container.max_height(0);
+this.visible_container.inner_html("");
 return this;
 }
 render(){
-clearTimeout(this.render_timeout);
-this.render_timeout=setTimeout(()=>{
-this.visible_content.scrollLeft=this.content.scrollLeft;
+const last_scroll_top=this.scroll_top_value;
+this.scroll_top_value=this.content.scrollTop;
+const last_v_children=this.last_v_children;
+this.last_v_children=this.v_children.length;
+let scrolling_down=true;
+if(this.scroll_top_value>last_scroll_top){
+scrolling_down=true;
+}else if(this.scroll_top_value<last_scroll_top){
+scrolling_down=false;
+}
 const start_y=this.content.scrollTop;
 const end_y=start_y+this.content.offsetHeight+this.top_diff;
 let is_first=true;
 let is_visible=false;
 let total_height=0;
+let visible_height=0;
 this.v_children.iterate((child)=>{
-const height=this.get_height(child);
+const height=child.v_height!==undefined ? child.v_height:this.get_height(child);
 if(height==0){
 return null;}
 const child_start_y=total_height;
 const child_end_y=total_height+height;total_height+=height;
 if(is_first&&child_end_y>=start_y){
+child.transform(`translateY(${child_start_y}px)`);visible_height+=height;
 is_first=false;
 is_visible=true;
 if(!child.rendered){
-this.visible_content.appendChild(child);
+if(scrolling_down){
+this.visible_container.appendChild(child);
+}else{
+this.visible_container.insertBefore(child,this.visible_container.firstChild);
+}
 child.rendered=true;
 }
-this.first_child=child;
-this.top_diff=(start_y-child_start_y);this.visible_content.transform(`translateY(-${this.top_diff}px)`)
 }
 else if(is_visible&&child_start_y>=end_y){
+child.transform(`translateY(${child_start_y - visible_height}px)`);visible_height+=height;
 is_visible=false;
 if(!child.rendered){
-this.visible_content.appendChild(child);
+if(scrolling_down){
+this.visible_container.appendChild(child);
+}else{
+this.visible_container.insertBefore(child,this.visible_container.firstChild);
+}
 child.rendered=true;
 }
 }
 else if(is_visible){
+child.transform(`translateY(${child_start_y - visible_height}px)`);visible_height+=height;
 if(!child.rendered){
-this.visible_content.appendChild(child);
+if(scrolling_down){
+this.visible_container.appendChild(child);
+}else{
+this.visible_container.insertBefore(child,this.visible_container.firstChild);
+}
 child.rendered=true;
 }
 }
@@ -4513,16 +4554,32 @@ child.remove();
 child.rendered=false;
 }
 })
-this.scroll_dimension.min_frame(this.visible_content.scrollWidth,total_height);
-},10);
+this.visible_container.min_height(total_height);
+this.visible_container.max_height(total_height);
 return this;
 }
-get_height(element){
-let height=parseFloat(element.style.height);
+update_heights(){
+this.v_children.iterate((child)=>{
+child.v_height=this.get_height(child,false);
+})
+}
+update_height(child){
+child.v_height=this.get_height(child,false);
+}
+get_height(element,fixed=true){
+let height;
+if(fixed){
+height=parseFloat(element.style.height);
 if(isNaN(height)){
 console.error("Every element in the virtual scroller must have a fixed height, ignoring element: "+element);
 element.style.display="none";
 return 0;
+}
+}
+else{
+element.rendered=false;this.height_measurer.appendChild(element);
+height=element.offsetHeight;
+this.height_measurer.removeChild(element);
 }
 const margin_top=parseFloat(element.style.marginTop);
 if(!isNaN(margin_top)){
@@ -8327,6 +8384,3 @@ dropped.push(this[i])
 }
 return dropped;
 };
-if (module !== undefined) {
-    module.exports = vweb   
-}

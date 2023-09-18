@@ -6,13 +6,13 @@
 // ---------------------------------------------------------
 // Imports.
 
-const {Server, Endpoint, View, Meta} = require(`${__dirname}/../js/backend/vweb.js`);
+const vweb = require(`${__dirname}/../js/backend/vweb.js`);
 
 // ---------------------------------------------------------
 // Server.
 
 // Initialize the server.
-const server = new Server({
+const server = new vweb.Server({
 	port: 8000,
 	ip: "127.0.0.1",
 	private_key: `${__dirname}/../dev/tls/private-key.pem`,
@@ -34,7 +34,7 @@ const server = new Server({
 })
 
 // Create meta data.
-const meta = new Meta({
+const meta = new vweb.Meta({
 	author: "Daan van den Bergh",
     title: "Demo JS",
     description: "Demo js page.",

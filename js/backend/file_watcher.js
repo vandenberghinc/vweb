@@ -66,6 +66,15 @@ class FileWatcher {
 
         // Scan initial files.
         this.scan_files(this.source, true);
+
+        process.on('SIGTERM', () => {
+            this.proc.kill("SIGTERM");
+            process.exit(0)
+        });
+        process.on('SIGINT', () => {
+            this.proc.kill("SIGINT");
+            process.exit(0)
+        });
         
         // Spawn process.
         this.spawn_process();
@@ -120,10 +129,8 @@ class FileWatcher {
             )
             this.proc.on("exit", (code, signal) => {
                 if (code == 0) {
-                    console.log("RESTART");
                     this.spawn_process(true);
                 } else {
-                    console.log("EXIT");
                     process.exit(code);
                 }
             })

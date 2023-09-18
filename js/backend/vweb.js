@@ -6,15 +6,16 @@
 // ---------------------------------------------------------
 // Exports.
 
+// Extend default prototypes.
 require(`${__dirname}/array.js`)
-const Meta = require(`${__dirname}/meta.js`);
-const View = require(`${__dirname}/view.js`);
-const Endpoint = require(`${__dirname}/endpoint.js`);
-const Server = require(`${__dirname}/server.js`);
 
-module.exports = {
-    Meta,
-    View,
-	Endpoint,
-	Server,
+// Create vweb lib.
+const vweb = {
+    Meta: require(`${__dirname}/meta.js`),
+    View: require(`${__dirname}/view.js`),
+    Endpoint: require(`${__dirname}/endpoint.js`),
+    Server: require(`${__dirname}/server.js`),
 }
+
+// Export.
+module.exports = vweb;
