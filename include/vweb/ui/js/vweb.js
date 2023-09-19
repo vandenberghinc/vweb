@@ -6018,8 +6018,614 @@ code_pre.innerHTML=highlighted_code;
 }
 },50);
 }
-vhighlight.bash={};
-vhighlight.bash.tokenizer_opts={
+vhighlight.Tokenizer=class Tokenizer{
+constructor({
+keywords=[],
+type_def_keywords=[],
+type_keywords=[],
+operators=[],
+special_string_prefixes=[],
+single_line_comment_start=false,
+multi_line_comment_start=false,
+multi_line_comment_end=false,
+allow_strings=true,
+allow_numerics=true,
+allow_preprocessors=false,
+allow_slash_regexes=false,
+}){
+this.code=null;this.keywords=keywords;this.type_def_keywords=type_def_keywords;this.type_keywords=type_keywords;this.operators=operators;this.special_string_prefixes=special_string_prefixes;this.single_line_comment_start=single_line_comment_start;this.multi_line_comment_start=multi_line_comment_start;this.multi_line_comment_end=multi_line_comment_end;this.allow_strings=allow_strings;this.allow_numerics=allow_numerics;this.allow_preprocessors=allow_preprocessors;this.allow_slash_regexes=allow_slash_regexes;
+this.word_boundaries=[
+' ',
+'\t',
+'\n',
+'\r',
+'.',
+',',
+'!',
+'?',
+';',
+':',
+'-',
+'/',
+'\\',
+'|',
+'(',
+')',
+'[',
+']',
+'{',
+'}',
+'<',
+'>',
+'=',
+'+',
+'*',
+'&',
+'%',
+'$',
+'#',
+'@',
+'`',
+'~',
+'"',
+"'",
+'\u2019','\u2018','\u201d','\u201c',];
+this.alphabet="abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+this.numerics="0123456789";
+this.callback=function(){return false;}
+this.reset();
+}
+reset(){
+this.tokens=[];this.index=null;this.prev_char=null;this.next_char=null;this.batch="";this.line=0;this.is_comment=false;this.is_str=false;this.is_regex=false;this.is_preprocessor=false;this.parenth_depth=0;this.bracket_depth=0;this.curly_depth=0;this.next_token=null;this.str_id=0;this.comment_id=0;this.regex_id=0;this.preprocessor_id=0;
+this.class_depth=null;}
+get_prev_token(index,exclude=[" ","\t","\n"],exclude_comments=false){
+for(let i=index;i>=0;i--){
+const item=this.tokens[i];
+if(exclude_comments&&item.token=="token_comment"){
+continue;
+}
+if(!exclude.includes(item.data)){
+return item;
+}
+}
+return null;
+}
+str_includes_word_boundary(str){
+for(let i=0;i<this.word_boundaries.length;i++){
+if(str.includes(this.word_boundaries[i])){
+return true;
+}
+}
+return false;
+}
+is_linebreak_whitespace_char(x=null){
+if(x!=null){
+return x==" "||x=="\t"||x=="\n";
+}else{
+return this.batch==" "||this.batch=="\t"||this.batch=="\n";
+}
+}
+get_closing_parentheses(index){
+return this.get_closing_template(index,"(",")");
+}
+get_closing_curly(index){
+return this.get_closing_template(index,"{","}");
+}
+get_closing_bracket(index){
+return this.get_closing_template(index,"[","]");
+}
+get_closing_template(index,open,close){
+let depth=1;
+const info_obj={index:null,str_id:0,comment_id:null,regex_id:null,preprocessor_id:0};
+return this.iterate_code(info_obj,index+1,null,(char,is_str,is_comment,is_multi_line_comment,is_regex)=>{
+if(!is_str&&!is_comment&&!is_multi_line_comment&&!is_regex){
+if(char==open){
+++depth;
+}else if(char==close){
+--depth;
+if(depth==0){
+return info_obj.index;
+}
+}
+}
+});
+}
+get_first_non_whitespace(index,skip_line_breaks=false){
+if(index==null){
+return null;
+}
+let end;
+for(end=index;end<this.code.length;end++){
+const c=this.code.charAt(end);
+if(c!=" "&&c!="\t"&&(skip_line_breaks||c!="\n")){
+return end;
+}
+}
+return null;
+}
+get_first_word_boundary(index){
+if(index==null){
+return null;
+}
+for(let i=index;i<this.code.length;i++){
+if(this.word_boundaries.includes(this.code.charAt(i))){
+return i;
+}
+}
+return this.code.length;
+}
+is_whitespace(char){
+return char==" "||char=="\t";
+}
+is_alphabetical(char){
+return this.alphabet.includes(char);
+}
+is_numerical(char){
+return this.numerics.includes(char);
+}
+is_escaped(index,str=null){
+if(str==null){
+if(this.code.charAt(index-1)=="\\"){
+if(this.code.charAt(index-2)=="\\"){
+return this.is_escaped(index-2);
+}
+return true;
+}
+}else{
+if(str.charAt(index-1)=="\\"){
+if(str.charAt(index-2)=="\\"){
+return this.is_escaped(index-2,str);
+}
+return true;
+}
+}
+return false;
+}
+append_forward_lookup_batch(token,data){
+if(this.batch.length>0){
+this.append_batch();
+}
+this.batch="";
+for(let i=0;i<data.length;i++){
+const c=data.charAt(i);
+if(c=="\n"&&!this.is_escaped(i,data)){
+this.append_batch(token);
+++this.line;
+this.batch="\n";
+this.append_batch("token_line");
+}else{
+this.batch+=c;
+}
+}
+this.append_batch(token);
+}
+resume_on_index(index){
+this.index=index;
+}
+append_token(token=null){
+const obj={
+token:token,
+data:this.batch,
+index:this.tokens.length,
+line:this.line,
+};
+switch(token){
+case "token_string":
+obj.str_id=this.str_id;
+break;
+case "token_comment":
+obj.comment_id=this.comment_id;
+break;
+case "token_regex":
+obj.regex_id=this.regex_id;
+break;
+case "token_preprocessor":
+obj.preprocessor_id=this.preprocessor_id;
+break;
+case "token_line":
+if(this.is_str){
+obj.str_id=this.str_id;
+}
+else if(this.is_comment){
+obj.comment_id=this.comment_id;
+}
+else if(this.is_regex){
+obj.regex_id=this.regex_id;
+}
+else if(this.is_preprocessor){
+obj.preprocessor_id=this.preprocessor_id;
+}
+break;
+default:
+break;
+}
+this.tokens.push(obj);
+}
+append_batch(token=null){
+if(this.batch.length==0){
+return;
+}
+if(token==false){
+this.append_token();
+}
+else if(token!=null){
+this.append_token(token);
+}
+else if(this.next_token!=null){
+if(this.is_linebreak_whitespace_char()){
+this.append_token();
+}
+else if(this.word_boundaries.includes(this.batch)){
+this.append_token();
+this.next_token=null;
+}
+else if(this.keywords.includes(this.batch)){
+this.append_token("token_keyword");
+this.next_token=null;
+}
+else{
+this.append_token(this.next_token);
+this.next_token=null;
+}
+}
+else{
+if(this.keywords.includes(this.batch)){
+if(this.type_def_keywords.includes(this.batch)){
+this.next_token="token_type_def"
+this.class_depth=this.curly_depth+1;}
+else if(this.type_keywords.includes(this.batch)){
+this.next_token="token_type";
+}
+this.append_token("token_keyword");
+}
+else if(this.operators.includes(this.batch)){
+this.append_token("token_operator");
+}
+else if(this.allow_numerics&&/^-?\d+(\.\d+)?$/.test(this.batch)){
+this.append_token("token_numeric");
+}
+else{
+this.append_token(null);
+}
+}
+this.batch="";
+}
+iterate_code(info_obj={index:0,prev_char:null,next_char:null},start=null,end=null,callback){
+if(start==null){
+start=0;
+}
+if(end==null){
+end=this.code.length;
+}
+let is_comment=false;
+let is_multi_line_comment=false;
+let string_char=null;
+let is_regex=false;let is_preprocessor=false;let prev_non_whitespace_char=null;
+for(info_obj.index=start;info_obj.index<end;info_obj.index++){
+const char=this.code.charAt(info_obj.index);
+info_obj.prev_char=this.code.charAt(info_obj.index-1);
+info_obj.next_char=this.code.charAt(info_obj.index+1);
+if(info_obj.prev_char!=" "&&info_obj.prev_char!="\t"){
+prev_non_whitespace_char=info_obj.prev_char;
+}
+const is_escaped=this.is_escaped(info_obj.index);
+if(this.allow_preprocessors&&!is_preprocessor&&prev_non_whitespace_char=="\n"&&char=="#"){
+++info_obj.preprocessor_id;
+is_preprocessor=true;
+const res=callback(char,false,is_comment,is_multi_line_comment,is_regex,is_escaped,is_preprocessor);
+if(res!=null){return res;}
+continue;
+}
+else if(
+is_preprocessor&&
+(
+(char=="\n"&&prev_non_whitespace_char!="\\")||
+info_obj.index==this.code.length-1
+)
+){
+is_preprocessor=false;
+const res=callback(char,false,is_comment,is_multi_line_comment,is_regex,is_escaped,is_preprocessor);
+if(res!=null){return res;}
+continue;
+}
+if(
+this.allow_strings&&
+!is_escaped&&
+!is_comment&&
+!is_multi_line_comment&&
+!is_regex&&
+string_char==null&&
+(
+char=='"'||
+char=="'"||
+char=='`'
+)
+){
+++info_obj.str_id;
+string_char=char;
+const res=callback(char,true,is_comment,is_multi_line_comment,is_regex,is_escaped,is_preprocessor);
+if(res!=null){return res;}
+continue;
+}
+else if(
+!is_escaped&&
+string_char!=null&&
+char==string_char
+){
+string_char=null;
+const res=callback(char,true,is_comment,is_multi_line_comment,is_regex,is_escaped,is_preprocessor);
+if(res!=null){return res;}
+continue;
+}
+else if(string_char!=null){
+const res=callback(char,true,is_comment,is_multi_line_comment,is_regex,is_escaped,is_preprocessor);
+if(res!=null){return res;}
+continue;
+}
+if(
+!is_escaped&&
+!is_comment&&
+!is_multi_line_comment&&
+!is_regex
+){
+const comment_start=this.single_line_comment_start;
+if(comment_start.length==1&&char==comment_start){
+++info_obj.comment_id;
+is_comment=true;
+const res=callback(char,false,is_comment,is_multi_line_comment,is_regex,is_escaped,is_preprocessor);
+if(res!=null){return res;}
+continue;
+}else if(comment_start.length==2&&char+info_obj.next_char==comment_start){
+++info_obj.comment_id;
+is_comment=true;
+const res=callback(char,false,is_comment,is_multi_line_comment,is_regex,is_escaped,is_preprocessor);
+if(res!=null){return res;}
+continue;
+}
+const mcomment_start=this.multi_line_comment_start;
+if(mcomment_start==false){
+}else if(mcomment_start.length==2&&char+info_obj.next_char==mcomment_start){
+++info_obj.comment_id;
+is_multi_line_comment=true;
+const res=callback(char,false,is_comment,is_multi_line_comment,is_regex,is_escaped,is_preprocessor);
+if(res!=null){return res;}
+continue;
+}
+}
+else if(
+is_comment&&
+(
+(!is_escaped&&char=="\n")||
+info_obj.index==this.code.length-1
+)
+){
+is_comment=false;
+const res=callback(char,false,true,is_multi_line_comment,is_regex,is_escaped,is_preprocessor);
+if(res!=null){return res;}
+continue;
+}
+else if(
+is_multi_line_comment&&
+!is_escaped
+){
+const mcomment_end=this.multi_line_comment_end;
+if(mcomment_end.length==2&&info_obj.prev_char+char==mcomment_end){
+is_multi_line_comment=false;
+const res=callback(char,false,is_comment,true,is_regex,is_escaped,is_preprocessor);
+if(res!=null){return res;}
+continue;
+}
+}
+else if(is_comment||is_multi_line_comment){
+const res=callback(char,false,is_comment,is_multi_line_comment,is_regex,is_escaped,is_preprocessor);
+if(res!=null){return res;}
+continue;
+}
+if(this.allow_slash_regexes&&!is_escaped&&!is_regex&&char=="/"){
+let prev=null;
+for(let p=info_obj.index-1;p>=0;p--){
+const c=this.code.charAt(p);
+if(c!=" "&&c!="\t"){
+prev=c;
+break;
+}
+}
+if(
+prev!=null&&
+(
+prev=="\n"||prev==","||prev=="("||
+prev=="["||prev=="{"||prev==":"||
+this.operators.includes(prev)
+)
+){
+++info_obj.regex_id;
+is_regex=true;
+const res=callback(char,false,is_comment,is_multi_line_comment,is_regex,is_escaped,is_preprocessor);
+if(res!=null){return res;}
+continue;
+}
+}
+else if(is_regex){
+if(char=='/'&&!is_escaped){
+is_regex=false;
+}
+const res=callback(char,false,is_comment,is_multi_line_comment,true,is_escaped,is_preprocessor);if(res!=null){return res;}
+continue;
+}
+const res=callback(char,false,is_comment,is_multi_line_comment,is_regex,is_escaped,is_preprocessor);
+if(res!=null){return res;}
+}
+return null;
+};
+tokenize(return_tokens=false){
+this.reset();
+const auto_append_batch_switch=()=>{
+if(this.is_comment){
+this.append_batch("token_comment");
+}else if(this.is_str){
+this.append_batch("token_string");
+}else if(this.is_regex){
+this.append_batch("token_string");
+}else if(this.is_preprocessor){
+this.append_batch("token_preprocessor");
+}else{
+this.append_batch();
+}
+}
+this.iterate_code(this,null,null,(char,local_is_str,local_is_comment,is_multi_line_comment,local_is_regex,is_escaped,is_preprocessor)=>{
+if(!is_escaped&&char=="\n"){
+auto_append_batch_switch();
+if(!local_is_str){
+this.is_str=false;
+}
+if(!local_is_comment&&!is_multi_line_comment){
+this.is_comment=false;
+}
+if(!local_is_regex){
+this.is_regex=false;
+}
+if(this.is_preprocessor&&!is_preprocessor){
+this.is_preprocessor=false;
+this.is_str=false;}
+++this.line;
+this.batch+=char;
+this.append_batch("token_line");
+}
+else if(local_is_comment||is_multi_line_comment){
+if(!this.is_comment){
+auto_append_batch_switch();
+this.is_comment=true;
+}
+this.batch+=char;
+}
+else if(local_is_str){
+if(!this.is_str){
+if(this.is_comment){
+this.append_batch("token_comment");
+}else if(this.is_str){
+this.append_batch("token_string");
+}else if(this.is_regex){
+this.append_batch("token_string");
+}else if(this.is_preprocessor){
+this.append_batch("token_preprocessor");
+}else{
+if(this.special_string_prefixes.includes(this.batch)){
+this.append_batch("token_keyword");
+}else{
+this.append_batch();
+}
+}
+this.is_str=true;
+}
+this.batch+=char;
+}
+else if(local_is_regex){
+if(!this.is_regex){
+auto_append_batch_switch();
+this.is_regex=true;
+}
+this.batch+=char;
+}
+else if(is_preprocessor){
+if(!this.is_preprocessor){
+auto_append_batch_switch();
+this.is_preprocessor=true;
+}
+if(char=="<"&&this.batch.replaceAll(" ","").replaceAll("\t","")=="#include"){
+auto_append_batch_switch();
+this.is_str=true;
+this.batch+=char;
+}else if(char==">"&&this.is_str){
+this.batch+=char;
+auto_append_batch_switch();
+this.is_str=false;
+}
+else{
+this.batch+=char;
+}
+}
+else{
+if(char=="["){
+++this.bracket_depth;
+}else if(char=="]"){
+--this.bracket_depth;
+}
+if(char=="{"){
+++this.curly_depth;
+}else if(char=="}"){
+--this.curly_depth;
+if(this.class_depth!=null&&this.curly_depth<this.class_depth){
+this.class_depth=null;
+}
+}
+if(char=="("){
+++this.parenth_depth;
+}else if(char==")"){
+--this.parenth_depth;
+}
+if(this.is_comment){
+this.append_batch("token_comment");
+this.is_comment=false;
+}
+else if(this.is_str){
+this.append_batch("token_string");
+this.is_str=false;
+}
+else if(this.is_regex){
+this.append_batch("token_string");
+this.is_regex=false;
+}
+else if(this.is_preprocessor){
+this.append_batch("token_preprocessor");
+this.is_preprocessor=false;
+}
+if(!this.callback(char,is_escaped,this.is_preprocessor)){
+if(this.word_boundaries.includes(char)){
+this.append_batch();
+this.batch+=char;
+this.append_batch();}
+else{
+this.batch+=char;
+}
+}
+}
+return null;
+});
+auto_append_batch_switch();
+if(return_tokens){
+return{
+tokens:this.tokens,
+line_count:this.line,
+}
+}
+else{
+return this.build_tokens();
+}
+}
+build_tokens(reformat=true){
+let html="";
+for(let i=0;i<this.tokens.length;i++){
+const token=this.tokens[i];
+if(token.token==null){
+if(reformat){
+html+=token.data.replaceAll("<","&lt;").replaceAll(">","&gt;");
+}else{
+html+=token.data;
+}
+}else{
+if(reformat){
+html+=`<span class='${token.token}'>${token.data.replaceAll("<", "&lt;").replaceAll(">", "&gt;")}</span>`
+}else{
+html+=`<span class='${token.token}'>${token.data}</span>`
+}
+}
+}
+return html;
+}
+}
+vhighlight.Bash=class Bash{
+constructor(){
+this.tokenizer=new vhighlight.Tokenizer({
 keywords:[
 "if",
 "then",
@@ -6055,17 +6661,14 @@ operators:[
 single_line_comment_start:"#",
 multi_line_comment_start:false,
 multi_line_comment_end:false,
-}
-vhighlight.bash.highlight=function(code,return_tokens=false){
-const tokenizer=new Tokenizer(vhighlight.bash.tokenizer_opts);
-tokenizer.code=code;
-let current_line=null;
-tokenizer.callback=function(char,is_escaped){
+});
+this.reset();
+this.tokenizer.callback=(char,is_escaped)=>{
 const is_whitespace=this.is_whitespace(char);
 let start_of_line=false;
-if(current_line!=this.line&&!is_whitespace){
+if(this.current_line!=this.line&&!is_whitespace){
 start_of_line=true;
-current_line=this.line;
+this.current_line=this.line;
 }
 if(char=="-"){
 let batch=null;
@@ -6237,10 +6840,19 @@ return true;
 }
 return false;
 }
-return tokenizer.tokenize(return_tokens);
 }
-vhighlight.js={};
-vhighlight.js.tokenizer_opts={
+reset(){
+this.current_line=null;}
+highlight(code,return_tokens=false){
+this.reset();
+this.tokenizer.code=code;
+return this.tokenizer.tokenize(return_tokens);
+}
+}
+vhighlight.bash=new vhighlight.Bash();
+vhighlight.JS=class JS{
+constructor(){
+this.tokenizer=new vhighlight.Tokenizer({
 keywords:[
 "break",
 "case",
@@ -6282,7 +6894,11 @@ keywords:[
 "false",
 "null",
 "static",
-"=>",
+"async",
+"await",
+"process",
+"module",
+"exports",
 ],
 type_def_keywords:[
 "class"
@@ -6299,132 +6915,117 @@ single_line_comment_start:"//",
 multi_line_comment_start:"/*",
 multi_line_comment_end:"*/",
 allow_slash_regexes:true,
-};
-vhighlight.js.highlight=function(code,return_tokens=false){
-const tokenizer=new Tokenizer(vhighlight.js.tokenizer_opts);
-tokenizer.code=code;
-let opening_parenth_curly_depth=0;let func_def_parenth_depth=null;let func_def_curly_depth=null;let last_param_was_assignment=false;
-tokenizer.callback=function(char){
+});
+this.reset();
+this.tokenizer.callback=(char)=>{
 if(char=="("){
-if(this.parenth_depth==1){
-opening_parenth_curly_depth=this.curly_depth;
-last_param_was_assignment=false;
-}
-if(this.class_depth==this.curly_depth&&this.parenth_depth==1){
-if(this.is_linebreak_whitespace_char(this.prev_char)||this.is_linebreak_whitespace_char()){
-const prev=this.get_prev_token(this.tokens.length-1,[" ","\t","\n"]);
-prev.token="token_type_def";
-this.append_batch(false)
-}else{
-this.append_batch("token_type_def")
-}
-this.batch+=char;
-this.append_batch(false);
-return true;
-}
-if(this.batch=="function"){
-const prev=this.get_prev_token(this.tokens.length-1,[" ","\t","\n","=",":"]);
-prev.token="token_type_def";
-this.append_batch("token_keyword");
-this.batch+=char;
-this.append_batch(false);
-func_def_parenth_depth=this.parenth_depth;
-func_def_curly_depth=this.curly_depth;
-return true;
-}
-const prev=this.get_prev_token(this.tokens.length-1,[" ","\t","\n"]);
-if(prev===null){
+this.tokenizer.append_batch();
+const prev=this.tokenizer.get_prev_token(this.tokenizer.tokens.length-1,[" ","\t","\n"]);
+if(prev==null){
 return false;
 }
+let prev_token_is_function_keyword=false;
+if(prev.token=="token_keyword"){
 if(prev.data=="function"){
-this.append_batch("token_type_def");
-this.batch+=char;
-this.append_batch(false);
-func_def_parenth_depth=this.parenth_depth;
-func_def_curly_depth=this.curly_depth;
-return true;
+prev_token_is_function_keyword=true;
+}else if(prev.data!="async"){
+return false;
 }
-const prev_prev=this.get_prev_token(prev.index-1,[" ","\t","\n"])
-if(prev_prev!=null&&this.batch.length==0&&(prev.data=="="||prev.data==":")){
-prev_prev.token="token_type_def";
-func_def_parenth_depth=this.parenth_depth;
-func_def_curly_depth=this.curly_depth;
+}else if(prev.token!=null&&prev.token!="token_operator"){
+return false;
 }
-else if(prev_prev!=null&&prev_prev.data=="function"){
-prev.token="token_type_def"
-func_def_parenth_depth=this.parenth_depth;
-func_def_curly_depth=this.curly_depth;
+const closing_parentheses=this.tokenizer.get_closing_parentheses(this.tokenizer.index);
+if(closing_parentheses==null){
+return false;
 }
-else{
-if(this.is_linebreak_whitespace_char(this.prev_char)||this.is_linebreak_whitespace_char()){
-if(prev.token==null&&!this.str_includes_word_boundary(prev.data)){
+const after_parenth=this.tokenizer.get_first_non_whitespace(closing_parentheses+1,true);
+const c=this.tokenizer.code.charAt(after_parenth);
+if(c=="{"){
+if(prev_token_is_function_keyword){
+const token=this.tokenizer.get_prev_token(prev.index-1,[" ","\t","\n","=",":","async"]);
+if(this.tokenizer.str_includes_word_boundary(token.data)){
+return false;
+}
+token.token="token_type_def";
+}
+else if(!this.tokenizer.str_includes_word_boundary(prev.data)){
+prev.token="token_type_def";
+}
+}
+else if(c=="="&&this.tokenizer.code.charAt(after_parenth+1)==">"){
+const token=this.tokenizer.get_prev_token(prev.index-1,[" ","\t","\n","=",":","async"]);
+if(this.tokenizer.str_includes_word_boundary(token.data)){
+return false;
+}
+token.token="token_type_def";
+}
+else if(!this.tokenizer.str_includes_word_boundary(prev.data)){
 prev.token="token_type";
 }
-this.append_batch(false);
-}
-else{
-if(this.keywords.includes(this.batch)){
-this.append_batch("token_keyword");
-opening_parenth_curly_depth=null;}else{
-this.append_batch("token_type");
-}
-}
-}
-this.batch+=char;
-this.append_batch(false);
-return true;
+return false;
 }
 else if(
-(this.class_depth==this.curly_depth&&
+(this.tokenizer.class_depth==this.tokenizer.curly_depth&&
 (
-(this.parenth_depth==1&&((char==','&&!last_param_was_assignment)||(char=='='&&this.next_char!='>')))||
-(this.parenth_depth==0&&char==')')
+(this.tokenizer.parenth_depth==1&&((char==','&&!this.last_param_was_assignment)||(char=='='&&this.tokenizer.next_char!='>')))||
+(this.tokenizer.parenth_depth==0&&char==')')
 ))||
 (
-func_def_curly_depth==this.curly_depth&&(
-(this.parenth_depth==func_def_parenth_depth&&((char==','&&!last_param_was_assignment)||(char=='='&&this.next_char!='>')))||
-(this.parenth_depth==func_def_parenth_depth-1&&char==')')
+this.func_def_curly_depth==this.tokenizer.curly_depth&&(
+(this.tokenizer.parenth_depth==this.func_def_parenth_depth&&((char==','&&!this.last_param_was_assignment)||(char=='='&&this.tokenizer.next_char!='>')))||
+(this.tokenizer.parenth_depth==this.func_def_parenth_depth-1&&char==')')
 )
 )||
 (
-opening_parenth_curly_depth==this.curly_depth&&this.parenth_depth>0&&char=='='&&
-code.charAt(this.index+1)!='>'
+this.opening_parenth_curly_depth==this.tokenizer.curly_depth&&this.tokenizer.parenth_depth>0&&char=='='&&
+code.charAt(this.tokenizer.index+1)!='>'
 )
 ){
 if(char==')'){
-if(func_def_parenth_depth!=null&&this.parenth_depth<func_def_parenth_depth){
-func_def_parenth_depth=null;
+if(this.func_def_parenth_depth!=null&&this.tokenizer.parenth_depth<this.func_def_parenth_depth){
+this.func_def_parenth_depth=null;
 }
-if(last_param_was_assignment){
-last_param_was_assignment=false;
-this.append_batch();
-this.batch+=char;
-this.append_batch();
+if(this.last_param_was_assignment){
+this.last_param_was_assignment=false;
+this.tokenizer.append_batch();
+this.tokenizer.batch+=char;
+this.tokenizer.append_batch();
 return true;
 }
 }
 if(char=='='){
-last_param_was_assignment=true;
+this.last_param_was_assignment=true;
 }else{
-last_param_was_assignment=false;
+this.last_param_was_assignment=false;
 }
-if(this.is_linebreak_whitespace_char(this.prev_char)){
-const prev=this.get_prev_token(this.tokens.length-1,[" ","\t","\n"]);
+if(this.tokenizer.is_linebreak_whitespace_char(this.tokenizer.prev_char)){
+const prev=this.tokenizer.get_prev_token(this.tokenizer.tokens.length-1,[" ","\t","\n"]);
 prev.token="token_parameter";
-this.append_batch();
+this.tokenizer.append_batch();
 }else{
-this.append_batch("token_parameter");
+this.tokenizer.append_batch("token_parameter");
 }
-this.batch+=char;
-this.append_batch();
+this.tokenizer.batch+=char;
+this.tokenizer.append_batch();
 return true;
 }
 return false;
 }
-return tokenizer.tokenize(return_tokens);
 }
-vhighlight.cpp={};
-vhighlight.cpp.tokenizer_opts={
+reset(){
+this.opening_parenth_curly_depth=0;this.func_def_parenth_depth=null;this.func_def_curly_depth=null;this.last_param_was_assignment=false;}
+highlight(code,return_tokens=false){
+this.reset();
+this.tokenizer.code=code;
+return this.tokenizer.tokenize(return_tokens);
+}
+partial_highlight(edited_lines={}){
+}
+}
+vhighlight.js=new vhighlight.JS();
+vhighlight.CPP=class CPP{
+constructor(){
+this.tokenizer=new vhighlight.Tokenizer({
 keywords:[
 "alignas",
 "alignof",
@@ -6554,17 +7155,12 @@ single_line_comment_start:"//",
 multi_line_comment_start:"/*",
 multi_line_comment_end:"*/",
 allow_preprocessors:true,
-};
-vhighlight.cpp.highlight=function(code,return_tokens=false){
-const tokenizer=new Tokenizer(vhighlight.cpp.tokenizer_opts);
-tokenizer.code=code;
-let last_line_type=null;
-inside_func=false;
-inside_func_closing_curly=null;
+});
+this.reset();
 const find_opening_template_token=(index)=>{
 let depth=1;
 for(let i=index-1;i>=0;i--){
-const token=tokenizer.tokens[i];
+const token=this.tokenizer.tokens[i];
 if(token.data=="<"){
 --depth;
 if(depth==0){
@@ -6576,27 +7172,28 @@ return i;
 }
 return null;
 }
-tokenizer.callback=function(char){
-if(inside_func&&this.index>inside_func_closing_curly){
-inside_func=false;
+this.tokenizer.callback=(char)=>{
+const tokenizer=this.tokenizer;
+if(this.inside_func&&tokenizer.index>this.inside_func_closing_curly){
+this.inside_func=false;
 }
 if(
-(last_line_type!=this.line&&char!=" "&&char!="\t")||(this.prev_char=="("||(this.parenth_depth>0&&this.prev_char==","))){
-last_line_type=this.line;
-this.append_batch();
+(this.last_line_type!=tokenizer.line&&char!=" "&&char!="\t")||(tokenizer.prev_char=="("||(tokenizer.parenth_depth>0&&tokenizer.prev_char==","))){
+this.last_line_type=tokenizer.line;
+tokenizer.append_batch();
 let is_type=false;
 let hit_template=0;
 let word="";
 let words=0;
 let append_to_batch=[];
 let last_index,last_append_index;
-for(let index=this.index;index<this.code.length;index++){
-const c=this.code.charAt(index);
+for(let index=tokenizer.index;index<tokenizer.code.length;index++){
+const c=tokenizer.code.charAt(index);
 if(hit_template==2){
 if(c==" "||c=="\t"||c=="*"||c=="&"||c=="\n"){
 continue;
 }
-else if(this.is_alphabetical(c)){
+else if(tokenizer.is_alphabetical(c)){
 if(words==1){
 is_type=true;
 break;
@@ -6618,9 +7215,9 @@ if(c=="<"){
 hit_template=1;
 }
 if(word.length>0){
-if(this.keywords.includes(word)){append_to_batch.push(["token_keyword",word]);
+if(tokenizer.keywords.includes(word)){append_to_batch.push(["token_keyword",word]);
 }else{
-if(c!=":"||this.code.charAt(index+1)!=":"){++words;
+if(c!=":"||tokenizer.code.charAt(index+1)!=":"){++words;
 }
 append_to_batch.push(["token_type",word]);
 }
@@ -6631,10 +7228,9 @@ word="";
 if(c=="*"||c=="&"){
 append_to_batch.push(["token_operator",c]);
 }else{
-append_to_batch.push([false,c]);
+append_to_batch.push([null,c]);}
 }
-}
-else if(this.is_alphabetical(c)||(word.length>0&&this.is_numerical(c))){
+else if(tokenizer.is_alphabetical(c)||(word.length>0&&tokenizer.is_numerical(c))){
 if(words==1){
 is_type=true;
 break;
@@ -6648,36 +7244,36 @@ break;
 }
 if(is_type){
 for(let i=0;i<=last_append_index;i++){
-this.append_forward_lookup_batch(append_to_batch[i][0],append_to_batch[i][1]);
+tokenizer.append_forward_lookup_batch(append_to_batch[i][0],append_to_batch[i][1]);
 }
-this.resume_on_index(last_index-1);
+tokenizer.resume_on_index(last_index-1);
 return true;
 }
 }
 else if(char=="("){
-this.append_batch();
-const closing=this.get_closing_parentheses(this.index);
-const non_whitespace_after=this.get_first_non_whitespace(closing+1);
+tokenizer.append_batch();
+const closing=tokenizer.get_closing_parentheses(tokenizer.index);
+const non_whitespace_after=tokenizer.get_first_non_whitespace(closing+1);
 if(closing!=null&&non_whitespace_after!=null){
-let prev=this.get_prev_token(this.tokens.length-1,[" ","\t","\n","*","&"]);
-const prev_prev_is_colon=this.get_prev_token(prev.index-1).data==":";
+let prev=tokenizer.get_prev_token(tokenizer.tokens.length-1,[" ","\t","\n","*","&"]);
+const prev_prev_is_colon=tokenizer.get_prev_token(prev.index-1).data==":";
 if(
 (prev.token==null&&prev.data!="]")||(prev.token=="token_type"&&prev_prev_is_colon)){
-const lookup=this.code.charAt(non_whitespace_after);
+const lookup=tokenizer.code.charAt(non_whitespace_after);
 if(
-(lookup==";"&&!inside_func)||lookup=="{"||lookup=="c"||lookup=="v"||lookup=="n"||lookup=="o"||lookup=="f"||lookup=="r"){
+(lookup==";"&&!this.inside_func)||lookup=="{"||lookup=="c"||lookup=="v"||lookup=="n"||lookup=="o"||lookup=="f"||lookup=="r"){
 prev.token="token_type_def";
 let token=prev;
 while(true){
-token=this.get_prev_token(token.index-1,[":"]);
-if(this.str_includes_word_boundary(token.data)){
+token=tokenizer.get_prev_token(token.index-1,[":"]);
+if(tokenizer.str_includes_word_boundary(token.data)){
 break;
 }
 token.token="token_type_def";
 }
 let opening=null;
-for(let i=closing;i<this.code.length;i++){
-const c=this.code.charAt(i);
+for(let i=closing;i<tokenizer.code.length;i++){
+const c=tokenizer.code.charAt(i);
 if(c==";"){
 break;
 }
@@ -6687,22 +7283,22 @@ break;
 }
 }
 if(opening!=null){
-inside_func=true;
-inside_func_closing_curly=this.get_closing_curly(opening);
+this.inside_func=true;
+this.inside_func_closing_curly=tokenizer.get_closing_curly(opening);
 }
 }
 else{
 if(prev.data==">"){
 const opening_token_index=find_opening_template_token(prev.index);
 if(opening_token_index!=null){
-prev=this.get_prev_token(opening_token_index-1,[" ","\t","\n"]);
+prev=tokenizer.get_prev_token(opening_token_index-1,[" ","\t","\n"]);
 }
 }
-let prev_prev=this.get_prev_token(prev.index-1,[" ","\t","\n","*","&"]);
+let prev_prev=tokenizer.get_prev_token(prev.index-1,[" ","\t","\n","*","&"]);
 if(prev_prev.data==">"){
 const opening_token_index=find_opening_template_token(prev_prev.index);
 if(opening_token_index!=null){
-prev_prev=this.get_prev_token(opening_token_index-1,[" ","\t","\n"]);
+prev_prev=tokenizer.get_prev_token(opening_token_index-1,[" ","\t","\n"]);
 }
 }
 if(prev_prev.token!="token_type"){
@@ -6713,19 +7309,19 @@ prev.token="token_type";
 }
 }
 else if(char=="{"){
-this.append_batch();
-let prev=this.get_prev_token(this.tokens.length-1,[" ","\t","\n","&","*"]);
+tokenizer.append_batch();
+let prev=tokenizer.get_prev_token(tokenizer.tokens.length-1,[" ","\t","\n","&","*"]);
 if(prev.data==">"){
 const opening_token_index=find_opening_template_token(prev.index);
 if(opening_token_index!=null){
-prev=this.tokens[opening_token_index-1];
+prev=tokenizer.tokens[opening_token_index-1];
 }
 }
-let prev_prev=this.get_prev_token(prev.index-1,[" ","\t","\n","&","*"]);
+let prev_prev=tokenizer.get_prev_token(prev.index-1,[" ","\t","\n","&","*"]);
 if(prev_prev.data==">"){
 const opening_token_index=find_opening_template_token(prev_prev.index);
 if(opening_token_index!=null){
-prev_prev=this.tokens[opening_token_index-1];
+prev_prev=tokenizer.tokens[opening_token_index-1];
 }
 }
 if(prev_prev.token!="token_type"&&prev.token==null&&prev.data!=")"){
@@ -6733,21 +7329,21 @@ prev.token="token_type";
 }
 }
 else if(char=="<"){
-this.append_batch();
+tokenizer.append_batch();
 let is_template=false;
 let depth=1;
 let word="";
 let append_to_batch=[[false,char]];
 let index;
 let first_word_in_seperator=true;
-for(index=this.index+1;index<this.code.length;index++){
-const c=this.code.charAt(index);
+for(index=tokenizer.index+1;index<tokenizer.code.length;index++){
+const c=tokenizer.code.charAt(index);
 if(c=="<"){
 append_to_batch.push([false,c]);
 ++depth;
 }else if(c==">"){
 if(word.length>0){
-if(this.keywords.includes(word)){
+if(tokenizer.keywords.includes(word)){
 append_to_batch.push(["token_keyword",word]);
 }else if(first_word_in_seperator){
 append_to_batch.push(["token_type",word]);
@@ -6763,9 +7359,9 @@ is_template=true;
 break;
 }
 }
-else if(this.is_whitespace(c)||c==","||c==":"||c=="*"||c=="&"||c=="\n"){
+else if(tokenizer.is_whitespace(c)||c==","||c==":"||c=="*"||c=="&"||c=="\n"){
 if(word.length>0){
-if(this.keywords.includes(word)){
+if(tokenizer.keywords.includes(word)){
 append_to_batch.push(["token_keyword",word]);
 }else if(first_word_in_seperator){
 append_to_batch.push(["token_type",word]);
@@ -6781,7 +7377,7 @@ first_word_in_seperator=true;
 }
 append_to_batch.push([false,c]);
 }
-else if(this.is_alphabetical(c)||this.is_numerical(c)){
+else if(tokenizer.is_alphabetical(c)||tokenizer.is_numerical(c)){
 word+=c;
 }
 else{
@@ -6790,26 +7386,26 @@ break;
 }
 if(is_template){
 for(let i=0;i<append_to_batch.length;i++){
-this.append_forward_lookup_batch(append_to_batch[i][0],append_to_batch[i][1]);
+tokenizer.append_forward_lookup_batch(append_to_batch[i][0],append_to_batch[i][1]);
 }
-this.resume_on_index(index);
+tokenizer.resume_on_index(index);
 return true;
 }
 }
-else if(char==":"&&this.prev_char==":"){
-this.append_batch();
-this.batch+=char;
-this.append_batch(false);
-this.next_token="token_type";
-let prev=this.get_prev_token(this.tokens.length-1,[":"]);
+else if(char==":"&&tokenizer.prev_char==":"){
+tokenizer.append_batch();
+tokenizer.batch+=char;
+tokenizer.append_batch(false);
+tokenizer.next_token="token_type";
+let prev=tokenizer.get_prev_token(tokenizer.tokens.length-1,[":"]);
 if(prev.data==">"){
 let depth=1;
 for(let i=prev.index-1;i>=0;i--){
-const token=this.tokens[i];
+const token=tokenizer.tokens[i];
 if(token.data=="<"){
 --depth;
 if(depth==0){
-prev=this.tokens[i-1];
+prev=tokenizer.tokens[i-1];
 break;
 }
 }else if(token.data==">"){
@@ -6821,17 +7417,29 @@ if(prev==null){
 return false;
 }
 if(
-(prev.token==null||prev.token=="token_type_def")&&!this.str_includes_word_boundary(prev.data)){
+(prev.token==null||prev.token=="token_type_def")&&!tokenizer.str_includes_word_boundary(prev.data)){
 prev.token="token_type";
 }
 return true;
 }
 return false;
 }
-return tokenizer.tokenize(return_tokens);
 }
-vhighlight.json={};
-vhighlight.json.tokenizer_opts={
+reset(){
+this.last_line_type=null;
+this.inside_func=false;
+this.inside_func_closing_curly=null;
+}
+highlight(code,return_tokens=false){
+this.reset();
+this.tokenizer.code=code;
+return this.tokenizer.tokenize(return_tokens);
+}
+}
+vhighlight.cpp=new vhighlight.CPP();
+vhighlight.Json=class Json{
+constructor(){
+this.tokenizer=new vhighlight.Tokenizer({
 keywords:[
 "true",
 "false",
@@ -6840,12 +7448,14 @@ keywords:[
 single_line_comment_start:"//",
 multi_line_comment_start:"/*",
 multi_line_comment_end:"*/",
+});
 }
-vhighlight.json.highlight=function(code,return_tokens=false){
-const tokenizer=new Tokenizer(vhighlight.json.tokenizer_opts);
-tokenizer.code=code;
-return tokenizer.tokenize(return_tokens);
+highlight(code,return_tokens=false){
+this.tokenizer.code=code;
+return this.tokenizer.tokenize(return_tokens);
 }
+}
+vhighlight.json=new vhighlight.Json();
 vhighlight.utils={};
 vhighlight.utils.replace_by_index=function(str,start,end,substr){
 let replaced=str.substr(0,start);
@@ -6868,8 +7478,9 @@ inserted+=insert;
 inserted+=str.substr(start);
 return inserted;
 }
-vhighlight.css={};
-vhighlight.css.tokenizer_opts={
+vhighlight.CSS=class CSS{
+constructor(){
+this.tokenizer=new vhighlight.Tokenizer({
 keywords:[
 'ease',
 'ease-in',
@@ -6925,10 +7536,8 @@ keywords:[
 single_line_comment_start:false,
 multi_line_comment_start:"/*",
 multi_line_comment_end:"*/",
-}
-vhighlight.css.highlight=function(code,return_tokens=false){
-const tokenizer=new Tokenizer(vhighlight.css.tokenizer_opts);
-tokenizer.code=code;
+});
+this.reset();
 const numeric_suffixes=[
 'px',
 'em',
@@ -6959,29 +7568,28 @@ const numeric_suffixes=[
 'dppx',
 'x'
 ].join("|");
-const numeric_regex=new RegExp(`^-?\\d+(\\.\\d+)?(${numeric_suffixes})*$`);
-let style_start=null;
-let style_end=null;
-tokenizer.callback=function(char,is_escaped){
+this.numeric_regex=new RegExp(`^-?\\d+(\\.\\d+)?(${numeric_suffixes})*$`);
+this.tokenizer.callback=(char,is_escaped)=>{
+const tokenizer=this.tokenizer;
 if(char=="@"){
-const end=this.get_first_word_boundary(this.index+1);
-this.append_batch();
-this.append_forward_lookup_batch("token_keyword",this.code.substr(this.index,end-this.index));
-this.resume_on_index(end-1);
+const end=tokenizer.get_first_word_boundary(tokenizer.index+1);
+tokenizer.append_batch();
+tokenizer.append_forward_lookup_batch("token_keyword",tokenizer.code.substr(tokenizer.index,end-tokenizer.index));
+tokenizer.resume_on_index(end-1);
 return true;
 }
-if(this.batch==""&&char=="#"){
-const end=this.get_first_word_boundary(this.index+1);
-this.append_batch();
-this.append_forward_lookup_batch("token_string",this.code.substr(this.index,end-this.index));
-this.resume_on_index(end-1);
+if(tokenizer.batch==""&&char=="#"){
+const end=tokenizer.get_first_word_boundary(tokenizer.index+1);
+tokenizer.append_batch();
+tokenizer.append_forward_lookup_batch("token_string",tokenizer.code.substr(tokenizer.index,end-tokenizer.index));
+tokenizer.resume_on_index(end-1);
 return true;
 }
 else if(char=="{"){
-this.append_batch();
-let index=this.tokens.length-1;
+tokenizer.append_batch();
+let index=tokenizer.tokens.length-1;
 while(true){
-const prev=this.get_prev_token(index,[" ",",","\t",":"]);
+const prev=tokenizer.get_prev_token(index,[" ",",","\t",":"]);
 if(prev==null||prev.data=="\n"){
 break;
 }
@@ -6993,11 +7601,11 @@ prev.data=="#"||
 prev.data=="."||
 prev.data=="*"||
 prev.data=="-"||
-this.is_alphabetical(prev.data.charAt(0))
+tokenizer.is_alphabetical(prev.data.charAt(0))
 )
 )
 ){
-const pprev=this.tokens[prev.index-1];
+const pprev=tokenizer.tokens[prev.index-1];
 if(pprev!=null&&pprev.data==":"){
 prev.token="token_keyword";
 }else{
@@ -7008,19 +7616,19 @@ index=prev.index-1;
 }
 }
 else if(char=="("){
-this.append_batch();
-const prev=this.get_prev_token(this.tokens.length-1,[" ","\t","\n"]);
+tokenizer.append_batch();
+const prev=tokenizer.get_prev_token(tokenizer.tokens.length-1,[" ","\t","\n"]);
 if(prev!=null&&prev.token==null){
 prev.token="token_type";
 }
 }
-else if(this.curly_depth>0&&char==":"){
-this.append_batch();
-let index=this.tokens.length-1;
+else if(tokenizer.curly_depth>0&&char==":"){
+tokenizer.append_batch();
+let index=tokenizer.tokens.length-1;
 let edits=[];
 let finished=false;
 while(true){
-const prev=this.get_prev_token(index,[" ","\t"]);
+const prev=tokenizer.get_prev_token(index,[" ","\t"]);
 if(prev==null){
 break;
 }
@@ -7037,34 +7645,34 @@ if(finished){
 for(let i=0;i<edits.length;i++){
 edits[i].token="token_keyword";
 }
-style_start=this.index;
-for(let i=this.index+1;i<this.code.length;i++){
-const c=this.code.charAt(i);
+this.style_start=tokenizer.index;
+for(let i=tokenizer.index+1;i<tokenizer.code.length;i++){
+const c=tokenizer.code.charAt(i);
 if(c=="\n"){
-style_start=null;
+this.style_start=null;
 break;
 }else if(c==";"){
-style_end=i;
+this.style_end=i;
 break;
 }
 }
 }
 }
-else if(char=="%"&&numeric_regex.test(this.batch+char)){
-this.batch+=char;
-this.append_batch("token_numeric");
+else if(char=="%"&&this.numeric_regex.test(tokenizer.batch+char)){
+tokenizer.batch+=char;
+tokenizer.append_batch("token_numeric");
 return true;
 }
-else if(this.word_boundaries.includes(char)&&numeric_regex.test(this.batch)){
-this.append_batch("token_numeric");
+else if(tokenizer.word_boundaries.includes(char)&&this.numeric_regex.test(tokenizer.batch)){
+tokenizer.append_batch("token_numeric");
 }
-else if(style_end!=null&&this.index>=style_end){
-this.append_batch();
-let index=this.tokens.length-1;
+else if(this.style_end!=null&&tokenizer.index>=this.style_end){
+tokenizer.append_batch();
+let index=tokenizer.tokens.length-1;
 let finished=false;
 const edits=[];
 while(true){
-const prev=this.get_prev_token(index,[" ","\t"]);
+const prev=tokenizer.get_prev_token(index,[" ","\t"]);
 if(prev==null||prev=="\n"){
 break;
 }
@@ -7072,7 +7680,7 @@ else if(prev.data==":"){
 finished=true;
 break;
 }
-else if(prev.token==null&&!this.str_includes_word_boundary(prev.data)){
+else if(prev.token==null&&!tokenizer.str_includes_word_boundary(prev.data)){
 edits.push(prev);
 }
 index=prev.index-1;
@@ -7082,567 +7690,25 @@ for(let i=0;i<edits.length;i++){
 edits[i].token="token_keyword";
 }
 }
-style_end=null;
+this.style_end=null;
 }
 return false;
 }
-return tokenizer.tokenize(return_tokens);
 }
-class Tokenizer{
-constructor({
-keywords=[],
-type_def_keywords=[],
-type_keywords=[],
-operators=[],
-special_string_prefixes=[],
-single_line_comment_start=false,
-multi_line_comment_start=false,
-multi_line_comment_end=false,
-allow_strings=true,
-allow_numerics=true,
-allow_preprocessors=false,
-allow_slash_regexes=false,
-}){
-this.code=null;this.keywords=keywords;this.type_def_keywords=type_def_keywords;this.type_keywords=type_keywords;this.operators=operators;this.special_string_prefixes=special_string_prefixes;this.single_line_comment_start=single_line_comment_start;this.multi_line_comment_start=multi_line_comment_start;this.multi_line_comment_end=multi_line_comment_end;this.allow_strings=allow_strings;this.allow_numerics=allow_numerics;this.allow_preprocessors=allow_preprocessors;this.allow_slash_regexes=allow_slash_regexes;
-this.tokens=[];this.index=null;this.prev_char=null;this.next_char=null;this.batch="";this.line=0;this.is_comment=false;this.is_str=false;this.is_regex=false;this.is_preprocessor=false;this.parenth_depth=0;this.bracket_depth=0;this.curly_depth=0;this.next_token=null;
-this.class_depth=null;
-this.word_boundaries=[
-' ',
-'\t',
-'\n',
-'\r',
-'.',
-',',
-'!',
-'?',
-';',
-':',
-'-',
-'/',
-'\\',
-'|',
-'(',
-')',
-'[',
-']',
-'{',
-'}',
-'<',
-'>',
-'=',
-'+',
-'*',
-'&',
-'%',
-'$',
-'#',
-'@',
-'`',
-'~',
-'"',
-"'",
-'\u2019','\u2018','\u201d','\u201c',];
-this.alphabet="abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
-this.numerics="0123456789";
-this.callback=function(){return false;}
+reset(){
+this.style_start=null;
+this.style_end=null;
 }
-get_prev_token(index,exclude=[" ","\t","\n"],exclude_comments=false){
-for(let i=index;i>=0;i--){
-const item=this.tokens[i];
-if(exclude_comments&&item.token=="token_comment"){
-continue;
+highlight(code,return_tokens=false){
+this.reset();
+this.tokenizer.code=code;
+return this.tokenizer.tokenize(return_tokens);
 }
-if(!exclude.includes(item.data)){
-return item;
 }
-}
-return null;
-}
-str_includes_word_boundary(str){
-for(let i=0;i<this.word_boundaries.length;i++){
-if(str.includes(this.word_boundaries[i])){
-return true;
-}
-}
-return false;
-}
-is_linebreak_whitespace_char(x=null){
-if(x!=null){
-return x==" "||x=="\t"||x=="\n";
-}else{
-return this.batch==" "||this.batch=="\t"||this.batch=="\n";
-}
-}
-get_closing_parentheses(index){
-return this.get_closing_template(index,"(",")");
-}
-get_closing_curly(index){
-return this.get_closing_template(index,"{","}");
-}
-get_closing_bracket(index){
-return this.get_closing_template(index,"[","]");
-}
-get_closing_template(index,open,close){
-let depth=1;
-const info_obj={index:null};
-return this.iterate_code(info_obj,index+1,null,(char,is_str,is_comment,is_multi_line_comment,is_regex)=>{
-if(!is_str&&!is_comment&&!is_multi_line_comment&&!is_regex){
-if(char==open){
-++depth;
-}else if(char==close){
---depth;
-if(depth==0){
-return info_obj.index;
-}
-}
-}
-});
-}
-get_first_non_whitespace(index){
-if(index==null){
-return null;
-}
-let end;
-for(end=index;end<this.code.length;end++){
-const c=this.code.charAt(end);
-if(c!=" "&&c!="\t"){
-return end;
-}
-}
-return null;
-}
-get_first_word_boundary(index){
-if(index==null){
-return null;
-}
-for(let i=index;i<this.code.length;i++){
-if(this.word_boundaries.includes(this.code.charAt(i))){
-return i;
-}
-}
-return this.code.length;
-}
-is_whitespace(char){
-return char==" "||char=="\t";
-}
-is_alphabetical(char){
-return this.alphabet.includes(char);
-}
-is_numerical(char){
-return this.numerics.includes(char);
-}
-is_escaped(index,str=null){
-if(str==null){
-if(this.code.charAt(index-1)=="\\"){
-if(this.code.charAt(index-2)=="\\"){
-return this.is_escaped(index-2);
-}
-return true;
-}
-}else{
-if(str.charAt(index-1)=="\\"){
-if(str.charAt(index-2)=="\\"){
-return this.is_escaped(index-2,str);
-}
-return true;
-}
-}
-return false;
-}
-append_forward_lookup_batch(token,data){
-if(this.batch.length>0){
-this.append_batch();
-}
-this.batch="";
-for(let i=0;i<data.length;i++){
-const c=data.charAt(i);
-if(c=="\n"&&!this.is_escaped(i,data)){
-this.append_batch(token);
-++this.line;
-this.batch="\n";
-this.append_batch("token_line");
-}else{
-this.batch+=c;
-}
-}
-this.append_batch(token);
-}
-resume_on_index(index){
-this.index=index;
-}
-append_token(token=null){
-this.tokens.push({token:token,data:this.batch,index:this.tokens.length,line:this.line});
-}
-append_batch(token=null){
-if(this.batch.length==0){
-return;
-}
-if(token==false){
-this.append_token();
-}
-else if(token!=null){
-this.append_token(token);
-}
-else if(this.next_token!=null){
-if(this.is_linebreak_whitespace_char()){
-this.append_token();
-}
-else if(this.word_boundaries.includes(this.batch)){
-this.append_token();
-this.next_token=null;
-}
-else if(this.keywords.includes(this.batch)){
-this.append_token("token_keyword");
-this.next_token=null;
-}
-else{
-this.append_token(this.next_token);
-this.next_token=null;
-}
-}
-else{
-if(this.keywords.includes(this.batch)){
-if(this.type_def_keywords.includes(this.batch)){
-this.next_token="token_type_def"
-this.class_depth=this.curly_depth+1;}
-else if(this.type_keywords.includes(this.batch)){
-this.next_token="token_type";
-}
-this.append_token("token_keyword");
-}
-else if(this.operators.includes(this.batch)){
-this.append_token("token_operator");
-}
-else if(this.allow_numerics&&/^-?\d+(\.\d+)?$/.test(this.batch)){
-this.append_token("token_numeric");
-}
-else{
-this.append_token(null);
-}
-}
-this.batch="";
-}
-iterate_code(info_obj={index:0,prev_char:null,next_char:null},start=null,end=null,callback){
-if(start==null){
-start=0;
-}
-if(end==null){
-end=this.code.length;
-}
-let is_comment=false;
-let is_multi_line_comment=false;
-let string_char=null;
-let is_regex=false;let is_preprocessor=false;let prev_non_whitespace_char=null;
-for(info_obj.index=start;info_obj.index<end;info_obj.index++){
-const char=this.code.charAt(info_obj.index);
-info_obj.prev_char=this.code.charAt(info_obj.index-1);
-info_obj.next_char=this.code.charAt(info_obj.index+1);
-if(info_obj.prev_char!=" "&&info_obj.prev_char!="\t"){
-prev_non_whitespace_char=info_obj.prev_char;
-}
-const is_escaped=this.is_escaped(info_obj.index);
-if(this.allow_preprocessors&&!is_preprocessor&&prev_non_whitespace_char=="\n"&&char=="#"){
-is_preprocessor=true;
-const res=callback(char,false,is_comment,is_multi_line_comment,is_regex,is_escaped,is_preprocessor);
-if(res!=null){return res;}
-continue;
-}else if(is_preprocessor&&char=="\n"&&prev_non_whitespace_char!="\\"){
-is_preprocessor=false;
-const res=callback(char,false,is_comment,is_multi_line_comment,is_regex,is_escaped,is_preprocessor);
-if(res!=null){return res;}
-continue;
-}
-if(
-this.allow_strings&&
-!is_escaped&&
-!is_comment&&
-!is_multi_line_comment&&
-!is_regex&&
-string_char==null&&
-(
-char=='"'||
-char=="'"||
-char=='`'
-)
-){
-string_char=char;
-const res=callback(char,true,is_comment,is_multi_line_comment,is_regex,is_escaped,is_preprocessor);
-if(res!=null){return res;}
-continue;
-}
-else if(
-!is_escaped&&
-string_char!=null&&
-char==string_char
-){
-string_char=null;
-const res=callback(char,true,is_comment,is_multi_line_comment,is_regex,is_escaped,is_preprocessor);
-if(res!=null){return res;}
-continue;
-}
-else if(string_char!=null){
-const res=callback(char,true,is_comment,is_multi_line_comment,is_regex,is_escaped,is_preprocessor);
-if(res!=null){return res;}
-continue;
-}
-if(
-!is_escaped&&
-!is_comment&&
-!is_multi_line_comment&&
-!is_regex
-){
-const comment_start=this.single_line_comment_start;
-if(comment_start.length==1&&char==comment_start){
-is_comment=true;
-const res=callback(char,false,is_comment,is_multi_line_comment,is_regex,is_escaped,is_preprocessor);
-if(res!=null){return res;}
-continue;
-}else if(comment_start.length==2&&char+info_obj.next_char==comment_start){
-is_comment=true;
-const res=callback(char,false,is_comment,is_multi_line_comment,is_regex,is_escaped,is_preprocessor);
-if(res!=null){return res;}
-continue;
-}
-const mcomment_start=this.multi_line_comment_start;
-if(mcomment_start==false){
-}else if(mcomment_start.length==2&&char+info_obj.next_char==mcomment_start){
-is_multi_line_comment=true;
-const res=callback(char,false,is_comment,is_multi_line_comment,is_regex,is_escaped,is_preprocessor);
-if(res!=null){return res;}
-continue;
-}
-}
-else if(
-is_comment&&
-(
-(!is_escaped&&char=="\n")||
-info_obj.index==this.code.length-1
-)
-){
-is_comment=false;
-const res=callback(char,false,true,is_multi_line_comment,is_regex,is_escaped,is_preprocessor);
-if(res!=null){return res;}
-continue;
-}
-else if(
-is_multi_line_comment&&
-!is_escaped
-){
-const mcomment_end=this.multi_line_comment_end;
-if(mcomment_end.length==2&&info_obj.prev_char+char==mcomment_end){
-is_multi_line_comment=false;
-const res=callback(char,false,is_comment,true,is_regex,is_escaped,is_preprocessor);
-if(res!=null){return res;}
-continue;
-}
-}
-else if(is_comment||is_multi_line_comment){
-const res=callback(char,false,is_comment,is_multi_line_comment,is_regex,is_escaped,is_preprocessor);
-if(res!=null){return res;}
-continue;
-}
-if(this.allow_slash_regexes&&!is_escaped&&!is_regex&&char=="/"){
-let prev=null;
-for(let p=info_obj.index-1;p>=0;p--){
-const c=this.code.charAt(p);
-if(c!=" "&&c!="\t"){
-prev=c;
-break;
-}
-}
-if(
-prev!=null&&
-(
-prev=="\n"||prev==","||prev=="("||
-prev=="["||prev=="{"||prev==":"||
-this.operators.includes(prev)
-)
-){
-is_regex=true;
-const res=callback(char,false,is_comment,is_multi_line_comment,is_regex,is_escaped,is_preprocessor);
-if(res!=null){return res;}
-continue;
-}
-}
-else if(is_regex){
-if(char=='/'&&!is_escaped){
-is_regex=false;
-}
-const res=callback(char,false,is_comment,is_multi_line_comment,true,is_escaped,is_preprocessor);if(res!=null){return res;}
-continue;
-}
-const res=callback(char,false,is_comment,is_multi_line_comment,is_regex,is_escaped,is_preprocessor);
-if(res!=null){return res;}
-}
-return null;
-};
-tokenize(return_tokens=false){
-const auto_append_batch_switch=()=>{
-if(this.is_comment){
-this.append_batch("token_comment");
-}else if(this.is_str){
-this.append_batch("token_string");
-}else if(this.is_regex){
-this.append_batch("token_string");
-}else if(this.is_preprocessor){
-this.append_batch("token_preprocessor");
-}else{
-this.append_batch();
-}
-}
-this.iterate_code(this,null,null,(char,local_is_str,local_is_comment,is_multi_line_comment,local_is_regex,is_escaped,is_preprocessor)=>{
-if(!is_escaped&&char=="\n"){
-auto_append_batch_switch();
-if(!local_is_str){
-this.is_str=false;
-}
-if(!local_is_comment&&!is_multi_line_comment){
-this.is_comment=false;
-}
-if(!local_is_regex){
-this.is_regex=false;
-}
-if(!is_preprocessor){
-this.is_preprocessor=false;
-this.is_str=false;}
-++this.line;
-this.batch+=char;
-this.append_batch("token_line");
-}
-else if(local_is_comment||is_multi_line_comment){
-if(!this.is_comment){
-auto_append_batch_switch();
-this.is_comment=true;
-}
-this.batch+=char;
-}
-else if(local_is_str){
-if(!this.is_str){
-if(this.is_comment){
-this.append_batch("token_comment");
-}else if(this.is_str){
-this.append_batch("token_string");
-}else if(this.is_regex){
-this.append_batch("token_string");
-}else if(this.is_preprocessor){
-this.append_batch("token_preprocessor");
-}else{
-if(this.special_string_prefixes.includes(this.batch)){
-this.append_batch("token_keyword");
-}else{
-this.append_batch();
-}
-}
-this.is_str=true;
-}
-this.batch+=char;
-}
-else if(local_is_regex){
-if(!this.is_regex){
-auto_append_batch_switch();
-this.is_regex=true;
-}
-this.batch+=char;
-}
-else if(is_preprocessor){
-if(!this.is_preprocessor){
-auto_append_batch_switch();
-this.is_preprocessor=true;
-}
-if(char=="<"&&this.batch.replaceAll(" ","").replaceAll("\t","")=="#include"){
-auto_append_batch_switch();
-this.is_str=true;
-this.batch+=char;
-}else if(char==">"&&this.is_str){
-this.batch+=char;
-auto_append_batch_switch();
-this.is_str=false;
-}
-else{
-this.batch+=char;
-}
-}
-else{
-if(char=="["){
-++this.bracket_depth;
-}else if(char=="]"){
---this.bracket_depth;
-}
-if(char=="{"){
-++this.curly_depth;
-}else if(char=="}"){
---this.curly_depth;
-if(this.class_depth!=null&&this.curly_depth<this.class_depth){
-this.class_depth=null;
-}
-}
-if(char=="("){
-++this.parenth_depth;
-}else if(char==")"){
---this.parenth_depth;
-}
-if(this.is_comment){
-this.append_batch("token_comment");
-this.is_comment=false;
-}
-else if(this.is_str){
-this.append_batch("token_string");
-this.is_str=false;
-}
-else if(this.is_regex){
-this.append_batch("token_string");
-this.is_regex=false;
-}
-else if(this.is_preprocessor){
-this.append_batch("token_preprocessor");
-this.is_preprocessor=false;
-}
-if(!this.callback(char,is_escaped,this.is_preprocessor)){
-if(this.word_boundaries.includes(char)){
-this.append_batch();
-this.batch+=char;
-this.append_batch();}
-else{
-this.batch+=char;
-}
-}
-}
-return null;
-});
-auto_append_batch_switch();
-if(return_tokens){
-return{
-tokens:this.tokens,
-line_count:this.line,
-}
-}
-else{
-return this.build_tokens();
-}
-}
-build_tokens(reformat=true){
-let html="";
-for(let i=0;i<this.tokens.length;i++){
-const token=this.tokens[i];
-if(token.token==null){
-if(reformat){
-html+=token.data.replaceAll("<","&lt;").replaceAll(">","&gt;");
-}else{
-html+=token.data;
-}
-}else{
-if(reformat){
-html+=`<span class='${token.token}'>${token.data.replaceAll("<", "&lt;").replaceAll(">", "&gt;")}</span>`
-}else{
-html+=`<span class='${token.token}'>${token.data}</span>`
-}
-}
-}
-return html;
-}
-}
-vhighlight.python={};
-vhighlight.python.tokenizer_opts={
+vhighlight.css=new vhighlight.CSS();
+vhighlight.Python=class Python{
+constructor(){
+this.tokenizer=new vhighlight.Tokenizer({
 keywords:[
 "and",
 "as",
@@ -7696,11 +7762,8 @@ special_string_prefixes:[
 single_line_comment_start:"#",
 multi_line_comment_start:false,
 multi_line_comment_end:false,
-}
-vhighlight.python.highlight=function(code,return_tokens=false){
-const tokenizer=new Tokenizer(vhighlight.python.tokenizer_opts);
-tokenizer.code=code;
-tokenizer.callback=function(char){
+});
+this.tokenizer.callback=(char)=>{
 if(char=="("){
 this.append_batch();
 const prev=this.get_prev_token(this.tokens.length-1,[" ","\t","\n"]);
@@ -7757,33 +7820,37 @@ prev.token="token_parameter";
 }
 return false;
 }
-return tokenizer.tokenize(return_tokens);
 }
-vhighlight.md={};
-vhighlight.md.tokenizer_opts={
+highlight(code,return_tokens=false){
+this.tokenizer.code=code;
+return this.tokenizer.tokenize(return_tokens);
+}
+}
+vhighlight.python=new vhighlight.Python();
+vhighlight.Markdown=class Markdown{
+constructor(){
+this.tokenizer=new vhighlight.Tokenizer({
 multi_line_comment_start:"<!--",
 multi_line_comment_end:"-->",
 allow_strings:false,
 allow_numerics:false,
-}
-vhighlight.md.highlight=function(code,return_tokens=false){
-const tokenizer=new Tokenizer(vhighlight.md.tokenizer_opts);
-tokenizer.code=code;
-let current_line=null;
-tokenizer.callback=function(char){
+});
+this.reset();
+this.tokenizer.callback=(char)=>{
+const tokenizer=this.tokenizer;
 let start_of_line=false;
-if(current_line!=this.line&&!this.is_whitespace(char)){
+if(this.current_line!=tokenizer.line&&!tokenizer.is_whitespace(char)){
 start_of_line=true;
-current_line=this.line;
+this.current_line=tokenizer.line;
 }
 if(start_of_line&&char=="#"){
-this.append_batch();
+tokenizer.append_batch();
 const add=[];
 let last_index=null;
 let at_start=true;
 let word="";
-for(let i=this.index;i<this.code.length;i++){
-const c=this.code.charAt(i);
+for(let i=tokenizer.index;i<tokenizer.code.length;i++){
+const c=tokenizer.code.charAt(i);
 if(c=="\n"){
 if(word.length>0){
 add.push(["token_bold",word]);
@@ -7801,7 +7868,7 @@ add.push([false,c]);
 else if(at_start&&c=="#"){
 add.push(["token_keyword",c]);
 }
-else if(this.word_boundaries.includes(c)){
+else if(tokenizer.word_boundaries.includes(c)){
 at_start=false;
 if(word.length>0){
 add.push(["token_bold",word]);
@@ -7816,80 +7883,80 @@ word+=c;
 }
 if(add.length>0){
 if(last_index==null){
-last_index=this.code.length;
+last_index=tokenizer.code.length;
 }
 for(let i=0;i<add.length;i++){
-this.append_forward_lookup_batch(add[i][0],add[i][1]);
+tokenizer.append_forward_lookup_batch(add[i][0],add[i][1]);
 }
-this.resume_on_index(last_index);
+tokenizer.resume_on_index(last_index);
 return true;
 }
 }
 else if(
 (
-(char=="*"&&this.next_char=="*")||
-(char=="_"&&this.next_char=="_")
+(char=="*"&&tokenizer.next_char=="*")||
+(char=="_"&&tokenizer.next_char=="_")
 )&&
-!this.is_whitespace(this.index+2)
+!tokenizer.is_whitespace(tokenizer.index+2)
 ){
 let closing_index=null;
-for(let i=this.index+2;i<this.code.length;i++){
-const c=this.code.charAt(i);
+for(let i=tokenizer.index+2;i<tokenizer.code.length;i++){
+const c=tokenizer.code.charAt(i);
 if(c==char){
 closing_index=i;
 break;
 }
 }
 if(closing_index==null){return false;}
-this.append_batch();
-this.append_forward_lookup_batch("token_keyword",char+char);
-this.append_forward_lookup_batch("token_bold",this.code.substr(this.index+2,closing_index-(this.index+2)));
-this.append_forward_lookup_batch("token_keyword",char+char);
-this.resume_on_index(closing_index+1);
+tokenizer.append_batch();
+tokenizer.append_forward_lookup_batch("token_keyword",char+char);
+tokenizer.append_forward_lookup_batch("token_bold",tokenizer.code.substr(tokenizer.index+2,closing_index-(tokenizer.index+2)));
+tokenizer.append_forward_lookup_batch("token_keyword",char+char);
+tokenizer.resume_on_index(closing_index+1);
 return true;
 }
 else if(
 (char=="*"||char=="_")&&
-!this.is_whitespace(this.next_char)
+!tokenizer.is_whitespace(tokenizer.next_char)
 ){
 let closing_index=null;
-for(let i=this.index+1;i<this.code.length;i++){
-const c=this.code.charAt(i);
+for(let i=tokenizer.index+1;i<tokenizer.code.length;i++){
+const c=tokenizer.code.charAt(i);
 if(c==char){
 closing_index=i;
 break;
 }
 }
 if(closing_index==null){return false;}
-this.append_batch();
-this.append_forward_lookup_batch("token_keyword",char);
-this.append_forward_lookup_batch("token_italic",this.code.substr(this.index+1,closing_index-(this.index+1)));
-this.append_forward_lookup_batch("token_keyword",char);
-this.resume_on_index(closing_index);
+tokenizer.append_batch();
+tokenizer.append_forward_lookup_batch("token_keyword",char);
+tokenizer.append_forward_lookup_batch("token_italic",tokenizer.code.substr(tokenizer.index+1,closing_index-(tokenizer.index+1)));
+tokenizer.append_forward_lookup_batch("token_keyword",char);
+tokenizer.resume_on_index(closing_index);
 return true;
 }
 else if(start_of_line&&char==">"){
-this.append_batch();
-this.batch=char;
-this.append_batch("token_keyword");
+tokenizer.append_batch();
+tokenizer.batch=char;
+tokenizer.append_batch("token_keyword");
 return true;
 }
 else if(
 start_of_line&&
 (char=="-"||char=="*"||char=="+")&&
-this.is_whitespace(this.next_char)
+tokenizer.is_whitespace(tokenizer.next_char)
 ){
-this.append_batch();
-this.batch=char;
-this.append_batch("token_keyword");
+tokenizer.append_batch();
+tokenizer.batch=char;
+tokenizer.append_batch("token_keyword");
 return true;
 }
-else if(start_of_line&&this.is_numerical(char)){
+else if(start_of_line&&tokenizer.is_numerical(char)){
 let batch=char;
 let finished=false;
 let last_index=null;
-for(let i=this.index+1;i<this.code.length;i++){
-const c=this.code.charAt(i);
+for(let i=tokenizer.index+1;i<tokenizer.code.length;i++){
+const c=tokenizer.code.charAt(i);
 if(c=="\n"){
 break;
 }else if(c=="."){
@@ -7897,27 +7964,27 @@ batch+=c;
 finished=true;
 last_index=i;
 break;
-}else if(this.is_numerical(c)){
+}else if(tokenizer.is_numerical(c)){
 batch+=c;
 }else{
 break;
 }
 }
 if(finished){
-this.append_batch();
-this.append_forward_lookup_batch("token_keyword",batch);
-this.resume_on_index(last_index);
+tokenizer.append_batch();
+tokenizer.append_forward_lookup_batch("token_keyword",batch);
+tokenizer.resume_on_index(last_index);
 return true;
 }
 }
 else if(char=="["){
-this.append_batch();
-const opening_bracket=this.index;
-const closing_bracket=this.get_closing_bracket(opening_bracket);
+tokenizer.append_batch();
+const opening_bracket=tokenizer.index;
+const closing_bracket=tokenizer.get_closing_bracket(opening_bracket);
 if(closing_bracket==null){return false;}
 let opening_parentheses=null;
-for(let i=closing_bracket+1;i<this.code.length;i++){
-const c=this.code.charAt(i);
+for(let i=closing_bracket+1;i<tokenizer.code.length;i++){
+const c=tokenizer.code.charAt(i);
 if(c==" "||c=="\t"){
 continue;
 }else if(c=="("){
@@ -7928,57 +7995,57 @@ break;
 }
 }
 if(opening_parentheses==null){return false;}
-const closing_parentheses=this.get_closing_parentheses(opening_parentheses);
+const closing_parentheses=tokenizer.get_closing_parentheses(opening_parentheses);
 if(closing_parentheses==null){return false;}
-const prev=this.get_prev_token(this.tokens.length-1,[" ","\t"]);
+const prev=tokenizer.get_prev_token(tokenizer.tokens.length-1,[" ","\t"]);
 const is_image=prev.data=="!";
 if(is_image){
 prev.token="token_keyword";
 }
-this.append_forward_lookup_batch("token_keyword","[");
-this.append_forward_lookup_batch("token_string",this.code.substr(opening_bracket+1,(closing_bracket-1)-(opening_bracket+1)+1));
-this.append_forward_lookup_batch("token_keyword","]");
-this.append_forward_lookup_batch("token_keyword","(");
-this.append_forward_lookup_batch("token_string",this.code.substr(opening_parentheses+1,(closing_parentheses-1)-(opening_parentheses+1)+1));
-this.append_forward_lookup_batch("token_keyword",")");
-this.resume_on_index(closing_parentheses);
+tokenizer.append_forward_lookup_batch("token_keyword","[");
+tokenizer.append_forward_lookup_batch("token_string",tokenizer.code.substr(opening_bracket+1,(closing_bracket-1)-(opening_bracket+1)+1));
+tokenizer.append_forward_lookup_batch("token_keyword","]");
+tokenizer.append_forward_lookup_batch("token_keyword","(");
+tokenizer.append_forward_lookup_batch("token_string",tokenizer.code.substr(opening_parentheses+1,(closing_parentheses-1)-(opening_parentheses+1)+1));
+tokenizer.append_forward_lookup_batch("token_keyword",")");
+tokenizer.resume_on_index(closing_parentheses);
 return true;
 }
-else if(char=="`"&&this.next_char!="`"&&this.prev_char!="`"){
+else if(char=="`"&&tokenizer.next_char!="`"&&tokenizer.prev_char!="`"){
 let closing_index=null;
-for(let i=this.index+1;i<this.code.length;i++){
-const c=this.code.charAt(i);
+for(let i=tokenizer.index+1;i<tokenizer.code.length;i++){
+const c=tokenizer.code.charAt(i);
 if(c=="`"){
 closing_index=i;
 break;
 }
 }
 if(closing_index==null){return false;}
-this.append_forward_lookup_batch("token_codeblock",this.code.substr(this.index,closing_index-this.index+1));
-this.resume_on_index(closing_index);
+tokenizer.append_forward_lookup_batch("token_codeblock",tokenizer.code.substr(tokenizer.index,closing_index-tokenizer.index+1));
+tokenizer.resume_on_index(closing_index);
 return true;
 }
-else if(char=="`"&&this.next_char=="`"&&this.code.charAt(this.index+2)=="`"){
+else if(char=="`"&&tokenizer.next_char=="`"&&tokenizer.code.charAt(tokenizer.index+2)=="`"){
 let closing_index=null;
 let do_language=true;
 let language="";
-for(let i=this.index+3;i<this.code.length;i++){
-const c=this.code.charAt(i);
-const is_whitespace=this.is_whitespace(c);
-if(c=="`"&&this.code.charAt(i+1)=='`'&&this.code.charAt(i+2)=="`"){
+for(let i=tokenizer.index+3;i<tokenizer.code.length;i++){
+const c=tokenizer.code.charAt(i);
+const is_whitespace=tokenizer.is_whitespace(c);
+if(c=="`"&&tokenizer.code.charAt(i+1)=='`'&&tokenizer.code.charAt(i+2)=="`"){
 closing_index=i+2;
 break;
 }else if(do_language&&language.length>0&&(is_whitespace||c=="\n")){
 do_language=false;
-}else if(do_language&&language.length==0&&!is_whitespace&&!this.is_alphabetical(c)){
+}else if(do_language&&language.length==0&&!is_whitespace&&!tokenizer.is_alphabetical(c)){
 do_language=false;
 }else if(do_language&&!is_whitespace&&c!="\n"){
 language+=c;
 }
 }
 if(closing_index==null){return false;}
-const start=this.index+3+language.length;
-const code=this.code.substr(start,(closing_index-3)-start+1);
+const start=tokenizer.index+3+language.length;
+const code=tokenizer.code.substr(start,(closing_index-3)-start+1);
 let result=null;
 if(language!=""){
 result=vhighlight.highlight({
@@ -7987,26 +8054,34 @@ code:code,
 return_tokens:true,
 })
 }
-this.append_forward_lookup_batch("token_keyword","```");
+tokenizer.append_forward_lookup_batch("token_keyword","```");
 if(result==null){
-this.append_forward_lookup_batch("token_codeblock",language+code);
+tokenizer.append_forward_lookup_batch("token_codeblock",language+code);
 }else{
-this.append_forward_lookup_batch("token_keyword",language);
+tokenizer.append_forward_lookup_batch("token_keyword",language);
 for(let i=0;i<result.tokens.length;i++){
 const token=result.tokens[i];
-token.line+=this.line;
-this.tokens.push(token);
+token.line+=tokenizer.line;
+tokenizer.tokens.push(token);
 }
-this.line+=result.line_count;
+tokenizer.line+=result.line_count;
 }
-this.append_forward_lookup_batch("token_keyword","```");
-this.resume_on_index(closing_index);
+tokenizer.append_forward_lookup_batch("token_keyword","```");
+tokenizer.resume_on_index(closing_index);
 return true;
 }
 return false;
 }
-return tokenizer.tokenize(return_tokens);
 }
+reset(){
+this.current_line=null;}
+highlight(code,return_tokens=false){
+this.reset();
+this.tokenizer.code=code;
+return this.tokenizer.tokenize(return_tokens);
+}
+}
+vhighlight.md=new vhighlight.Markdown();
 vweb.google={}
 vweb.google.init_gtag=function(google_tag){
 window.dataLayer=window.dataLayer||[];
