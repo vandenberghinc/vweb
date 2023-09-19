@@ -17,5 +17,12 @@
     "ssh_remotes": [],
     "git_username": null,
     "git_email": null,
-    "git_remotes": []
+    "git_remotes": [],
+    "excluded_path_patterns": [
+        "*.DS_Store",
+        "*.git",
+        "*.xcodeproj",
+        "*node_modules"
+    ],
+    "excluded_code_scanning_path_patterns": []
 }
