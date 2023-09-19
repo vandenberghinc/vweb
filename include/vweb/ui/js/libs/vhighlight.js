@@ -566,6 +566,9 @@ func_def_curly_depth=this.curly_depth;
 return true;
 }
 const prev=this.get_prev_token(this.tokens.length-1,[" ","\t","\n"]);
+if(prev===null){
+return false;
+}
 if(prev.data=="function"){
 this.append_batch("token_type_def");
 this.batch+=char;
@@ -1644,8 +1647,10 @@ continue;
 }
 else if(
 is_comment&&
-!is_escaped&&
-char=="\n"
+(
+(!is_escaped&&char=="\n")||
+info_obj.index==this.code.length-1
+)
 ){
 is_comment=false;
 const res=callback(char,false,true,is_multi_line_comment,is_regex,is_escaped,is_preprocessor);
@@ -1837,7 +1842,7 @@ this.batch+=char;
 }
 return null;
 });
-this.append_batch();
+auto_append_batch_switch();
 if(return_tokens){
 return{
 tokens:this.tokens,
