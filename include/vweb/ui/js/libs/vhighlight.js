@@ -265,8 +265,21 @@ allow_strings=true,
 allow_numerics=true,
 allow_preprocessors=false,
 allow_slash_regexes=false,
+scope_seperators=[
+";",
+"(",
+")",
+"{",
+"}",
+"[",
+"]",
+],
+allow_string_scope_seperator=false,
+allow_comment_scope_seperator=false,
+allow_regex_scope_seperator=false,
+allow_preprocessor_scope_seperator=false,
 }){
-this.code=null;this.keywords=keywords;this.type_def_keywords=type_def_keywords;this.type_keywords=type_keywords;this.operators=operators;this.special_string_prefixes=special_string_prefixes;this.single_line_comment_start=single_line_comment_start;this.multi_line_comment_start=multi_line_comment_start;this.multi_line_comment_end=multi_line_comment_end;this.allow_strings=allow_strings;this.allow_numerics=allow_numerics;this.allow_preprocessors=allow_preprocessors;this.allow_slash_regexes=allow_slash_regexes;
+this.code=null;this.keywords=keywords;this.type_def_keywords=type_def_keywords;this.type_keywords=type_keywords;this.operators=operators;this.special_string_prefixes=special_string_prefixes;this.single_line_comment_start=single_line_comment_start;this.multi_line_comment_start=multi_line_comment_start;this.multi_line_comment_end=multi_line_comment_end;this.allow_strings=allow_strings;this.allow_numerics=allow_numerics;this.allow_preprocessors=allow_preprocessors;this.allow_slash_regexes=allow_slash_regexes;this.scope_seperators=scope_seperators;this.allow_string_scope_seperator=allow_string_scope_seperator;this.allow_comment_scope_seperator=allow_comment_scope_seperator;this.allow_regex_scope_seperator=allow_regex_scope_seperator;this.allow_preprocessor_scope_seperator=allow_preprocessor_scope_seperator;
 this.word_boundaries=[
 ' ',
 '\t',
@@ -309,7 +322,7 @@ this.callback=function(){return false;}
 this.reset();
 }
 reset(){
-this.tokens=[];this.index=null;this.prev_char=null;this.next_char=null;this.batch ="";this.line=0;this.is_comment=false;this.is_str=false;this.is_regex=false;this.is_preprocessor=false;this.parenth_depth=0;this.bracket_depth=0;this.curly_depth=0;this.next_token=null;this.str_id=0;this.comment_id=0;this.regex_id=0;this.preprocessor_id=0;
+this.tokens=[];this.index=null;this.prev_char=null;this.next_char=null;this.batch ="";this.line=0;this.is_comment=false;this.is_str=false;this.is_regex=false;this.is_preprocessor=false;this.parenth_depth=0;this.bracket_depth=0;this.curly_depth=0;this.next_token=null;this.str_id=0;this.comment_id=0;this.regex_id=0;this.preprocessor_id=0;this.offset=0;
 this.class_depth=null;}
 get_prev_token(index,exclude=[" ","\t","\n"],exclude_comments=false){
 for(let i=index;i>=0;i--){
@@ -441,7 +454,9 @@ token:token,
 data:this.batch,
 index:this.tokens.length,
 line:this.line,
+offset:this.offset,
 };
+this.offset+=this.batch.length;
 switch(token){
 case "token_string":
 obj.str_id=this.str_id;
@@ -456,6 +471,7 @@ case "token_preprocessor":
 obj.preprocessor_id=this.preprocessor_id;
 break;
 case "token_line":
+obj.is_line_break=true;
 if(this.is_str){
 obj.str_id=this.str_id;
 }
@@ -534,6 +550,20 @@ let is_comment=false;
 let is_multi_line_comment=false;
 let string_char=null;
 let is_regex=false;let is_preprocessor=false;let prev_non_whitespace_char=null;
+const eq_first=(substr,start_index=0)=>{
+if(start_index+substr.length>this.code.length){
+return false;
+}
+const end=start_index+substr.length;
+let y=0;
+for(let x=start_index;x<end;x++){
+if(this.code.charAt(x)!=substr.charAt(y)){
+return false;
+}
+++y;
+}
+return true;
+}
 for(info_obj.index=start;info_obj.index<end;info_obj.index++){
 const char=this.code.charAt(info_obj.index);
 info_obj.prev_char=this.code.charAt(info_obj.index-1);
@@ -602,13 +632,14 @@ if(
 !is_regex
 ){
 const comment_start=this.single_line_comment_start;
-if(comment_start.length==1&&char==comment_start){
+if(comment_start.length===1&&char===comment_start){
 ++info_obj.comment_id;
 is_comment=true;
 const res=callback(char,false,is_comment,is_multi_line_comment,is_regex,is_escaped,is_preprocessor);
 if(res!=null){return res;}
 continue;
-}else if(comment_start.length==2&&char+info_obj.next_char==comment_start){
+}
+else if(comment_start.length!==1&&eq_first(comment_start,info_obj.index)){
 ++info_obj.comment_id;
 is_comment=true;
 const res=callback(char,false,is_comment,is_multi_line_comment,is_regex,is_escaped,is_preprocessor);
@@ -616,8 +647,9 @@ if(res!=null){return res;}
 continue;
 }
 const mcomment_start=this.multi_line_comment_start;
-if(mcomment_start==false){
-}else if(mcomment_start.length==2&&char+info_obj.next_char==mcomment_start){
+if(mcomment_start===false){
+}
+else if(mcomment_start.length!==1&&eq_first(mcomment_start,info_obj.index)){
 ++info_obj.comment_id;
 is_multi_line_comment=true;
 const res=callback(char,false,is_comment,is_multi_line_comment,is_regex,is_escaped,is_preprocessor);
@@ -828,12 +860,371 @@ auto_append_batch_switch();
 if(return_tokens){
 return{
 tokens:this.tokens,
-line_count:this.line,
+line_count:this.line+1,
 }
 }
 else{
 return this.build_tokens();
 }
+}
+partial_tokenize({
+edits_start=null,
+edits_end=null,
+line_additions=0,
+tokens=[],
+update_offsets=true,
+}){
+if(line_additions===undefined||isNaN(line_additions)){
+line_additions=0;
+}
+let scope_start=0;let scope_start_offset=0;let scope_end=null;let scope_end_offset=0;let now;
+let min_start=edits_start;
+let token_start;
+if(min_start===0){
+token_start=0;
+}else{
+--min_start;
+token_start=null;
+tokens.iterate((token)=>{
+if(token.line==min_start){
+token_start=token.index;
+return false;
+}
+})
+if(token_start===null){
+throw Error(`Unable to find the token of start line ${min_start}.`);
+}
+}
+if(token_start!==0){
+let is_id=null;
+let is_string=false;
+let is_comment=false;
+let is_regex=false;
+let is_preprocessor=false;
+let stop_on_line=null;
+tokens.iterate_reversed(0,token_start,(token)=>{
+if(token.line===stop_on_line){
+scope_start_offset=token.offset+token.data.length;
+return false;
+}
+else if(is_string){
+if(token.str_id!==is_id){
+is_string=false;
+if(this.allow_string_scope_seperator){
+scope_start=token.line;
+stop_on_line=token.line-1;
+}
+}
+}
+else if(is_comment){
+if(token.comment_id!==is_id){
+is_comment=false;
+if(this.allow_comment_scope_seperator){
+scope_start=token.line;
+stop_on_line=token.line-1;
+}
+}
+}
+else if(is_regex){
+if(token.regex_id!==is_id){
+is_regex=false;
+if(this.allow_regex_scope_seperator){
+scope_start=token.line;
+stop_on_line=token.line-1;
+}
+}
+}
+else if(is_preprocessor){
+if(token.preprocessor_id!==is_id){
+is_preprocessor=false;
+if(this.allow_preprocessor_scope_seperator){
+scope_start=token.line;
+stop_on_line=token.line-1;
+}
+}
+}
+else{
+switch(token.token){
+case "token_string":
+is_string=true;
+is_id=token.str_id;
+stop_on_line=null;
+break;
+case "token_comment":
+is_comment=true;
+is_id=token.comment_id;
+stop_on_line=null;
+break;
+case "token_regex":
+is_regex=true;
+is_id=token.regex_id;
+stop_on_line=null;
+break;
+case "token_preprocessor":
+is_preprocessor=true;
+is_id=token.preprocessor_id;
+stop_on_line=null;
+break;
+case null:
+if(token.data.length==1&&this.scope_seperators.includes(token.data)){
+scope_start=token.line;
+stop_on_line=token.line-1;
+scope_start_offset=token.offset;
+}
+break;
+default:
+break;
+}
+}
+})
+}
+const get_scope_end_by_old_tokens=()=>{
+let scope_end=null;let scope_end_offset=0;
+const max_end=edits_end;
+let is_id=null;
+let is_string=false;
+let is_comment=false;
+let is_regex=false;
+let is_preprocessor=false;
+let stop_on_line=null;
+tokens.iterate(token_start,null,(token)=>{
+if(token.line===stop_on_line){
+return false;
+}
+else if(is_string){
+if(token.str_id!==is_id){
+is_string=false;
+if(this.allow_string_scope_seperator&&token.line>max_end){
+scope_end=token.line;
+stop_on_line=token.line+1;
+}
+}
+}
+else if(is_comment){
+if(token.comment_id!==is_id){
+is_comment=false;
+if(this.allow_comment_scope_seperator&&token.line>max_end){
+scope_end=token.line;
+stop_on_line=token.line+1;
+}
+}
+}
+else if(is_regex){
+if(token.regex_id!==is_id){
+is_regex=false;
+if(this.allow_regex_scope_seperator&&token.line>max_end){
+scope_end=token.line;
+stop_on_line=token.line+1;
+}
+}
+}
+else if(is_preprocessor){
+if(token.preprocessor_id!==is_id){
+is_preprocessor=false;
+if(this.allow_preprocessor_scope_seperator&&token.line>max_end){
+scope_end=token.line;
+stop_on_line=token.line+1;
+}
+}
+}
+else{
+switch(token.token){
+case "token_string":
+is_string=true;
+is_id=token.str_id;
+stop_on_line=null;
+break;
+case "token_comment":
+is_comment=true;
+is_id=token.comment_id;
+stop_on_line=null;
+break;
+case "token_regex":
+is_regex=true;
+is_id=token.regex_id;
+stop_on_line=null;
+break;
+case "token_preprocessor":
+is_preprocessor=true;
+is_id=token.preprocessor_id;
+stop_on_line=null;
+break;
+case null:
+if(token.line>max_end&&token.data.length==1&&this.scope_seperators.includes(token.data)){
+scope_end=token.line;
+stop_on_line=token.line+1;
+}
+break;
+default:
+break;
+}
+}
+})
+let line=scope_start>0 ? scope_start-1:scope_start;this.iterate_code(this,scope_start_offset,null,(char,l_is_str,l_is_comment,l_is_multi_line_comment,l_is_regex,is_escaped,l_is_preprocessor)=>{
+if(char=="\n"&&!is_escaped){
+++line;
+if(line==scope_end+1){scope_end_offset=this.index-1;
+return false;
+}
+}
+})
+return{line:scope_end,offset:scope_end_offset};
+}
+const get_scope_end_by_new_code=()=>{
+let scope_end=null;let scope_end_offset=0;
+let line=scope_start>0 ? scope_start-1:scope_start;let is_string=false;
+let is_comment=false;
+let is_regex=false;
+let is_preprocessor=false;
+let stop_on_line=null;
+this.iterate_code(this,scope_start_offset,null,(char,l_is_str,l_is_comment,l_is_multi_line_comment,l_is_regex,is_escaped,l_is_preprocessor)=>{
+let line_break=false;
+if(char=="\n"&&!is_escaped){
+line_break=true;
+++line;
+}
+if(line_break&&line==stop_on_line){
+scope_end_offset=this.index-1;
+return false;
+}
+if(this.index==this.code.length-1){
+scope_end_offset=this.index;
+scope_end=line;
+return false;
+}
+l_is_comment=l_is_comment||l_is_multi_line_comment;
+if(line>edits_end){
+if(is_string){
+if(!l_is_str){
+is_string=false;
+if(this.allow_string_scope_seperator){
+scope_end=line;
+stop_on_line=line+1;
+}
+}
+}else if(is_comment){
+if(!l_is_comment){
+is_comment=false;
+if(this.allow_comment_scope_seperator){
+scope_end=line;
+stop_on_line=line+1;
+}
+}
+}else if(is_regex){
+if(!l_is_regex){
+is_regex=false;
+if(this.allow_regex_scope_seperator){
+scope_end=line;
+stop_on_line=line+1;
+}
+}
+}else if(is_preprocessor){
+if(!l_is_preprocessor){
+is_preprocessor=false;
+if(this.allow_preprocessor_scope_seperator){
+scope_end=line;
+stop_on_line=line+1;
+}
+}
+}
+else if(l_is_str){
+is_string=true;
+stop_on_line=null;
+}
+else if(l_is_comment){
+is_comment=true;
+stop_on_line=null;
+}
+else if(l_is_regex){
+is_regex=true;
+stop_on_line=null;
+}
+else if(l_is_preprocessor){
+is_preprocessor=true;
+stop_on_line=null;
+}
+else if(this.scope_seperators.includes(char)){
+scope_end=line;
+stop_on_line=line+1;
+}
+}
+else{
+if(is_string&&!l_is_str){
+is_string=false;
+}
+else if(is_comment&&!l_is_comment){
+is_comment=false;
+}
+else if(is_regex&&!l_is_regex){
+is_regex=false;
+}
+else if(is_preprocessor&&!l_is_preprocessor){
+is_preprocessor=false;
+}
+else if(l_is_str){
+is_string=true;
+}
+else if(l_is_comment){
+is_comment=true;
+}
+else if(l_is_regex){
+is_regex=true;
+}
+else if(l_is_preprocessor){
+is_preprocessor=true;
+}
+}
+})
+return{line:scope_end,offset:scope_end_offset};
+}
+const old_scope_end=get_scope_end_by_old_tokens();
+const new_scope_end=get_scope_end_by_new_code();
+if(new_scope_end.line>=old_scope_end.line){
+scope_end=new_scope_end.line;
+scope_end_offset=new_scope_end.offset;
+}else{
+scope_end=old_scope_end.line;
+scope_end_offset=old_scope_end.offset;
+}
+this.code=this.code.substr(scope_start_offset,(scope_end_offset-scope_start_offset)+1);
+const results=this.tokenize(true);
+const insert_tokens=results.tokens;
+let combined_tokens=[];
+let insert=true;
+let line_count=0;
+let insert_end=scope_end-line_additions;
+for(let i=0;i<tokens.length;i++){
+const token=tokens[i];
+const line=token.line;
+if(insert&&line==scope_start){
+insert=false;
+insert_tokens.iterate((new_token)=>{
+if(new_token.is_line_break){
+++line_count;
+}
+new_token.line=line_count;
+})
+combined_tokens.push(...insert_tokens);
+}
+else if(line<scope_start||line>insert_end){
+if(token.is_line_break){
+++line_count;
+}
+token.line=line_count;
+combined_tokens.push(token);
+}
+}
+if(update_offsets){
+let offset=0;
+combined_tokens.iterate((token)=>{
+token.offset=offset;
+offset+=token.data.length;
+})
+}
+return{
+tokens:combined_tokens,
+line_count:line_count
+};
 }
 build_tokens(reformat=true){
 let html="";
@@ -897,53 +1288,54 @@ multi_line_comment_end:false,
 });
 this.reset();
 this.tokenizer.callback=(char,is_escaped)=>{
-const is_whitespace=this.is_whitespace(char);
+const tokenizer=this.tokenizer;
+const is_whitespace=tokenizer.is_whitespace(char);
 let start_of_line=false;
-if(this.current_line!=this.line&&!is_whitespace){
+if(this.current_line!=tokenizer.line&&!is_whitespace){
 start_of_line=true;
-this.current_line=this.line;
+this.current_line=tokenizer.line;
 }
 if(char=="-"){
 let batch=null;
-if(this.operators.includes(char+this.next_char)){
-batch=char+this.next_char;
-}else if(this.operators.includes(char+this.next_char+this.code.charAt(this.index+2))){
-batch=char+this.next_char+this.code.charAt(this.index+2);
+if(tokenizer.operators.includes(char+tokenizer.next_char)){
+batch=char+tokenizer.next_char;
+}else if(tokenizer.operators.includes(char+tokenizer.next_char+tokenizer.code.charAt(tokenizer.index+2))){
+batch=char+tokenizer.next_char+tokenizer.code.charAt(tokenizer.index+2);
 }
 if(batch!=null){
-this.append_batch();
-this.append_forward_lookup_batch("token_operator",batch);
-this.resume_on_index(this.index+batch.length-1);
+tokenizer.append_batch();
+tokenizer.append_forward_lookup_batch("token_operator",batch);
+tokenizer.resume_on_index(tokenizer.index+batch.length-1);
 return true;
 }
 }
 else if(char=="$"){
 let batch="$";
-let index=this.index+1;
+let index=tokenizer.index+1;
 while(true){
-c=this.code.charAt(index);
-if(this.is_numerical(c)){
+const c=tokenizer.code.charAt(index);
+if(tokenizer.is_numerical(c)){
 batch+=c;
 }else{
 break;
 }
 ++index;
 }
-if(batch.length==1&&(this.next_char=="#"||this.next_char=="@"||this.next_char=="?")){
-batch+=this.next_char
+if(batch.length==1&&(tokenizer.next_char=="#"||tokenizer.next_char=="@"||tokenizer.next_char=="?")){
+batch+=tokenizer.next_char
 }
 if(batch.length>1){
-this.append_batch();
-this.append_forward_lookup_batch("token_keyword",batch);
-this.resume_on_index(this.index+batch.length-1);
+tokenizer.append_batch();
+tokenizer.append_forward_lookup_batch("token_keyword",batch);
+tokenizer.resume_on_index(tokenizer.index+batch.length-1);
 return true;
 }
 }
 else if(char=="("){
-this.append_batch();
+tokenizer.append_batch();
 let is_func_def=false;
-for(let i=this.index+1;i<this.code.length;i++){
-const c=this.code.charAt(i);
+for(let i=tokenizer.index+1;i<tokenizer.code.length;i++){
+const c=tokenizer.code.charAt(i);
 if(c=="{"){
 is_func_def=true;
 }
@@ -952,45 +1344,45 @@ break;
 }
 }
 if(is_func_def){
-const prev=this.get_prev_token(this.tokens.length-1,[" ","\t","\n"]);
+const prev=tokenizer.get_prev_token(tokenizer.tokens.length-1,[" ","\t","\n"]);
 prev.token="token_type_def";
 }
 }
-else if(start_of_line&&this.is_alphabetical(char)){
+else if(start_of_line&&tokenizer.is_alphabetical(char)){
 let finished=false;
 let passed_whitespace=false;
 let word="";
 let end_index=null;
-for(let i=this.index;i<this.code.length;i++){
-const c=this.code.charAt(i);
+for(let i=tokenizer.index;i<tokenizer.code.length;i++){
+const c=tokenizer.code.charAt(i);
 if(c==" "||c=="\t"){
 passed_whitespace=true;
-}else if(!passed_whitespace&&(this.is_alphabetical(c)||this.is_numerical(c))){
+}else if(!passed_whitespace&&(tokenizer.is_alphabetical(c)||tokenizer.is_numerical(c))){
 word+=c;
 end_index=i;
-}else if(passed_whitespace&&(char=="\\"||!this.operators.includes(char))){
+}else if(passed_whitespace&&(char=="\\"||!tokenizer.operators.includes(char))){
 finished=true;
 break;
 }else{
 break;
 }
 }
-if(finished&&!this.keywords.includes(word)){
-this.append_batch();
-this.append_forward_lookup_batch("token_type",word);
-this.resume_on_index(end_index);
+if(finished&&!tokenizer.keywords.includes(word)){
+tokenizer.append_batch();
+tokenizer.append_forward_lookup_batch("token_type",word);
+tokenizer.resume_on_index(end_index);
 return true;
 }
 }
 else if(start_of_line&&char==":"){
 let style=null;
 let start_index=null;let end_index=null;
-for(let i=this.index+1;i<this.code.length;i++){
-const c=this.code.charAt(i);
+for(let i=tokenizer.index+1;i<tokenizer.code.length;i++){
+const c=tokenizer.code.charAt(i);
 if(c==" "||c=="\t"){
 continue;
 }else if(c=="<"){
-if(this.code.charAt(i+1)=="<"){
+if(tokenizer.code.charAt(i+1)=="<"){
 start_index=i+2;
 style=1;
 }
@@ -1006,31 +1398,31 @@ if(style==1){
 let close_sequence="";
 let found_close_sequence=false;
 const eq_first=(start_index)=>{
-if(start_index+close_sequence.length>this.code.length){
+if(start_index+close_sequence.length>tokenizer.code.length){
 return false;
 }
 const end=start_index+close_sequence.length;
 let y=0;
 for(let x=start_index;x<end;x++){
-if(this.code.charAt(x)!=close_sequence.charAt(y)){
+if(tokenizer.code.charAt(x)!=close_sequence.charAt(y)){
 return false;
 }
 ++y;
 }
 return true;
 }
-for(let i=start_index;i<this.code.length;i++){
-const c=this.code.charAt(i);
+for(let i=start_index;i<tokenizer.code.length;i++){
+const c=tokenizer.code.charAt(i);
 if(!found_close_sequence){
-if(this.is_whitespace(c)){
+if(tokenizer.is_whitespace(c)){
 continue;
 }else if(
 c=='"'||
 c=="'"||
 c=="_"||
 c=="-"||
-this.is_numerical(c)||
-this.is_alphabetical(c)
+tokenizer.is_numerical(c)||
+tokenizer.is_alphabetical(c)
 ){
 close_sequence+=c;
 }else{
@@ -1055,9 +1447,9 @@ break;
 }
 }
 else if(style==2){
-const closing_char=this.code.charAt(start_index-1);
-for(let i=start_index;i<this.code.length;i++){
-const c=this.code.charAt(i);
+const closing_char=tokenizer.code.charAt(start_index-1);
+for(let i=start_index;i<tokenizer.code.length;i++){
+const c=tokenizer.code.charAt(i);
 if(!is_escaped&&c==closing_char){
 end_index=i;
 break;
@@ -1065,9 +1457,9 @@ break;
 }
 }
 if(end_index!=null){
-this.append_batch();
-this.append_forward_lookup_batch("token_comment",this.code.substr(this.index,end_index-this.index+1));
-this.resume_on_index(end_index);
+tokenizer.append_batch();
+tokenizer.append_forward_lookup_batch("token_comment",tokenizer.code.substr(tokenizer.index,end_index-tokenizer.index+1));
+tokenizer.resume_on_index(end_index);
 return true;
 }
 }
@@ -1076,10 +1468,34 @@ return false;
 }
 reset(){
 this.current_line=null;}
-highlight(code,return_tokens=false){
+highlight(code=null,return_tokens=false){
 this.reset();
+if(code!==null){
 this.tokenizer.code=code;
+}
 return this.tokenizer.tokenize(return_tokens);
+}
+partial_highlight({
+code=null,
+edits_start=null,
+edits_end=null,
+insert_start=null,
+insert_end=null,
+tokens=[],
+update_offsets=true,
+}){
+if(code!==null){
+this.tokenizer.code=code;
+}
+this.reset();
+return this.tokenizer.partial_tokenize({
+edits_start:edits_start,
+edits_end:edits_end,
+insert_start:insert_start,
+insert_end:insert_end,
+tokens:tokens,
+update_offsets:update_offsets,
+})
 }
 }
 vhighlight.bash=new vhighlight.Bash();
@@ -1211,7 +1627,7 @@ this.func_def_curly_depth==this.tokenizer.curly_depth&&(
 )||
 (
 this.opening_parenth_curly_depth==this.tokenizer.curly_depth&&this.tokenizer.parenth_depth>0&&char=='='&&
-code.charAt(this.tokenizer.index+1)!='>'
+this.tokenizer.code.charAt(this.tokenizer.index+1)!='>'
 )
 ){
 if(char==')'){
@@ -1247,12 +1663,34 @@ return false;
 }
 reset(){
 this.opening_parenth_curly_depth=0;this.func_def_parenth_depth=null;this.func_def_curly_depth=null;this.last_param_was_assignment=false;}
-highlight(code,return_tokens=false){
+highlight(code=null,return_tokens=false){
 this.reset();
+if(code!==null){
 this.tokenizer.code=code;
+}
 return this.tokenizer.tokenize(return_tokens);
 }
-partial_highlight(edited_lines={}){
+partial_highlight({
+code=null,
+edits_start=null,
+edits_end=null,
+line_deletions=0,
+line_additions=0,
+tokens=[],
+update_offsets=true,
+}){
+if(code!==null){
+this.tokenizer.code=code;
+}
+this.reset();
+return this.tokenizer.partial_tokenize({
+edits_start:edits_start,
+edits_end:edits_end,
+line_deletions:line_deletions,
+line_additions:line_additions,
+tokens:tokens,
+update_offsets:update_offsets,
+})
 }
 }
 vhighlight.js=new vhighlight.JS();
@@ -1388,6 +1826,14 @@ single_line_comment_start:"//",
 multi_line_comment_start:"/*",
 multi_line_comment_end:"*/",
 allow_preprocessors:true,
+scope_seperators:[
+"{",
+"}",
+],
+allow_string_scope_seperator:false,
+allow_comment_scope_seperator:false,
+allow_regex_scope_seperator:false,
+allow_preprocessor_scope_seperator:false,
 });
 this.reset();
 const find_opening_template_token=(index)=>{
@@ -1663,9 +2109,11 @@ this.last_line_type=null;
 this.inside_func=false;
 this.inside_func_closing_curly=null;
 }
-highlight(code,return_tokens=false){
+highlight(code=null,return_tokens=false){
 this.reset();
+if(code!==null){
 this.tokenizer.code=code;
+}
 return this.tokenizer.tokenize(return_tokens);
 }
 }
@@ -1683,9 +2131,32 @@ multi_line_comment_start:"/*",
 multi_line_comment_end:"*/",
 });
 }
-highlight(code,return_tokens=false){
+highlight(code=null,return_tokens=false){
+if(code!==null){
 this.tokenizer.code=code;
+}
 return this.tokenizer.tokenize(return_tokens);
+}
+partial_highlight({
+code=null,
+edits_start=null,
+edits_end=null,
+insert_start=null,
+insert_end=null,
+tokens=[],
+update_offsets=true,
+}){
+if(code!==null){
+this.tokenizer.code=code;
+}
+return this.tokenizer.partial_tokenize({
+edits_start:edits_start,
+edits_end:edits_end,
+insert_start:insert_start,
+insert_end:insert_end,
+tokens:tokens,
+update_offsets:update_offsets,
+})
 }
 }
 vhighlight.json=new vhighlight.Json();
@@ -1932,10 +2403,34 @@ reset(){
 this.style_start=null;
 this.style_end=null;
 }
-highlight(code,return_tokens=false){
+highlight(code=null,return_tokens=false){
 this.reset();
+if(code!==null){
 this.tokenizer.code=code;
+}
 return this.tokenizer.tokenize(return_tokens);
+}
+partial_highlight({
+code=null,
+edits_start=null,
+edits_end=null,
+insert_start=null,
+insert_end=null,
+tokens=[],
+update_offsets=true,
+}){
+if(code!==null){
+this.tokenizer.code=code;
+}
+this.reset();
+return this.tokenizer.partial_tokenize({
+edits_start:edits_start,
+edits_end:edits_end,
+insert_start:insert_start,
+insert_end:insert_end,
+tokens:tokens,
+update_offsets:update_offsets,
+})
 }
 }
 vhighlight.css=new vhighlight.CSS();
@@ -1997,19 +2492,20 @@ multi_line_comment_start:false,
 multi_line_comment_end:false,
 });
 this.tokenizer.callback=(char)=>{
+const tokenizer=this.tokenizer;
 if(char=="("){
-this.append_batch();
-const prev=this.get_prev_token(this.tokens.length-1,[" ","\t","\n"]);
-if(prev!=null&&prev.token==null&&!this.str_includes_word_boundary(prev.data)){
+tokenizer.append_batch();
+const prev=tokenizer.get_prev_token(tokenizer.tokens.length-1,[" ","\t","\n"]);
+if(prev!=null&&prev.token==null&&!tokenizer.str_includes_word_boundary(prev.data)){
 prev.token="token_type";
 }
 }
-else if(this.parenth_depth>0&&(char=="="||char==")"||char==",")){
-this.append_batch();
+else if(tokenizer.parenth_depth>0&&(char=="="||char==")"||char==",")){
+tokenizer.append_batch();
 let opening_index=null;
 let depth=0;
-for(let i=this.tokens.length-1;i>=0;i--){
-const token=this.tokens[i];
+for(let i=tokenizer.tokens.length-1;i>=0;i--){
+const token=tokenizer.tokens[i];
 if(token.token==null&&token.data=="("){
 --depth;
 if(depth<=0){
@@ -2023,7 +2519,7 @@ break;
 if(opening_index==null){
 return false;
 }
-let preceding=this.get_prev_token(opening_index-1,[" ","\t","\n"]);
+let preceding=tokenizer.get_prev_token(opening_index-1,[" ","\t","\n"]);
 if(
 preceding==null||
 (
@@ -2037,11 +2533,11 @@ const func_def=preceding.token=="token_type_def";
 if(!func_def&&char==","){
 return false;
 }
-const prev=this.get_prev_token(this.tokens.length-1,[" ","\t","\n","=",")",","]);
+const prev=tokenizer.get_prev_token(tokenizer.tokens.length-1,[" ","\t","\n","=",")",","]);
 if(prev==null){
 return false;
 }
-const prev_prev=this.get_prev_token(prev.index-1,[" ","\t","\n"],true);
+const prev_prev=tokenizer.get_prev_token(prev.index-1,[" ","\t","\n"],true);
 if(
 prev.token==null&&
 prev_prev!=null&&
@@ -2054,9 +2550,32 @@ prev.token="token_parameter";
 return false;
 }
 }
-highlight(code,return_tokens=false){
+highlight(code=null,return_tokens=false){
+if(code!==null){
 this.tokenizer.code=code;
+}
 return this.tokenizer.tokenize(return_tokens);
+}
+partial_highlight({
+code=null,
+edits_start=null,
+edits_end=null,
+insert_start=null,
+insert_end=null,
+tokens=[],
+update_offsets=true,
+}){
+if(code!==null){
+this.tokenizer.code=code;
+}
+return this.tokenizer.partial_tokenize({
+edits_start:edits_start,
+edits_end:edits_end,
+insert_start:insert_start,
+insert_end:insert_end,
+tokens:tokens,
+update_offsets:update_offsets,
+})
 }
 }
 vhighlight.python=new vhighlight.Python();
@@ -2308,9 +2827,11 @@ return false;
 }
 reset(){
 this.current_line=null;}
-highlight(code,return_tokens=false){
+highlight(code=null,return_tokens=false){
 this.reset();
+if(code!==null){
 this.tokenizer.code=code;
+}
 return this.tokenizer.tokenize(return_tokens);
 }
 }
