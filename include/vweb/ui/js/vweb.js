@@ -2580,6 +2580,10 @@ return this;
 mask_image(value){
 if(value==null){return this.style.maskImage;}
 this.style.maskImage=value;
+this.style.msMaskImage=value;
+this.style.webkitMaskImage=value;
+this.style.MozMaskImage=value;
+this.style.OMaskImage=value;
 return this;
 }
 mask_mode(value){
@@ -4291,6 +4295,7 @@ this.track=VStack(this.thumb)
 .assign("background_value","#28292E")
 .overflow("visible")
 super.append(this.content,this.track);
+this.raw_append=super.append;
 this.m_delay=1000;
 this.track.__background__=this.track.background;
 this.track.__background_color__=this.background_color;

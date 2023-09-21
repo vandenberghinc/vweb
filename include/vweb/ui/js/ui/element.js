@@ -6330,6 +6330,10 @@ function CreateVElementClass({
         mask_image(value) {
             if (value == null) { return this.style.maskImage; }
             this.style.maskImage = value;
+            this.style.msMaskImage = value;
+            this.style.webkitMaskImage = value;
+            this.style.MozMaskImage = value;
+            this.style.OMaskImage = value;
             return this;
         }
 

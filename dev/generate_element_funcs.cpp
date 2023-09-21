@@ -842,6 +842,7 @@ int main() {
 	Array<String> vendor_prefix_styles {
 		"mask",
 		"mask-composite",
+		"mask-image",
 		"align-content",
 		"align-items",
 		"align-self",
