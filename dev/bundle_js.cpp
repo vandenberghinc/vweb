@@ -30,6 +30,8 @@ int main() {
 			"modules/utils.js",
 			"modules/elements.js",
 			"ui/element.js",
+			"ui/vstack.js", // since this is inherited.
+			"ui/hstack.js", // since this is inherited.
 		},
 		.exclude = {
 			"vweb.js",

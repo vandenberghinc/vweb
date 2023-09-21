@@ -1450,12 +1450,12 @@ return this;
 }
 parent(value){
 if(value==null){
-if(this.parent_e==null||this.parent_e===undefined){
+if(this._parent==null||this._parent===undefined){
 return this.parentElement;
 }
-return this.parent_e;
+return this._parent;
 }
-this.parent_e=value;
+this._parent=value;
 return this;
 }
 toString(){
@@ -4132,6 +4132,47 @@ const StyleElement=CreateVElementClass({type:"Style",tag:"style"});
 function Style(...args){return new StyleElement(...args);}
 
 
+class VStackElement extends CreateVElementClass({
+type:"VStack",
+tag:"div",
+default_style:{
+"margin":"0px",
+"padding":"0px",
+"display":"flex","overflow":"visible",
+"align-content":"flex-start","flex-direction":"column",
+},
+}){
+constructor(...children){
+super();
+this.append(...children);
+}
+}
+vweb.elements.register(VStackElement);
+function VStack(...args){return new VStackElement(...args);}
+
+
+class HStackElement extends CreateVElementClass({
+type:"HStack",
+tag:"div",
+default_style:{
+"margin":"0px",
+"padding":"0px",
+"overflow-x":"visible",
+"overflow-y":"visible",
+"display":"flex",
+"flex-direction":"row",
+"align-items":"flex-start","border":"0px",
+},
+}){
+constructor(...children){
+super();
+this.append(...children);
+}
+}
+vweb.elements.register(HStackElement);
+function HStack(...args){return new HStackElement(...args);}
+
+
 class RingLoaderElement extends CreateVElementClass({
 type:"RingLoader",
 tag:"div",
@@ -4624,28 +4665,6 @@ return this;
 vweb.elements.register(VirtualScrollerElement);
 function VirtualScroller(...args){return new VirtualScrollerElement(...args);}
 
-
-class HStackElement extends CreateVElementClass({
-type:"HStack",
-tag:"div",
-default_style:{
-"margin":"0px",
-"padding":"0px",
-"overflow-x":"visible",
-"overflow-y":"visible",
-"display":"flex",
-"flex-direction":"row",
-"align-items":"flex-start","border":"0px",
-},
-}){
-constructor(...children){
-super();
-this.append(...children);
-}
-}
-vweb.elements.register(HStackElement);
-function HStack(...args){return new HStackElement(...args);}
-
 class GradientType{
 constructor(...args){
 if(args.length===1){
@@ -4702,6 +4721,195 @@ default_style:{
 },
 });
 function Spacer(...args){return new SpacerElement(...args);}
+
+
+class SwitchElement extends VStackElement{
+constructor(enabled=false){
+super();
+this.slider=VStack()
+.background("white")
+.frame(35,12.5)
+.border_radius(10)
+.overflow("visible")
+.box_shadow(`0px 0px 2px #00000040`)
+.parent(this)
+this.button=VStack()
+.border_radius("50%")
+.frame(17.5,17.5)
+.background("gray")
+.position("absolute")
+.left(0)
+.transition("left 0.15s ease-out")
+.box_shadow(`0px 0px 2px #00000090`)
+.on_click(()=>this.toggle())
+.parent(this)
+this.append(this.slider,this.button);
+this.position("relative")
+this.width(35)
+this.margin_left(10)
+this.margin_right(5)
+this.flex_shrink(0)
+this.center_vertical()
+this.on_change_handler=()=>{};
+this._enabled=enabled;
+this._enabled_color="green";
+this._disabled_color="gray";
+this.enabled=this.value;
+this.value(enabled,false);
+}
+width(value){
+if(value==null){
+return super.width();
+}
+super.width(value);
+this.slider.width(value);
+return this;
+}
+min_width(value){
+if(value==null){
+return super.min_width();
+}
+super.min_width(value);
+this.slider.min_width(value);
+return this;
+}
+max_width(value){
+if(value==null){
+return super.max_width();
+}
+super.max_width(value);
+this.slider.max_width(value);
+return this;
+}
+height(value){
+if(value==null){
+return super.height();
+}
+super.height(value);
+this.slider.height(value/2);
+return this;
+}
+min_height(value){
+if(value==null){
+return super.min_height();
+}
+super.min_height(value);
+this.slider.min_height(value/2);
+return this;
+}
+max_height(value){
+if(value==null){
+return super.max_height();
+}
+super.max_height(value);
+this.slider.max_height(value/2);
+return this;
+}
+frame(width,height){
+if(width!=null){
+this.width(width);
+}
+if(height!=null){
+this.height(height);
+}
+return this;
+}
+min_frame(width,height){
+if(width!=null){
+this.min_width(width);
+}
+if(height!=null){
+this.min_height(height);
+}
+return this;
+}
+max_frame(width,height){
+if(width!=null){
+this.max_width(width);
+}
+if(height!=null){
+this.max_height(height);
+}
+return this;
+}
+enabled_color(value){
+if(value==null){
+return this._enabled_color;
+}
+this._enabled_color=value;
+return this;
+}
+disabled_color(value){
+if(value==null){
+return this._disabled_color;
+}
+this._disabled_color=value;
+return this;
+}
+toggle(){
+return this.value(!this._enabled);
+}
+value(value,animate=true){
+if(value==null){
+return this._enabled;
+}
+else if(value===true){
+this._enabled=value;
+if(animate){
+clearTimeout(this.timeout);
+this.timeout=setTimeout(()=>this.button.background(this._enabled_color),140);
+}else{
+this.button.background(this._enabled_color);
+}
+const slider_width=this.slider.getBoundingClientRect().width;
+const button_width=this.button.getBoundingClientRect().width;
+if(slider_width&&button_width){
+this.button.style.left=`${slider_width - button_width}px`;
+this.button.style.right="auto";
+}else{
+this.button.style.left="auto";
+this.button.style.right="0px";
+}
+this.on_change_handler(this._enabled);
+}
+else if(value===false){
+this._enabled=value;
+if(animate){
+clearTimeout(this.timeout);
+this.timeout=setTimeout(()=>this.button.background(this._disabled_color),140);
+}else{
+this.button.background(this._disabled_color);
+}
+const slider_width=this.slider.getBoundingClientRect().width;
+const button_width=this.button.getBoundingClientRect().width;
+if(slider_width&&button_width){
+if(this.button.style.left==="auto"){this.button.style.left=`${slider_width - button_width}px`;
+setTimeout(()=>{
+this.button.style.right="auto";
+this.button.style.left="0px";
+},10)
+}else{
+this.button.style.right="auto";
+this.button.style.left="0px";
+}
+}else{
+this.button.style.left="0px";
+this.button.style.right="auto";
+}
+this.on_change_handler(this._enabled);
+}
+return this;
+}
+on_change(handler){
+if(handler==null){
+return this.on_change_handler;
+}
+this.on_change_handler=handler;
+return this;
+}
+}
+vweb.elements.register(SwitchElement);
+function Switch(...args){return new SwitchElement(...args);}
 
 
 class ForEachElement extends CreateVElementClass({
@@ -4842,25 +5050,6 @@ this.href(href);
 }
 vweb.elements.register(LinkElement);
 function Link(...args){return new LinkElement(...args);}
-
-
-class VStackElement extends CreateVElementClass({
-type:"VStack",
-tag:"div",
-default_style:{
-"margin":"0px",
-"padding":"0px",
-"display":"flex","overflow":"visible",
-"align-content":"flex-start","flex-direction":"column",
-},
-}){
-constructor(...children){
-super();
-this.append(...children);
-}
-}
-vweb.elements.register(VStackElement);
-function VStack(...args){return new VStackElement(...args);}
 
 
 class ZStackElement extends CreateVElementClass({

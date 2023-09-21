@@ -1875,12 +1875,12 @@ function CreateVElementClass({
 		// Only assigned when this is a child element of a specific Element derived class, such as LoaderButton.
 		parent(value) {
 			if (value == null) {
-				if (this.parent_e == null || this.parent_e === undefined) {
+				if (this._parent == null || this._parent === undefined) {
 					return this.parentElement;
 				}
-				return this.parent_e;
+				return this._parent;
 			}
-			this.parent_e = value;
+			this._parent = value;
 			return this;
 		}
 
