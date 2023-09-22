@@ -82,8 +82,10 @@ class ScrollerElement extends CreateVElementClass({
         // Add children.
         super.append(this.content, this.track);
 
-        // Keep append as raw.
-        this.raw_append = super.append;
+        // Alias functions.
+        // this.raw_append = super.append.bind(super);
+        this.iterate = this.content.iterate.bind(this.content);
+        this.iterate_nodes = this.content.iterate_nodes.bind(this.content);
 
         // Set default delay.
         this.m_delay = 1000;

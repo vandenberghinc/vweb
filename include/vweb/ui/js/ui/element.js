@@ -1776,7 +1776,7 @@ function CreateVElementClass({
 		}
 
 		// Iterate children.
-		iterate_children(start, end, handler) {
+		iterate(start, end, handler) {
 		    if (typeof start === "function") {
 		        handler = start;
 		        start = null;
@@ -1881,6 +1881,15 @@ function CreateVElementClass({
 				return this._parent;
 			}
 			this._parent = value;
+			return this;
+		}
+
+		// Absolute parent used for custom elements that have multiple nested children to get the custom element itself.
+		abs_parent(value) {
+			if (value == null) {
+				return this._abs_parent;
+			}
+			this._abs_parent = value;
 			return this;
 		}
 

@@ -29,6 +29,7 @@ int main() {
 			"modules/wrapper.js",
 			"modules/utils.js",
 			"modules/elements.js",
+			"ui/mutex.js", 
 			"ui/element.js",
 			"ui/vstack.js", // since this is inherited.
 			"ui/hstack.js", // since this is inherited.

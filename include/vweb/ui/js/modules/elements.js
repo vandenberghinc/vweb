@@ -24,6 +24,6 @@ vweb.elements.click = function(id) {
 vweb.elements.register = function(type, tag) {
 
 	// Prefer type.name here since that also supports inherited classes.
-	customElements.define("v-" + type.name.toLowerCase(), type, {extends: tag || type.element_tag});
+	customElements.define("v-" + type.name.toLowerCase(), type, {extends: tag || type.element_tag});	
 
 }
