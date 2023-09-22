@@ -7185,6 +7185,9 @@ if(token_start===null){
 throw Error(`Unable to find the token of start line ${min_start}.`);
 }
 }
+console.log("edits_start:",edits_start);
+console.log("edits_end:",edits_end);
+console.log("min_start: ",min_start);
 if(token_start!==0){
 let is_id=null;
 let is_string=false;
@@ -7268,6 +7271,9 @@ break;
 }
 })
 }
+console.log("token_start:",token_start);
+console.log("scope_start_offset:",scope_start_offset);
+console.log("scope_start:",scope_start);
 const get_scope_end_by_old_tokens=()=>{
 let scope_end=null;let scope_end_offset=0;
 const max_end=edits_end;
@@ -7350,6 +7356,7 @@ break;
 }
 }
 })
+console.log("old scope_end:",scope_end);
 let line=scope_start>0 ? scope_start-1:scope_start;this.iterate_code(this,scope_start_offset,null,(char,l_is_str,l_is_comment,l_is_multi_line_comment,l_is_regex,is_escaped,l_is_preprocessor)=>{
 if(char=="\n"&&!is_escaped){
 ++line;
@@ -7358,6 +7365,7 @@ return false;
 }
 }
 })
+console.log("old scope_end_offset:",scope_end_offset);
 return{line:scope_end,offset:scope_end_offset};
 }
 const get_scope_end_by_new_code=()=>{
@@ -7465,24 +7473,35 @@ is_preprocessor=true;
 }
 }
 })
+console.log("new scope_end:",scope_end);
+console.log("new scope_end_offset:",scope_end_offset);
 return{line:scope_end,offset:scope_end_offset};
 }
 const old_scope_end=get_scope_end_by_old_tokens();
 const new_scope_end=get_scope_end_by_new_code();
-if(new_scope_end.line>=old_scope_end.line){
+if(new_scope_end==edits_end&&edits_start==edits_end&&line_additions<0){
 scope_end=new_scope_end.line;
 scope_end_offset=new_scope_end.offset;
-}else{
+}
+else if(new_scope_end.line>=old_scope_end.line){
+scope_end=new_scope_end.line;
+scope_end_offset=new_scope_end.offset;
+}
+else{
 scope_end=old_scope_end.line;
 scope_end_offset=old_scope_end.offset;
 }
 this.code=this.code.substr(scope_start_offset,(scope_end_offset-scope_start_offset)+1);
+console.log("scope:",this.code);
 const results=this.tokenize(true);
 const insert_tokens=results.tokens;
+console.log("insert_tokens:",insert_tokens)
 let combined_tokens=[];
 let insert=true;
 let line_count=0;
 let insert_end=scope_end-line_additions;
+console.log("insert_end:",insert_end);
+console.log("line_additions:",line_additions);
 for(let i=0;i<tokens.length;i++){
 const token=tokens[i];
 const line=token.line;
@@ -7504,6 +7523,8 @@ token.line=line_count;
 combined_tokens.push(token);
 }
 }
+console.log("line_count:",line_count);
+console.log("combined_tokens:",combined_tokens);
 if(update_offsets){
 let offset=0;
 combined_tokens.iterate((token)=>{
