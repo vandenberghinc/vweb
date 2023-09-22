@@ -1,0 +1,21 @@
+/*
+ * Author: Daan van den Bergh
+ * Copyright: © 2022 - 2023 Daan van den Bergh.
+ */
+
+// The vweb on render observer.
+const vweb_on_render_observer = new ResizeObserver((entries) => {
+	for (let i = 0; i < entries.length; i++) {
+		const element = entries[i].target;
+	    const rect = element.getBoundingClientRect();
+	    if (rect.top && rect.left && rect.width && rect.height) {
+	        if (element.element_type !== undefined) {
+				element._rendered = true;
+				if (element._on_render_handler != null) {
+					element._on_render_handler(element);
+				}
+			}
+			vweb_on_render_observer.unobserve(element);
+	    }
+	}
+})

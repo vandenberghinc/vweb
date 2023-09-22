@@ -292,6 +292,10 @@ function CreateVElementClass({
 			// Rename some funcs.
 			this.remove_focus = super.blur;
 
+			// On render event handler.
+			this._rendered = false;
+			this._on_render_handler = null;
+
 		}
 		
 		// ---------------------------------------------------------
@@ -1728,6 +1732,19 @@ function CreateVElementClass({
 	    			callback(e, event);
 	    		}
 	    	}
+	    	return this;
+	    }
+
+	    // On render event.
+	    // Is called when the element is added to the body.
+	    on_render(callback) {
+	    	if (callback == null) {
+	    		return this._on_render_handler;
+	    	}
+	    	if (this._on_render_handler === null) {
+	    		vweb_on_render_observer.observe(this);
+	    	}
+	    	this._on_render_handler = callback;
 	    	return this;
 	    }
 

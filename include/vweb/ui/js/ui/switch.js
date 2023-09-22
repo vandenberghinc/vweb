@@ -3,7 +3,7 @@
  * Copyright: © 2022 - 2023 Daan van den Bergh.
  */
 
-// Button.
+// Switch button.
 @vweb_constructor_wrapper
 @vweb_register_element
 class SwitchElement extends VStackElement {
@@ -42,8 +42,6 @@ class SwitchElement extends VStackElement {
         // Styling.
         this.position("relative")
         this.width(35)
-        this.margin_left(10)
-        this.margin_right(5)
         this.flex_shrink(0)
         this.center_vertical()
 
@@ -189,7 +187,7 @@ class SwitchElement extends VStackElement {
             	this.button.style.left = "auto";
             	this.button.style.right = "0px";
             }
-            this.on_change_handler(this._enabled);
+            this.on_change_handler(this, this._enabled);
         }
         else if (value === false) {
             this._enabled = value;
@@ -216,7 +214,7 @@ class SwitchElement extends VStackElement {
             	this.button.style.left = "0px";
             	this.button.style.right = "auto";
             }
-            this.on_change_handler(this._enabled);
+            this.on_change_handler(this, this._enabled);
         }
         return this;
     }
