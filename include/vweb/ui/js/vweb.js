@@ -6710,8 +6710,7 @@ this.get_prev_token_time=0;
 this.append_token_time=0;
 }
 get_prev_token(index,exclude=[" ","\t","\n"],exclude_comments=false){
-const now=Date.now();
-const res=this.tokens.iterate_tokens_reversed((token)=>{
+return this.tokens.iterate_tokens_reversed((token)=>{
 if(token.index<=index){
 if(exclude_comments&&token.token==="token_comment"){
 return null;
@@ -6721,8 +6720,6 @@ return token;
 }
 }
 })
-this.get_prev_token_time+=Date.now()-now;
-return res;
 }
 str_includes_word_boundary(str){
 for(let i=0;i<this.word_boundaries.length;i++){
@@ -6837,7 +6834,6 @@ resume_on_index(index){
 this.index=index;
 }
 append_token(token=null,is_word_boundary=null){
-const now=Date.now();
 const obj={
 token:token,
 data:this.batch,
@@ -6906,7 +6902,6 @@ this.tokens[this.line]=[obj];
 }else{
 this.tokens[this.line].push(obj);
 }
-this.append_time+=Date.now()-now;
 }
 append_batch(token=null,is_word_boundary=null){
 if(this.batch.length==0){
@@ -7279,8 +7274,6 @@ const last_line=this.tokens[this.tokens.length-1];
 if(last_line===undefined||(last_line.length>0&&last_line[last_line.length-1].is_line_break)){
 this.tokens.push([]);
 }
-console.log(`append_token time: ${this.append_token_time}ms.`);
-console.log(`get_prev_token time: ${this.get_prev_token_time}ms.`);
 if(return_tokens){
 return this.tokens;
 }
@@ -7298,7 +7291,6 @@ if(line_additions===undefined||isNaN(line_additions)){
 line_additions=0;
 }
 let scope_start=0;let scope_start_offset=0;let scope_end=null;let scope_end_offset=0;let now;
-now=Date.now();
 if(edits_start!==0){
 let is_id=null;
 let is_string=false;
@@ -7382,10 +7374,6 @@ break;
 }
 })
 }
-console.log("scope_start_offset:",scope_start_offset);
-console.log("scope_start:",scope_start);
-console.log("Find the scope start:",Date.now()-now,"ms.");
-now=Date.now();
 const get_scope_end_by_old_tokens=()=>{
 let scope_end=null;let scope_end_offset=0;
 const max_end=edits_end;
@@ -7477,8 +7465,6 @@ return false;
 }
 }
 })
-console.log("old scope_end:",scope_end);
-console.log("old scope_end_offset:",scope_end_offset);
 return{line:scope_end,offset:scope_end_offset};
 }
 const get_scope_end_by_new_code=()=>{
@@ -7587,8 +7573,6 @@ is_preprocessor=true;
 }
 }
 })
-console.log("new scope_end:",scope_end);
-console.log("new scope_end_offset:",scope_end_offset);
 return{line:scope_end,offset:scope_end_offset};
 }
 const old_scope_end=get_scope_end_by_old_tokens();
@@ -7606,17 +7590,11 @@ else{
 scope_end=old_scope_end.line;
 scope_end_offset=old_scope_end.offset;
 }
-console.log("Find the scope end:",Date.now()-now,"ms.");
-now=Date.now();
-console.log("scope_end:",scope_end);
-console.log("scope_end_offset:",scope_end_offset);
 this.code=this.code.substr(scope_start_offset,(scope_end_offset-scope_start_offset)+1);
-console.log("Slice scope:",Date.now()-now,"ms.");
-now=Date.now();
 const insert_tokens=this.tokenize(true);
-console.log("Tokenized lines:",insert_tokens.length);
-console.log("Highlight the edits:",Date.now()-now,"ms.");
-now=Date.now();
+if(insert_tokens.length>0&&insert_tokens.last().length===0){
+--insert_tokens.length;
+}
 let combined_tokens=new vhighlight.Tokens();
 let insert=true;
 let line_count=0,token_index=0,offset=0;;
@@ -7653,7 +7631,6 @@ const last_line=combined_tokens[combined_tokens.length-1];
 if(last_line===undefined||(last_line.length>0&&last_line[last_line.length-1].is_line_break)){
 combined_tokens.push([]);
 }
-console.log("Combine the tokens:",Date.now()-now,"ms.");
 return combined_tokens;
 }
 build_tokens(reformat=true){
