@@ -251,6 +251,93 @@ code_pre.innerHTML=highlighted_code;
 }
 },50);
 }
+vhighlight.Tokens=class Tokens extends Array{
+constructor(){
+super();
+}
+iterate(start,end,handler){
+if(typeof start==="function"){
+handler=start;
+start=null;
+}
+if(start==null){
+start=0;
+}
+if(end==null){
+end=this.length;
+}
+for(let i=start;i<end;i++){
+const res=handler(this[i]);
+if(res!=null){
+return res;
+}
+}
+return null;
+};
+iterate_reversed(start,end,handler){
+if(handler==null&&start!=null){
+handler=start;
+start=null;
+}
+if(start==null){
+start=0;
+}
+if(end==null){
+end=this.length;
+}
+for(let i=end-1;i>=start;i--){
+const res=handler(this[i]);
+if(res!=null){
+return res;
+}
+}
+return null;
+};
+iterate_tokens(start,end,handler){
+if(typeof start==="function"){
+handler=start;
+start=null;
+}
+if(start==null){
+start=0;
+}
+if(end==null){
+end=this.length;
+}
+for(let i=start;i<end;i++){
+const tokens=this[i];
+for(let i=0;i<tokens.length;i++){
+const res=handler(tokens[i]);
+if(res!=null){
+return res;
+}
+}
+}
+return null;
+};
+iterate_tokens_reversed(start,end,handler){
+if(handler==null&&start!=null){
+handler=start;
+start=null;
+}
+if(start==null){
+start=0;
+}
+if(end==null){
+end=this.length;
+}
+for(let i=end-1;i>=start;i--){
+const tokens=this[i];
+for(let i=tokens.length-1;i>=0;i--){
+const res=handler(tokens[i]);
+if(res!=null){
+return res;
+}
+}
+}
+return null;
+};
+}
 vhighlight.Tokenizer=class Tokenizer{
 constructor({
 keywords=[],
@@ -314,23 +401,28 @@ this.word_boundaries=[
 '\u2019','\u2018','\u201d','\u201c',];
 this.alphabet="abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
 this.numerics="0123456789";
+this.excluded_word_boundary_joinings=["{","}","[","]","(",")"].concat(this.scope_seperators);this.excluded_word_boundary_joinings=this.excluded_word_boundary_joinings.reduce((accumulator,val)=>{if(!accumulator.includes(val)){
+accumulator.push(val);
+}
+return accumulator;
+},[]);
 this.callback=function(){return false;}
 this.reset();
 }
 reset(){
-this.tokens=[];this.index=null;this.prev_char=null;this.next_char=null;this.batch ="";this.line=0;this.is_comment=false;this.is_str=false;this.is_regex=false;this.is_preprocessor=false;this.parenth_depth=0;this.bracket_depth=0;this.curly_depth=0;this.next_token=null;this.str_id=0;this.comment_id=0;this.regex_id=0;this.preprocessor_id=0;this.offset=0;
+this.tokens=new vhighlight.Tokens();this.added_tokens=0;this.index=null;this.prev_char=null;this.next_char=null;this.batch ="";this.line=0;this.is_comment=false;this.is_str=false;this.is_regex=false;this.is_preprocessor=false;this.parenth_depth=0;this.bracket_depth=0;this.curly_depth=0;this.next_token=null;this.str_id=0;this.comment_id=0;this.regex_id=0;this.preprocessor_id=0;this.offset=0;
 this.class_depth=null;}
 get_prev_token(index,exclude=[" ","\t","\n"],exclude_comments=false){
-for(let i=index;i>=0;i--){
-const item=this.tokens[i];
-if(exclude_comments&&item.token=="token_comment"){
-continue;
-}
-if(!exclude.includes(item.data)){
-return item;
-}
-}
+return this.tokens.iterate_tokens_reversed((token)=>{
+if(token.index<=index){
+if(exclude_comments&&token.token==="token_comment"){
 return null;
+}
+if(!exclude.includes(token.data)){
+return token;
+}
+}
+})
 }
 str_includes_word_boundary(str){
 for(let i=0;i<this.word_boundaries.length;i++){
@@ -432,9 +524,9 @@ for(let i=0;i<data.length;i++){
 const c=data.charAt(i);
 if(c=="\n"&&!this.is_escaped(i,data)){
 this.append_batch(token);
-++this.line;
 this.batch="\n";
 this.append_batch("token_line");
+++this.line;
 }else{
 this.batch+=c;
 }
@@ -444,15 +536,39 @@ this.append_batch(token);
 resume_on_index(index){
 this.index=index;
 }
-append_token(token=null){
+append_token(token=null,is_word_boundary=null){
 const obj={
 token:token,
 data:this.batch,
-index:this.tokens.length,
+index:this.added_tokens,
 line:this.line,
 offset:this.offset,
 };
+if(
+(is_word_boundary===true)||
+(
+this.batch.length===1&&
+(token===null||token==="token_operator")&&this.word_boundaries.includes(this.batch)
+)
+){
+obj.is_word_boundary=true;
+}
 this.offset+=this.batch.length;
+if(token===null&&obj.is_word_boundary===true){
+const line_tokens=this.tokens[this.line];
+if(line_tokens!==undefined){
+const last=line_tokens.last();
+if(
+last!==undefined&&
+last.is_word_boundary===true&&
+(last.data.length>1||!this.excluded_word_boundary_joinings.includes(last.data))&&
+!this.excluded_word_boundary_joinings.includes(obj.data)
+){
+last.data+=obj.data;
+return null;}
+}
+}
+++this.added_tokens;
 switch(token){
 case "token_string":
 obj.str_id=this.str_id;
@@ -484,24 +600,28 @@ break;
 default:
 break;
 }
-this.tokens.push(obj);
+if(this.tokens[this.line]===undefined){
+this.tokens[this.line]=[obj];
+}else{
+this.tokens[this.line].push(obj);
 }
-append_batch(token=null){
+}
+append_batch(token=null,is_word_boundary=null){
 if(this.batch.length==0){
 return;
 }
 if(token==false){
-this.append_token();
+this.append_token(null,is_word_boundary);
 }
 else if(token!=null){
-this.append_token(token);
+this.append_token(token,is_word_boundary);
 }
 else if(this.next_token!=null){
 if(this.is_linebreak_whitespace_char()){
-this.append_token();
+this.append_token(null,is_word_boundary);
 }
 else if(this.word_boundaries.includes(this.batch)){
-this.append_token();
+this.append_token(null,is_word_boundary);
 this.next_token=null;
 }
 else if(this.keywords.includes(this.batch)){
@@ -509,7 +629,7 @@ this.append_token("token_keyword");
 this.next_token=null;
 }
 else{
-this.append_token(this.next_token);
+this.append_token(this.next_token,is_word_boundary);
 this.next_token=null;
 }
 }
@@ -524,13 +644,13 @@ this.next_token="token_type";
 this.append_token("token_keyword");
 }
 else if(this.operators.includes(this.batch)){
-this.append_token("token_operator");
+this.append_token("token_operator",true);
 }
 else if(this.allow_numerics&&/^-?\d+(\.\d+)?$/.test(this.batch)){
 this.append_token("token_numeric");
 }
 else{
-this.append_token(null);
+this.append_token(null,is_word_boundary);
 }
 }
 this.batch="";
@@ -748,9 +868,9 @@ this.is_regex=false;
 if(this.is_preprocessor&&!is_preprocessor){
 this.is_preprocessor=false;
 this.is_str=false;}
-++this.line;
 this.batch+=char;
 this.append_batch("token_line");
+++this.line;
 }
 else if(local_is_comment||is_multi_line_comment){
 if(!this.is_comment){
@@ -844,7 +964,7 @@ if(!this.callback(char,is_escaped,this.is_preprocessor)){
 if(this.word_boundaries.includes(char)){
 this.append_batch();
 this.batch+=char;
-this.append_batch();}
+this.append_batch(null,true);}
 else{
 this.batch+=char;
 }
@@ -853,11 +973,12 @@ this.batch+=char;
 return null;
 });
 auto_append_batch_switch();
-if(return_tokens){
-return{
-tokens:this.tokens,
-line_count:this.line+1,
+const last_line=this.tokens[this.tokens.length-1];
+if(last_line===undefined||(last_line.length>0&&last_line[last_line.length-1].is_line_break)){
+this.tokens.push([]);
 }
+if(return_tokens){
+return this.tokens;
 }
 else{
 return this.build_tokens();
@@ -868,40 +989,22 @@ edits_start=null,
 edits_end=null,
 line_additions=0,
 tokens=[],
-update_offsets=true,
 }){
 if(line_additions===undefined||isNaN(line_additions)){
 line_additions=0;
 }
 let scope_start=0;let scope_start_offset=0;let scope_end=null;let scope_end_offset=0;let now;
-let min_start=edits_start;
-let token_start;
-if(min_start===0){
-token_start=0;
-}else{
---min_start;
-token_start=null;
-tokens.iterate((token)=>{
-if(token.line==min_start){
-token_start=token.index;
-return false;
-}
-})
-if(token_start===null){
-throw Error(`Unable to find the token of start line ${min_start}.`);
-}
-}
+now=Date.now();
 console.log("edits_start:",edits_start);
 console.log("edits_end:",edits_end);
-console.log("min_start: ",min_start);
-if(token_start!==0){
+if(edits_start!==0){
 let is_id=null;
 let is_string=false;
 let is_comment=false;
 let is_regex=false;
 let is_preprocessor=false;
 let stop_on_line=null;
-tokens.iterate_reversed(0,token_start,(token)=>{
+tokens.iterate_tokens_reversed(0,edits_start+1,(token)=>{
 if(token.line===stop_on_line){
 scope_start_offset=token.offset+token.data.length;
 return false;
@@ -977,9 +1080,10 @@ break;
 }
 })
 }
-console.log("token_start:",token_start);
 console.log("scope_start_offset:",scope_start_offset);
 console.log("scope_start:",scope_start);
+console.log("Find the scope start:",Date.now()-now,"ms.");
+now=Date.now();
 const get_scope_end_by_old_tokens=()=>{
 let scope_end=null;let scope_end_offset=0;
 const max_end=edits_end;
@@ -989,7 +1093,7 @@ let is_comment=false;
 let is_regex=false;
 let is_preprocessor=false;
 let stop_on_line=null;
-tokens.iterate(token_start,null,(token)=>{
+tokens.iterate_tokens(edits_start,null,(token)=>{
 if(token.line===stop_on_line){
 return false;
 }
@@ -1066,17 +1170,20 @@ console.log("old scope_end:",scope_end);
 let line=scope_start>0 ? scope_start-1:scope_start;this.iterate_code(this,scope_start_offset,null,(char,l_is_str,l_is_comment,l_is_multi_line_comment,l_is_regex,is_escaped,l_is_preprocessor)=>{
 if(char=="\n"&&!is_escaped){
 ++line;
-if(line==scope_end+1){scope_end_offset=this.index-1;
+if(line==scope_end){
+scope_end_offset=this.index;
 return false;
 }
 }
 })
 console.log("old scope_end_offset:",scope_end_offset);
+console.log("old scope:",this.code.substr(scope_start_offset,scope_end_offset-scope_start_offset));
 return{line:scope_end,offset:scope_end_offset};
 }
 const get_scope_end_by_new_code=()=>{
 let scope_end=null;let scope_end_offset=0;
-let line=scope_start>0 ? scope_start-1:scope_start;let is_string=false;
+let line=scope_start;
+let is_string=false;
 let is_comment=false;
 let is_regex=false;
 let is_preprocessor=false;
@@ -1088,7 +1195,7 @@ line_break=true;
 ++line;
 }
 if(line_break&&line==stop_on_line){
-scope_end_offset=this.index-1;
+scope_end_offset=this.index;
 return false;
 }
 if(this.index==this.code.length-1){
@@ -1181,11 +1288,12 @@ is_preprocessor=true;
 })
 console.log("new scope_end:",scope_end);
 console.log("new scope_end_offset:",scope_end_offset);
+console.log("new scope:",this.code.substr(scope_start_offset,scope_end_offset-scope_start_offset));
 return{line:scope_end,offset:scope_end_offset};
 }
 const old_scope_end=get_scope_end_by_old_tokens();
 const new_scope_end=get_scope_end_by_new_code();
-if(new_scope_end==edits_end&&edits_start==edits_end&&line_additions<0){
+if(new_scope_end.line==edits_end&&edits_start==edits_end&&line_additions<0){
 scope_end=new_scope_end.line;
 scope_end_offset=new_scope_end.offset;
 }
@@ -1197,56 +1305,64 @@ else{
 scope_end=old_scope_end.line;
 scope_end_offset=old_scope_end.offset;
 }
+console.log("Find the scope end:",Date.now()-now,"ms.");
+now=Date.now();
+console.log("scope_end:",scope_end);
+console.log("scope_end_offset:",scope_end_offset);
+console.log("code length:",this.code.length);
 this.code=this.code.substr(scope_start_offset,(scope_end_offset-scope_start_offset)+1);
-console.log("scope:",this.code);
-const results=this.tokenize(true);
-const insert_tokens=results.tokens;
+console.log("scope:",{code:this.code});
+const insert_tokens=this.tokenize(true);
 console.log("insert_tokens:",insert_tokens)
-let combined_tokens=[];
+console.log("Highlight the edits:",Date.now()-now,".");
+now=Date.now();
+let combined_tokens=new vhighlight.Tokens();
 let insert=true;
-let line_count=0;
+let line_count=0,token_index=0,offset=0;;
 let insert_end=scope_end-line_additions;
 console.log("insert_end:",insert_end);
 console.log("line_additions:",line_additions);
-for(let i=0;i<tokens.length;i++){
-const token=tokens[i];
-const line=token.line;
+for(let line=0;line<tokens.length;line++){
 if(insert&&line==scope_start){
 insert=false;
-insert_tokens.iterate((new_token)=>{
-if(new_token.is_line_break){
+insert_tokens.iterate((line_tokens)=>{
+line_tokens.iterate((token)=>{
+token.line=line_count;
+token.index=token_index;
+token.offset=offset;
+offset+=token.data.length;
+++token_index;
+});
 ++line_count;
-}
-new_token.line=line_count;
+combined_tokens.push(line_tokens);
 })
-combined_tokens.push(...insert_tokens);
 }
 else if(line<scope_start||line>insert_end){
-if(token.is_line_break){
-++line_count;
-}
+const line_tokens=tokens[line];
+line_tokens.iterate((token)=>{
 token.line=line_count;
-combined_tokens.push(token);
+token.index=token_index;
+token.offset=offset;
+offset+=token.data.length;
+++token_index;
+});
+++line_count;
+combined_tokens.push(line_tokens);
 }
+}
+const last_line=combined_tokens[combined_tokens.length-1];
+if(last_line===undefined||(last_line.length>0&&last_line[last_line.length-1].is_line_break)){
+combined_tokens.push([]);
 }
 console.log("line_count:",line_count);
 console.log("combined_tokens:",combined_tokens);
-if(update_offsets){
-let offset=0;
-combined_tokens.iterate((token)=>{
-token.offset=offset;
-offset+=token.data.length;
-})
-}
-return{
-tokens:combined_tokens,
-line_count:line_count
-};
+console.log("Combine the tokens:",Date.now()-now,"ms.");
+return combined_tokens;
 }
 build_tokens(reformat=true){
 let html="";
-for(let i=0;i<this.tokens.length;i++){
-const token=this.tokens[i];
+tokens.iterate((line_tokens)=>{
+line_tokens.iterate((token)=>{
 if(token.token==null){
 if(reformat){
 html+=token.data.replaceAll("<","&lt;").replaceAll(">","&gt;");
@@ -1260,7 +1376,8 @@ html+=`<span class='${token.token}'>${token.data.replaceAll("<", "&lt;").replace
 html+=`<span class='${token.token}'>${token.data}</span>`
 }
 }
-}
+})
+})
 return html;
 }
 }
@@ -1361,7 +1478,7 @@ break;
 }
 }
 if(is_func_def){
-const prev=tokenizer.get_prev_token(tokenizer.tokens.length-1,[" ","\t","\n"]);
+const prev=tokenizer.get_prev_token(tokenizer.added_tokens-1,[" ","\t","\n"]);
 prev.token="token_type_def";
 }
 }
@@ -1586,7 +1703,7 @@ this.reset();
 this.tokenizer.callback=(char)=>{
 if(char=="("){
 this.tokenizer.append_batch();
-const prev=this.tokenizer.get_prev_token(this.tokenizer.tokens.length-1,[" ","\t","\n"]);
+const prev=this.tokenizer.get_prev_token(this.tokenizer.added_tokens-1,[" ","\t","\n"]);
 if(prev==null){
 return false;
 }
@@ -1665,7 +1782,7 @@ this.last_param_was_assignment=true;
 this.last_param_was_assignment=false;
 }
 if(this.tokenizer.is_linebreak_whitespace_char(this.tokenizer.prev_char)){
-const prev=this.tokenizer.get_prev_token(this.tokenizer.tokens.length-1,[" ","\t","\n"]);
+const prev=this.tokenizer.get_prev_token(this.tokenizer.added_tokens-1,[" ","\t","\n"]);
 prev.token="token_parameter";
 this.tokenizer.append_batch();
 }else{
@@ -1951,7 +2068,7 @@ tokenizer.append_batch();
 const closing=tokenizer.get_closing_parentheses(tokenizer.index);
 const non_whitespace_after=tokenizer.get_first_non_whitespace(closing+1);
 if(closing!=null&&non_whitespace_after!=null){
-let prev=tokenizer.get_prev_token(tokenizer.tokens.length-1,[" ","\t","\n","*","&"]);
+let prev=tokenizer.get_prev_token(tokenizer.added_tokens-1,[" ","\t","\n","*","&"]);
 const prev_prev_is_colon=tokenizer.get_prev_token(prev.index-1).data==":";
 if(
 (prev.token==null&&prev.data!="]")||(prev.token=="token_type"&&prev_prev_is_colon)){
@@ -2006,7 +2123,7 @@ prev.token="token_type";
 }
 else if(char=="{"){
 tokenizer.append_batch();
-let prev=tokenizer.get_prev_token(tokenizer.tokens.length-1,[" ","\t","\n","&","*"]);
+let prev=tokenizer.get_prev_token(tokenizer.added_tokens-1,[" ","\t","\n","&","*"]);
 if(prev.data==">"){
 const opening_token_index=find_opening_template_token(prev.index);
 if(opening_token_index!=null){
@@ -2093,7 +2210,7 @@ tokenizer.append_batch();
 tokenizer.batch+=char;
 tokenizer.append_batch(false);
 tokenizer.next_token="token_type";
-let prev=tokenizer.get_prev_token(tokenizer.tokens.length-1,[":"]);
+let prev=tokenizer.get_prev_token(tokenizer.added_tokens-1,[":"]);
 if(prev.data==">"){
 let depth=1;
 for(let i=prev.index-1;i>=0;i--){
@@ -2308,7 +2425,7 @@ return true;
 }
 else if(char=="{"){
 tokenizer.append_batch();
-let index=tokenizer.tokens.length-1;
+let index=tokenizer.added_tokens-1;
 while(true){
 const prev=tokenizer.get_prev_token(index,[" ",",","\t",":"]);
 if(prev==null||prev.data=="\n"){
@@ -2338,14 +2455,14 @@ index=prev.index-1;
 }
 else if(char=="("){
 tokenizer.append_batch();
-const prev=tokenizer.get_prev_token(tokenizer.tokens.length-1,[" ","\t","\n"]);
+const prev=tokenizer.get_prev_token(tokenizer.added_tokens-1,[" ","\t","\n"]);
 if(prev!=null&&prev.token==null){
 prev.token="token_type";
 }
 }
 else if(tokenizer.curly_depth>0&&char==":"){
 tokenizer.append_batch();
-let index=tokenizer.tokens.length-1;
+let index=tokenizer.added_tokens-1;
 let edits=[];
 let finished=false;
 while(true){
@@ -2389,7 +2506,7 @@ tokenizer.append_batch("token_numeric");
 }
 else if(this.style_end!=null&&tokenizer.index>=this.style_end){
 tokenizer.append_batch();
-let index=tokenizer.tokens.length-1;
+let index=tokenizer.added_tokens-1;
 let finished=false;
 const edits=[];
 while(true){
@@ -2512,7 +2629,7 @@ this.tokenizer.callback=(char)=>{
 const tokenizer=this.tokenizer;
 if(char=="("){
 tokenizer.append_batch();
-const prev=tokenizer.get_prev_token(tokenizer.tokens.length-1,[" ","\t","\n"]);
+const prev=tokenizer.get_prev_token(tokenizer.added_tokens-1,[" ","\t","\n"]);
 if(prev!=null&&prev.token==null&&!tokenizer.str_includes_word_boundary(prev.data)){
 prev.token="token_type";
 }
@@ -2521,7 +2638,7 @@ else if(tokenizer.parenth_depth>0&&(char=="="||char==")"||char==",")){
 tokenizer.append_batch();
 let opening_index=null;
 let depth=0;
-for(let i=tokenizer.tokens.length-1;i>=0;i--){
+for(let i=tokenizer.added_tokens-1;i>=0;i--){
 const token=tokenizer.tokens[i];
 if(token.token==null&&token.data=="("){
 --depth;
@@ -2550,7 +2667,7 @@ const func_def=preceding.token=="token_type_def";
 if(!func_def&&char==","){
 return false;
 }
-const prev=tokenizer.get_prev_token(tokenizer.tokens.length-1,[" ","\t","\n","=",")",","]);
+const prev=tokenizer.get_prev_token(tokenizer.added_tokens-1,[" ","\t","\n","=",")",","]);
 if(prev==null){
 return false;
 }
@@ -2766,7 +2883,7 @@ break;
 if(opening_parentheses==null){return false;}
 const closing_parentheses=tokenizer.get_closing_parentheses(opening_parentheses);
 if(closing_parentheses==null){return false;}
-const prev=tokenizer.get_prev_token(tokenizer.tokens.length-1,[" ","\t"]);
+const prev=tokenizer.get_prev_token(tokenizer.added_tokens-1,[" ","\t"]);
 const is_image=prev.data=="!";
 if(is_image){
 prev.token="token_keyword";

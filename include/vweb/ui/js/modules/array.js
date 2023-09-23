@@ -24,6 +24,27 @@ Array.prototype.iterate = function(start, end, handler) {
     return null;
 };
 
+// Iterate an array reversed.
+Array.prototype.iterate_reversed = function(start, end, handler) {
+    if (handler == null && start != null) {
+        handler = start;
+        start = null;
+    }
+    if (start == null) {
+        start = 0;
+    }
+    if (end == null) {
+        end = this.length;
+    }
+    for (let i = end - 1; i >= start; i--) {    
+        const res = handler(this[i]);
+        if (res != null) {
+            return res;
+        }
+    }
+    return null;
+};
+
 // Drop an item by the item itself.
 Array.prototype.drop = function(item) {
     const dropped = new this.constructor(); // for when a class extends Array.
@@ -45,3 +66,13 @@ Array.prototype.drop_index = function(index) {
     }
     return dropped;
 };
+
+// Drop duplicate items from an array.
+Array.prototype.drop_duplicates = function() {
+    return this.reduce((accumulator, val) => {
+        if (!accumulator.includes(val)) {
+            accumulator.push(val);
+        }
+        return accumulator;
+    }, []);
+}
