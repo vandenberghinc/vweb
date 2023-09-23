@@ -47,14 +47,15 @@ class PopupElement extends VStackElement {
         }
 
         // Title.
-        this.title = Title(title)
+        this.title = Title().append(title)
             .font_family("inherit")
             .font_weight(500)
             .font_size(34)
             .abs_parent(this)
+        this.set_title(title);
 
         // Text.
-        this.text = Text(text)
+        this.text = Text()
             .font_family("inherit")
             .font_size(16)
             .line_height(22)
@@ -62,6 +63,7 @@ class PopupElement extends VStackElement {
             .margin(15, 20, 0, 20)
             .wrap(true)
             .abs_parent(this)
+        this.set_text(text);
 
         // No button.
         this.no_button = Button(no)
@@ -141,6 +143,36 @@ class PopupElement extends VStackElement {
         this.mutex.unlock();
 	}
 
+	// Set title.
+	set_title(data) {
+		if (typeof data === "string") {
+			this.title.inner_html(data);
+		}
+		else if (Array.isArray(data)) {
+			data.iterate((item) => {
+				this.title.append();
+			});
+		} 
+		else {
+			this.title.append(data);	
+		}
+	}
+
+	// Set text.
+	set_text(data) {
+		if (typeof data === "string") {
+			this.text.inner_html(data);
+		}
+		else if (Array.isArray(data)) {
+			data.iterate((item) => {
+				this.text.append();
+			});
+		} 
+		else {
+			this.text.append(data);	
+		}
+	}
+
 	// Default popup function.
 	async popup ({
         title = null,
@@ -157,10 +189,10 @@ class PopupElement extends VStackElement {
 
     	// Set args.
     	if (title !== null) {
-    		this.title.text(title);
+    		this.set_title(title);
     	}
     	if (text !== null) {
-    		this.text.text(text);
+    		this.set_text(text);
     	}
     	if (image !== null) {
     		this.image.src(image);

@@ -4819,12 +4819,13 @@ this.image=ImageMask(image)
 if(image===false){
 this.image.hide();
 }
-this.title=Title(title)
+this.title=Title().append(title)
 .font_family("inherit")
 .font_weight(500)
 .font_size(34)
 .abs_parent(this)
-this.text=Text(text)
+this.set_title(title);
+this.text=Text()
 .font_family("inherit")
 .font_size(16)
 .line_height(22)
@@ -4832,6 +4833,7 @@ this.text=Text(text)
 .margin(15,20,0,20)
 .wrap(true)
 .abs_parent(this)
+this.set_text(text);
 this.no_button=Button(no)
 .padding(10,10,10,10)
 .stretch(true)
@@ -4891,6 +4893,32 @@ document.body.removeEventListener("keydown",this.escape_handler);
 this.on_no_handler(this);
 this.mutex.unlock();
 }
+set_title(data){
+if(typeof data==="string"){
+this.title.inner_html(data);
+}
+else if(Array.isArray(data)){
+data.iterate((item)=>{
+this.title.append();
+});
+}
+else{
+this.title.append(data);
+}
+}
+set_text(data){
+if(typeof data==="string"){
+this.text.inner_html(data);
+}
+else if(Array.isArray(data)){
+data.iterate((item)=>{
+this.text.append();
+});
+}
+else{
+this.text.append(data);
+}
+}
 async popup({
 title=null,
 text=null,
@@ -4902,10 +4930,10 @@ on_yes=null,
 }={}){
 this.on_popup_handler(this);
 if(title!==null){
-this.title.text(title);
+this.set_title(title);
 }
 if(text!==null){
-this.text.text(text);
+this.set_text(text);
 }
 if(image!==null){
 this.image.src(image);
