@@ -12,6 +12,9 @@ class SliderElement extends VStackElement {
         // Initialize base class.
         super();
 
+        // Set element type.
+        this.element_type = "Slider";
+
         // Attributes.
         this._type = "SliderElement";
         this._value = value;
@@ -35,7 +38,7 @@ class SliderElement extends VStackElement {
             .frame("100%", 5)
             .border_radius(10)
             .overflow("hidden")
-            .box_shadow(`0px 0px 2px #00000040`)
+            .box_shadow(`0px 0px 2px #00000030`)
             .on_click((element, event) => this.slider_on_mouse_down_handler(event))
             .parent(this)
             .abs_parent(this)
@@ -49,7 +52,7 @@ class SliderElement extends VStackElement {
             .left(0)
             .top(0)
             .transition("left 0.05s ease-out")
-            .box_shadow(`0px 0px 2px #00000090`)
+            .box_shadow(`0px 0px 2px #00000060`)
             .cursor("pointer")
             .on_mouse_down(() => this.on_mouse_down_handler())
             .parent(this)

@@ -217,6 +217,9 @@ class LoaderButtonElement extends HStackElement {
 		// Initialize base classes.
 		super();
 
+		// Set element type.
+        this.element_type = "LoaderButton";
+
 		// Set default styling.
 		this.styles(LoaderButtonElement.default_style);
 

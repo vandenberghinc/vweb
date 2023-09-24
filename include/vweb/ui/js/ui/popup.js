@@ -24,6 +24,9 @@ class PopupElement extends VStackElement {
 		// Initialize base class.
 		super();
 
+		// Set element type.
+        this.element_type = "Popup";
+
 		// Mutex.
         this.mutex = new Mutex();
 

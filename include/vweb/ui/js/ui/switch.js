@@ -13,6 +13,9 @@ class SwitchElement extends VStackElement {
 		
 		// Initialize base class.
 		super();
+
+		// Set element type.
+        this.element_type = "Switch";
 		
 		// The slider background.
 		this.slider = VStack()
@@ -21,7 +24,7 @@ class SwitchElement extends VStackElement {
 	        .frame(35, 12.5)
 	        .border_radius(10)
 	        .overflow("visible")
-	        .box_shadow(`0px 0px 2px #00000040`)
+	        .box_shadow(`0px 0px 2px #00000030`)
 	        .parent(this)
 
 	    // The button.
@@ -32,7 +35,7 @@ class SwitchElement extends VStackElement {
             .position("absolute")
             .left(0)
             .transition("left 0.15s ease-out")
-            .box_shadow(`0px 0px 2px #00000090`)
+            .box_shadow(`0px 0px 2px #00000060`)
             .on_click(() => this.toggle())
             .parent(this)
 

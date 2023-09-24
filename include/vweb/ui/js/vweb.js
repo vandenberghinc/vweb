@@ -458,7 +458,7 @@ static default_attributes=default_attributes;
 static default_events=default_events;
 constructor(){
 super();
-this.element_type=type;this.element_display="block";
+this.element_type=type;this.base_element_type=type;this.element_display="block";
 if(E.default_style!=null){
 this.styles(E.default_style);
 }
@@ -621,7 +621,7 @@ parent.appendChild(this);
 return this;
 }
 append_children_to(parent){
-if(this.element_type=="VirtualScoller"){
+if(this.base_element_type=="VirtualScoller"){
 for(let i=0;i<parent.children.length;i++){
 parent.v_children.push(parent.children[i]);
 }
@@ -883,14 +883,13 @@ this.style.zIndex=value;
 return this;
 }
 align(value){
-switch(this.element_type){
+switch(this.base_element_type){
 case "HStack":
 case "ZStack":
 this.style.justifyContent=value;
 return this;
 case "VStack":
 case "Scroller":
-case "VirtualScroller":
 this.style.alignItems=value;
 return this;
 default:
@@ -908,14 +907,13 @@ trailing(){
 return this.align("end");
 }
 align_vertical(value){
-switch(this.element_type){
+switch(this.base_element_type){
 case "HStack":
 case "ZStack":
 this.style.alignItems=value;
 return this;
 case "VStack":
 case "Scroller":
-case "VirtualScroller":
 this.style.justifyContent=value;
 return this;
 case "Text":
@@ -1016,7 +1014,7 @@ return this.filter("grayscale("+this.pad_percentage(value,"")+") ");
 }
 }
 opacity(value){
-switch(this.element_type){
+switch(this.base_element_type){
 case "Style":
 if(value==null){
 return this.filter(this.edit_filter_wrapper(this.style.filter,"opacity",value));
@@ -1189,6 +1187,21 @@ return this;
 class(value){
 if(value==null){return this.class;}
 this.className=value;
+return this;
+}
+themes(...themes){
+if(themes.length===1&&Array.isArray(themes[0])){
+themes=themes[0];
+for(let i=0;i<themes.length;i++){
+themes[i].element=this;
+vweb.themes.theme_elements.push(themes[i]);
+}
+}else{
+for(let i=0;i<themes.length;i++){
+themes[i].element=this;
+vweb.themes.theme_elements.push(themes[i]);
+}
+}
 return this;
 }
 media(media_query,true_handler,false_handler){
@@ -4250,6 +4263,7 @@ default_style:{
 }){
 constructor(){
 super();
+this.element_type="RingLoader";
 this.update();
 }
 background(value){
@@ -4556,6 +4570,7 @@ function Scroller(...args){return new ScrollerElement(...args);}
 class VirtualScrollerElement extends ScrollerElement{
 constructor(...children){
 super();
+this.element_type="VirtualScoller";
 this.v_children=[];
 this.top_diff=0;
 this.scroll_top_value=0;
@@ -4803,6 +4818,7 @@ on_yes=()=>{},
 on_popup=()=>{},
 }){
 super();
+this.element_type="Popup";
 this.mutex=new Mutex();
 this.on_no_handler=on_no;
 this.on_yes_handler=on_yes;
@@ -4965,12 +4981,13 @@ vweb.elements.register(Popup);
 class SwitchElement extends VStackElement{
 constructor(enabled=false){
 super();
+this.element_type="Switch";
 this.slider=VStack()
 .background("white")
 .frame(35,12.5)
 .border_radius(10)
 .overflow("visible")
-.box_shadow(`0px 0px 2px #00000040`)
+.box_shadow(`0px 0px 2px #00000030`)
 .parent(this)
 this.button=VStack()
 .border_radius("50%")
@@ -4979,7 +4996,7 @@ this.button=VStack()
 .position("absolute")
 .left(0)
 .transition("left 0.15s ease-out")
-.box_shadow(`0px 0px 2px #00000090`)
+.box_shadow(`0px 0px 2px #00000060`)
 .on_click(()=>this.toggle())
 .parent(this)
 this.append(this.slider,this.button);
@@ -5881,6 +5898,7 @@ static default_style=Object.assign({},HStackElement.default_style,{
 });
 constructor(text="",loader=RingLoader()){
 super();
+this.element_type="LoaderButton";
 this.styles(LoaderButtonElement.default_style);
 this.wrap(false);
 this.center();
@@ -5965,6 +5983,7 @@ function View(...args){return new ViewElement(...args);}
 class SliderElement extends VStackElement{
 constructor(value=0.0){
 super();
+this.element_type="Slider";
 this._type="SliderElement";
 this._value=value;
 this._enabled_color="green";
@@ -5984,7 +6003,7 @@ VStack()
 .frame("100%",5)
 .border_radius(10)
 .overflow("hidden")
-.box_shadow(`0px 0px 2px #00000040`)
+.box_shadow(`0px 0px 2px #00000030`)
 .on_click((element,event)=>this.slider_on_mouse_down_handler(event))
 .parent(this)
 .abs_parent(this)
@@ -5996,7 +6015,7 @@ this.button=VStack()
 .left(0)
 .top(0)
 .transition("left 0.05s ease-out")
-.box_shadow(`0px 0px 2px #00000090`)
+.box_shadow(`0px 0px 2px #00000060`)
 .cursor("pointer")
 .on_mouse_down(()=>this.on_mouse_down_handler())
 .parent(this)
@@ -9555,6 +9574,34 @@ success:success,
 error:error,
 before:before,
 });
+}
+vweb.themes={};
+vweb.themes.theme_elements=[];
+vweb.themes.set=function(theme_id){
+vweb.themes.theme_elements.iterate((theme)=>{
+if(theme.id===theme_id){
+const e=theme.element;
+Object.keys(theme).iterate((key)=>{
+if(key!=="id"&&key!=="element"){
+if(e[key]===undefined){
+console.error(`"${key}()" is not a valid function of type "${e.element_type}"`);
+return null;
+}
+if(Array.isArray(theme[key])){
+e[key](...theme[key]);
+}else{
+e[key](theme[key]);
+}
+}
+})
+if(e.element_type==="RingLoader"){
+e.update(e);
+}
+if(typeof e.theme_update==="function"){
+e.theme_update(e);
+}
+}
+})
 }
 vweb.payments={};
 vweb.payments.stripe={};

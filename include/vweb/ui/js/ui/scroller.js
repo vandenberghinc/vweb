@@ -400,6 +400,9 @@ class VirtualScrollerElement extends ScrollerElement {
         // Initialize base class.
         super();
 
+        // Set element type.
+        this.element_type = "VirtualScoller";
+
         // Virtual children.
         this.v_children = [];
 

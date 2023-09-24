@@ -272,6 +272,7 @@ function CreateVElementClass({
 
 			// Attributes.
 			this.element_type = type; // must remain a member attribute.
+			this.base_element_type = type; // this must remain the element type of the base class, element type may be overwritten when an element extends a base element.
 			this.element_display = "block";
 
 			// Default style.
@@ -529,7 +530,7 @@ function CreateVElementClass({
 
 		// Append the children to parent element.
 		append_children_to(parent) {
-			if (this.element_type == "VirtualScoller") {
+			if (this.base_element_type == "VirtualScoller") {
 				for (let i = 0; i < parent.children.length; i++) {
 					parent.v_children.push(parent.children[i]);
 				}
@@ -840,14 +841,13 @@ function CreateVElementClass({
 		
 		// Alignment.
 		align(value) {
-			switch (this.element_type) {
+			switch (this.base_element_type) {
 				case "HStack":
 				case "ZStack":
 					this.style.justifyContent = value;
 					return this;
 				case "VStack":
 				case "Scroller":
-				case "VirtualScroller":
 					this.style.alignItems = value;
 					return this;
 				default:
@@ -867,14 +867,13 @@ function CreateVElementClass({
 		
 		// Align.
 		align_vertical(value) {
-			switch (this.element_type) {
+			switch (this.base_element_type) {
 				case "HStack":
 				case "ZStack":
 					this.style.alignItems = value;
 					return this;
 				case "VStack":
 				case "Scroller":
-				case "VirtualScroller":
 					this.style.justifyContent = value;
 					return this;
 				case "Text":
@@ -1009,7 +1008,7 @@ function CreateVElementClass({
 
 		// Opacity.
 		opacity(value) {
-			switch (this.element_type) {
+			switch (this.base_element_type) {
 
 				// Use filter since that also supports keyframes for class StyleElement.
 				case "Style":
@@ -1268,6 +1267,26 @@ function CreateVElementClass({
 		 	if (value == null) { return this.class; }
 		 	this.className = value;
 		 	return this;
+		}
+
+		// Themes.
+		// - A theme should have an id.
+		//   Other attributes should be an elements function name as key with parameters as value.
+		//   Arrays can be used for functions with multiple parameters.
+		themes(...themes) {
+			if (themes.length === 1 && Array.isArray(themes[0])) {
+				themes = themes[0];
+				for (let i = 0; i < themes.length; i++) {
+					themes[i].element = this;
+					vweb.themes.theme_elements.push(themes[i]);
+				}
+			} else {
+				for (let i = 0; i < themes.length; i++) {
+					themes[i].element = this;
+					vweb.themes.theme_elements.push(themes[i]);
+				}
+			}
+			return this;
 		}
 
 		// ---------------------------------------------------------

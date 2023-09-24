@@ -25,6 +25,9 @@ class RingLoaderElement extends CreateVElementClass({
 		// Initialize base class.
 		super();
 
+		// Set element type.
+        this.element_type = "RingLoader";
+
 		// Set default.
 		this.update();
 		
