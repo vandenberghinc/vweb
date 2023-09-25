@@ -24,6 +24,8 @@
 .token_comment_codeblock {
 	color: #818C97;
 	font-style: italic;
+	background: #FFFFFF10;
+  border-radius: 5px;
 }
 .token_url {
 	color: #818C97;
