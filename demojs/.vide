@@ -8,21 +8,17 @@
     "ip": "127.0.0.1",
     "port": "8000",
     "executable_args": [],
-    "exclude_path_patterns": [
-        "*.DS_Store",
-        "*.git",
-        "*.xcodeproj",
-        "*node_modules"
-    ],
-    "ssh_remotes": [],
-    "git_username": null,
-    "git_email": null,
-    "git_remotes": [],
     "excluded_path_patterns": [
         "*.DS_Store",
         "*.git",
         "*.xcodeproj",
         "*node_modules"
     ],
-    "excluded_code_scanning_path_patterns": []
+    "excluded_code_scanning_path_patterns": [
+        "*vweb.js"
+    ],
+    "ssh_remotes": [],
+    "git_username": null,
+    "git_email": null,
+    "git_remotes": []
 }
