@@ -1436,6 +1436,108 @@ vweb_on_render_observer.observe(this);
 this._on_render_handler=callback;
 return this;
 }
+on_shortcut(shortcuts=[]){
+const is_match=(key,event,shortcut)=>{
+if(shortcut.key!==undefined){
+if(key!==shortcut.key){
+return false;
+}
+}
+else if(shortcut.keys!==undefined){
+const keys=shortcut.keys;
+const or=shortcut.or===undefined ? true:shortcut.or;
+if(or){
+let found=false;
+for(let i=0;i<keys.length;i++){
+if(keys[i]===key){
+found=true;
+break;
+}
+}
+if(found===false){return false;}
+}else{
+const duration=shortcut.duration||150;
+if(
+this._on_shortcut_time===null||
+Date.now()-this._on_shortcut_time>duration
+){
+return false;
+}
+if(!(
+(this.on_shortcut_key===keys[0]&&key===keys[1])||
+(this.on_shortcut_key===keys[1]&&key===keys[0])
+)){
+return false;
+}
+}
+}
+else if(shortcut.keycode!==undefined){
+if(event.keyCode!==shortcut.keycode){
+return false;
+}
+}
+else if(shortcut.keycodes!==undefined){
+const keys=shortcut.keycodes;
+const or=shortcut.or===undefined ? true:shortcut.or;
+if(or){
+let found=false;
+for(let i=0;i<keys.length;i++){
+if(keys[i]===event.keyCode){
+found=true;
+break;
+}
+}
+if(found===false){return false;}
+}else{
+const duration=shortcut.duration||150;
+if(
+this._on_shortcut_time===null||
+Date.now()-this._on_shortcut_time>duration
+){
+return false;
+}
+if(!(
+this.on_shortcut_keycode===keys[0]&&event.keyCode===keys[1]||
+this.on_shortcut_keycode===keys[1]&&event.keyCode===keys[0]
+)){
+return false;
+}
+}
+}
+else{
+console.error("At least one of the following shortcut attributes must be defined: [key, keys, keycode, keycodes].");
+return false;
+}
+const allow_other_modifiers=shortcut.allow_other_modifiers===undefined ? false:shortcut.allow_other_modifiers;
+const shift=shortcut.shift===undefined ? false:shortcut.shift;
+const alt=shortcut.alt===undefined ? false:shortcut.alt;
+const ctrl=shortcut.ctrl===undefined ? false:shortcut.ctrl;
+if(event.shiftKey!==shift&&(shift||allow_other_modifiers===false)){
+return false;
+}
+if(event.altKey!==alt&&(alt||allow_other_modifiers===false)){
+return false;
+}
+if((event.ctrlKey||event.metaKey)!==ctrl&&(ctrl||allow_other_modifiers===false)){
+return false;
+}
+return true;
+}
+this.onkeydown=(event)=>{
+const key=event.key.toLowerCase();
+const matched=shortcuts.iterate((shortcut)=>{
+if(is_match(key,event,shortcut)){
+shortcut.callback(this,event);
+return true;
+}
+});
+if(matched!==true){
+this.on_shortcut_time=Date.now();
+this.on_shortcut_key=event.key;
+this.on_shortcut_keycode=event.keyCode;
+}
+}
+}
 first_child(){
 return this.firstChild;
 }

@@ -1767,6 +1767,157 @@ function CreateVElementClass({
 	    	return this;
 	    }
 
+	    /* 	@docs: {
+		 * 	@title: On shortcut
+		 * 	@description: Create key shortcuts for the element.
+		 * 	@parameter: {
+		 * 		@name: shortcuts
+		 * 		@description: 
+		 * 			The array with shortcuts.
+		 * 			Each shortcut object may have the following attributes:
+		 * 			```{
+		 * 				key: "a",                       // (optionally required) the key to match, event keys are always in lowercase.
+		 *              keys: [],                       // (optionally required) an array with max two strings when `or` is `false`, or an array with unlimited strings when `or` is `true`, event keys are always in lowercase.
+		 *              keycode: null,                  // (optionally required) an array with max two strings when `or` is `false`, or an array with unlimited strings when `or` is `true`, event keys are always in lowercase.
+		 *              keycodes: []                    // (optionally required) an array with allowed keycodes, when `or` is `false` the shorcut will be matched when all the keycodes are matched after each other, and when `or` is `true` the shortcut will match when one of the keycodes is pressed.
+		 *              or: false,                      // (optional) used to determine a "and" / "or" when the keys attribute is defined, `false` means the shorcut will match if one of the keys in the array was pressed. And `true` means the shorcut will be matched after the keys have been pressed after each other within the specified duration.
+		 *              duration: null,                 // (optional) the duration in milliseconds that is allowed between the two keys when the keys attribute with `or` `false` is used, default value is `150`.
+		 *              shift: false,                   // (optional) the shift modifier.
+		 *              alt: false,                     // (optional) the alt modifier, allows alt or option for apple devices.
+		 *              ctrl: false,                    // (optional) the control modifier, allows control or command for apple devices.
+		 *              allow_other_modifiers: false,   // (optional) allow a shortcut match when there are other modifiers present in the event than the pre-defined modifiers.
+		 * 				callback: () => {},             // (required).
+		 *			}```
+		 *          
+		 * }
+		 } */
+		on_shortcut(shortcuts = []) {
+
+		    // Check if a shortcut was matched.
+		    const is_match = (key, event, shortcut) => {   
+
+		        // Check single key.
+		        if (shortcut.key !== undefined) {
+		            if (key !== shortcut.key) {
+		                return false;
+		            }
+		        }
+		        
+		        // Check multiple keys.
+		        else if (shortcut.keys !== undefined) {
+		            const keys = shortcut.keys;
+		            const or = shortcut.or === undefined ? true : shortcut.or;
+		            if (or) {
+		                let found = false;
+		                for (let i = 0; i < keys.length; i++) {
+		                    if (keys[i] === key) {
+		                        found = true;
+		                        break;
+		                    }
+		                }
+		                if (found === false) { return false; }
+		            } else {
+		                const duration = shortcut.duration || 150;
+		                if (
+		                    this._on_shortcut_time === null ||
+		                    Date.now() - this._on_shortcut_time > duration
+		                ) {
+		                    return false;
+		                }
+		                if (!(
+		                    (this.on_shortcut_key === keys[0] && key === keys[1]) ||
+		                    (this.on_shortcut_key === keys[1] && key === keys[0])
+		                )) {
+		                    return false;
+		                }
+		            }
+		        }
+
+		        // Check keycode.
+		        else if (shortcut.keycode !== undefined) {
+		            if (event.keyCode !== shortcut.keycode) {
+		                return false;
+		            }
+		        }
+
+		        // Check keycodes.
+		        else if (shortcut.keycodes !== undefined) {
+		            const keys = shortcut.keycodes;
+		            const or = shortcut.or === undefined ? true : shortcut.or;
+		            if (or) {
+		                let found = false;
+		                for (let i = 0; i < keys.length; i++) {
+		                    if (keys[i] === event.keyCode) {
+		                        found = true;
+		                        break;
+		                    }
+		                }
+		                if (found === false) { return false; }
+		            } else {
+		                const duration = shortcut.duration || 150;
+		                if (
+		                    this._on_shortcut_time === null ||
+		                    Date.now() - this._on_shortcut_time > duration
+		                ) {
+		                    return false;
+		                }
+		                if (!(
+		                    this.on_shortcut_keycode === keys[0] && event.keyCode === keys[1] ||
+		                    this.on_shortcut_keycode === keys[1] && event.keyCode === keys[0]
+		                )) {
+		                    return false;
+		                }
+		            }
+		        }
+
+		        // Error.
+		        else {
+		            console.error("At least one of the following shortcut attributes must be defined: [key, keys, keycode, keycodes].");
+		            return false;
+		        }
+
+		        // Check modifiers.
+		        const allow_other_modifiers = shortcut.allow_other_modifiers === undefined ? false : shortcut.allow_other_modifiers;
+		        const shift = shortcut.shift === undefined ? false : shortcut.shift;
+		        const alt = shortcut.alt === undefined ? false : shortcut.alt;
+		        const ctrl = shortcut.ctrl === undefined ? false : shortcut.ctrl;
+		        if (event.shiftKey !== shift && (shift || allow_other_modifiers === false)) {
+		            return false;
+		        }
+		        if (event.altKey !== alt && (alt || allow_other_modifiers === false)) {
+		            return false;
+		        }
+		        if ((event.ctrlKey || event.metaKey) !== ctrl && (ctrl || allow_other_modifiers === false)) {
+		            return false;
+		        }
+
+		        // Matched.
+		        return true;
+		    }
+			
+			// Set key down handler.
+		    this.onkeydown = (event) => {
+
+		        // Convert to lowercase.
+		        const key = event.key.toLowerCase();
+
+		        // Iterate shortcuts.
+				const matched = shortcuts.iterate((shortcut) => {
+		            if (is_match(key, event, shortcut)) {
+		                shortcut.callback(this, event);
+		                return true;
+		            }
+				});
+
+		        // Set previous key when there was no match.
+		        if (matched !== true) {
+		            this.on_shortcut_time = Date.now();
+		            this.on_shortcut_key = event.key;
+		            this.on_shortcut_keycode = event.keyCode;
+		        }
+			}
+		}
+
 	    // ---------------------------------------------------------
 		// Pseudo element styles.
 
