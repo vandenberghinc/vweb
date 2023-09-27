@@ -3,6 +3,14 @@
  * Copyright: © 2022 - 2023 Daan van den Bergh.
  */
 
+// Get the first and last item.
+Array.prototype.first = function() {
+    return this[0];
+};
+Array.prototype.last = function() {
+    return this[this.length - 1];
+};
+
 // Iteration function for arrays.
 Array.prototype.iterate = function(start, end, handler) {
     if (typeof start === "function") {
@@ -76,3 +84,29 @@ Array.prototype.drop_duplicates = function() {
         return accumulator;
     }, []);
 }
+
+// Limit from end, always creates a new array.
+Array.prototype.limit_from_end = function(limit) {
+    let limited = [];
+    if (this.length > limit) {
+        for (let i = this.length - limit; i < this.length; i++) {
+            limited.push(this[i]);
+        }
+    } else {
+        for (let i = 0; i < this.length; i++) {
+            limited.push(this[i]);
+        }
+    }
+    return limited;
+}
+
+// Remove all items that equal the item from the array.
+Array.prototype.remove = function(item) {
+    let removed = [];
+    this.iterate((i) => {
+        if (i != item) {
+            removed.push(i);
+        }
+    })
+    return removed;
+};

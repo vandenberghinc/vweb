@@ -9926,6 +9926,12 @@ success();
 error:error,
 });
 }
+Array.prototype.first=function(){
+return this[0];
+};
+Array.prototype.last=function(){
+return this[this.length-1];
+};
 Array.prototype.iterate=function(start,end,handler){
 if(typeof start==="function"){
 handler=start;
@@ -9988,3 +9994,25 @@ accumulator.push(val);
 return accumulator;
 },[]);
 }
+Array.prototype.limit_from_end=function(limit){
+let limited=[];
+if(this.length>limit){
+for(let i=this.length-limit;i<this.length;i++){
+limited.push(this[i]);
+}
+}else{
+for(let i=0;i<this.length;i++){
+limited.push(this[i]);
+}
+}
+return limited;
+}
+Array.prototype.remove=function(item){
+let removed=[];
+this.iterate((i)=>{
+if(i!=item){
+removed.push(i);
+}
+})
+return removed;
+};
