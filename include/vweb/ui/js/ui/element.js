@@ -1776,10 +1776,11 @@ function CreateVElementClass({
 		 * 			The array with shortcuts.
 		 * 			Each shortcut object may have the following attributes:
 		 * 			```{
-		 * 				key: "a",                       // (optionally required) the key to match, event keys are always in lowercase.
-		 *              keys: [],                       // (optionally required) an array with max two strings when `or` is `false`, or an array with unlimited strings when `or` is `true`, event keys are always in lowercase.
-		 *              keycode: null,                  // (optionally required) an array with max two strings when `or` is `false`, or an array with unlimited strings when `or` is `true`, event keys are always in lowercase.
-		 *              keycodes: []                    // (optionally required) an array with allowed keycodes, when `or` is `false` the shorcut will be matched when all the keycodes are matched after each other, and when `or` is `true` the shortcut will match when one of the keycodes is pressed.
+		 *				match: (event) => false 		// (optionally required) (precedence 1) a callback function to determine if a event matches.
+		 * 				key: "a",                       // (optionally required) (precedence 2) the key to match, event keys are always in lowercase.
+		 *              keys: [],                       // (optionally required) (precedence 3) an array with max two strings when `or` is `false`, or an array with unlimited strings when `or` is `true`, event keys are always in lowercase.
+		 *              keycode: 0,                  	// (optionally required) (precedence 4) an array with max two strings when `or` is `false`, or an array with unlimited strings when `or` is `true`, event keys are always in lowercase.
+		 *              keycodes: []                    // (optionally required) (precedence 5) an array with allowed keycodes, when `or` is `false` the shorcut will be matched when all the keycodes are matched after each other, and when `or` is `true` the shortcut will match when one of the keycodes is pressed.
 		 *              or: false,                      // (optional) used to determine a "and" / "or" when the keys attribute is defined, `false` means the shorcut will match if one of the keys in the array was pressed. And `true` means the shorcut will be matched after the keys have been pressed after each other within the specified duration.
 		 *              duration: null,                 // (optional) the duration in milliseconds that is allowed between the two keys when the keys attribute with `or` `false` is used, default value is `150`.
 		 *              shift: false,                   // (optional) the shift modifier.
@@ -1796,8 +1797,13 @@ function CreateVElementClass({
 		    // Check if a shortcut was matched.
 		    const is_match = (key, event, shortcut) => {   
 
+		    	// Check by match handler.
+		    	if (typeof shortcut.match === "function") {
+		    		return shortcut.match(event, key, shortcut);
+		    	}
+
 		        // Check single key.
-		        if (shortcut.key !== undefined) {
+		        else if (shortcut.key !== undefined) {
 		            if (key !== shortcut.key) {
 		                return false;
 		            }

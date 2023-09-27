@@ -1438,7 +1438,10 @@ return this;
 }
 on_shortcut(shortcuts=[]){
 const is_match=(key,event,shortcut)=>{
-if(shortcut.key!==undefined){
+if(typeof shortcut.match==="function"){
+return shortcut.match(event,key,shortcut);
+}
+else if(shortcut.key!==undefined){
 if(key!==shortcut.key){
 return false;
 }
