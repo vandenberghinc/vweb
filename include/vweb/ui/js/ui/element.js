@@ -1694,27 +1694,97 @@ function CreateVElementClass({
 		}
 
 	    // Custom on attachment drop event.
-	    on_attachment_drop({callback, compress = false}) {
-	    	this.on_drag_over(function(e) {
-	    		e.preventDefault();
-	    		e.dataTransfer.dropEffect = "copy";
-	    	});
-	    	this.on_drop(function(e) {
-	    		e.preventDefault();
-	    		const files = e.dataTransfer.files;
+	    // Callback parameters are ({name: ..., path: ..., is_dir: ..., data: ..., file: ...})
+	    on_attachment_drop({callback, read = true, compress = false, on_start = () => {}}) {
+	    	this.ondragover = (event) => {
+	    		event.preventDefault();
+	    		event.dataTransfer.dropEffect = "copy";
+	    		on_start(event);
+	    	};
+
+	    	// v2.
+	    	// Iterate through dataTransfer.items to gather information about each item.
+	    	this.ondrop = (event) => {
+	    		event.preventDefault();
+		    	const items = event.dataTransfer.items;
+		        for (let i = 0; i < items.length; i++) {
+		            const item = items[i];
+		            if (item.kind === 'file') {
+		                const file = item.getAsFile();
+		                if (file) {
+		                    const args = {
+		                        name: file.name,
+		                        path: file.path,
+		                        is_dir: false,
+		                        data: null,
+		                        compressed: false,
+		                        file: file,
+		                    };
+
+		                    // Check if it's a directory item (e.g., from a folder).
+		                    if (item.webkitGetAsEntry) {
+		                        const entry = item.webkitGetAsEntry();
+		                        if (entry && entry.isDirectory) {
+		                            args.is_dir = true;
+		                        }
+		                    }
+
+		                    // Read the file.
+		                    if (args.is_dir === false && read) {
+		                    	const reader = new FileReader();
+			                    reader.onload = (event) => {
+			                        if (compress) {
+			                            args.data = vweb.utils.compress(event.target.result);
+			                            args.compressed = true;
+			                        } else {
+			                            args.data = event.target.result;
+			                            args.compressed = false;
+			                        }
+			                        callback(args);
+			                    };
+			                    reader.readAsText(file);
+		                    } else {
+		                    	callback(args);
+		                    }
+		                }
+		            }
+		        }
+		    }
+
+	    	/* v1 uses files but is_dir cant be retrieved with this method.
+	    	this.ondrop = (event) => {
+	    		event.preventDefault();
+	    		const files = event.dataTransfer.files;
 	    		for (let i = 0; i < files.length; i++) {
 	    			const file = files[i];
-	    			const reader = new FileReader();
-	    			reader.onload = (event) => {
-	    				if (compress == true) {
-	    					callback(file.name, vweb.utils.compress(event.target.result), file);
-	    				} else {
-	    					callback(file.name, event.target.result, file);
-	    				}
-	    			};
-	    			reader.readAsText(file);
-	    		}
-	    	});
+	    			const args = {
+    					name: file.name,
+    					path: file.path,
+    					is_dir: event.dataTransfer.items[i].webkitGetAsEntry() == null, // does not work in firefox for android.
+    					data: null,
+    					compressed: false,
+    					file: file,
+    				}
+    				console.log(args);
+	    			if (read) { // @todo does not support dirs with read.
+		    			const reader = new FileReader();
+		    			reader.onload = (event) => {
+		    				if (compress == true) {
+		    					args.data = vweb.utils.compress(event.target.result);
+		    					args.compressed = true;
+		    				} else {
+		    					args.data = event.target.result;
+		    					args.compressed = false;
+		    				}
+		    				callback(args);
+		    			};
+		    			reader.readAsText(file);
+		    		} else {
+		    			callback(args);
+		    		}
+	    		}	
+	    	};
+	    	*/
 	    	return this;
 	    }
 
@@ -1751,6 +1821,15 @@ function CreateVElementClass({
 	    			callback(e, event);
 	    		}
 	    	}
+	    	return this;
+	    }
+
+	    // On theme update.
+	    on_theme_update(callback) {
+	    	if (callback == null) {
+	    		return this._on_theme_update;
+	    	}
+	    	this._on_theme_update = callback;
 	    	return this;
 	    }
 
@@ -1923,6 +2002,83 @@ function CreateVElementClass({
 		        }
 			}
 		}
+
+		/*  @docs: {
+		 *  @title: On gesture
+		 *  @description: Create touch gesture events.
+		 *  @parameter: {
+		 *      @name: gestures
+		 *      @description:
+		 *          The array with gesture objects.
+		 *          A gesture object may have the following attributes:
+		 *          ```{
+		 *              direction: "left",
+		 *              touches: 2,
+		 *              callback: (element) => {
+		 *                  
+		 *              },
+		 *          }```
+		 *          Possible values for `direction` are `top`, `right`, `bottom` and `left`.
+		 *          Possible values for `touches` are `1`, till `3`.
+		 *  }
+		 } */
+		// function on_gesture (element, gestures = []) {
+
+		//     // Vars.
+		//     let start_x = 0, end_x = 0;
+		//     let start_y = 0, end_y = 0;
+		//     let touches = 0;
+
+		//     // Touch start event.
+		//     const touch_start = (event) => {
+
+		//         // Set start pos.
+		//         start_x = event.touches[0].clientX;
+		//         start_y = event.touches[0].clientY;
+		//         touches = event.touches.length;
+
+		//         console.log({start_x:start_x, start_y:start_y, touches:touches})
+
+		//         // Add event listeners.
+		//         document.addEventListener("touchmove", touch_move);
+		//         document.addEventListener("touchend", touch_end);
+		//     }
+
+		//     // Touch move event.
+		//     const touch_move = (event) => {
+
+		//         // Set end pos.
+		//         end_x = event.touches[0].clientX;
+		//         end_y = event.touches[0].clientY;   
+		//     }
+
+		//     // Touch end event.
+		//     const touch_end = () => {
+
+		//         console.log({end_x:end_x, end_y:end_y})
+
+		//         // Remove event listeners.
+		//         document.removeEventListener("touchmove", touch_move);
+		//         document.removeEventListener("touchend", touch_end);
+
+		//         const gestureDistance = touchEndX - touchStartX;
+		//         if (gestureDistance > 0) {
+		//             // User swiped right
+		//             console.log('Swipe right');
+		//         } else if (gestureDistance < 0) {
+		//             // User swiped left
+		//             console.log('Swipe left');
+		//         }
+		//     }
+
+		//     // Bind touch start event to element.
+		//     console.log("OIOI");
+		//     // window.addEventListener("touchstart", touch_start)
+		//     // element.ontouchstart = touch_start;
+		//     element.addEventListener("touchstart", (event) => {
+		//         console.log(event.pointerType)
+		//     }, false)
+		// }
 
 	    // ---------------------------------------------------------
 		// Pseudo element styles.

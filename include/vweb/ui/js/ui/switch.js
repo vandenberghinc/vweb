@@ -61,6 +61,11 @@ class SwitchElement extends VStackElement {
 
         // Set enabled value.
         this.value(enabled, false);
+
+        // Set default theme update.
+        this.on_theme_update(() => {
+        	this.value(this._enabled, false);
+        })
     }
 
     // Set width.
@@ -166,7 +171,6 @@ class SwitchElement extends VStackElement {
     toggle() {
     	return this.value(!this._enabled);
     }
-
 
     // Get or set the enabled boolean value.
     value(value, animate = true) {

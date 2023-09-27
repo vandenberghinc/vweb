@@ -361,8 +361,10 @@ allow_string_scope_seperator=false,
 allow_comment_scope_seperator=false,
 allow_regex_scope_seperator=false,
 allow_preprocessor_scope_seperator=false,
+allow_comment_keyword=true,
+allow_comment_codeblock=true,
 }){
-this.code=null;this.keywords=keywords;this.type_def_keywords=type_def_keywords;this.type_keywords=type_keywords;this.operators=operators;this.special_string_prefixes=special_string_prefixes;this.single_line_comment_start=single_line_comment_start;this.multi_line_comment_start=multi_line_comment_start;this.multi_line_comment_end=multi_line_comment_end;this.allow_strings=allow_strings;this.allow_numerics=allow_numerics;this.allow_preprocessors=allow_preprocessors;this.allow_slash_regexes=allow_slash_regexes;this.scope_seperators=scope_seperators;this.allow_string_scope_seperator=allow_string_scope_seperator;this.allow_comment_scope_seperator=allow_comment_scope_seperator;this.allow_regex_scope_seperator=allow_regex_scope_seperator;this.allow_preprocessor_scope_seperator=allow_preprocessor_scope_seperator;
+this.code=null;this.keywords=keywords;this.type_def_keywords=type_def_keywords;this.type_keywords=type_keywords;this.operators=operators;this.special_string_prefixes=special_string_prefixes;this.single_line_comment_start=single_line_comment_start;this.multi_line_comment_start=multi_line_comment_start;this.multi_line_comment_end=multi_line_comment_end;this.allow_strings=allow_strings;this.allow_numerics=allow_numerics;this.allow_preprocessors=allow_preprocessors;this.allow_slash_regexes=allow_slash_regexes;this.scope_seperators=scope_seperators;this.allow_string_scope_seperator=allow_string_scope_seperator;this.allow_comment_scope_seperator=allow_comment_scope_seperator;this.allow_regex_scope_seperator=allow_regex_scope_seperator;this.allow_preprocessor_scope_seperator=allow_preprocessor_scope_seperator;this.allow_comment_keyword=allow_comment_keyword;this.allow_comment_codeblock=allow_comment_codeblock;
 this.word_boundaries=[
 ' ',
 '\t',
@@ -587,6 +589,23 @@ this.append_batch(token);
 resume_on_index(index){
 this.index=index;
 }
+insert_tokens(tokens){
+const start_line=this.line;
+const start_offset=this.offset;
+tokens.iterate_tokens((token)=>{
+token.line+=start_line;
+token.offset+=start_offset;
+this.offset+=token.data.length;
+if(token.is_line_break){
+++this.line;
+}
+if(this.tokens[token.line]===undefined){
+this.tokens[token.line]=[token];
+}else{
+this.tokens[token.line].push(token);
+}
+})
+}
 append_token(token=null,is_word_boundary=null){
 const obj={
 data:this.batch,
@@ -806,14 +825,14 @@ if(
 !is_regex
 ){
 const comment_start=this.single_line_comment_start;
-if(comment_start.length===1&&char===comment_start){
+if(comment_start!==false&&comment_start.length===1&&char===comment_start){
 ++info_obj.comment_id;
 is_comment=true;
 const res=callback(char,false,is_comment,is_multi_line_comment,is_regex,is_escaped,is_preprocessor);
 if(res!=null){return res;}
 continue;
 }
-else if(comment_start.length!==1&&eq_first(comment_start,info_obj.index)){
+else if(comment_start!==false&&comment_start.length!==1&&eq_first(comment_start,info_obj.index)){
 ++info_obj.comment_id;
 is_comment=true;
 const res=callback(char,false,is_comment,is_multi_line_comment,is_regex,is_escaped,is_preprocessor);
@@ -981,12 +1000,12 @@ this.batch+=char;
 auto_append_batch_switch();
 this.is_comment_codeblock=false;
 }
-else if(!this.is_comment_codeblock&&char==="`"){
+else if(this.allow_comment_codeblock&&!this.is_comment_codeblock&&char==="`"){
 auto_append_batch_switch();
 this.is_comment_codeblock=true;
 this.batch+=char;
 }
-else if(!this.is_comment_codeblock&&char==="@"&&!is_escaped){
+else if(this.allow_comment_keyword&&!this.is_comment_codeblock&&char==="@"&&!is_escaped){
 auto_append_batch_switch();
 this.is_comment_keyword=true;
 this.batch+=char;
@@ -3013,12 +3032,7 @@ if(result==null){
 tokenizer.append_forward_lookup_batch("token_codeblock",language+code);
 }else{
 tokenizer.append_forward_lookup_batch("token_keyword",language);
-for(let i=0;i<result.tokens.length;i++){
-const token=result.tokens[i];
-token.line+=tokenizer.line;
-tokenizer.tokens.push(token);
-}
-tokenizer.line+=result.line_count;
+tokenizer.insert_tokens(result);
 }
 tokenizer.append_forward_lookup_batch("token_keyword","```");
 tokenizer.resume_on_index(closing_index);

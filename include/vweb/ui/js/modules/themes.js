@@ -29,8 +29,8 @@ vweb.themes.set = function(theme_id) {
 			if (e.element_type === "RingLoader") {
 				e.update(e);
 			}
-			if (typeof e.theme_update === "function") {
-				e.theme_update(e);
+			if (typeof e._on_theme_update === "function") {
+				e._on_theme_update(e);
 			}
 		}
 	})

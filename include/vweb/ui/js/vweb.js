@@ -1373,27 +1373,54 @@ e.on_window_resize_timer=setTimeout(()=>callback(e),delay);
 });
 return this;
 }
-on_attachment_drop({callback,compress=false}){
-this.on_drag_over(function(e){
-e.preventDefault();
-e.dataTransfer.dropEffect="copy";
-});
-this.on_drop(function(e){
-e.preventDefault();
-const files=e.dataTransfer.files;
-for(let i=0;i<files.length;i++){
-const file=files[i];
+on_attachment_drop({callback,read=true,compress=false,on_start=()=>{}}){
+this.ondragover=(event)=>{
+event.preventDefault();
+event.dataTransfer.dropEffect="copy";
+on_start(event);
+};
+this.ondrop=(event)=>{
+event.preventDefault();
+const items=event.dataTransfer.items;
+for(let i=0;i<items.length;i++){
+const item=items[i];
+if(item.kind==='file'){
+const file=item.getAsFile();
+if(file){
+const args={
+name:file.name,
+path:file.path,
+is_dir:false,
+data:null,
+compressed:false,
+file:file,
+};
+if(item.webkitGetAsEntry){
+const entry=item.webkitGetAsEntry();
+if(entry&&entry.isDirectory){
+args.is_dir=true;
+}
+}
+if(args.is_dir===false&&read){
 const reader=new FileReader();
 reader.onload=(event)=>{
-if(compress==true){
-callback(file.name,vweb.utils.compress(event.target.result),file);
+if(compress){
+args.data=vweb.utils.compress(event.target.result);
+args.compressed=true;
 }else{
-callback(file.name,event.target.result,file);
+args.data=event.target.result;
+args.compressed=false;
 }
+callback(args);
 };
 reader.readAsText(file);
+}else{
+callback(args);
 }
-});
+}
+}
+}
+}
 return this;
 }
 on_appear({callback,repeat=false}){
@@ -1424,6 +1451,13 @@ if(event.keyCode===13){
 callback(e,event);
 }
 }
+return this;
+}
+on_theme_update(callback){
+if(callback==null){
+return this._on_theme_update;
+}
+this._on_theme_update=callback;
 return this;
 }
 on_render(callback){
@@ -5130,6 +5164,9 @@ this._enabled_color="green";
 this._disabled_color="gray";
 this.enabled=this.value;
 this.value(enabled,false);
+this.on_theme_update(()=>{
+this.value(this._enabled,false);
+})
 }
 width(value){
 if(value==null){
@@ -6822,8 +6859,10 @@ allow_string_scope_seperator=false,
 allow_comment_scope_seperator=false,
 allow_regex_scope_seperator=false,
 allow_preprocessor_scope_seperator=false,
+allow_comment_keyword=true,
+allow_comment_codeblock=true,
 }){
-this.code=null;this.keywords=keywords;this.type_def_keywords=type_def_keywords;this.type_keywords=type_keywords;this.operators=operators;this.special_string_prefixes=special_string_prefixes;this.single_line_comment_start=single_line_comment_start;this.multi_line_comment_start=multi_line_comment_start;this.multi_line_comment_end=multi_line_comment_end;this.allow_strings=allow_strings;this.allow_numerics=allow_numerics;this.allow_preprocessors=allow_preprocessors;this.allow_slash_regexes=allow_slash_regexes;this.scope_seperators=scope_seperators;this.allow_string_scope_seperator=allow_string_scope_seperator;this.allow_comment_scope_seperator=allow_comment_scope_seperator;this.allow_regex_scope_seperator=allow_regex_scope_seperator;this.allow_preprocessor_scope_seperator=allow_preprocessor_scope_seperator;
+this.code=null;this.keywords=keywords;this.type_def_keywords=type_def_keywords;this.type_keywords=type_keywords;this.operators=operators;this.special_string_prefixes=special_string_prefixes;this.single_line_comment_start=single_line_comment_start;this.multi_line_comment_start=multi_line_comment_start;this.multi_line_comment_end=multi_line_comment_end;this.allow_strings=allow_strings;this.allow_numerics=allow_numerics;this.allow_preprocessors=allow_preprocessors;this.allow_slash_regexes=allow_slash_regexes;this.scope_seperators=scope_seperators;this.allow_string_scope_seperator=allow_string_scope_seperator;this.allow_comment_scope_seperator=allow_comment_scope_seperator;this.allow_regex_scope_seperator=allow_regex_scope_seperator;this.allow_preprocessor_scope_seperator=allow_preprocessor_scope_seperator;this.allow_comment_keyword=allow_comment_keyword;this.allow_comment_codeblock=allow_comment_codeblock;
 this.word_boundaries=[
 ' ',
 '\t',
@@ -7048,6 +7087,23 @@ this.append_batch(token);
 resume_on_index(index){
 this.index=index;
 }
+insert_tokens(tokens){
+const start_line=this.line;
+const start_offset=this.offset;
+tokens.iterate_tokens((token)=>{
+token.line+=start_line;
+token.offset+=start_offset;
+this.offset+=token.data.length;
+if(token.is_line_break){
+++this.line;
+}
+if(this.tokens[token.line]===undefined){
+this.tokens[token.line]=[token];
+}else{
+this.tokens[token.line].push(token);
+}
+})
+}
 append_token(token=null,is_word_boundary=null){
 const obj={
 data:this.batch,
@@ -7267,14 +7323,14 @@ if(
 !is_regex
 ){
 const comment_start=this.single_line_comment_start;
-if(comment_start.length===1&&char===comment_start){
+if(comment_start!==false&&comment_start.length===1&&char===comment_start){
 ++info_obj.comment_id;
 is_comment=true;
 const res=callback(char,false,is_comment,is_multi_line_comment,is_regex,is_escaped,is_preprocessor);
 if(res!=null){return res;}
 continue;
 }
-else if(comment_start.length!==1&&eq_first(comment_start,info_obj.index)){
+else if(comment_start!==false&&comment_start.length!==1&&eq_first(comment_start,info_obj.index)){
 ++info_obj.comment_id;
 is_comment=true;
 const res=callback(char,false,is_comment,is_multi_line_comment,is_regex,is_escaped,is_preprocessor);
@@ -7442,12 +7498,12 @@ this.batch+=char;
 auto_append_batch_switch();
 this.is_comment_codeblock=false;
 }
-else if(!this.is_comment_codeblock&&char==="`"){
+else if(this.allow_comment_codeblock&&!this.is_comment_codeblock&&char==="`"){
 auto_append_batch_switch();
 this.is_comment_codeblock=true;
 this.batch+=char;
 }
-else if(!this.is_comment_codeblock&&char==="@"&&!is_escaped){
+else if(this.allow_comment_keyword&&!this.is_comment_codeblock&&char==="@"&&!is_escaped){
 auto_append_batch_switch();
 this.is_comment_keyword=true;
 this.batch+=char;
@@ -9474,12 +9530,7 @@ if(result==null){
 tokenizer.append_forward_lookup_batch("token_codeblock",language+code);
 }else{
 tokenizer.append_forward_lookup_batch("token_keyword",language);
-for(let i=0;i<result.tokens.length;i++){
-const token=result.tokens[i];
-token.line+=tokenizer.line;
-tokenizer.tokens.push(token);
-}
-tokenizer.line+=result.line_count;
+tokenizer.insert_tokens(result);
 }
 tokenizer.append_forward_lookup_batch("token_keyword","```");
 tokenizer.resume_on_index(closing_index);
@@ -9805,8 +9856,8 @@ e[key](theme[key]);
 if(e.element_type==="RingLoader"){
 e.update(e);
 }
-if(typeof e.theme_update==="function"){
-e.theme_update(e);
+if(typeof e._on_theme_update==="function"){
+e._on_theme_update(e);
 }
 }
 })
