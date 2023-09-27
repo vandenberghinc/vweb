@@ -50,15 +50,15 @@ class PopupElement extends VStackElement {
         }
 
         // Title.
-        this.title = Title().append(title)
+        this.title_e = Title().append(title)
             .font_family("inherit")
             .font_weight(500)
             .font_size(34)
             .abs_parent(this)
-        this.set_title(title);
+        this.title(title);
 
         // Text.
-        this.text = Text()
+        this.text_e = Text()
             .font_family("inherit")
             .font_size(16)
             .line_height(22)
@@ -66,7 +66,7 @@ class PopupElement extends VStackElement {
             .margin(15, 20, 0, 20)
             .wrap(true)
             .abs_parent(this)
-        this.set_text(text);
+        this.text(text);
 
         // No button.
         this.no_button = Button(no)
@@ -104,8 +104,8 @@ class PopupElement extends VStackElement {
         // The content.
         this.widget = VStack(
 	            this.image,
-	            this.title,
-	            this.text,
+	            this.title_e,
+	            this.text_e,
 	            this.content,
 	            this.buttons,
 	        )
@@ -147,33 +147,41 @@ class PopupElement extends VStackElement {
 	}
 
 	// Set title.
-	set_title(data) {
+	title(data) {
+		if (data == null) {
+			return this.title_e.textContent;
+		}
 		if (typeof data === "string") {
-			this.title.inner_html(data);
+			this.title_e.inner_html(data);
 		}
 		else if (Array.isArray(data)) {
 			data.iterate((item) => {
-				this.title.append();
+				this.title_e.append();
 			});
 		} 
 		else {
-			this.title.append(data);	
+			this.title_e.append(data);	
 		}
+		return this;
 	}
 
 	// Set text.
-	set_text(data) {
+	text(data) {
+		if (data == null) {
+			return this.text_e.textContent;
+		}
 		if (typeof data === "string") {
-			this.text.inner_html(data);
+			this.text_e.inner_html(data);
 		}
 		else if (Array.isArray(data)) {
 			data.iterate((item) => {
-				this.text.append();
+				this.text_e.append();
 			});
 		} 
 		else {
-			this.text.append(data);	
+			this.text_e.append(data);	
 		}
+		return this;
 	}
 
 	// Set image color.
@@ -201,10 +209,10 @@ class PopupElement extends VStackElement {
 
     	// Set args.
     	if (title !== null) {
-    		this.set_title(title);
+    		this.title(title);
     	}
     	if (text !== null) {
-    		this.set_text(text);
+    		this.text(text);
     	}
     	if (image !== null) {
     		this.image.src(image);
