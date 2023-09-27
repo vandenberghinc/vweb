@@ -176,6 +176,15 @@ class PopupElement extends VStackElement {
 		}
 	}
 
+	// Set image color.
+	image_color(value) {
+		if (value == null) {
+			return this.image.mask_color();
+		}
+		this.image.mask_color(value);
+		return this;
+	}
+
 	// Default popup function.
 	async popup ({
         title = null,
