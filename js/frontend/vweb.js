@@ -28,24 +28,6 @@ return Array.isArray(value);
 vweb.utils.is_obj=function(value){
 return typeof value==='object';
 }
-vweb.utils.eq=function(x,y){
-return x==y;
-}
-vweb.utils.not_eq=function(x,y){
-return x!=y;
-}
-vweb.utils.gt=function(x,y){
-return x>y;
-}
-vweb.utils.gt_eq=function(x,y){
-return x>=y;
-}
-vweb.utils.lt=function(x,y){
-return x<y;
-}
-vweb.utils.lt_eq=function(x,y){
-return x<=y;
-}
 vweb.utils.device_width=function(){
 return(window.innerWidth>0)? window.innerWidth:screen.width;
 }
@@ -107,7 +89,7 @@ encodedParams.push(`${encodedKey}=${encodedValue}`);
 return encodedParams.join('&');
 }
 vweb.utils.request=function({
-method=null,
+method=:GET,
 url=null,
 data=null,
 async=true,

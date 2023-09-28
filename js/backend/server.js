@@ -122,8 +122,8 @@ class Server {
     constructor({
         ip = "127.0.0.1",
         port = 8000,
-        certificate = '../dev/tls/certificate.pem',
-        private_key = '../dev/tls/private-key.pem',
+        certificate = null,
+        private_key = null,
         passphrase = null,
         domain = null,
         statics = [],
@@ -144,12 +144,12 @@ class Server {
         if (typeof port !== "number") {
             throw Error(`Parameter "port" should be a defined value of type "number".`);
         }
-        if (typeof certificate !== "string") {
-            throw Error(`Parameter "ip" should be certificate defined value of type "string".`);
-        }
-        if (typeof private_key !== "string") {
-            throw Error(`Parameter "ip" should be private_key defined value of type "string".`);
-        }
+        // if (typeof certificate !== "string") {
+        //     throw Error(`Parameter "certificate" should be a defined value of type "string".`);
+        // }
+        // if (typeof private_key !== "string") {
+        //     throw Error(`Parameter "private_key" should be a defined value of type "string".`);
+        // }
         if (typeof domain !== "string") {
             throw Error(`Parameter "domain" should be a defined value of type "string".`);
         }
@@ -166,8 +166,12 @@ class Server {
         // Attributes.
         this.port = port;
         this.ip = ip;
-        this.certificate = libfs.readFileSync(certificate, 'utf8');
-        this.private_key = libfs.readFileSync(private_key, 'utf8');
+        if (certificate != null) {
+            this.certificate = libfs.readFileSync(certificate, 'utf8');
+        }
+        if (private_key != null) {
+            this.private_key = libfs.readFileSync(private_key, 'utf8');
+        }
         this.domain = domain;
         this.statics = statics;
         this.database = database;
@@ -223,8 +227,10 @@ class Server {
         }
         
         // Create an HTTPS server
-        this.https = https.createServer({key: this.private_key, cert: this.certificate, passphrase: passphrase}, (request, response) => this._serve(request, response));
-        // this.https = http.createServer((request, response) => this._serve(request, response));
+        if (this.private_key != null && this.certificate != null) {
+            this.https = https.createServer({key: this.private_key, cert: this.certificate, passphrase: passphrase}, (request, response) => this._serve(request, response));
+        }
+        this.http = http.createServer((request, response) => this._serve(request, response));
 
         // Max uid.
         this.max_uid = null;
@@ -236,110 +242,110 @@ class Server {
         // Mimes for content type detection.
         // Must be defined before creating static endpoints.
         this.content_type_mimes = [
-            ["html", "text/html"],
-            ["htm", "text/html"],
-            ["shtml", "text/html"],
-            ["css", "text/css"],
-            ["xml", "application/xml"],
-            ["gif", "image/gif"],
-            ["jpeg", "image/jpeg"],
-            ["jpg", "image/jpeg"],
-            ["js", "application/javascript"],
-            ["atom", "application/atom+xml"],
-            ["rss", "application/rss+xml"],
-            ["mml", "text/mathml"],
-            ["txt", "text/plain"],
-            ["jad", "text/vnd.sun.j2me.app-descriptor"],
-            ["wml", "text/vnd.wap.wml"],
-            ["htc", "text/x-component"],
-            ["png", "image/png"],
-            ["tif", "image/tiff"],
-            ["tiff", "image/tiff"],
-            ["wbmp", "image/vnd.wap.wbmp"],
-            ["ico", "image/x-icon"],
-            ["jng", "image/x-jng"],
-            ["bmp", "image/x-ms-bmp"],
-            ["svg", "image/svg+xml"],
-            ["svgz", "image/svg+xml"],
-            ["webp", "image/webp"],
-            ["woff", "font/woff"],
-            ["woff2", "font/woff2"],
-            ["jar", "application/java-archive"],
-            ["war", "application/java-archive"],
-            ["ear", "application/java-archive"],
-            ["json", "application/json"],
-            ["hqx", "application/mac-binhex40"],
-            ["doc", "application/msword"],
-            ["pdf", "application/pdf"],
-            ["ps", "application/postscript"],
-            ["eps", "application/postscript"],
-            ["ai", "application/postscript"],
-            ["rtf", "application/rtf"],
-            ["m3u8", "application/vnd.apple.mpegurl"],
-            ["xls", "application/vnd.ms-excel"],
-            ["eot", "application/vnd.ms-fontobject"],
-            ["ppt", "application/vnd.ms-powerpoint"],
-            ["wmlc", "application/vnd.wap.wmlc"],
-            ["kml", "application/vnd.google-earth.kml+xml"],
-            ["kmz", "application/vnd.google-earth.kmz"],
-            ["7z", "application/x-7z-compressed"],
-            ["cco", "application/x-cocoa"],
-            ["jardiff", "application/x-java-archive-diff"],
-            ["jnlp", "application/x-java-jnlp-file"],
-            ["run", "application/x-makeself"],
-            ["pl", "application/x-perl"],
-            ["pm", "application/x-perl"],
-            ["prc", "application/x-pilot"],
-            ["pdb", "application/x-pilot"],
-            ["rar", "application/x-rar-compressed"],
-            ["rpm", "application/x-redhat-package-manager"],
-            ["sea", "application/x-sea"],
-            ["swf", "application/x-shockwave-flash"],
-            ["sit", "application/x-stuffit"],
-            ["tcl", "application/x-tcl"],
-            ["tk", "application/x-tcl"],
-            ["der", "application/x-x509-ca-cert"],
-            ["pem", "application/x-x509-ca-cert"],
-            ["crt", "application/x-x509-ca-cert"],
-            ["xpi", "application/x-xpinstall"],
-            ["xhtml", "application/xhtml+xml"],
-            ["xspf", "application/xspf+xml"],
-            ["zip", "application/zip"],
-            ["bin", "application/octet-stream"],
-            ["exe", "application/octet-stream"],
-            ["dll", "application/octet-stream"],
-            ["deb", "application/octet-stream"],
-            ["dmg", "application/octet-stream"],
-            ["iso", "application/octet-stream"],
-            ["img", "application/octet-stream"],
-            ["msi", "application/octet-stream"],
-            ["msp", "application/octet-stream"],
-            ["msm", "application/octet-stream"],
-            ["docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"],
-            ["xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"],
-            ["pptx", "application/vnd.openxmlformats-officedocument.presentationml.presentation"],
-            ["mid", "audio/midi"],
-            ["midi", "audio/midi"],
-            ["kar", "audio/midi"],
-            ["mp3", "audio/mpeg"],
-            ["ogg", "audio/ogg"],
-            ["m4a", "audio/x-m4a"],
-            ["ra", "audio/x-realaudio"],
-            ["3gpp", "video/3gpp"],
-            ["3gp", "video/3gpp"],
-            ["ts", "video/mp2t"],
-            ["mp4", "video/mp4"],
-            ["mpeg", "video/mpeg"],
-            ["mpg", "video/mpeg"],
-            ["mov", "video/quicktime"],
-            ["webm", "video/webm"],
-            ["flv", "video/x-flv"],
-            ["m4v", "video/x-m4v"],
-            ["mng", "video/x-mng"],
-            ["asx", "video/x-ms-asf"],
-            ["asf", "video/x-ms-asf"],
-            ["wmv", "video/x-ms-wmv"],
-            ["avi", "video/x-msvideo"],
+            [".html", "text/html"],
+            [".htm", "text/html"],
+            [".shtml", "text/html"],
+            [".css", "text/css"],
+            [".xml", "application/xml"],
+            [".gif", "image/gif"],
+            [".jpeg", "image/jpeg"],
+            [".jpg", "image/jpeg"],
+            [".js", "application/javascript"],
+            [".atom", "application/atom+xml"],
+            [".rss", "application/rss+xml"],
+            [".mml", "text/mathml"],
+            [".txt", "text/plain"],
+            [".jad", "text/vnd.sun.j2me.app-descriptor"],
+            [".wml", "text/vnd.wap.wml"],
+            [".htc", "text/x-component"],
+            [".png", "image/png"],
+            [".tif", "image/tiff"],
+            [".tiff", "image/tiff"],
+            [".wbmp", "image/vnd.wap.wbmp"],
+            [".ico", "image/x-icon"],
+            [".jng", "image/x-jng"],
+            [".bmp", "image/x-ms-bmp"],
+            [".svg", "image/svg+xml"],
+            [".svgz", "image/svg+xml"],
+            [".webp", "image/webp"],
+            [".woff", "font/woff"],
+            [".woff2", "font/woff2"],
+            [".jar", "application/java-archive"],
+            [".war", "application/java-archive"],
+            [".ear", "application/java-archive"],
+            [".json", "application/json"],
+            [".hqx", "application/mac-binhex40"],
+            [".doc", "application/msword"],
+            [".pdf", "application/pdf"],
+            [".ps", "application/postscript"],
+            [".eps", "application/postscript"],
+            [".ai", "application/postscript"],
+            [".rtf", "application/rtf"],
+            [".m3u8", "application/vnd.apple.mpegurl"],
+            [".xls", "application/vnd.ms-excel"],
+            [".eot", "application/vnd.ms-fontobject"],
+            [".ppt", "application/vnd.ms-powerpoint"],
+            [".wmlc", "application/vnd.wap.wmlc"],
+            [".kml", "application/vnd.google-earth.kml+xml"],
+            [".kmz", "application/vnd.google-earth.kmz"],
+            [".7z", "application/x-7z-compressed"],
+            [".cco", "application/x-cocoa"],
+            [".jardiff", "application/x-java-archive-diff"],
+            [".jnlp", "application/x-java-jnlp-file"],
+            [".run", "application/x-makeself"],
+            [".pl", "application/x-perl"],
+            [".pm", "application/x-perl"],
+            [".prc", "application/x-pilot"],
+            [".pdb", "application/x-pilot"],
+            [".rar", "application/x-rar-compressed"],
+            [".rpm", "application/x-redhat-package-manager"],
+            [".sea", "application/x-sea"],
+            [".swf", "application/x-shockwave-flash"],
+            [".sit", "application/x-stuffit"],
+            [".tcl", "application/x-tcl"],
+            [".tk", "application/x-tcl"],
+            [".der", "application/x-x509-ca-cert"],
+            [".pem", "application/x-x509-ca-cert"],
+            [".crt", "application/x-x509-ca-cert"],
+            [".xpi", "application/x-xpinstall"],
+            [".xhtml", "application/xhtml+xml"],
+            [".xspf", "application/xspf+xml"],
+            [".zip", "application/zip"],
+            [".bin", "application/octet-stream"],
+            [".exe", "application/octet-stream"],
+            [".dll", "application/octet-stream"],
+            [".deb", "application/octet-stream"],
+            [".dmg", "application/octet-stream"],
+            [".iso", "application/octet-stream"],
+            [".img", "application/octet-stream"],
+            [".msi", "application/octet-stream"],
+            [".msp", "application/octet-stream"],
+            [".msm", "application/octet-stream"],
+            [".docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"],
+            [".xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"],
+            [".pptx", "application/vnd.openxmlformats-officedocument.presentationml.presentation"],
+            [".mid", "audio/midi"],
+            [".midi", "audio/midi"],
+            [".kar", "audio/midi"],
+            [".mp3", "audio/mpeg"],
+            [".ogg", "audio/ogg"],
+            [".m4a", "audio/x-m4a"],
+            [".ra", "audio/x-realaudio"],
+            [".3gpp", "video/3gpp"],
+            [".3gp", "video/3gpp"],
+            [".ts", "video/mp2t"],
+            [".mp4", "video/mp4"],
+            [".mpeg", "video/mpeg"],
+            [".mpg", "video/mpeg"],
+            [".mov", "video/quicktime"],
+            [".webm", "video/webm"],
+            [".flv", "video/x-flv"],
+            [".m4v", "video/x-m4v"],
+            [".mng", "video/x-mng"],
+            [".asx", "video/x-ms-asf"],
+            [".asf", "video/x-ms-asf"],
+            [".wmv", "video/x-ms-wmv"],
+            [".avi", "video/x-msvideo"],
         ];
 
         // @todo load keys from database or create and save them.
@@ -837,7 +843,7 @@ class Server {
 
             // Read dir recursively.
             if (libfs.statSync(path).isDirectory()) {
-                this.create_static_endpoints(base, path);
+                this._create_static_endpoints(base, path);
             }
 
             // Add file.
@@ -863,19 +869,19 @@ class Server {
                 method: "GET",
                 endpoint: "/vweb/vweb.css",
                 content_type: "text/css",
-                path: `${__dirname}/../../include/vweb/ui/css/vweb.css`,
+                path: `${__dirname}/../frontend/css/vweb.css`,
             },
-            {
-                method: "GET",
-                endpoint: "/vweb/vhighlight.css",
-                content_type: "text/css",
-                path: `${__dirname}/../../include/vweb/ui/css/vhighlight.css`,
-            },
+            // {
+            //     method: "GET",
+            //     endpoint: "/vweb/vhighlight.css",
+            //     content_type: "text/css",
+            //     path: `${__dirname}/../frontend/css/vhighlight.css`,
+            // },
             {
                 method: "GET",
                 endpoint: "/vweb/vweb.js",
                 content_type: "application/javascript",
-                path: `${__dirname}/../../include/vweb/ui/js/vweb.js`,
+                path: `${__dirname}/../frontend/vweb.js`,
             },
         ]
         defaults.iterate((item) => {
@@ -1009,6 +1015,8 @@ class Server {
     // @todo implement rate limiting.
     async _serve(request, response) {
         return new Promise((resolve) => {
+            request = new Request(request);
+            await request.promise;
             response = new Response(response);
 
             // Log endpoint result.
@@ -1085,18 +1093,22 @@ class Server {
     start() {
 
         // Inside file watcher process.
-        if (this.https === undefined) {
+        if (this.https === undefined && this.http === undefined) {
             return null;
         }
 
         // Initialize.
         this._initialize();
 
-        // Listen.
-        this.https.listen(this.port, this.ip, () => {
-            console.log(`Running on ${this.ip}:${this.port}.`); // @warning if you change this running on text you should update vide::BuildSystem since that depends on this log line.
-        });
-        this.https.on("error", (error) => {
+        // Callbacks.
+        let is_running = false;
+        const on_running = () => {
+            if (!is_running) {
+                is_running = true;
+                console.log(`Running on ${this.ip}:${this.port}.`); // @warning if you change this running on text you should update vide::BuildSystem since that depends on this log line.
+            }
+        }
+        const on_error = (error) => {
             if (error.syscall !== 'listen') {
                 throw error; // This is a system error, not related to server listening
             }
@@ -1112,10 +1124,15 @@ class Server {
                 default:
                     throw error;
             }
-        });
-        // this.https.on("close", () => {
-        //     process.exit(0);
-        // })
+        }
+
+        // Listen.
+        if (this.https !== undefined) {
+            this.https.listen(this.port, this.ip, on_running);
+            this.https.on("error", on_error);
+        }
+        this.http.listen(this.port, this.ip, on_running);
+        this.http.on("error", on_error);
 
         // Set signals.
         process.on('SIGTERM', () => process.exit(0)); // the "this.https.close()" handler does not always get executed when run from vide build system, so use "process.exit()" instead.
@@ -1124,10 +1141,15 @@ class Server {
 
     // Stop the server and exit the program.
     stop() {
-        if (this.https === undefined) {
+        if (this.https === undefined && this.http === undefined) {
             return null; // inside file watcher process.
         }
-        this.https.close((code) => { 
+        if (this.https !== undefined) {
+            this.https.close((code) => { 
+                process.exit(0);
+            });
+        }
+        this.http.close((code) => { 
             process.exit(0);
         });
     }
@@ -2263,14 +2285,14 @@ class Server {
                 .replaceAll("{{2FA}}", auth.code)
                 .replaceAll("{{USERNAME}}", user.username)
                 .replaceAll("{{DATE}}", (new Date()).toUTCString())
-                .replaceAll("{{IP}}", request.connection.remoteAddress)
+                .replaceAll("{{IP}}", request.ip)
                 .replaceAll("{{DEVICE}}", device ? device : "Unknown");    
         } else {
             body = mail_body
                 .replaceAll("{{2FA}}", auth.code)
                 .replaceAll("{{USERNAME}}", user.username)
                 .replaceAll("{{DATE}}", (new Date()).toUTCString())
-                .replaceAll("{{IP}}", request.connection.remoteAddress)
+                .replaceAll("{{IP}}", request.ip)
                 .replaceAll("{{DEVICE}}", device ? device : "Unknown");
         }
         

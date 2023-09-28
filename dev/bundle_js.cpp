@@ -13,15 +13,19 @@ int main() {
 		// aaaaa	aaa	
 	// Array<Int> x;
 	// auto y = x[0];
+		
+	// Global paths.
+	Path vweb = Path(__FILE__).base(2);
+	Path vinc = Path(__FILE__).base(3);
 	
 	// Vars.
-	Path js = Path(__FILE__).base(2).join("include/vweb/ui/js");
-	Path css = Path(__FILE__).base(2).join("include/vweb/ui/css");
+	Path js = vweb.join("js/frontend");
+	Path css = vweb.join("js/frontend/css");
 	
 	// Include vhighlight.
-	Path vinc = Path(__FILE__).base(3);
-	vinc.join("vhighlight/include/vhighlight/js/vhighlight.js").cp(js.join("libs/vhighlight.js"));
-	vinc.join("vhighlight/include/vhighlight/css/vhighlight.css").cp(css.join("vhighlight.css"));
+	// Path css = vweb.join("include/vweb/ui/css");
+	// vinc.join("vhighlight/include/vhighlight/js/vhighlight.js").cp(js.join("libs/vhighlight.js"));
+	// vinc.join("vhighlight/include/vhighlight/css/vhighlight.css").cp(css.join("vhighlight.css"));
 	
 	// Bundle js dir.
 	Code bundled = vlib::JavaScript::bundle({
@@ -38,6 +42,7 @@ int main() {
 		},
 		.exclude = {
 			"vweb.js",
+			"css",
 			// "libs/pako.min.js",
 		},
 		.header = to_str(
