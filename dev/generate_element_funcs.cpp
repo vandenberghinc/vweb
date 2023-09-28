@@ -812,6 +812,7 @@ int main() {
 		"name", // since the class name is required for "vweb.elements.register".
 		"on_scroll", // limits recalling with clearTimeout.
 		"opacity", // custom opacity func.
+		"on_context_menu", // custom func.
 	};
 	
 	// Pad numeric funcs.

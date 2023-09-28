@@ -1575,6 +1575,32 @@ this.on_shortcut_keycode=event.keyCode;
 }
 }
 }
+on_context_menu(callback){
+if(callback==null){
+if(this._context_menu!==undefined){
+return this._context_menu;
+}else{
+return this.oncontextmenu;
+}
+}
+if(callback instanceof ContextMenuElement||callback.element_type==="ContextMenu"){
+this._context_menu=callback;
+const _this_=this;
+this.oncontextmenu=(event)=>{
+this._context_menu.popup(event);
+};
+}else if(Array.isArray(callback)){
+this._context_menu=callback;
+const _this_=this;
+this.oncontextmenu=(event)=>{
+ContextMenu(callback).popup(event);
+};
+}else{
+const _this_=this;
+this.oncontextmenu=(event)=>callback(_this_,event);
+}
+return this;
+}
 first_child(){
 return this.firstChild;
 }
@@ -4012,12 +4038,6 @@ const e=this;
 this.onchange=(t)=>callback(e,t);
 return this;
 }
-on_context_menu(callback){
-if(callback==null){return this.oncontextmenu;}
-const e=this;
-this.oncontextmenu=(t)=>callback(e,t);
-return this;
-}
 on_focus(callback){
 if(callback==null){return this.onfocus;}
 const e=this;
@@ -4926,6 +4946,67 @@ return this.gradient;
 }
 }
 function Gradient(...args){return new GradientType(...args);};
+
+
+class ContextMenuElement extends VStackElement{
+constructor(content){
+super();
+this.element_type="ContextMenu";
+content.iterate((item)=>{
+if(item==null){
+return null;
+}
+else if(typeof item==="object"){
+const button=Button(item.label)
+.padding(5,10,5,10)
+.margin(0)
+.font_size(12)
+.leading()
+.background("#FFFFFF15")
+.border_radius(0)
+if(typeof item.on_click==="function"){
+button.on_click((element,event)=>item.on_click(element,event,this));
+}
+if(typeof item.on_render==="function"){
+button.on_render((element)=>item.on_render(element));
+}
+this.append(button);
+}else{
+this.append(item);
+}
+})
+this
+.z_index(2).padding(5,0,5,0)
+.color("white")
+.background("gray")
+.box_shadow("0px 0px 10px #00000050")
+.border_radius(10)
+.min_width(150)
+this.remove_child_callback=()=>{
+if(!this.contains(event.target)){
+this.remove();
+}
+document.body.removeEventListener("mousedown",this.remove_child_callback);
+}
+}
+popup(event){
+event.preventDefault();
+super.show();
+this.position(event.clientY,null,null,event.clientX)
+document.body.appendChild(this);
+document.body.addEventListener("mousedown",this.remove_child_callback);
+}
+close(){
+super.remove();
+document.body.removeEventListener("mousedown",this.remove_child_callback);
+}
+remove(){
+super.remove();
+document.body.removeEventListener("mousedown",this.remove_child_callback);
+}
+}
+vweb.elements.register(ContextMenuElement);
+function ContextMenu(...args){return new ContextMenuElement(...args);}
 
 const SpacerElement=CreateVElementClass({
 type:"Spacer",

@@ -2003,6 +2003,48 @@ function CreateVElementClass({
 			}
 		}
 
+		// Script to be run when a context menu is triggered.
+        /*	@docs: {
+         *	@title: On context menu
+         *	@description: 
+         *		Script to be run when a context menu is triggered.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: callback
+         *		@description: 
+         *			The parameter may either be a callback function, a ContextMenu object or an Array as the ContextMenu parameter.
+         *		@name: function, ContextMenu, array
+         *	}: 
+         *	@inherit: false
+         } */ 
+        on_context_menu(callback) {
+            if (callback == null) {
+            	if (this._context_menu !== undefined) {
+            		return this._context_menu;
+            	} else {
+            		return this.oncontextmenu;
+            	}
+            }
+            if (callback instanceof ContextMenuElement || callback.element_type === "ContextMenu") {
+            	this._context_menu = callback;
+            	const _this_ = this;
+        		this.oncontextmenu = (event) => {
+        			this._context_menu.popup(event);
+        		};
+        	} else if (Array.isArray(callback)) {
+            	this._context_menu = callback;
+            	const _this_ = this;
+        		this.oncontextmenu = (event) => {
+        			ContextMenu(callback).popup(event);
+        		};
+            } else {
+            	const _this_ = this;
+        		this.oncontextmenu = (event) => callback(_this_, event);
+            }
+        	return this;
+        }
+
 		/*  @docs: {
 		 *  @title: On gesture
 		 *  @description: Create touch gesture events.
@@ -11928,31 +11970,6 @@ function CreateVElementClass({
             if (callback == null) { return this.onchange; }
         	const e = this;
         	this.onchange = (t) => callback(e, t);
-        	return this;
-        }
-
-        // Script to be run when a context menu is triggered.
-        /*	@docs: {
-         *	@title: On context menu
-         *	@description: 
-         *		Script to be run when a context menu is triggered.
-         *		The equivalent of HTML attribute `oncontextmenu`.
-         *		
-         *		The first parameter of the callback is the `Element` object.
-         *		
-         *		Returns the attribute value when parameter `value` is `null`.
-         *	@return: 
-         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
-         *		@name: value
-         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-         *	}: 
-         *	@inherit: false
-         } */ 
-        on_context_menu(callback) {
-            if (callback == null) { return this.oncontextmenu; }
-        	const e = this;
-        	this.oncontextmenu = (t) => callback(e, t);
         	return this;
         }
 
