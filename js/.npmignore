@@ -1,0 +1,34 @@
+# Project dependent files.
+# ...
+
+# Git files.
+/.git*
+
+# npm files.
+.npmignore
+/node_modules
+package-lock.json
+Info.plist
+icon.icns
+
+# VIDE files.
+.vide
+
+# VPackage files.
+.vpackage
+
+# VDocs files.
+/docs
+.vdocs
+
+# VWeb files.
+/.db
+
+# others.
+/test.js
+/.old
+/bin
+/dist
+/test
+/tests
+recents

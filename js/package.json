@@ -1,8 +1,8 @@
 {
-  "name": "vweb",
+  "name": "@vandenberghinc/vweb",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "backend/vweb.js",
   "scripts": {
     "start": "node start.js"
   },
