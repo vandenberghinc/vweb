@@ -10,8 +10,6 @@ const Meta = require(`${__dirname}/meta.js`);
 
 // ---------------------------------------------------------
 // View.
-// @todo create js parser that parses all included js scripts and allows things such as a @preprocessor, and allows function parameter keyword assignment.
-// @todo js parser should also convert a 100% etc integer to a string.
 /*  @docs: {
     @title: View
     @description: The js view class.
