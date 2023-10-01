@@ -163,50 +163,97 @@ vweb.utils.url_encode = function(params) {
 
 // Request.
 vweb.utils.request = function({
-	method = :GET,
-	url = null,
-	data = null,
-	async = true,
-	success = null,
-	error = null,
-	before = null,
+	method = "GET",			// method.
+	url = null,				// url or endpoint.
+	params = null,			// params.
+	json = true, 			// json response.
+	credentials = "true",
 }) {
-	if (data != null && !vweb.utils.is_string(data)) {
-		data = JSON.stringify(data);
+	if (params != null && !vweb.utils.is_string(params)) {
+		params = JSON.stringify(params);
 	}
-	if (before != null) {
-		before();
-	}
-	$.ajax({
-		url: url,
-		data: data,
-		type: method,
-		async: async,
-		credentials: "true",
-		mimeType: "application/json",
-		contentType: "application/json",
-		dataType: "json",
-		success: function (response, status, xhr) {
-			if (success == null) { return null; }
-			return success(xhr.status, response);
-		},
-		error: function(xhr, status, e) {
-			if (error == null) { return null; }
-			let response;
-			try {
-				response = JSON.parse(xhr.responseText);
-			} catch (e) {
-				response = {"error": xhr.responseText == null ? e : xhr.responseText};
+	return new Promise((resolve, reject) => {
+		$.ajax({
+			type: method,
+			url: url,
+			data: params,
+			dataType: json ? "json" : null,
+			mimeType: json ? "application/json" : "text/plain",
+			contentType: "application/json",
+			credentials: credentials,
+			async: true,
+			success: function (data, _, response) {
+				resolve({status: response.status, data: data, response: response});
+			},
+			error: function(xhr, status, e) {
+				let response;
+				console.log(e);
+				try {
+					response = JSON.parse(xhr.responseText);
+					if (response.status === undefined) {
+						response.status = xhr.status;
+					}
+				} catch (e) {
+					response = {error: xhr.responseText == null ? e : xhr.responseText, status: xhr.status};
+				}
+				reject(response)
 			}
-			return error(xhr.status, response)
-		}
-	})
+		})
+	});
 }
+// vweb.utils.request = function({
+// 	method = "GET",
+// 	url = null,
+// 	data = null,
+// 	async = true,
+// 	success = null,
+// 	error = null,
+// 	before = null,
+// }) {
+// 	if (data != null && !vweb.utils.is_string(data)) {
+// 		data = JSON.stringify(data);
+// 	}
+// 	if (before != null) {
+// 		before();
+// 	}
+// 	return $.ajax({
+// 		url: url,
+// 		data: data,
+// 		type: method,
+// 		async: async,
+// 		credentials: "true",
+// 		mimeType: "application/json",
+// 		contentType: "application/json",
+// 		dataType: "json",
+// 		success: function (response, status, xhr) {
+// 			if (success == null) { return null; }
+// 			return success(xhr.status, response);
+// 		},
+// 		error: function(xhr, status, e) {
+// 			if (error == null) { return null; }
+// 			let response;
+// 			try {
+// 				response = JSON.parse(xhr.responseText);
+// 			} catch (e) {
+// 				response = {"error": xhr.responseText == null ? e : xhr.responseText};
+// 			}
+// 			return error(xhr.status, response)
+// 		}
+// 	})
+// }
 
 // On content loaded.
 vweb.utils.on_load = function(func) {
-	document.addEventListener("DOMContentLoaded", function() {
+	document.addEventListener("DOMContentLoaded", async () => {
 		let e = func();
+		if (e instanceof Promise) {
+			try {
+				e = await e;
+			} catch (err) {
+				console.error(err);
+				return null;
+			}
+		}
 		if (e != null) {
 			document.body.appendChild(e);
 		}

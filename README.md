@@ -4,7 +4,7 @@
 Easily create websites or REST APIs in pure c++ with the library VWeb. Website views are built in a SwiftUI like manner. The backend can run on on HTTP only or on HTTP and HTTPS both.
 <br><br>
 <p align="center">
-    <img src="https://img.shields.io/badge/version-1.1.2-orange" alt="Bergh-Encryption">
+    <img src="https://img.shields.io/badge/version-{{VERSION}}-orange" alt="Bergh-Encryption">
     <img src="https://img.shields.io/badge/std-c++20-orange" alt="Bergh-Encryption">
     <img src="https://img.shields.io/badge/status-maintained-forestgreen" alt="Bergh-Encryption">
     <img src="https://img.shields.io/badge/dependencies-vlib-yellow" alt="Bergh-Encryption">

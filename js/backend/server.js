@@ -8,18 +8,18 @@
 
 const https = require("https");
 const http = require("http");
-const libfs = require("fs");
-const libpath = require("path")
-const libcrypto = require('crypto');
+const libcrypto = require("crypto");
 const libnodemailer = require('nodemailer');
 
 // ---------------------------------------------------------
 // Imports.
 
-const Mutex = require(`${__dirname}/mutex.js`);
-const Endpoint = require(`${__dirname}/endpoint.js`);
-const Response = require(`${__dirname}/response.js`);
-const FileWatcher = require(`${__dirname}/file_watcher.js`);
+const {vlib, vhighlight} = require("./vinc.js");
+const Mutex = require("./mutex.js");
+const Endpoint = require("./endpoint.js");
+const Response = require("./response.js");
+const Request = require("./request.js");
+const FileWatcher = require("./file_watcher.js");
 
 // ---------------------------------------------------------
 // The server object.
@@ -119,6 +119,117 @@ const FileWatcher = require(`${__dirname}/file_watcher.js`);
  *  }
  } */
 class Server {
+
+    // Mimes for content type detection.
+    // Must be defined before creating static endpoints.
+    static content_type_mimes = [
+        [".html", "text/html"],
+        [".htm", "text/html"],
+        [".shtml", "text/html"],
+        [".css", "text/css"],
+        [".xml", "application/xml"],
+        [".gif", "image/gif"],
+        [".jpeg", "image/jpeg"],
+        [".jpg", "image/jpeg"],
+        [".js", "application/javascript"],
+        [".atom", "application/atom+xml"],
+        [".rss", "application/rss+xml"],
+        [".mml", "text/mathml"],
+        [".txt", "text/plain"],
+        [".jad", "text/vnd.sun.j2me.app-descriptor"],
+        [".wml", "text/vnd.wap.wml"],
+        [".htc", "text/x-component"],
+        [".png", "image/png"],
+        [".tif", "image/tiff"],
+        [".tiff", "image/tiff"],
+        [".wbmp", "image/vnd.wap.wbmp"],
+        [".ico", "image/x-icon"],
+        [".jng", "image/x-jng"],
+        [".bmp", "image/x-ms-bmp"],
+        [".svg", "image/svg+xml"],
+        [".svgz", "image/svg+xml"],
+        [".webp", "image/webp"],
+        [".woff", "font/woff"],
+        [".woff2", "font/woff2"],
+        [".jar", "application/java-archive"],
+        [".war", "application/java-archive"],
+        [".ear", "application/java-archive"],
+        [".json", "application/json"],
+        [".hqx", "application/mac-binhex40"],
+        [".doc", "application/msword"],
+        [".pdf", "application/pdf"],
+        [".ps", "application/postscript"],
+        [".eps", "application/postscript"],
+        [".ai", "application/postscript"],
+        [".rtf", "application/rtf"],
+        [".m3u8", "application/vnd.apple.mpegurl"],
+        [".xls", "application/vnd.ms-excel"],
+        [".eot", "application/vnd.ms-fontobject"],
+        [".ppt", "application/vnd.ms-powerpoint"],
+        [".wmlc", "application/vnd.wap.wmlc"],
+        [".kml", "application/vnd.google-earth.kml+xml"],
+        [".kmz", "application/vnd.google-earth.kmz"],
+        [".7z", "application/x-7z-compressed"],
+        [".cco", "application/x-cocoa"],
+        [".jardiff", "application/x-java-archive-diff"],
+        [".jnlp", "application/x-java-jnlp-file"],
+        [".run", "application/x-makeself"],
+        [".pl", "application/x-perl"],
+        [".pm", "application/x-perl"],
+        [".prc", "application/x-pilot"],
+        [".pdb", "application/x-pilot"],
+        [".rar", "application/x-rar-compressed"],
+        [".rpm", "application/x-redhat-package-manager"],
+        [".sea", "application/x-sea"],
+        [".swf", "application/x-shockwave-flash"],
+        [".sit", "application/x-stuffit"],
+        [".tcl", "application/x-tcl"],
+        [".tk", "application/x-tcl"],
+        [".der", "application/x-x509-ca-cert"],
+        [".pem", "application/x-x509-ca-cert"],
+        [".crt", "application/x-x509-ca-cert"],
+        [".xpi", "application/x-xpinstall"],
+        [".xhtml", "application/xhtml+xml"],
+        [".xspf", "application/xspf+xml"],
+        [".zip", "application/zip"],
+        [".bin", "application/octet-stream"],
+        [".exe", "application/octet-stream"],
+        [".dll", "application/octet-stream"],
+        [".deb", "application/octet-stream"],
+        [".dmg", "application/octet-stream"],
+        [".iso", "application/octet-stream"],
+        [".img", "application/octet-stream"],
+        [".msi", "application/octet-stream"],
+        [".msp", "application/octet-stream"],
+        [".msm", "application/octet-stream"],
+        [".docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"],
+        [".xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"],
+        [".pptx", "application/vnd.openxmlformats-officedocument.presentationml.presentation"],
+        [".mid", "audio/midi"],
+        [".midi", "audio/midi"],
+        [".kar", "audio/midi"],
+        [".mp3", "audio/mpeg"],
+        [".ogg", "audio/ogg"],
+        [".m4a", "audio/x-m4a"],
+        [".ra", "audio/x-realaudio"],
+        [".3gpp", "video/3gpp"],
+        [".3gp", "video/3gpp"],
+        [".ts", "video/mp2t"],
+        [".mp4", "video/mp4"],
+        [".mpeg", "video/mpeg"],
+        [".mpg", "video/mpeg"],
+        [".mov", "video/quicktime"],
+        [".webm", "video/webm"],
+        [".flv", "video/x-flv"],
+        [".m4v", "video/x-m4v"],
+        [".mng", "video/x-mng"],
+        [".asx", "video/x-ms-asf"],
+        [".asf", "video/x-ms-asf"],
+        [".wmv", "video/x-ms-wmv"],
+        [".avi", "video/x-msvideo"],
+    ]
+
+    // Constructor.
     constructor({
         ip = "127.0.0.1",
         port = 8000,
@@ -167,14 +278,14 @@ class Server {
         this.port = port;
         this.ip = ip;
         if (certificate != null) {
-            this.certificate = libfs.readFileSync(certificate, 'utf8');
+            this.certificate = new vlib.Path(certificate).load('utf8');
         }
         if (private_key != null) {
-            this.private_key = libfs.readFileSync(private_key, 'utf8');
+            this.private_key = new vlib.Path(private_key).load('utf8');
         }
         this.domain = domain;
-        this.statics = statics;
-        this.database = database;
+        this.statics = statics.map((path) => new vlib.Path(path));
+        this.database = new vlib.Path(database);
         this.enable_2fa = enable_2fa;
         this.production = production;
         this.token_expiration = token_expiration;
@@ -209,12 +320,29 @@ class Server {
 
         // File watcher.
         if (file_watcher != null && process.env.VWEB_FILE_WATCHER != '1') {
-            if (typeof file_watcher === "string") {
+
+            // Create default endpoints.
+            let additional_paths = this._create_default_endpoints();
+
+            // Create static endpoints.
+            this.statics.iterate((path) => {
+                additional_paths = additional_paths.concat(this._create_static_endpoints(path.base(), path));
+            });
+
+            // Initialize file watcher.
+            if (typeof file_watcher === "string" || file_watcher instanceof vlib.Path) {
                 this.file_watcher = new FileWatcher({source: file_watcher});
             }
-            else if (!(file_watcher instanceof FileWatcher)) {
+            else if (file_watcher instanceof FileWatcher) {
+                this.file_watcher = file_watcher;
+            } else {
                 this.file_watcher = new FileWatcher(file_watcher);
             }
+
+            // Add default and static endpoints.
+            this.file_watcher.additional_paths = additional_paths;
+            
+            // Start.
             this.file_watcher.start();
             return null;
         }
@@ -238,117 +366,6 @@ class Server {
 
         // The master sha256 hash key.
         this.hash_key = null;
-
-        // Mimes for content type detection.
-        // Must be defined before creating static endpoints.
-        this.content_type_mimes = [
-            [".html", "text/html"],
-            [".htm", "text/html"],
-            [".shtml", "text/html"],
-            [".css", "text/css"],
-            [".xml", "application/xml"],
-            [".gif", "image/gif"],
-            [".jpeg", "image/jpeg"],
-            [".jpg", "image/jpeg"],
-            [".js", "application/javascript"],
-            [".atom", "application/atom+xml"],
-            [".rss", "application/rss+xml"],
-            [".mml", "text/mathml"],
-            [".txt", "text/plain"],
-            [".jad", "text/vnd.sun.j2me.app-descriptor"],
-            [".wml", "text/vnd.wap.wml"],
-            [".htc", "text/x-component"],
-            [".png", "image/png"],
-            [".tif", "image/tiff"],
-            [".tiff", "image/tiff"],
-            [".wbmp", "image/vnd.wap.wbmp"],
-            [".ico", "image/x-icon"],
-            [".jng", "image/x-jng"],
-            [".bmp", "image/x-ms-bmp"],
-            [".svg", "image/svg+xml"],
-            [".svgz", "image/svg+xml"],
-            [".webp", "image/webp"],
-            [".woff", "font/woff"],
-            [".woff2", "font/woff2"],
-            [".jar", "application/java-archive"],
-            [".war", "application/java-archive"],
-            [".ear", "application/java-archive"],
-            [".json", "application/json"],
-            [".hqx", "application/mac-binhex40"],
-            [".doc", "application/msword"],
-            [".pdf", "application/pdf"],
-            [".ps", "application/postscript"],
-            [".eps", "application/postscript"],
-            [".ai", "application/postscript"],
-            [".rtf", "application/rtf"],
-            [".m3u8", "application/vnd.apple.mpegurl"],
-            [".xls", "application/vnd.ms-excel"],
-            [".eot", "application/vnd.ms-fontobject"],
-            [".ppt", "application/vnd.ms-powerpoint"],
-            [".wmlc", "application/vnd.wap.wmlc"],
-            [".kml", "application/vnd.google-earth.kml+xml"],
-            [".kmz", "application/vnd.google-earth.kmz"],
-            [".7z", "application/x-7z-compressed"],
-            [".cco", "application/x-cocoa"],
-            [".jardiff", "application/x-java-archive-diff"],
-            [".jnlp", "application/x-java-jnlp-file"],
-            [".run", "application/x-makeself"],
-            [".pl", "application/x-perl"],
-            [".pm", "application/x-perl"],
-            [".prc", "application/x-pilot"],
-            [".pdb", "application/x-pilot"],
-            [".rar", "application/x-rar-compressed"],
-            [".rpm", "application/x-redhat-package-manager"],
-            [".sea", "application/x-sea"],
-            [".swf", "application/x-shockwave-flash"],
-            [".sit", "application/x-stuffit"],
-            [".tcl", "application/x-tcl"],
-            [".tk", "application/x-tcl"],
-            [".der", "application/x-x509-ca-cert"],
-            [".pem", "application/x-x509-ca-cert"],
-            [".crt", "application/x-x509-ca-cert"],
-            [".xpi", "application/x-xpinstall"],
-            [".xhtml", "application/xhtml+xml"],
-            [".xspf", "application/xspf+xml"],
-            [".zip", "application/zip"],
-            [".bin", "application/octet-stream"],
-            [".exe", "application/octet-stream"],
-            [".dll", "application/octet-stream"],
-            [".deb", "application/octet-stream"],
-            [".dmg", "application/octet-stream"],
-            [".iso", "application/octet-stream"],
-            [".img", "application/octet-stream"],
-            [".msi", "application/octet-stream"],
-            [".msp", "application/octet-stream"],
-            [".msm", "application/octet-stream"],
-            [".docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"],
-            [".xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"],
-            [".pptx", "application/vnd.openxmlformats-officedocument.presentationml.presentation"],
-            [".mid", "audio/midi"],
-            [".midi", "audio/midi"],
-            [".kar", "audio/midi"],
-            [".mp3", "audio/mpeg"],
-            [".ogg", "audio/ogg"],
-            [".m4a", "audio/x-m4a"],
-            [".ra", "audio/x-realaudio"],
-            [".3gpp", "video/3gpp"],
-            [".3gp", "video/3gpp"],
-            [".ts", "video/mp2t"],
-            [".mp4", "video/mp4"],
-            [".mpeg", "video/mpeg"],
-            [".mpg", "video/mpeg"],
-            [".mov", "video/quicktime"],
-            [".webm", "video/webm"],
-            [".flv", "video/x-flv"],
-            [".m4v", "video/x-m4v"],
-            [".mng", "video/x-mng"],
-            [".asx", "video/x-ms-asf"],
-            [".asf", "video/x-ms-asf"],
-            [".wmv", "video/x-ms-wmv"],
-            [".avi", "video/x-msvideo"],
-        ];
-
-        // @todo load keys from database or create and save them.
     }
 
     // ---------------------------------------------------------
@@ -356,7 +373,7 @@ class Server {
 
     // Iterate a subpath directory in the database.
     _iter_db_dir(subpath, callback) {
-        libfs.readdirSync(libpath.join(this.database, subpath)).iterate(callback);
+        this.database.join(subpath).paths_sync().iterate(callback);
     }
 
     // Check of the uid is within the max uid range.
@@ -371,7 +388,7 @@ class Server {
 
     // Get a content type from an extension.
     _sys_get_content_type(extension) {
-        let content_type = this.content_type_mimes.iterate((item) => {
+        let content_type = Server.content_type_mimes.iterate((item) => {
             if (item[0] == extension) {
                 return item[1];
             }
@@ -409,19 +426,14 @@ class Server {
         return key;
     }
 
-    // Load data.
-    // _sys_load_data(path) {
-    //     return libfs.readFileSync(path);
-    // }
-
     // Load data into an object formatted line by line.
     // All data will be loaded as a string.
     // When the path does not exists the input object will be returned.
     _sys_load_data_into_obj(path, obj = {}, keys = []) {
-        if (!libfs.existsSync(path)) {
+        if (!path.exists()) {
             return obj;
         }
-        const data = libfs.readFileSync(path);
+        const data = path.load();
         const key = 0;
         const info = {line: "", line_number: 0}
         for (let i = 0; i < data.length; i++) {
@@ -448,44 +460,23 @@ class Server {
                 data += obj[keys[i]].toString();
             }
         }
-        libfs.writeFileSync(path, data);
-    }
-
-    // Delete a path if it does exist.
-    _sys_delete_path(path) {
-        if (libfs.existsSync(path)) {
-            libfs.unlinkSync(path);
-        }
-    }
-
-    // Delete a directory if it does exist.
-    _sys_delete_dir(path) {
-        if (libfs.existsSync(path)) {
-            libfs.rmdirSync(path, {recursive: true});
-        }
-    }
-
-    // Create a directory if it does not yet exist.
-    _sys_mkdir(path) {
-        if (!libfs.existsSync(path)) {
-            libfs.mkdirSync(path);
-        }
+        path.save_sync(path, data);
     }
 
     // Save or delete uid by username,
     _sys_save_uid_by_username(uid, username) {
-        libfs.writeFileSync(`${this.database}/.sys/usernames/${username}`, uid);
+        this.database.join(`.sys/usernames/${username}`, false).save_sync(uid);
     }
     _sys_delete_uid_by_username(username) {
-        this._sys_delete_path(`${this.database}/.sys/usernames/${username}`);
+        this.database.join(`.sys/usernames/${username}`, false).del_sync();
     }
 
     // Save or delete uid by email,
     _sys_save_uid_by_email(uid, email) {
-        libfs.writeFileSync(`${this.database}/.sys/emails/${email}`, uid);
+        this.database.join(`.sys/emails/${email}`, false).save_sync(uid);
     }
     _sys_delete_uid_by_email(email) {
-        this._sys_delete_path(`${this.database}/.sys/emails/${email}`);
+        this.database.join(`.sys/emails/${email}`, false).del_sync();
     }
 
     /*  Save, load or delete a system user object.
@@ -500,7 +491,7 @@ class Server {
         }
      */
     _sys_load_user(uid) {
-        return this._sys_save_data_into_obj(`${this.database}/.sys/users/${uid}`, {uid: uid}, [
+        return this._sys_save_data_into_obj(this.database.join(`.sys/users/${uid}`, false), {uid: uid}, [
             "first_name",
             "last_name",
             "username",
@@ -511,7 +502,7 @@ class Server {
     }
     _sys_save_user(uid, user) {
         return this._sys_save_data_into_obj(
-            `${this.database}/.sys/users/${uid}`, 
+            this.database.join(`.sys/users/${uid}`, false), 
             user, 
             [
                 "first_name",
@@ -526,7 +517,7 @@ class Server {
     // @todo the parameter requires the full sys user object.
     _sys_delete_user(user) {
         throw Error("@todo the parameter requires the full sys user object.");
-        this._sys_delete_path(`${this.database}/.sys/users/${user.uid}`);
+        this.database.join(`.sys/users/${user.uid}`, false).del_sync();
         this._sys_delete_uid_by_username(user.username);
         this._sys_delete_uid_by_email(user.email);
     }
@@ -539,7 +530,7 @@ class Server {
         }
      */
     _sys_load_user_token(uid) {
-        const obj = this._sys_save_data_into_obj(`${this.database}/.sys/tokens/${uid}`, {expiration: 0}, [
+        const obj = this._sys_save_data_into_obj(this.database.join(`.sys/tokens/${uid}`, false), {expiration: 0}, [
             "expiration",
             "token",
         ]);
@@ -550,7 +541,7 @@ class Server {
     }
     _sys_save_user_token(uid, token) {
         return this._sys_save_data_into_obj(
-            `${this.database}/.sys/tokens/${uid}`, 
+            this.database.join(`.sys/tokens/${uid}`, false), 
             token,
             [
                "expiration",
@@ -559,7 +550,7 @@ class Server {
         );
     }
     _sys_delete_user_token(uid) {
-        this._sys_delete_path(`${this.database}/.sys/tokens/${uid}`);
+        this.database.join(`.sys/tokens/${uid}`, false).del_sync();
     }
 
     /*  Save, load or delete a system user 2fa object used for two factor authentication.
@@ -570,7 +561,7 @@ class Server {
         }
      */
     _sys_load_user_2fa(uid) {
-        const obj = this._sys_save_data_into_obj(`${this.database}/.sys/2fa/${uid}`, {expiration: 0}, [
+        const obj = this._sys_save_data_into_obj(this.database.join(`.sys/2fa/${uid}`, false), {expiration: 0}, [
             "expiration",
             "code",
         ]);
@@ -581,7 +572,7 @@ class Server {
     }
     _sys_save_user_2fa(uid, token) {
         return this._sys_save_data_into_obj(
-            `${this.database}/.sys/2fa/${uid}`, 
+            this.database.join(`.sys/2fa/${uid}`, false), 
             token,
             [
                 "expiration",
@@ -590,7 +581,7 @@ class Server {
         );
     }
     _sys_delete_user_2fa(uid) {
-        this._sys_delete_path(`${this.database}/.sys/2fa/${uid}`);
+        this.database.join(`.sys/2fa/${uid}`, false).del_sync();
     }
 
     // Create a sha hmac with the master key.
@@ -835,31 +826,48 @@ class Server {
 
     // Create static endpoints.
     _create_static_endpoints(base, dir) {
-        const files = libfs.readdirSync(dir);
-        files.iterate((name) => {
+        const exclude = [".DS_Store"]
+        let paths = [];
+        dir.paths_sync().iterate((path) => {
 
-            // Join path.
-            const path = libpath.join(dir, name);
+            // Excluded.
+            if (exclude.includes(path.name())) {
+                return null;
+            }
+
+            // Add to paths.
+            paths.push(path.str());
 
             // Read dir recursively.
-            if (libfs.statSync(path).isDirectory()) {
-                this._create_static_endpoints(base, path);
+            if (path.is_dir()) {
+                paths = paths.concat(this._create_static_endpoints(base, path));
             }
 
             // Add file.
             else {
-                const subpath = path.substr(base.length)
+                const subpath = path.str().substr(base.length)
                 if (subpath.charAt(0) != "/") {
                     subpath = "/" + subpath;
+                }
+                let data = path.load_sync();
+                if (path.extension() === ".js") {
+                    const compiler = new vhighlight.JSCompiler({
+                        line_breaks: true,
+                        double_line_breaks: false,
+                        comments: false,
+                        white_space: false,
+                    })
+                    data = compiler.compile_code(data);
                 }
                 this.endpoint(new Endpoint({
                     method: "GET",
                     endpoint: subpath,
-                    data: libfs.readFileSync(path/*, 'utf8'*/),
-                    content_type: this._sys_get_content_type(libpath.extname(path))
+                    data: data,
+                    content_type: this._sys_get_content_type(path.extension())
                 }))
             }
         })
+        return paths;
     }
 
     // Create default endpoints.
@@ -869,30 +877,39 @@ class Server {
                 method: "GET",
                 endpoint: "/vweb/vweb.css",
                 content_type: "text/css",
-                path: `${__dirname}/../frontend/css/vweb.css`,
+                path: new vlib.Path(`${__dirname}/../frontend/css/vweb.css`),
             },
-            // {
-            //     method: "GET",
-            //     endpoint: "/vweb/vhighlight.css",
-            //     content_type: "text/css",
-            //     path: `${__dirname}/../frontend/css/vhighlight.css`,
-            // },
             {
                 method: "GET",
                 endpoint: "/vweb/vweb.js",
                 content_type: "application/javascript",
-                path: `${__dirname}/../frontend/vweb.js`,
+                path: new vlib.Path(`${__dirname}/../frontend/vweb.js`),
+            },
+            {
+                method: "GET",
+                endpoint: "/vhighlight/vhighlight.css",
+                content_type: "text/css",
+                path: new vlib.Path(vhighlight.web_exports.css),
+            },
+            {
+                method: "GET",
+                endpoint: "/vhighlight/vhighlight.js",
+                content_type: "application/javascript",
+                path: new vlib.Path(vhighlight.web_exports.js),
             },
         ]
+        const paths = [];
         defaults.iterate((item) => {
             this.endpoint(new Endpoint({
                 method: item.method,
                 endpoint: item.endpoint,
-                data: libfs.readFileSync(item.path/*, 'utf8'*/),
+                data: item.path.load_sync(),
                 content_type: item.content_type,
                 compress: item.compress,
             }))
+            paths.push(item.path.str());
         })
+        return paths;
     }
 
     // Create the sitemap endpoint.
@@ -937,8 +954,8 @@ class Server {
     _initialize() {
 
         // Check & create database.
-        if (!libfs.existsSync(this.database)) {
-            this._sys_mkdir(this.database);
+        if (this.database.exists()) {
+            this.database.mkdir_sync();
         }
         [
             ".sys",
@@ -951,18 +968,18 @@ class Server {
             ".sys/2fa",
             "users",
         ].iterate((subpath) => {
-            this._sys_mkdir(libpath.join(this.database, subpath));
+            this.database.join(subpath).mkdir_sync();
         })
         
         // Load keys.
-        const path = libpath.join(this.database, ".sys/keys/keys");
-        if (!libfs.existsSync(path)) {
+        const path = this.database.join(".sys/keys/keys");
+        if (!path.exists()) {
             this.hash_key = this._sys_generate_crypto_key(32);
-            libfs.writeFileSync(path, JSON.stringify({
+            path.save_sync(JSON.stringify({
                 sha256: this.has_key,
             }));
         } else {
-            const data = JSON.parse(libfs.readFileSync(path));
+            const data = JSON.parse(path.load_sync());
             this.hash_key = data["sha256"];
         }
         
@@ -980,7 +997,7 @@ class Server {
 
         // Create static endpoints.
         this.statics.iterate((path) => {
-            this._create_static_endpoints(libpath.dirname(path), path);
+            this._create_static_endpoints(path.base(), path);
         });
         
         // Create sitemap when it does not exist.
@@ -1014,25 +1031,41 @@ class Server {
     // Serve a client.
     // @todo implement rate limiting.
     async _serve(request, response) {
-        return new Promise((resolve) => {
-            request = new Request(request);
-            await request.promise;
-            response = new Response(response);
+        return new Promise(async (resolve) => {
 
             // Log endpoint result.
-            const log_endpoint_result = () => {
-                console.log(`${Date.now()} ${method} ${url}: ${response.status_message} [${response.status_code}].`);
+            const log_endpoint_result = (message = null, status = null) => {
+                console.log(`${Date.now()} ${method} ${endpoint_url}: ${message === null ? response.status_message : message} [${status === null ? response.status_code : status}].`);
             }
 
-            // Parse the request method and URL
-            const { method, url } = request;
+            // Initialize the request and wait till all the data has come in.
+            request = new Request(request);
+            await request.promise;
+
+            // Parse the request parameters.
+            try {
+                request._parse_params();
+            } catch (err) {
+                response.send({
+                    status: 400, 
+                    headers: {"Content-Type": "text/plain"},
+                    data: `Bad Request - ${err}`,
+                });
+                log_endpoint_result();
+                return resolve();
+            }
+
+            // Initialize the response.
+            response = new Response(response);
 
             // Set default headers.
             this._set_header_defaults(response);
 
             // Check if the request matches any of the defined endpoints
+            const method = request.method;
+            const endpoint_url = request.endpoint;
             const endpoint = this.endpoints.find((endpoint) => {
-                return endpoint.method === method && endpoint.endpoint === url;
+                return endpoint.method === method && endpoint.endpoint === endpoint_url;
             });
 
             // No endpoint found.
@@ -1059,7 +1092,6 @@ class Server {
             try {
                 endpoint._serve(request, response);
             } catch (err) {
-                console.error(`${method} ${url}: Internal Server Error.`);
                 console.error(err);
                 response.send({
                     status: 500, 
@@ -1072,12 +1104,14 @@ class Server {
 
             // Check if the response has been sent.
             if (!response.finished) {
-                console.error(`${method} ${url}: Unfinished response.`);
+                console.error(`${Date.now()} ${method} ${endpoint_url}: Unfinished response.`);
                 response.send({
                     status: 500, 
                     headers: {"Content-Type": "text/plain"},
                     data: "Internal Server Error",
                 });
+                log_endpoint_result();
+                return resolve();
             }
 
             // Log.
@@ -1172,7 +1206,7 @@ class Server {
      *      const exists = server.username_exists("someusername");
      } */
     username_exists(username) {
-        return libfs.existsSync(`${this.database}/.sys/usernames/${username}`);
+        return this.database.join(`.sys/usernames/${username}`, false).exists();
     }
     
     // Check if an email exists.
@@ -1190,7 +1224,7 @@ class Server {
      *      Bool exists = server.email_exists("some\@email.com");
      } */
     email_exists(email) {
-        return libfs.existsSync(`${this.database}/.sys/emails/${email}`);
+        return this.database.join(`.sys/emails/${email}`, false).exists();
     }
     
     // Check if a user account is activated.
@@ -1208,7 +1242,7 @@ class Server {
      *      Bool activated = server.is_activated(0);
      } */
     is_activated(uid) {
-        return !libfs.existsSync(`${this.database}/.sys/unactivated/${uid}`);
+        return !this.database.join(`.sys/unactivated/${uid}`, false).exists();
     }
     
     // Set the activated status of a user account is activated.
@@ -1231,7 +1265,7 @@ class Server {
      } */
     set_activated(uid, activated) {
         if (activated == true) {
-            this._sys_delete_path(`${this.database}/.sys/unactivated/${uid}`);
+            this.database.join(`.sys/unactivated/${uid}`, false).del_sync();
         } else {
             libfd.writeFileSync(`${this.database}/.sys/unactivated/${uid}`, "");
         }
@@ -1314,7 +1348,7 @@ class Server {
         this.set_activated(uid, false);
         
         // Create user dir.
-        this._sys_mkdir(`${this.database}/users/${uid}/`);
+        this.database.join(`/users/${uid}/`).mkdir_sync();
         
         // Return uid.
         return uid;
@@ -1337,7 +1371,7 @@ class Server {
     delete_user(uid) {
         this._check_uid_within_range(uid);
         this._sys_delete_user(uid);
-        this._sys_delete_dir(`${this.database}/users/${uid}`);
+        this.database.join(`users/${uid}`, false).del_sync();
     }
     
     // Set a user's first name.
@@ -1574,9 +1608,9 @@ class Server {
         if (username == null) {
             return null;
         }
-        const path = `${this.database}/.sys/usernames/${username}`;
-        if (libfs.existsSync(path)) {
-            const uid = parseInt(libfs.readFileSync(path));
+        const path = this.database.join(`.sys/usernames/${username}`, false);
+        if (path.exists()) {
+            const uid = parseInt(path.load_sync());
             if (isNaN(uid)) {
                 return null;
             }
@@ -1607,9 +1641,9 @@ class Server {
         if (email == null) {
             return null;
         }
-        const path = `${this.database}/.sys/emails/${email}`;
-        if (libfs.existsSync(path)) {
-            const uid = parseInt(libfs.readFileSync(path));
+        const path = this.database.join(`.sys/emails/${email}`, false);
+        if (path.exists()) {
+            const uid = parseInt(path.load_sync());
             if (isNaN(uid)) {
                 return null;
             }
@@ -1829,8 +1863,8 @@ class Server {
      } */
     load_user_data(uid, subpath, type) {
         this._check_uid_within_range(uid);
-        const path = `${this.database}/users/${uid}/${subpath}`;
-        if (!libfs.existsSync(path)) {
+        const path = this.database.join(`users/${uid}/${subpath}`, false);
+        if (!path.exists()) {
             if (type === "string") {
                 return "";
             } else if (type === "array") {
@@ -1841,7 +1875,7 @@ class Server {
                 throw Error(`Invalid data type "${type}", the valid options are ["string", "array", "object"].`);
             }
         }
-        const data = libfs.readFileSync(path);
+        const data = path.load_sync();
         if (type === "string") {
             return data;
         } else if (type === "array" || type === "object") {
@@ -1880,11 +1914,11 @@ class Server {
      } */
     save_user_data(uid, subpath, data) {
         this._check_uid_within_range(uid);
-        const path = `${this.database}/users/${uid}/${subpath}`;
+        const path = this.database.join(`users/${uid}/${subpath}`, false);
         if (type === "string") {
-            libfs.writeFileSync(path, data);
+            path.save_sync(data);
         } else if (type === "array" || type === "object") {
-            libfs.writeFileSync(path, JSON.stringify(data));
+            path.save_sync(JSON.stringify(data));
         } else {
             throw Error(`Invalid data type "${type}", the valid options are ["string", "array", "object"].`);
         }
@@ -2184,7 +2218,7 @@ class Server {
             const attached_files = [];
             attachments.iterate((path) => {
                 attached_files.push({
-                    filename: libpath.basename(path),
+                    filename: new vlib.Path(path).name(),
                     path: path,
                 })
             })

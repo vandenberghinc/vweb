@@ -4,6 +4,11 @@
  */
 
 // ---------------------------------------------------------
+// Libraries.
+
+const {vhighlight} = require("./vinc.js");
+
+// ---------------------------------------------------------
 // Imports.
 
 const Meta = require(`${__dirname}/meta.js`);
@@ -30,9 +35,18 @@ const Meta = require(`${__dirname}/meta.js`);
     }
     @parameter: {
         @name: meta
-        @description:
-            The meta information object.
+        @description: The meta information object.
         @type: Meta
+    }
+    @parameter: {
+        @name: jquery
+        @description: Include jqeury by default.
+        @type: boolean
+    }
+    @parameter: {
+        @name: vhighlight
+        @description: Include vhighlight by default.
+        @type: boolean
     }
  } */
 class View {
@@ -41,6 +55,8 @@ class View {
         includes = [],
         css_includes = [],
         meta = new Meta(),
+        jquery = true,
+        vhighlight = false,
     }) {
 
         // Arguments.
@@ -48,6 +64,8 @@ class View {
         this.includes = includes;
         this.css_includes = css_includes;
         this.meta = meta;
+        this.jquery = jquery;
+        this.vhighlight = vhighlight;
 
         // Attributes.
         this.html = null;
@@ -95,7 +113,9 @@ class View {
 
         // Stylesheets.
         this.html += '<link rel="stylesheet" href="/vweb/vweb.css">\n';
-        // this.html += '<link rel="stylesheet" href="/vweb/vhighlight.css">\n';
+        if (this.vhighlight) {
+            this.html += '<link rel="stylesheet" href="/vhighlight/vhighlight.css">\n';
+        }
         this.css_includes.iterate((url) => {
             this.html += `<link rel="stylesheet" href="${url}">\n`;
         })
@@ -105,13 +125,27 @@ class View {
 
         // JS includes.
         this.html += "<script src='/vweb/vweb.js'></script>\n";
+        if (this.vhighlight) {
+            this.html += "<script src='/vhighlight/vhighlight.js'></script>\n";
+        }
+        if (this.jquery) {
+            this.html += "<script src='https://ajax.googleapis.com/ajax/libs/jquery/3.6.4/jquery.min.js'></script>\n";
+        }
         this.includes.iterate((url) => {
             this.html += `<script src='${url}'></script>\n`;
         })
 
         // JS code.
         if (this.callback !== null) {
-            this.html +=  `<script>(${this.callback.toString()})()</script>\n`;
+            let code = this.callback.toString();
+            const compiler = new vhighlight.JSCompiler({
+                line_breaks: true,
+                double_line_breaks: false,
+                comments: false,
+                white_space: false,
+            })
+            code = compiler.compile_code(code);
+            this.html +=  `<script>(${code})()</script>\n`;
         }
         
         // Body.

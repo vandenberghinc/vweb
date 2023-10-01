@@ -9,6 +9,7 @@
 const libfs = require("fs");
 const libpath = require("path");
 const libproc = require("child_process");
+const {vlib} = require("./vinc.js");
 
 // ---------------------------------------------------------
 // Endpoint.
@@ -44,6 +45,7 @@ class FileWatcher {
         target = "start.js",
         args = [],
         interval = 500,
+
     }) {
 
         // Arguments.
@@ -53,19 +55,32 @@ class FileWatcher {
         this.interval = interval;
 
         // Check source.
-        if (source == null) {
+        if (this.source instanceof vlib.Path) {
+            this.source = this.source.str();
+        }
+        if (this.source == null) {
             throw Error("Define argument: source.");
         }
 
         // Attributes.
+        this.additional_paths = [];
         this.mtimes = {};
     }
 
     // Start.
     start() {
 
+        // Drop all additional files that are part of the source directory.
+        let additional_paths = [];
+        this.additional_paths.iterate((path) => {
+            if (path.eq_first(this.source) === false) {
+                additional_paths.push(path);
+            }
+        })
+        this.additional_paths = additional_paths;
+
         // Scan initial files.
-        this.scan_files(this.source, true);
+        this.scan_files();
 
         process.on('SIGTERM', () => {
             this.proc.kill("SIGTERM");
@@ -85,26 +100,30 @@ class FileWatcher {
 
     // Scan.
     scan() {
-        this.scan_files(this.source)
+        this.scan_files()
         if (this.has_changed) {
             this.spawn_process();
         }
-        setTimeout(() => this.scan(), this.delay);
+        setTimeout(() => this.scan(), this.interval);
     }
 
     // Scan files.
-    scan_files(dir, initial = false) {
-        libfs.readdirSync(dir).iterate((name) => {
-            const path = libpath.join(dir, name);
+    scan_files() {
+        const scan_files = (dir) => {
+            libfs.readdirSync(dir).iterate((name) => scan_file(libpath.join(dir, name)));    
+        }
+        const scan_file = (path) => {
             const stat = libfs.statSync(path);
             if (this.mtimes[path] != stat.mtimeMs) {
                 this.has_changed = true;
             }
             this.mtimes[path] = stat.mtimeMs;
             if (stat.isDirectory()) {
-                this.scan_files(path, initial)
+                scan_files(path)
             }
-        });
+        }
+        scan_files(this.source);
+        this.additional_paths.iterate((path) => scan_file(path));
     }
 
     // Spawn process.
