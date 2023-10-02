@@ -1545,6 +1545,11 @@ return false;
 }
 return true;
 }
+if(this.hasAttribute("tabindex")===false){
+this.setAttribute("tabindex","0");
+this.outline("none");
+this.border("none");
+}
 this.onkeydown=(event)=>{
 const key=event.key.toLowerCase();
 const matched=shortcuts.iterate((shortcut)=>{
@@ -1662,6 +1667,18 @@ selection.removeAllRanges();
 selection.addRange(range);
 console.log(range);
 console.log(selection);
+return this;
+}
+focusable(value){
+if(value==null){
+return this.getAttribute("tabindex")!=="-1";
+}else if(value===true){
+this.setAttribute('tabindex','-1');
+this.style.outline="none";
+}else{
+this.setAttribute('tabindex','-1');
+this.style.outline="none";
+}
 return this;
 }
 parent(value){

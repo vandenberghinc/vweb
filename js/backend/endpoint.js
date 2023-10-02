@@ -139,51 +139,63 @@ class Endpoint {
     }
 
     // Serve a client.
-    _serve(request, response) {
+    async _serve(request, response) {
+        return new Promise(async (resolve, reject) => {
 
-        // Set cache headers.
-        if (this.callback === null && this.cache != null && this.cache != false) {
-            if (this.cache == 1) {
-                response.set_header("Cache-Control", "max-age=86400");
-            } else {
-                response.set_header("Cache-Control", `max-age=${this.cache}`);
+            // Set cache headers.
+            if (this.callback === null && this.cache != null && this.cache != false) {
+                if (this.cache == 1) {
+                    response.set_header("Cache-Control", "max-age=86400");
+                } else {
+                    response.set_header("Cache-Control", `max-age=${this.cache}`);
+                }
             }
-        }
 
-        // Set compression headers.
-        // if (this.callback === null && this.compress) {
-        //     response.set_header("Content-Encoding", "gzip");
-        //     response.set_header("Vary", "Accept-Encoding");
-        // }
+            // Set compression headers.
+            // if (this.callback === null && this.compress) {
+            //     response.set_header("Content-Encoding", "gzip");
+            //     response.set_header("Vary", "Accept-Encoding");
+            // }
 
-        // Set content length.
-        if (this.content_length !== null) {
-            response.set_header("Content-Length", this.content_length);
-        }
+            // Set content length.
+            if (this.content_length !== null) {
+                response.set_header("Content-Length", this.content_length);
+            }
 
-        // Callback.
-        if (this.callback !== null) {
-            this.callback(request, response);
-        }
+            // Callback.
+            if (this.callback !== null) {
+                const promise = this.callback(request, response);
+                if (promise instanceof Promise) {
+                    try {
+                        await promise;
+                    } catch (err) {
+                        return reject(err);
+                    }
+                }
+            }
 
-        // View.
-        else if (this.view !== null) {
-            this.view._serve(request, response);
-        }
+            // View.
+            else if (this.view !== null) {
+                this.view._serve(request, response);
+            }
 
-        // Data.
-        else if (this.data !== null) {
-            response.send({
-                status: 200, 
-                headers: {'Content-Type': this.content_type}, 
-                data: this.data,
-            });
-        }
+            // Data.
+            else if (this.data !== null) {
+                response.send({
+                    status: 200, 
+                    headers: {'Content-Type': this.content_type}, 
+                    data: this.data,
+                });
+            }
 
-        // Undefined.
-        else {
-            throw new Error(`${this.method} ${this.endpoint}: Undefined behaviour, define one of the following endpoint attributes [callback, view, data].`);
-        }
+            // Undefined.
+            else {
+                return reject(`${this.method} ${this.endpoint}: Undefined behaviour, define one of the following endpoint attributes [callback, view, data].`);
+            }
+
+            // Resolve.
+            resolve();
+        })
     }
 }
 

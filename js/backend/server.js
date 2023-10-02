@@ -1090,7 +1090,7 @@ class Server {
 
             // Serve endpoint.
             try {
-                endpoint._serve(request, response);
+                await endpoint._serve(request, response);
             } catch (err) {
                 console.error(err);
                 response.send({

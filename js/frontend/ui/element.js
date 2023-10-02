@@ -1979,6 +1979,13 @@ function CreateVElementClass({
 		        // Matched.
 		        return true;
 		    }
+
+		    // Set tab index so the content is always focusable.
+		    if (this.hasAttribute("tabindex") === false) {
+		    	this.setAttribute("tabindex", "0");
+		    	this.outline("none");
+		    	this.border("none");
+		    }
 			
 			// Set key down handler.
 		    this.onkeydown = (event) => {
@@ -2256,6 +2263,20 @@ function CreateVElementClass({
 			selection.addRange(range);
 			console.log(range);
 			console.log(selection);
+			return this;
+		}
+
+		// Set focusable.
+		focusable(value) {
+			if (value == null) {
+				return this.getAttribute("tabindex") !== "-1";
+			} else if (value === true) {
+				this.setAttribute('tabindex', '-1');
+				this.style.outline = "none";
+			} else {
+				this.setAttribute('tabindex', '-1');
+				this.style.outline = "none";
+			}
 			return this;
 		}
 

@@ -1,16 +1,17 @@
 {
-  "name": "@vandenberghinc/vweb",
-  "version": "1.0.0",
-  "description": "",
-  "main": "backend/vweb.js",
-  "scripts": {
-    "start": "node start.js"
-  },
-  "author": "Daan van den Bergh",
-  "license": "ISC",
-  "dependencies": {
-    "@vandenberghinc/vlib": "^1.1.7",
-    "nodemailer": "^6.9.5",
-    "pako": "^2.1.0"
-  }
+    "name": "@vandenberghinc/vweb",
+    "version": "1.0.5",
+    "description": "",
+    "main": "backend/vweb.js",
+    "scripts": {
+        "start": "node start.js"
+    },
+    "author": "Daan van den Bergh",
+    "publishConfig": {
+        "access": "public"
+    },
+    "dependencies": {
+        "@vandenberghinc/vlib": "^1.2.7",
+        "nodemailer": "^6.9.5"
+    }
 }
