@@ -857,7 +857,12 @@ class Server {
                         comments: false,
                         white_space: false,
                     })
-                    data = compiler.compile_code(data);
+                    try {
+                        data = compiler.compile_code(data, path.str());
+                    } catch (err) {
+                        console.error("JS Compile error:");
+                        console.error(err);
+                    }
                 }
                 this.endpoint(new Endpoint({
                     method: "GET",

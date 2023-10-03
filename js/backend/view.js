@@ -57,6 +57,7 @@ class View {
         meta = new Meta(),
         jquery = true,
         vhighlight = false,
+        _src = __filename,
     }) {
 
         // Arguments.
@@ -66,6 +67,9 @@ class View {
         this.meta = meta;
         this.jquery = jquery;
         this.vhighlight = vhighlight;
+
+        // System arguments.
+        this._src = _src;
 
         // Attributes.
         this.html = null;
@@ -144,7 +148,12 @@ class View {
                 comments: false,
                 white_space: false,
             })
-            code = compiler.compile_code(code);
+            try {
+                code = compiler.compile_code(code, this._src);
+            } catch (err) {
+                console.error("JS Compile error:");
+                console.error(err);
+            }
             this.html +=  `<script>(${code})()</script>\n`;
         }
         
