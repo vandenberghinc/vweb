@@ -60,5 +60,5 @@ int main() {
 	vweb::Server::fill_vweb_decorators(bundled, "");
 	
 	bundled.save(js.join("vweb.js"));
-	print_marker("Bundled.");
+	print_marker("Bundled to ", js.join("vweb.js"), ".");
 }
