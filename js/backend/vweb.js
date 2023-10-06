@@ -15,6 +15,7 @@ const vweb = {
     View: require(`${__dirname}/view.js`),
     Endpoint: require(`${__dirname}/endpoint.js`),
     Server: require(`${__dirname}/server.js`),
+    version: "1.0.9",
 }
 
 // Export.

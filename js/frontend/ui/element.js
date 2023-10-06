@@ -942,6 +942,11 @@ function CreateVElementClass({
 		 		this.style.backgroundClip = "text";
 		 		this.style["-webkit-background-clip"] = "text";
 		 		this.style.color = "transparent";
+		 	} else if (value.startsWith("linear-gradient(") || value.startsWith("radial-gradient(")) {
+		 		this.style.backgroundImage = value;
+		 		this.style.backgroundClip = "text";
+		 		this.style["-webkit-background-clip"] = "text";
+		 		this.style.color = "transparent";
 		 	} else {
 		 		this.style.color = value;
 		 	}
@@ -1172,29 +1177,44 @@ function CreateVElementClass({
 		// - Returns the css attributes when param css_attr is null.
 		styles(css_attr) {
 			if (css_attr == null) {
-					let dict = {};
-					for (let property in this.style) {
-						if (this.style.hasOwnProperty(property)) {
+				let dict = {};
+				for (let property in this.style) {
+					let value = this.style[property];
+					if (
+						this.style.hasOwnProperty(property)
+						 // || (value !== undefined && value !== "") // otherwise css styles assigned with "var(...)" do not show up.
+					) {
 
-							// Custom css styles will be a direct key instead of the string index.
-							// if (property[0] == "-") { 
-								if (!(/^\d+$/).test(property) && this.style[property] != '' && typeof this.style[property] !== 'function') { 
-								// console.log(property);
-								dict[property] = this.style[property];
-							}
-
-							// Default styles will be an index string instead of the key.
-							else { 
-								const key = this.style[property];
-								const value = this.style[key];
-								if (
-									key !== '' && key !== undefined && typeof key !== 'function' &&
-									value !== '' && value !== undefined && typeof value !== 'function'
-									) {
-									dict[key] = value;
-							}
+						// Custom css styles will be a direct key instead of the string index.
+						// if (property[0] == "-") { 
+						if (!(/^\d+$/).test(property) && value != '' && typeof value !== 'function') { 
+							// console.log(property);
+							dict[property] = value;
 						}
 
+						// Default styles will be an index string instead of the key.
+						else { 
+							const key = this.style[property];
+							const value = this.style[key];
+							// if (this.element_type === "Divider") {
+							// 	console.log(key, value);
+							// }
+							if (
+								key !== '' && key !== undefined && typeof key !== 'function' &&
+								value !== '' && value !== undefined && typeof value !== 'function'
+							) {
+								dict[key] = value;
+							}
+						}
+					}
+
+					// Check for css styles assigned with "var(...)" otherwise they will not be added to the dict.
+					else if (
+						typeof value === 'string' && 
+						value !== undefined && 
+						value.startsWith("var(")
+					) {
+						dict[property] = value;
 					}
 				}
 				return dict;
@@ -2216,12 +2236,8 @@ function CreateVElementClass({
 		};
 
 		// Set the current element as the default.
-		// Leave parameter "Type" null to set the current styles to the current object's default styles.
-		set_default(Type) {
-			if (Type == null) {
-				return this.set_default(E);
-			}
-			Type.default_style = this.styles();
+		set_default() {
+			E.default_style = this.styles();
 			return this;
 		}
 

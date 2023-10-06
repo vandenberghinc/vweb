@@ -7,9 +7,6 @@
 
 using namespace vlib::types::shortcuts;
 
-template <const typename Me>
-int funct() {}
-
 int main() {
 	// String cause_err = ""
 	// String cause_err = ""

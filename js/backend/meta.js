@@ -70,6 +70,40 @@ class Meta {
         this.viewport = viewport;
         this.favicon = favicon;
     }
+
+    // Copy.
+    /* @docs:
+     * @title: Copy
+     * @description: Create a copy of the current meta object without any references.
+     */
+    copy() {
+        return new Meta({
+            author: this.author,
+            title: this.title,
+            description: this.description,
+            image: this.image,
+            robots: this.robots,
+            charset: this.charset,
+            viewport: this.viewport,
+            favicon: this.favicon,
+        })
+    }
+
+    /* @docs:
+     * @title: Set value
+     * @description: Set value funcs that return the current object.
+     * @return: Returns the current <type>Meta</type> object.
+     * @type: Meta
+     * @funcs: 8
+     */
+    set_author(value) { this.author = value; return this; }
+    set_title(value) { this.title = value; return this; }
+    set_description(value) { this.description = value; return this; }
+    set_image(value) { this.image = value; return this; }
+    set_robots(value) { this.robots = value; return this; }
+    set_charset(value) { this.charset = value; return this; }
+    set_viewport(value) { this.viewport = value; return this; }
+    set_favicon(value) { this.favicon = value; return this; }
 }
 
 // ---------------------------------------------------------

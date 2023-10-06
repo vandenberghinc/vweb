@@ -15,6 +15,7 @@ const Meta = require(`${__dirname}/meta.js`);
 
 // ---------------------------------------------------------
 // View.
+// @todo add template vars for callback and css and js include files.
 /*  @docs: {
     @title: View
     @description: The js view class.

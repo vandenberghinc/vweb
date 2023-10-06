@@ -943,6 +943,11 @@ this.style.backgroundImage=value.gradient;
 this.style.backgroundClip="text";
 this.style["-webkit-background-clip"]="text";
 this.style.color="transparent";
+}else if(value.startsWith("linear-gradient(")||value.startsWith("radial-gradient(")){
+this.style.backgroundImage=value;
+this.style.backgroundClip="text";
+this.style["-webkit-background-clip"]="text";
+this.style.color="transparent";
 }else{
 this.style.color=value;
 }
@@ -1114,9 +1119,12 @@ styles(css_attr){
 if(css_attr==null){
 let dict={};
 for(let property in this.style){
-if(this.style.hasOwnProperty(property)){
-if(!(/^\d+$/).test(property)&&this.style[property]!=''&&typeof this.style[property]!=='function'){
-dict[property]=this.style[property];
+let value=this.style[property];
+if(
+this.style.hasOwnProperty(property)
+){
+if(!(/^\d+$/).test(property)&&value!=''&&typeof value!=='function'){
+dict[property]=value;
 }
 else{
 const key=this.style[property];
@@ -1128,6 +1136,13 @@ value!==''&&value!==undefined&&typeof value!=='function'
 dict[key]=value;
 }
 }
+}
+else if(
+typeof value==='string'&&
+value!==undefined&&
+value.startsWith("var(")
+){
+dict[property]=value;
 }
 }
 return dict;
@@ -1635,11 +1650,8 @@ return res;
 }
 return null;
 };
-set_default(Type){
-if(Type==null){
-return this.set_default(E);
-}
-Type.default_style=this.styles();
+set_default(){
+E.default_style=this.styles();
 return this;
 }
 assign(name,value){
@@ -4478,7 +4490,6 @@ default_style:{
 "width":"100%",
 "height":"1px",
 "min-height":"1px",
-"background":"black",
 },
 });
 function Divider(...args){return new DividerElement(...args);}

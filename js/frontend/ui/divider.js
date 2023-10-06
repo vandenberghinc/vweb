@@ -13,6 +13,6 @@ const DividerElement = CreateVElementClass({
 		"width": "100%",
 		"height": "1px",
 		"min-height": "1px",
-		"background": "black",
+		// "background": "black",
 	},
 });
