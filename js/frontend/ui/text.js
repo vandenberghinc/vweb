@@ -25,9 +25,6 @@ class TextElement extends CreateVElementClass({
 		
 		// Initialize base class.
 		super();
-
-		// Test attribute.
-		this.test_attribute = "Hello WOrld!";
 	
 		// Set text.
 		this.inner_html(text);

@@ -16,11 +16,32 @@ class TitleElement extends CreateVElementClass({
 		"text-align": "inherit",
 	},
 }) {
-
-	// Default styling.
-	static default_style = {
+	
+	// Constructor.
+	constructor(text) {
 		
-	};
+		// Initialize base class.
+		super();
+		
+		// Set text.
+		this.inner_html(text);
+	}
+		
+}
+
+// Subtitle.
+@vweb_constructor_wrapper
+@vweb_register_element
+class SubtitleElement extends CreateVElementClass({
+	type: "Subtitle",
+	tag: "h2",
+	default_style: {
+		"margin": "0px 0px 0px 0px",
+		"color": "inherit",
+		"white-space": "wrap",
+		"text-align": "inherit",
+	},
+}) {
 	
 	// Constructor.
 	constructor(text) {

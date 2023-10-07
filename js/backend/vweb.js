@@ -6,9 +6,6 @@
 // ---------------------------------------------------------
 // Exports.
 
-// Extend default prototypes.
-require(`${__dirname}/array.js`)
-
 // Create vweb lib.
 const vweb = {
     Meta: require(`${__dirname}/meta.js`),
