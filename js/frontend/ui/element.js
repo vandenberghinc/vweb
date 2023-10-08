@@ -942,7 +942,7 @@ function CreateVElementClass({
 		 		this.style.backgroundClip = "text";
 		 		this.style["-webkit-background-clip"] = "text";
 		 		this.style.color = "transparent";
-		 	} else if (value.startsWith("linear-gradient(") || value.startsWith("radial-gradient(")) {
+		 	} else if (value.eq_first("linear-gradient(") || value.eq_first("radial-gradient(")) {
 		 		this.style.backgroundImage = value;
 		 		this.style.backgroundClip = "text";
 		 		this.style["-webkit-background-clip"] = "text";
@@ -1028,9 +1028,9 @@ function CreateVElementClass({
 
 				// Default.
 				default:
+					if (value == null) { return this.style.opacity; }
 					this.style.opacity = value;
 					return this;
-
 			}
 		}
 
@@ -1848,7 +1848,23 @@ function CreateVElementClass({
 	    on_theme_update(callback) {
 	    	if (callback == null) {
 	    		return this._on_theme_update;
-	    	}
+	    	}	
+
+	    	// Add the item to the theme object when not yet added.
+	    	// So the user can also call `vweb.themes.apply_theme_update()` without using `this.themes()`.
+	    	const found = vweb.themes.theme_elements.iterate((item) => {
+	    		if (item.element === this) {
+	    			return true;
+	    		}
+	    	})
+	    	if (found !== true) {
+	    		vweb.themes.theme_elements.push({
+		    		element: this,
+		    		is_empty_theme: true,
+		    	});
+		    }
+
+	    	// Set callback.
 	    	this._on_theme_update = callback;
 	    	return this;
 	    }

@@ -8,10 +8,10 @@ vweb.themes = {};
 vweb.themes.theme_elements = [];
 
 // The theme should have one of the ids.
-// When an element has a function called "update()", this will be called after applying the new style.
+// When an element has defined the "on_theme_update()" callback then this will be called after applying the new style.
 vweb.themes.set = function(theme_id) {
 	vweb.themes.theme_elements.iterate((theme) => {
-		if (theme.id === theme_id) {
+		if (theme.id === theme_id && theme.is_empty_theme !== true) {
 			const e = theme.element;
 			Object.keys(theme).iterate((key) => {
 				if (key !== "id" && key !== "element") {
@@ -34,5 +34,14 @@ vweb.themes.set = function(theme_id) {
 			}
 		}
 	})
+}
 
+// Call the on theme update callbacks on all elements that have it defined.
+vweb.themes.apply_theme_update = function() {
+	vweb.themes.theme_elements.iterate((theme) => {
+		const e = theme.element;
+		if (e !== undefined && typeof e._on_theme_update === "function") {
+			e._on_theme_update(e);
+		}
+	})
 }

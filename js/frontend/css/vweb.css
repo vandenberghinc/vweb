@@ -21,33 +21,31 @@ Copyright: © 2022 Daan van den Bergh.
 }
 
 /* Hide the scrollbar */
-.hide_scrollbar:-webkit-scrollbar {
-	-webkit-scrollbar::display: none;
-	-ms-overflow-style: none;
-	scrollbar-width: none;
-}
-.hide_scrollbar::-webkit-scrollbar { /* Hide vertical scrollbar */
-  width: 0.5em;
-  background: transparent;
-}
-.hide_scrollbar::-webkit-scrollbar-track { /* Track */
-  background: transparent;
-}
-.hide_scrollbar::-webkit-scrollbar-thumb { /* Handle */
-  background: transparent;
-}
-.hide_scrollbar::-webkit-scrollbar-horizontal { /* Hide horizontal scrollbar */
-  height: 0.5em;
-  background: transparent;
-}
-.hide_scrollbar::-webkit-scrollbar-horizontal-track { /* Track */
-  background: transparent;
-}
-.hide_scrollbar::-webkit-scrollbar-thumb-horizontal { /* Handle */
-  background: transparent;
-}
 .hide_scrollbar {
-  scrollbar-width: none; /* Firefox scrollbar */
+	-ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+.hide_scrollbar:-webkit-scrollbar {
+	display: none;
+	background: transparent;
+}
+/* */
+.hide_scrollbar::-webkit-scrollbar-thumb { 
+  display: none;
+	background: transparent;
+}
+.hide_scrollbar::-webkit-scrollbar-horizontal { 
+  height: 0.5em;
+  display: none;
+	background: transparent;
+}
+.hide_scrollbar::-webkit-scrollbar-horizontal-track { 
+  display: none;
+	background: transparent;
+}
+.hide_scrollbar::-webkit-scrollbar-thumb-horizontal { 
+  display: none;
+	background: transparent;
 }
 
 /* Ring loader keyframe. */

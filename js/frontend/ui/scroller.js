@@ -78,6 +78,7 @@ class ScrollerElement extends CreateVElementClass({
             .transition("background-color 0.3s linear")
             .assign("background_value", "#28292E")
             .overflow("visible")
+            .class("hide_scrollbar")
 
         // Add children.
         super.append(this.content, this.track);

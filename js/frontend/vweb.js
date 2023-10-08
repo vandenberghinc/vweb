@@ -152,6 +152,244 @@ return JSON.parse(decompressed);
 }
 return decompressed;
 };
+vweb.utils.fuzzy_search=({
+query,
+targets=[],
+limit=25,
+case_match=false,
+allow_exceeding_chars=true,
+get_matches=false,
+key=null,
+nested_key=null,
+})=>{
+if(query==null){
+throw Error("Define parameter \"query\".");
+}
+const is_obj=targets.length>0&&typeof targets[0]==="object";
+const is_array=targets.length>0&&Array.isArray(targets[0]);
+if(is_obj&&key==null){key="query";}
+const is_key_array=Array.isArray(key);
+const results=[];
+if(case_match===false){query=query.toLowerCase();}
+const calc_sims=(targets=[])=>{
+for(let i=0;i<targets.length;i++){
+let match;
+if(is_array){
+if(targets[i]==null){continue;}
+match=vweb.utils.fuzzy_match(
+query,
+case_match ? targets[i]:targets[i].toLowerCase(),
+allow_exceeding_chars
+);
+}else if(is_obj){
+const target=targets[i];
+if(is_key_array){
+let min_match=null;
+for(let k=0;k<key.length;k++){
+if(target[key[k]]==null){continue;}
+match=vweb.utils.fuzzy_match(
+query,
+case_match ? target[key[k]]:target[key[k]].toLowerCase(),
+allow_exceeding_chars
+);
+if(match!=null&&(min_match===null||match<min_match)){
+min_match=match;
+}
+};
+match=min_match;
+}else{
+if(target[key]==null){continue;}
+match=vweb.utils.fuzzy_match(
+query,
+case_match ? target[key]:target[key].toLowerCase(),
+allow_exceeding_chars
+);
+}
+if(nested_key!==null&&target[nested_key]!=null){
+calc_sims(target[nested_key]);
+}
+}else{
+match=vweb.utils.fuzzy_match(
+query,
+case_match ? targets[i][0]:targets[i][0].toLowerCase(),
+allow_exceeding_chars
+);
+}
+if(match!==null){
+results.push([match,targets[i]]);
+}
+}
+}
+calc_sims(targets);
+results.sort((a,b)=>b[0]-a[0]);
+if(limit!==null&&limit>=0&&results.length>limit){
+results.length=limit;
+}
+if(get_matches===false){
+let converted=[];
+results.iterate((item)=>{
+converted.push(item[1]);
+})
+return converted;
+}
+return results;
+}
+vweb.utils.fuzzy_match=(search,target,allow_exceeding_chars=true)=>{
+if(allow_exceeding_chars===false){
+if(search.length>target.length){
+return null;
+}
+let text_count={};
+for(let i=0;i<target.length;i++){
+const c=target.charAt(i);
+if(text_count[c]==null){
+text_count[c]=1;
+}else{
+++text_count[c];
+}
+}
+let query_count={};
+for(let i=0;i<search.length;i++){
+const c=search.charAt(i);
+if(query_count[c]==null){
+query_count[c]=1;
+}else{
+++query_count[c];
+}
+if(text_count[c]==null||query_count[c]>text_count[c]){
+return null;
+}
+}
+}
+const get_search_code=(index)=>{
+if(index>=0&&index<search.length){
+return search.charCodeAt(index);
+}
+return-1;
+};
+const get_target_code=(index)=>{
+if(index>=0&&index<target.length){
+return target.charCodeAt(index);
+}
+return-1;
+};
+var prepareBeginningIndexes=(target)=>{
+var targetLen=target.length
+var beginningIndexes=[];var beginningIndexesLen=0
+var wasUpper=false
+var wasAlphanum=false
+for(var i=0;i<targetLen;++i){
+var targetCode=target.charCodeAt(i)
+var isUpper=targetCode>=65&&targetCode<=90
+var isAlphanum=isUpper||targetCode>=97&&targetCode<=122||targetCode>=48&&targetCode<=57
+var isBeginning=isUpper&&!wasUpper||!wasAlphanum||!isAlphanum
+wasUpper=isUpper
+wasAlphanum=isAlphanum
+if(isBeginning)beginningIndexes[beginningIndexesLen++]=i
+}
+return beginningIndexes
+}
+var prepareNextBeginningIndexes=(target)=>{
+var targetLen=target.length
+var beginningIndexes=prepareBeginningIndexes(target)
+var nextBeginningIndexes=[];var lastIsBeginning=beginningIndexes[0]
+var lastIsBeginningI=0
+for(var i=0;i<targetLen;++i){
+if(lastIsBeginning>i){
+nextBeginningIndexes[i]=lastIsBeginning
+}else{
+lastIsBeginning=beginningIndexes[++lastIsBeginningI]
+nextBeginningIndexes[i]=lastIsBeginning===undefined ? targetLen:lastIsBeginning
+}
+}
+return nextBeginningIndexes
+}
+let searchI=0;
+let searchLen=search.length;
+let searchCode=get_search_code(searchI);
+let searchLower=search.toLowerCase();
+let targetI=0;
+let targetLen=target.length;
+let targetCode=get_target_code(targetI);
+let targetLower=target.toLowerCase();
+let matchesSimple=[];
+let matchesSimpleLen=0;
+let successStrict=false
+let matchesStrict=[];
+let matchesStrictLen=0
+for(;;){
+var isMatch=searchCode===get_target_code(targetI)
+if(isMatch){
+matchesSimple[matchesSimpleLen++]=targetI
+++searchI;
+if(searchI===searchLen)break
+searchCode=get_search_code(searchI)
+}
+++targetI;
+if(targetI>=targetLen){
+return null
+}}
+searchI=0
+targetI=0
+nextBeginningIndexes=prepareNextBeginningIndexes(target);
+var firstPossibleI=targetI=matchesSimple[0]===0 ? 0:nextBeginningIndexes[matchesSimple[0]-1];
+var backtrackCount=0
+if(targetI!==targetLen){
+for(;;){
+if(targetI>=targetLen){
+if(searchI<=0)break
+++backtrackCount;if(backtrackCount>200)break
+--searchI
+var lastMatch=matchesStrict[--matchesStrictLen]
+targetI=nextBeginningIndexes[lastMatch]
+}else{
+var isMatch=get_search_code(searchI)===get_target_code(targetI)
+if(isMatch){
+matchesStrict[matchesStrictLen++]=targetI
+++searchI;if(searchI===searchLen){successStrict=true;break}
+++targetI
+}else{
+targetI=nextBeginningIndexes[targetI]
+}
+}
+}
+}
+var substringIndex=targetLower.indexOf(searchLower,matchesSimple[0]);var isSubstring=~substringIndex;
+if(isSubstring&&!successStrict){for(var i=0;i<matchesSimpleLen;++i){
+matchesSimple[i]=substringIndex+i
+}
+}
+var isSubstringBeginning=false;
+if(isSubstring){
+isSubstringBeginning=nextBeginningIndexes[substringIndex-1]===substringIndex
+}
+{
+if(successStrict){var matchesBest=matchesStrict;var matchesBestLen=matchesStrictLen}
+else{var matchesBest=matchesSimple;var matchesBestLen=matchesSimpleLen}
+var score=0
+var extraMatchGroupCount=0
+for(var i=1;i<searchLen;++i){
+if(matchesBest[i]-matchesBest[i-1]!==1){
+score-=matchesBest[i];
+++extraMatchGroupCount
+}
+}
+var unmatchedDistance=matchesBest[searchLen-1]-matchesBest[0]-(searchLen-1)
+score-=(12+unmatchedDistance)*extraMatchGroupCount
+if(matchesBest[0]!==0)score-=matchesBest[0]*matchesBest[0]*.2
+if(!successStrict){
+score*=1000
+}else{
+var uniqueBeginningIndexes=1
+for(var i=nextBeginningIndexes[0];i<targetLen;i=nextBeginningIndexes[i]){
+++uniqueBeginningIndexes
+}
+if(uniqueBeginningIndexes>24)score*=(uniqueBeginningIndexes-24)*10 }
+if(isSubstring)score/=1+searchLen*searchLen*1;if(isSubstringBeginning)score/=1+searchLen*searchLen*1;
+score-=targetLen-searchLen;
+return score
+}
+}
 vweb.elements={};
 vweb.elements.get=function(id){
 return document.getElementById(id);
@@ -943,7 +1181,7 @@ this.style.backgroundImage=value.gradient;
 this.style.backgroundClip="text";
 this.style["-webkit-background-clip"]="text";
 this.style.color="transparent";
-}else if(value.startsWith("linear-gradient(")||value.startsWith("radial-gradient(")){
+}else if(value.eq_first("linear-gradient(")||value.eq_first("radial-gradient(")){
 this.style.backgroundImage=value;
 this.style.backgroundClip="text";
 this.style["-webkit-background-clip"]="text";
@@ -1015,6 +1253,7 @@ value*=100;
 return this.filter(this.edit_filter_wrapper(this.style.filter,"opacity","opacity("+value+") "));
 }
 default:
+if(value==null){return this.style.opacity;}
 this.style.opacity=value;
 return this;
 }
@@ -1456,6 +1695,17 @@ return this;
 on_theme_update(callback){
 if(callback==null){
 return this._on_theme_update;
+}
+const found=vweb.themes.theme_elements.iterate((item)=>{
+if(item.element===this){
+return true;
+}
+})
+if(found!==true){
+vweb.themes.theme_elements.push({
+element:this,
+is_empty_theme:true,
+});
 }
 this._on_theme_update=callback;
 return this;
@@ -4540,6 +4790,7 @@ this.track=VStack(this.thumb)
 .transition("background-color 0.3s linear")
 .assign("background_value","#28292E")
 .overflow("visible")
+.class("hide_scrollbar")
 super.append(this.content,this.track);
 this.iterate=this.content.iterate.bind(this.content);
 this.iterate_nodes=this.content.iterate_nodes.bind(this.content);
@@ -6898,7 +7149,7 @@ vweb.themes={};
 vweb.themes.theme_elements=[];
 vweb.themes.set=function(theme_id){
 vweb.themes.theme_elements.iterate((theme)=>{
-if(theme.id===theme_id){
+if(theme.id===theme_id&&theme.is_empty_theme!==true){
 const e=theme.element;
 Object.keys(theme).iterate((key)=>{
 if(key!=="id"&&key!=="element"){
@@ -6919,6 +7170,14 @@ e.update(e);
 if(typeof e._on_theme_update==="function"){
 e._on_theme_update(e);
 }
+}
+})
+}
+vweb.themes.apply_theme_update=function(){
+vweb.themes.theme_elements.iterate((theme)=>{
+const e=theme.element;
+if(e!==undefined&&typeof e._on_theme_update==="function"){
+e._on_theme_update(e);
 }
 })
 }
