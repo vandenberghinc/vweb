@@ -28,6 +28,10 @@ return Array.isArray(value);
 vweb.utils.is_obj=function(value){
 return typeof value==='object';
 }
+vweb.utils.round=function(value,decimals){
+const factor=10**decimals;
+return Math.round(value*factor)/factor;
+}
 vweb.utils.device_width=function(){
 return(window.innerWidth>0)? window.innerWidth:screen.width;
 }
@@ -1586,7 +1590,7 @@ on_scroll(opts_or_callback={callback:null,delay:null}){
 if(opts_or_callback==null){return this.onscroll;}
 if(vweb.utils.is_func(opts_or_callback)){
 const e=this;
-this.onscroll=(event)=opts_or_callback(e,event);
+this.onscroll=(event)=>opts_or_callback(e,event);
 }else{
 if(opts_or_callback.delay==null){
 this.onscroll=opts_or_callback.callback;
@@ -4662,7 +4666,7 @@ default_style:{
 "display":"flex",
 "flex-direction":"row",
 "align-items":"flex-start","border":"0px",
-},
+"flex:":"1 1 auto",},
 }){
 constructor(...children){
 super();
@@ -4871,7 +4875,7 @@ document.body.addEventListener("mouseup",mouse_up_handler);
 this.addEventListener("mousemove",(event)=>{
 if(this.thumb.dragging){
 const y=Math.max(0,event.clientY-start_y);
-let y_percentage=utils.round(y/this.content.clientHeight,2);const computed=window.getComputedStyle(this.content);
+let y_percentage=vweb.utils.round(y/this.content.clientHeight,2);const computed=window.getComputedStyle(this.content);
 const max_scroll_top=(
 this.content.scrollHeight-
 this.content.clientHeight+
@@ -4888,7 +4892,7 @@ return null;
 }
 const start_y=this.content.getBoundingClientRect().top;
 const y=Math.max(0,event.clientY-start_y);
-let y_percentage=utils.round(y/this.content.clientHeight,2);const computed=window.getComputedStyle(this.content);
+let y_percentage=vweb.utils.round(y/this.content.clientHeight,2);const computed=window.getComputedStyle(this.content);
 const max_scroll_top=(
 this.content.scrollHeight-
 this.content.clientHeight+
@@ -5741,7 +5745,7 @@ default_style:{
 "padding":"15px 20px 15px 20px",
 "color":"inherit",
 "text-align":"start",
-"white-space":"wrap",
+"white-space":"pre",
 "font-family":"'Menlo', 'Consolas', monospace",
 "font-size":"13px",
 "font-weight":"500",

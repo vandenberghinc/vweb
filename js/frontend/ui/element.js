@@ -1670,7 +1670,7 @@ function CreateVElementClass({
             if (opts_or_callback == null) { return this.onscroll; }
             if (vweb.utils.is_func(opts_or_callback)) {
             	const e = this;
-            	this.onscroll = (event) = opts_or_callback(e, event);
+            	this.onscroll = (event) => opts_or_callback(e, event);
             } else {
 	        	if (opts_or_callback.delay == null) {
 	        		this.onscroll = opts_or_callback.callback;

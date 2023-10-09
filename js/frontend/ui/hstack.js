@@ -22,6 +22,7 @@ class HStackElement extends CreateVElementClass({
 		"align-items": "flex-start", // disable the auto extending of the childs height to the max child height.
 		// "flex": "1", // disabled to support horizontal spacers in VStacks.
 		"border": "0px",
+		"flex:": "1 1 auto", // prevent children from exceeding its max width, @warning do not remove this cause it can produce some nasty overflow bugs, so if you want to remove it create an function to optionally remove it.
 	},
 }) {
 

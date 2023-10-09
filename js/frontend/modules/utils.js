@@ -65,6 +65,12 @@ vweb.utils.is_obj = function(value) {
 // 	return x <= y;
 // }
 
+// Round to decimals.
+vweb.utils.round = function(value, decimals) {
+    const factor = 10 ** decimals;
+    return Math.round(value * factor) / factor;
+}
+
 // Get device width.
 vweb.utils.device_width = function() {
 	return (window.innerWidth > 0) ? window.innerWidth : screen.width;

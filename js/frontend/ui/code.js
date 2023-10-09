@@ -74,7 +74,7 @@ class CodePreElement extends CreateVElementClass({
 		"padding": "15px 20px 15px 20px",
 		"color": "inherit",
 		"text-align": "start",
-		"white-space": "wrap",
+		"white-space": "pre",
 		"font-family": "'Menlo', 'Consolas', monospace",
 		"font-size": "13px",
 		"font-weight": "500",

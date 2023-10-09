@@ -209,8 +209,9 @@ class ScrollerElement extends CreateVElementClass({
             if (this.thumb.dragging) {
 
                 // Vars.
+                const height = this.content.clientHeight;
                 const y = Math.max(0, event.clientY - start_y);
-                let y_percentage = utils.round(y / this.content.clientHeight, 2); // needs to be rounder otherwise it always remains at 0.9999 and never reaches the end. 
+                let y_percentage = vweb.utils.round(y / height, 2); // needs to be rounder otherwise it always remains at 0.9999 and never reaches the end. 
                 const computed = window.getComputedStyle(this.content);
                 const max_scroll_top = (
                     this.content.scrollHeight - 
@@ -235,9 +236,10 @@ class ScrollerElement extends CreateVElementClass({
             }
 
             // Vars.
+            const height = this.content.clientHeight;
             const start_y = this.content.getBoundingClientRect().top;
             const y = Math.max(0, event.clientY - start_y);
-            let y_percentage = utils.round(y / this.content.clientHeight, 2); // needs to be rounder otherwise it always remains at 0.9999 and never reaches the end. 
+            let y_percentage = vweb.utils.round(y / height, 2); // needs to be rounder otherwise it always remains at 0.9999 and never reaches the end. 
             const computed = window.getComputedStyle(this.content);
             const max_scroll_top = (
                 this.content.scrollHeight - 
