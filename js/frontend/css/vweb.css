@@ -25,9 +25,10 @@ Copyright: © 2022 Daan van den Bergh.
 	-ms-overflow-style: none;  /* IE and Edge */
   scrollbar-width: none;  /* Firefox */
 }
-.hide_scrollbar:-webkit-scrollbar {
+.hide_scrollbar::-webkit-scrollbar {
 	display: none;
 	background: transparent;
+	width: 0 !important
 }
 /* */
 .hide_scrollbar::-webkit-scrollbar-thumb { 

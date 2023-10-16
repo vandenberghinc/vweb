@@ -11,6 +11,11 @@ const zlib = require('zlib');
 // ---------------------------------------------------------
 // Request object.
 
+/*  @docs 
+ *  @chapter: Backend
+ *  @title: Request
+ *  @description: The request object.
+ */
 class Request {
 
     // Constructor.
@@ -58,6 +63,8 @@ class Request {
         this._is_query_params = false;
         this._endpoint = undefined;
         this._query_string = undefined;
+        this._cookies = undefined;
+        this._uid = null;
     }
 
     // ---------------------------------------------------------
@@ -71,6 +78,10 @@ class Request {
         if ((index = this._endpoint.indexOf("?")) !== -1) {
             this._query_string =  this._endpoint.substr(index + 1);
             this._endpoint =  this._endpoint.substr(0, index);
+        }
+        this._endpoint = this._endpoint.replaceAll("//", "/");
+        if (this._endpoint.length > 1 && this._endpoint.charAt(this._endpoint.length - 1) === "/") {
+            this._endpoint = this._endpoint.substr(0, this._endpoint.length - 1);
         }
     }
 
@@ -106,6 +117,7 @@ class Request {
                     const c = this._query_string.charAt(i);
                     if (is_key && c === "=") {
                         is_key = false;
+                        continue;
                     } else if (is_key === false && c === "&") {
                         this._params[decodeURIComponent(key)] = decodeURIComponent(value);
                         key = "";
@@ -133,25 +145,165 @@ class Request {
             }
         }
 
-
         // Handler.
         return this._params;
+    }
+
+    // Parse cookies.
+    _parse_cookies(name, request) {
+
+        // Reset cookies.
+        this._cookies = {};
+
+        // Vars.
+        const cookie_str = this.req.headers.cookie;
+        if (cookie_str === undefined) { return null; }
+        let key = "";
+        let value = "";
+        let cookie = {};
+        let cookie_length = 0;
+        let cookie_key = null;
+        let is_value = false;
+        let is_str = null;
+
+        // Append to cookie.
+        const append_to_cookie = () => {
+            if (key.length > 0) {
+                if (cookie_length === 0) {
+                    cookie.value = value;
+                } else {
+                    cookie[key] = value;
+                }
+                ++cookie_length;
+            }
+            key = "";
+            value = "";
+            is_value = false;
+            is_str = null;
+        }
+
+        // Append cookie.
+        const append_cookie = () => {
+            if (cookie_key !== null) {
+                this._cookies[cookie_key] = cookie;
+                cookie_key = null;
+                cookie = {};
+                cookie_length = 0;
+            }
+        }
+
+        // Iterate.
+        for (let x = 0; x < cookie_str.length; x++) {
+            const c = cookie_str.charAt(x);
+
+            // Add char to value.
+            if (is_value) {
+
+                // End of cookie string.
+                if (is_str === c) {
+                    value = value.substr(1, value.length - 1);
+                    append_to_cookie();
+                }
+
+                // Cookie seperator.
+                else if (is_str === null && c === " ") {
+                    append_to_cookie();
+                }
+
+                // End of cookie.
+                else if (is_str === null && c === ";") {
+                    append_to_cookie();
+                    append_cookie();
+
+                }
+                
+                // Append to value.
+                else {
+                    value += c;
+                    if (value.length === 1 && (c === "\"" || c === "'")) {
+                        is_str = c;
+                    }
+                }
+            }
+
+            // Skip whitespace in keys.
+            else if (c == " " || c == "\t") {
+                continue;
+            }
+
+            // End of cookie key.
+            else if (c == "=") {
+                if (cookie_key === null) {
+                    cookie_key = key;
+                }
+                is_value = true;
+            }
+
+            // Add char to key.
+            else {
+                key += c;
+            }
+        }
+        append_to_cookie();
+        append_cookie();
     }
 
     // ---------------------------------------------------------
     // Functions.
 
     // Get the requests ip.
+	/*  @docs:
+     *  @title: IP
+     *  @description: Get the request's ip.
+	 *  @attribute: true
+     *  @usage:
+     *      ...
+     *      const ip = request.ip;
+     */
     get ip() {
         return this.req.socket.remoteAddress;
     }
 
     // Get the requests port.
+	/*  @docs:
+     *  @title: Port
+     *  @description: Get the request's port.
+	 *  @attribute: true
+     *  @usage:
+     *      ...
+     *      const port = request.port;
+     */
     get port() {
         return this.req.socket.remotePort;
     }
 
+    // Get the authenticated uid.
+    /*  @docs:
+     *  @title: UID
+     *  @description: Get the authenticated uid, is `null` when the request was not authenticated.
+     *  @attribute: true
+     *  @type: number
+     *  @usage:
+     *      ...
+     *      const uid = request.uid;
+     */
+    get uid() {
+        return this._uid;
+    }
+    set uid(value) {
+        this._uid = value;
+    }
+
     // Get the endpoint.
+	/*  @docs:
+     *  @title: Endpoint
+     *  @description: Get the request's endpoint. This will not include the query string.
+	 *  @attribute: true
+	 *  @type: string
+     *  @usage:
+     *      ...
+     *      const endpoint = request.endpoint;
+     */
     get endpoint() {
         if (this._endpoint !== undefined) {
             return this._endpoint;
@@ -161,6 +313,15 @@ class Request {
     }
 
     // Get the params.
+	/*  @docs:
+     *  @title: Parameters
+     *  @description: Get the request's query or body params.
+	 *  @attribute: true
+	 *  @type: object
+     *  @usage:
+     *      ...
+     *      const params = request.params;
+     */
     get params() {
         if (this._params !== undefined) {
             return this._params;
@@ -170,8 +331,22 @@ class Request {
     }
 
     // Get a param by name and optionally by type.
-    // Throws an error when the parameter does not exist or the type is different from the specified type(s).
-    // Valid types are ["null", "boolean", "number", "string", "array", "object"];
+	/*  @docs:
+     *  @title: Parameter
+     *  @description: Get a single query or body parameter with an optional type cast.
+	 *  @warning: Throws an error when the parameter does not exist or when the type is different from the specified type(s).
+	 *  @param:
+	 *  	@name: name
+	 *  	@desc: The name of the parameter.
+	 *  	@type: string
+	 *  @param:
+	 *  	@name: type
+	 *  	@desc: The type cast of the parameters, valid types are `[null, "boolean", "number", "string", "array", "object"]`.
+	 *  	@type: string
+     *  @usage:
+     *      ...
+     *      const param = request.param("myparameter", "number");
+     */
     param(name, type = null) {
 
         // Parse params.
@@ -215,7 +390,7 @@ class Request {
             }
 
             // Check undefined.
-            if (value === undefined) {
+            if (value == null || value === "") {
                 throw Error(`Define parameter "${name}"${type_str()}.`)
             }
 
@@ -309,12 +484,30 @@ class Request {
         }
 
         // Check undefined.
-        else if (value === undefined) {
+        else if (value == null || value === "") {
             throw Error(`Define parameter "${name}".`)
         }
 
         // Return value.
         return value;
+    }
+
+    // Get the cookies.
+    /*  @docs:
+     *  @title: Cookies
+     *  @description: Get the request's cookies
+     *  @attribute: true
+     *  @type: object
+     *  @usage:
+     *      ...
+     *      const cookies = request.cookies;
+     */
+    get cookies() {
+        if (this._cookies !== undefined) {
+            return this._cookies;
+        }
+        this._parse_cookies();
+        return this._cookies;
     }
 
     // ---------------------------------------------------------
@@ -327,61 +520,61 @@ class Request {
         return this.req.destroyed;
     }
     set destroyed(val) {
-        return this.req.destroyed = val;
+        this.req.destroyed = val;
     }
     get path() {
         return this.req.path;
     }
     set path(val) {
-        return this.req.path = val;
+        this.req.path = val;
     }
     get method() {
         return this.req.method;
     }
     set method(val) {
-        return this.req.method = val;
+        this.req.method = val;
     }
     get url() {
         return this.req.url;
     }
     set url(val) {
-        return this.req.url = val;
+        this.req.url = val;
     }
     get host() {
         return this.req.host;
     }
     set host(val) {
-        return this.req.host = val;
+        this.req.host = val;
     }
     get protocol() {
         return this.req.protocol;
     }
     set protocol(val) {
-        return this.req.protocol = val;
+        this.req.protocol = val;
     }
     get reused_socket() {
         return this.req.reusedSocket;
     }
     set reused_socket(val) {
-        return this.req.reusedSocket = val;
+        this.req.reusedSocket = val;
     }
     get socket() {
         return this.req.socket;
     }
     set socket(val) {
-        return this.req.socket = val;
+        this.req.socket = val;
     }
     get writable_ended() {
         return this.req.writableEnded;
     }
     set writable_ended(val) {
-        return this.req.writableEnded = val;
+        this.req.writableEnded = val;
     }
     get writable_finished() {
         return this.req.writableFinished;
     }
     set writable_finished(val) {
-        return this.req.writableFinished = val;
+        this.req.writableFinished = val;
     }
 }
 

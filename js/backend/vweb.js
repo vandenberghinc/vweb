@@ -8,10 +8,11 @@
 
 // Create vweb lib.
 const vweb = {
-    Meta: require(`${__dirname}/meta.js`),
-    View: require(`${__dirname}/view.js`),
-    Endpoint: require(`${__dirname}/endpoint.js`),
-    Server: require(`${__dirname}/server.js`),
+    Meta: require("./meta.js"),
+    View: require("./view.js"),
+    Endpoint: require("./endpoint.js"),
+    Server: require("./server.js"),
+    Status: require("./status.js"),
     version: "1.0.9",
 }
 

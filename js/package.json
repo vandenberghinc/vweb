@@ -12,6 +12,7 @@
     },
     "dependencies": {
         "@vandenberghinc/vlib": "^1.2.7",
-        "nodemailer": "^6.9.5"
+        "nodemailer": "^6.9.5",
+        "stripe": "^13.10.0"
     }
 }

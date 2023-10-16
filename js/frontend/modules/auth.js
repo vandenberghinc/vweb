@@ -12,22 +12,16 @@ vweb.auth.sign_in = function({
 	username = "",
 	password = "",
 	code = "",
-	success = null,
-	error = null,
-	before = null,
 }) {
 	return vweb.utils.request({
 		method: "POST",
-		url: "/backend/auth/signin",
+		url: "/vweb/backend/auth/signin",
 		data: {
 			email: email,
 			username: username,
 			password: password,
 			"2fa": code,
 		},
-		success: success,
-		error: error,
-		before: before,
 	});
 }
 
@@ -39,13 +33,10 @@ vweb.auth.sign_up = function({
 	last_name = "",
 	password = "",
 	verify_password = "",
-	success = null,
-	error = null,
-	before = null
 }) {
 	return vweb.utils.request({
 		method: "POST",
-		url: "/backend/auth/signup",
+		url: "/vweb/backend/auth/signup",
 		data: {
 			username: username,
 			email: email,
@@ -54,43 +45,25 @@ vweb.auth.sign_up = function({
 			password: password,
 			verify_password: verify_password,
 		},
-		success: success,
-		error: error,
-		before: before,
 	});
 }
 
 // Sign out.
-vweb.auth.sign_out = function({
-	success = null, 
-	error = null, 
-	before = null
-}) {
+vweb.auth.sign_out = function() {
 	return vweb.utils.request({
 		method: "POST",
-		url: "/backend/auth/signout",
-		success: success,
-		error: error,
-		before: before,
+		url: "/vweb/backend/auth/signout",
 	});
 }
 
 // Send 2fa.
-vweb.auth.send_2fa = function({
-	email = "", 
-	success = null, 
-	error = null, 
-	before = null
-}) {
+vweb.auth.send_2fa = function(email = "") {
 	return vweb.utils.request({
 		method: "GET",
-		url: "/backend/auth/2fa",
+		url: "/vweb/backend/auth/2fa",
 		data: {
 			email:email,
 		},
-		success: success,
-		error: error,
-		before: before,
 	});
 }
 
@@ -100,21 +73,15 @@ vweb.auth.forgot_password = function({
 	code = "",
 	password = "",
 	verify_password = "",
-	success = null,
-	error = null,
-	before = null
 }) {
 	return vweb.utils.request({
 		method: "POST",
-		url: "/backend/auth/forgot_password",
+		url: "/vweb/backend/auth/forgot_password",
 		data: {
 			email: email,
 			"2fa": code,
 			password: password,
 			verify_password: verify_password,
 		},
-		success: success,
-		error: error,
-		before: before,
 	});
 }

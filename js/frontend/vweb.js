@@ -2,9 +2,9 @@
  * Author: Daan van den Bergh
  * Copyright: © 2022 - 2023 Daan van den Bergh.
  */
-const vweb={}
+const vweb={};
 if(typeof module!=='undefined'&&typeof module.exports!=='undefined'){
-module.exports=vweb;
+module.exports={...this};
 }
 vweb.utils={};
 vweb.utils.is_string=function(value){
@@ -38,9 +38,16 @@ return(window.innerWidth>0)? window.innerWidth:screen.width;
 vweb.utils.device_height=function(){
 return(window.innerHeight>0)? window.innerHeight:screen.height;
 }
-vweb.utils.endpoint=function(){
-endpoint=window.location.href.replace("https://","").replace("http://","");
+vweb.utils.endpoint=function(url){
+if(url==null){
+return vweb.utils.endpoint(window.location.href);
+}else{
+let endpoint=url.replace("https://","").replace("http://","");
 endpoint=endpoint.substr(endpoint.indexOf('/'),endpoint.length);
+let end;
+if((end=endpoint.indexOf("?"))!==-1){
+endpoint=endpoint.substr(0,end);
+}
 endpoint=endpoint.replaceAll("//","/");
 if(endpoint.length==0){
 return '/'
@@ -51,19 +58,60 @@ endpoint=endpoint.substr(0,endpoint.length-1);
 }
 return endpoint;
 }
+}
+vweb.utils.cookies_parse_required=function(){
+return document.cookie!==this._last_cookies;
+}
+vweb.utils.cookies=function(){
+if(this.cookies_parse_required()===false){
+return this._cookies;
+}
+this._cookies={};
+this._last_cookies=document.cookie;
+let is_key=true,is_str=null;
+let key="",value="";
+const append=()=>{
+if(key.length>0){
+this._cookies[key]=value;
+}
+value="";
+key="";
+is_key=true;
+is_str=null;
+}
+for(let i=0;i<document.cookie.length;i++){
+const c=document.cookie.charAt(i);
+if(is_key){
+if(c===" "||c==="\t"){
+continue;
+}
+else if(c==="="){
+is_key=false;
+}else{
+key+=c;
+}
+}
+else{
+if(is_str!=null&&is_str===c){
+value=value.substr(1,value.length-1);
+append();
+}
+else if(c===";"){
+append();
+}
+else{
+if(value.length===0&&(c==="\""||c==="'")){
+is_str=c;
+}
+value+=c;
+}
+}
+}
+append();
+return this._cookies;
+}
 vweb.utils.cookie=function(name){
-let index=document.cookie.indexOf(name+"=");
-if(index==-1){
-return null;
-}
-index+=name.length+1;
-const value=document.cookie.substr(index,document.cookie.length);
-if(value==null){return null;}
-index=value.indexOf(';');
-if(index==-1){
-return value;
-}
-return value.substr(0,index);
+return vweb.utils.cookies()[name];
 }
 vweb.utils.redirect=function(url,forced=false){
 if(forced||vweb.utils.endpoint()!=url){
@@ -83,43 +131,41 @@ return param;
 }
 vweb.utils.url_encode=function(params){
 const encodedParams=[];
-for(const key in params){
-if(params.hasOwnProperty(key)){
+Object.keys(params).iterate((key)=>{
 const encodedKey=encodeURIComponent(key);
 const encodedValue=encodeURIComponent(params[key]);
 encodedParams.push(`${encodedKey}=${encodedValue}`);
-}
-}
+});
 return encodedParams.join('&');
 }
 vweb.utils.request=function({
-method="GET",url=null,params=null,json=true,credentials="true",
+method="GET",url=null,data=null,json=true,credentials="true",
 }){
-if(params!=null&&!vweb.utils.is_string(params)){
-params=JSON.stringify(params);
+if(data!=null&&!vweb.utils.is_string(data)){
+data=JSON.stringify(data);
 }
 return new Promise((resolve,reject)=>{
 $.ajax({
 type:method,
 url:url,
-data:params,
+data:data,
 dataType:json ? "json":null,
 mimeType:json ? "application/json":"text/plain",
 contentType:"application/json",
 credentials:credentials,
 async:true,
-success:function(data,_,response){
-resolve({status:response.status,data:data,response:response});
+success:function(data,_,xhr){
+resolve(data,xhr.status,xhr);
 },
 error:function(xhr,status,e){
+console.log(xhr)
 let response;
-console.log(e);
 try{
 response=JSON.parse(xhr.responseText);
 if(response.status===undefined){
 response.status=xhr.status;
 }
-}catch(e){
+}catch(err){
 response={error:xhr.responseText==null ? e:xhr.responseText,status:xhr.status};
 }
 reject(response)
@@ -199,7 +245,7 @@ allow_exceeding_chars
 if(match!=null&&(min_match===null||match<min_match)){
 min_match=match;
 }
-};
+}
 match=min_match;
 }else{
 if(target[key]==null){continue;}
@@ -407,7 +453,9 @@ document.getElementById(id).click();
 vweb.elements.register=function(type,tag){
 customElements.define("v-"+type.name.toLowerCase(),type,{extends:tag||type.element_tag});
 }
-const vweb_on_render_observer=new ResizeObserver((entries)=>{
+let vweb_on_render_observer;
+if(typeof window!=="undefined"&&typeof document!=="undefined"){
+vweb_on_render_observer=new ResizeObserver((entries)=>{
 for(let i=0;i<entries.length;i++){
 const element=entries[i].target;
 const rect=element.getBoundingClientRect();
@@ -422,6 +470,7 @@ vweb_on_render_observer.unobserve(element);
 }
 }
 })
+}
 
 class MutexElement{
 constructor(){
@@ -787,9 +836,12 @@ return value;
 }
 append(...children){
 for(let i=0;i<children.length;i++){
-const child=children[i];
+let child=children[i];
 if(child!=null){
-if(child.element_type!=null){
+if(Array.isArray(child)){
+this.append(...child);
+}
+else if(child.element_type!=null){
 if(
 child.element_type=="ForEach"||
 child.element_type=="If"||
@@ -797,13 +849,24 @@ child.element_type=="IfDeviceWith"
 ){
 child.append_children_to(this);
 }else{
+if(child._assign_to_parent_as!==undefined){
+this[child._assign_to_parent_as]=child;
+console.log(child._assign_to_parent_as);
+}
 this.appendChild(child);
 }
 }
 else if(vweb.utils.is_func(child)){
-this.append(child());
+child=child();
+if(child._assign_to_parent_as!==undefined){
+this[child._assign_to_parent_as]=child;
+}
+this.append(child);
 }
 else if(child instanceof Node){
+if(child._assign_to_parent_as!==undefined){
+this[child._assign_to_parent_as]=child;
+}
 this.appendChild(child);
 }
 else if(vweb.utils.is_string(child)){
@@ -815,9 +878,12 @@ return this;
 }
 zstack_append(...children){
 for(let i=0;i<children.length;i++){
-const child=children[i];
+let child=children[i];
 if(child!=null){
-if(child.element_type!=null){
+if(Array.isArray(child)){
+this.zstack_append(...child);
+}
+else if(child.element_type!=null){
 child.style.gridArea="1 / 1 / 2 / 2";
 if(
 child.element_type=="ForEach"||
@@ -826,14 +892,24 @@ child.element_type=="IfDeviceWith"
 ){
 child.append_children_to(this);
 }else{
+if(child._assign_to_parent_as!==undefined){
+this[child._assign_to_parent_as]=child;
+}
 this.appendChild(child);
 }
 }
 else if(vweb.utils.is_func(child)){
-this.append(child());
+child=child();
+if(child._assign_to_parent_as!==undefined){
+this[child._assign_to_parent_as]=child;
+}
+this.append(child);
 }
 else if(child instanceof Node){
 child.style.gridArea="1 / 1 / 2 / 2";
+if(child._assign_to_parent_as!==undefined){
+this[child._assign_to_parent_as]=child;
+}
 this.appendChild(child);
 }
 else if(vweb.utils.is_string(child)){
@@ -844,6 +920,9 @@ this.appendChild(document.createTextNode(child));
 return this;
 }
 append_to(parent){
+if(this._assign_to_parent_as!==undefined){
+parent[this._assign_to_parent_as]=this;
+}
 parent.appendChild(this);
 return this;
 }
@@ -855,6 +934,9 @@ parent.v_children.push(parent.children[i]);
 this.innerHTML="";
 }else{
 while(this.firstChild){
+if(this.firstChild._assign_to_parent_as!==undefined){
+parent[this.firstChild._assign_to_parent_as]=this;
+}
 parent.appendChild(this.firstChild)
 }
 }
@@ -877,6 +959,12 @@ this.inner_html("");
 return this;
 }
 child(index){
+return this.children[index];
+}
+get(index){
+if(index<0||index>=this.children.length){
+return undefined;
+}
 return this.children[index];
 }
 text(value){
@@ -917,17 +1005,16 @@ return this;
 width_by_columns(columns){
 let margin_left=this.style.marginLeft;
 let margin_right=this.style.marginRight;
-if(margin_left==null){
+if(!margin_left){
 margin_left="0px";
 }
-if(margin_right==null){
+if(!margin_right){
 margin_right="0px";
 }
 if(columns==null){
 columns=1;
 }
 this.style.flexBasis="calc(100% / "+columns+" - ("+margin_left+" + "+margin_right+"))";
-this.style.overflow="hidden";
 return this;
 }
 offset_width(){
@@ -1117,6 +1204,7 @@ this.style.justifyContent=value;
 return this;
 case "VStack":
 case "Scroller":
+case "View":
 this.style.alignItems=value;
 return this;
 default:
@@ -1141,6 +1229,7 @@ this.style.alignItems=value;
 return this;
 case "VStack":
 case "Scroller":
+case "View":
 this.style.justifyContent=value;
 return this;
 case "Text":
@@ -1366,10 +1455,11 @@ let value=this.style[property];
 if(
 this.style.hasOwnProperty(property)
 ){
-if(!(/^\d+$/).test(property)&&value!=''&&typeof value!=='function'){
+const is_index=(/^\d+$/).test(property);
+if(property[0]=="-"&&is_index===false&&value!=''&&typeof value!=='function'){
 dict[property]=value;
 }
-else{
+else if(is_index){
 const key=this.style[property];
 const value=this.style[key];
 if(
@@ -1378,6 +1468,9 @@ value!==''&&value!==undefined&&typeof value!=='function'
 ){
 dict[key]=value;
 }
+}
+else if(this.element_type==="Style"){
+dict[property]=value;
 }
 }
 else if(
@@ -1521,10 +1614,11 @@ const convert=[
 for(let i=0;i<keyframes.length;i++){
 if(keyframes[i] instanceof StyleElement){
 keyframes[i]=keyframes[i].styles();
-}
+}else{
 for(let key in keyframes[i]){
 if(vweb.utils.is_numeric(keyframes[i][key])&&convert.includes(key)){
 keyframes[i][key]=this.pad_numeric(keyframes[i][key]);
+}
 }
 }
 }
@@ -1599,7 +1693,7 @@ let timer;
 const e=this;
 this.onscroll=function(t){
 clearTimeout(timer);
-setTimeout(()=>opts_or_callback.callback(e,t),delay);
+setTimeout(()=>opts_or_callback.callback(e,t),opts_or_callback.delay);
 }
 }
 }
@@ -1878,7 +1972,7 @@ if(end==null){
 end=this.children.length;
 }
 for(let i=start;i<end;i++){
-const res=handler(this.children[i]);
+const res=handler(this.children[i],i);
 if(res!=null){
 return res;
 }
@@ -1897,15 +1991,18 @@ if(end==null){
 end=this.childNodes.length;
 }
 for(let i=start;i<end;i++){
-const res=handler(this.childNodes[i]);
+const res=handler(this.childNodes[i],i);
 if(res!=null){
 return res;
 }
 }
 return null;
 };
-set_default(){
-E.default_style=this.styles();
+set_default(Type){
+if(Type==null){
+Type=E;
+}
+Type.default_style=this.styles();
 return this;
 }
 assign(name,value){
@@ -1962,6 +2059,14 @@ if(value==null){
 return this._abs_parent;
 }
 this._abs_parent=value;
+return this;
+}
+assign_to_parent_as(name){
+this._assign_to_parent_as=name;
+return this;
+}
+exec(callback){
+callback(this);
 return this;
 }
 toString(){
@@ -4758,21 +4863,22 @@ default_style:{
 "display":"flex","overflow":"hidden",
 "align-content":"flex-start","flex-direction":"column",
 "scroll-behavior":"smooth",
-"overscroll-behavior":"none","height":"fit-content","content-visibility":"auto","align-content":"flex-start","align-items":"flex-start",
-},
+"overscroll-behavior":"none","height":"fit-content","content-visibility":"auto","align-content":"flex-start","align-items":"flex-start",},
 }){
 constructor(...children){
 super();
 if(this.position()!="absolute"){
 this.position("relative");}
-super.overflow("hidden");this.styles({
+super.overflow("hidden");this.class("hide_scrollbar")
+this.styles({
 "content-visibility":"auto",
 })
 this.content=VStack(...children)
-.class("hide_scrollbar")
 .parent(this)
+.class("hide_scrollbar")
 .position("relative").frame("100%","100%")
 .flex("1 1 0").overflow("scroll")
+.overscroll_behavior("none")
 .styles({
 "content-visibility":"auto",
 })
@@ -4787,6 +4893,7 @@ this.thumb=VStack()
 .box_shadow("0px 0px 5px #00000020")
 this.track=VStack(this.thumb)
 .parent(this)
+.class("hide_scrollbar")
 .position(5,5,5,null)
 .width(10)
 .background_color("transparent")
@@ -4794,8 +4901,8 @@ this.track=VStack(this.thumb)
 .transition("background-color 0.3s linear")
 .assign("background_value","#28292E")
 .overflow("visible")
-.class("hide_scrollbar")
 super.append(this.content,this.track);
+this.on_scroll_callbacks=[];
 this.iterate=this.content.iterate.bind(this.content);
 this.iterate_nodes=this.content.iterate_nodes.bind(this.content);
 this.m_delay=1000;
@@ -4874,8 +4981,9 @@ document.body.addEventListener("mouseup",mouse_up_handler);
 }
 this.addEventListener("mousemove",(event)=>{
 if(this.thumb.dragging){
+const height=this.content.clientHeight;
 const y=Math.max(0,event.clientY-start_y);
-let y_percentage=vweb.utils.round(y/this.content.clientHeight,2);const computed=window.getComputedStyle(this.content);
+let y_percentage=vweb.utils.round(y/height,2);const computed=window.getComputedStyle(this.content);
 const max_scroll_top=(
 this.content.scrollHeight-
 this.content.clientHeight+
@@ -4890,9 +4998,10 @@ this.track.onclick=(event)=>{
 if(!this.is_scrollable()){
 return null;
 }
+const height=this.content.clientHeight;
 const start_y=this.content.getBoundingClientRect().top;
 const y=Math.max(0,event.clientY-start_y);
-let y_percentage=vweb.utils.round(y/this.content.clientHeight,2);const computed=window.getComputedStyle(this.content);
+let y_percentage=vweb.utils.round(y/height,2);const computed=window.getComputedStyle(this.content);
 const max_scroll_top=(
 this.content.scrollHeight-
 this.content.clientHeight+
@@ -4927,11 +5036,35 @@ return this.content.overflow_x();
 this.content.overflow_x(value);
 return this;
 }
+super_overflow_x(value){
+if(value==null){
+return super.overflow_x();
+}
+super.overflow_x(value);
+return this;
+}
 overflow_y(value){
 if(value==null){
 return this.content.overflow_y();
 }
 this.content.overflow_y(value);
+return this;
+}
+super_overflow_y(value){
+if(value==null){
+return super.overflow_y();
+}
+super.overflow_y(value);
+return this;
+}
+show_overflow(){
+super.overflow("visible");
+this.content.overflow("visible");
+return this;
+}
+hide_overflow(){
+super.overflow("hidden");
+this.content.overflow("auto");
 return this;
 }
 delay(msec){
@@ -4961,33 +5094,61 @@ return this.content.scrollHeight;
 scroll_width(){
 return this.content.scrollWidth;
 }
-on_scroll(handler){
-this.content.addEventListener("scroll",handler);
+on_scroll(opts_or_callback={callback:null,delay:null}){
+if(opts_or_callback==null){return this.on_scroll_callbacks;}
+let callback;
+if(vweb.utils.is_func(opts_or_callback)){
+const e=this;
+callback=(event)=>opts_or_callback(e,event);
+this.on_scroll_callbacks.push({callback,user_callback:opts_or_callback});
+}else{
+if(opts_or_callback.delay==null){
+callback=opts_or_callback.callback;
+}else{
+let timer;
+const e=this;
+callback=function(t){
+clearTimeout(timer);
+setTimeout(()=>opts_or_callback.callback(e,t),opts_or_callback.delay);
+}
+}
+this.on_scroll_callbacks.push({callback,user_callback:opts_or_callback.callback});
+}
+this.content.addEventListener("scroll",callback);
 return this;
 }
-remove_on_scroll(handler){
-this.content.removeEventListener("scroll",handler);
+remove_on_scroll(callback){
+let dropped=[];
+this.on_scroll_callbacks.iterate((item)=>{
+if(item.user_callback===callback){
+this.content.removeEventListener("scroll",item.callback);
+}else{
+dropped.push(item);
+}
+})
+this.on_scroll_callbacks=dropped;
 return this;
 }
-set_scroll_top_without_event(top,handler){
-this.remove_on_scroll(handler);
-this.scroll_top(top);
-this.on_scroll(handler);
+set_scroll_top_without_event(top){
+return this.set_scroll_position_without_event(top);
 }
-set_scroll_left_without_event(left,handler){
-this.remove_on_scroll(handler);
-this.scroll_left(left);
-this.on_scroll(handler);
+set_scroll_left_without_event(left){
+return this.set_scroll_position_without_event(null,left);
 }
-set_scroll_position_without_event(top=null,left=null,handler){
-this.remove_on_scroll(handler);
+set_scroll_position_without_event(top=null,left=null){
+this.on_scroll_callbacks.iterate((item)=>{
+this.content.removeEventListener("scroll",item.callback);
+});
 if(top!=null){
 this.scroll_top(top);
 }
 if(left!=null){
 this.scroll_left(left);
 }
-this.on_scroll(handler);
+this.on_scroll_callbacks.iterate((item)=>{
+this.content.addEventListener("scroll",item.callback);
+});
+return this;
 }
 }
 vweb.elements.register(ScrollerElement);
@@ -5683,8 +5844,18 @@ default_style:{
 }){
 constructor(items,func){
 super();
+if(Array.isArray(items)){
 for(let i=0;i<items.length;i++){
 this.append(func(items[i],i));
+}
+}else if(typeof items==="object"){
+let index=0;
+Object.keys(items).iterate((key)=>{
+this.append(func(key,items[key],index));
+++index;
+})
+}else{
+throw Error(`Parameter "items" has an invalid value type, the valid value types are "array" or "object".`);
 }
 }
 }
@@ -5729,7 +5900,7 @@ return this;
 }
 highlight(options={}){
 options.element=this;
-vhighlight.highlight(options);
+vhighlight.tokenize(options);
 return this;
 }
 }
@@ -5763,6 +5934,11 @@ code=code.slice(-code.length,-1);
 }
 this.text(code.replaceAll("<","&lt;").replaceAll(">","&gt;"));
 }
+}
+highlight(options={}){
+options.element=this;
+vhighlight.tokenize(options);
+return this;
 }
 }
 vweb.elements.register(CodePreElement);
@@ -6270,7 +6446,7 @@ function Span(...args){return new SpanElement(...args);}
 
 class ButtonElement extends CreateVElementClass({
 type:"Button",
-tag:"a",
+tag:"div",
 default_style:{
 "margin":"0px 0px 0px",
 "padding":"5px 10px 5px 10px",
@@ -6311,6 +6487,7 @@ default_style:{
 "text-decoration":"none",
 "position":"relative",
 "z-index":0,
+"background":"none",
 "--child-color":"black",
 "--child-background":"black",
 "--child-border-width":"2px",
@@ -6329,7 +6506,6 @@ super();
 this.border_e=VElement()
 .content("")
 .position("absolute")
-.z_index(-1)
 .inset(0)
 .padding(BorderButtonElement.default_style["--child-border-width"])
 .border_radius(BorderButtonElement.default_style["--child-border-radius"])
@@ -6338,7 +6514,8 @@ this.border_e=VElement()
 .mask_composite("exclude")
 .styles({
 "-webkit-mask":"linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
-"-webkit-mask-composite":"exclude",})
+"-webkit-mask-composite":navigator.userAgent.includes("Firefox")? "exclude":"xor",
+})
 this.text_e=VElement()
 .color(BorderButtonElement.default_style["--child-color"])
 .append(text);
@@ -6406,7 +6583,8 @@ function BorderButton(...args){return new BorderButtonElement(...args);}
 
 
 class LoaderButtonElement extends HStackElement{
-static default_style=Object.assign({},HStackElement.default_style,{
+static default_style={
+...HStackElement.default_style,
 "margin":"0px",
 "padding":"12.5px 10px 12.5px 10px",
 "border-radius":"25px",
@@ -6418,19 +6596,19 @@ static default_style=Object.assign({},HStackElement.default_style,{
 "--loader-height":"25px",
 "--loader-margin-right":"15px",
 "--loader-margin-top":"-2px",
-});
-constructor(text="",loader=RingLoader()){
+};
+constructor(text="",loader=RingLoader){
 super();
 this.element_type="LoaderButton";
 this.styles(LoaderButtonElement.default_style);
 this.wrap(false);
 this.center();
 this.center_vertical()
-this.loader=loader
+this.loader=loader()
 .frame(LoaderButtonElement.default_style["--loader-width"],LoaderButtonElement.default_style["--loader-height"])
 .margin_right(LoaderButtonElement.default_style["--loader-margin-right"])
 .margin_top(LoaderButtonElement.default_style["--loader-margin-top"])
-.background(THEME.button_txt)
+.background("white")
 .update()
 .hide();
 this.loader.parent(this);
@@ -6460,10 +6638,10 @@ return this;
 styles(style_dict){
 if(style_dict==null){
 let styles=super.styles();
-styles["--loader-width"]=this.loader.style.width;
-styles["--loader-height"]=this.loader.style.height;
-styles["--loader-margin-right"]=this.loader.margin_right();
-styles["--loader-margin-top"]=this.loader.margin_top();
+styles["--loader-width"]=this.loader.style.width||"25px";
+styles["--loader-height"]=this.loader.style.height||"25px";
+styles["--loader-margin-right"]=this.loader.margin_right()||"15px";
+styles["--loader-margin-top"]=this.loader.margin_top()||"-2px";
 return styles;
 }else{
 return super.styles(style_dict);
@@ -6712,6 +6890,11 @@ default_style:{
 "text-align":"start",
 "white-space":"nowrap",
 },
+default_attributes:{
+"spellcheck":"false",
+"autocorrect":"off",
+"autocapitalize":"none",
+},
 }){
 constructor(placeholder){
 super();
@@ -6873,176 +7056,183 @@ gtag('js',new Date());
 gtag('config',google_tag);
 }
 vweb.user={};
-vweb.user.uid=function(){
-const i=vweb.utils.cookie("UserID");
-if(i==-1){
-return null;
+vweb.user._reset=function(){
+this._uid=undefined;
+this._username=undefined;
+this._email=undefined;
+this._first_name=undefined;
+this._last_name=undefined;
+this._is_authenticated=undefined;
+this._is_activated=undefined;
 }
-return i;
+vweb.user.uid=function(){
+if(vweb.utils.cookies_parse_required()){
+this._reset();
+}
+else if(this._uid!==undefined){
+return this._uid;
+}
+this._uid=vweb.utils.cookie("UserID");
+if(this._uid=="-1"){
+this._uid=null;
+}
+else if(this._uid!==null){
+this._uid=parseInt(this._uid);
+if(isNaN(this._uid)){
+this._uid=null;
+}
+}
+return this._uid;
 }
 vweb.user.username=function(){
-const i=vweb.utils.cookie("UserName");
-if(i==""){
-return null;
+if(vweb.utils.cookies_parse_required()){
+this._reset();
 }
-return i;
+else if(this._username!==undefined){
+return this._username;
+}
+this._username=vweb.utils.cookie("UserName");
+if(this._username==""){
+this._username=null;
+}
+return this._username;
 }
 vweb.user.email=function(){
-const i=vweb.utils.cookie("UserEmail");
-if(i==""){
-return null;
+if(vweb.utils.cookies_parse_required()){
+this._reset();
 }
-return i;
+else if(this._email!==undefined){
+return this._email;
+}
+this._email=vweb.utils.cookie("UserEmail");
+if(this._email==""){
+this._email=null;
+}
+return this._email;
 }
 vweb.user.first_name=function(){
-const i=vweb.utils.cookie("UserFirstName");
-if(i==""){
-return null;
+if(vweb.utils.cookies_parse_required()){
+this._reset();
 }
-return i;
+else if(this._first_name!==undefined){
+return this._first_name;
+}
+this._first_name=vweb.utils.cookie("UserFirstName");
+if(this._first_name==""){
+this._first_name=null;
+}
+return this._first_name;
 }
 vweb.user.last_name=function(){
-const i=vweb.utils.cookie("UserLastName");
-if(i==""){
-return null;
+if(vweb.utils.cookies_parse_required()){
+this._reset();
 }
-return i;
+else if(this._last_name!==undefined){
+return this._last_name;
 }
-vweb.user.authenticated=function(){
-return vweb.user.uid()!=null;
+this._last_name=vweb.utils.cookie("UserLastName");
+if(this._last_name==""){
+this._last_name=null;
 }
-vweb.user.activated=function(){
-if(vweb.utils.cookie("UserActivated")=="true"){
-return true;
+return this._last_name;
 }
-return false;
+vweb.user.is_authenticated=function(){
+if(vweb.utils.cookies_parse_required()){
+this._reset();
 }
-vweb.user.get=function({
-success=null,
-error=null,
-before=null
-}){
+else if(this._is_authenticated!==undefined){
+return this._is_authenticated;
+}
+this._is_authenticated=this.uid()!=null;
+return this._is_authenticated;
+}
+vweb.user.is_activated=function(){
+if(vweb.utils.cookies_parse_required()){
+this._reset();
+}
+else if(this._is_activated!==undefined){
+return this._is_activated;
+}
+this._is_activated=vweb.utils.cookie("UserActivated")==="true";
+return this._is_activated;
+}
+vweb.user.get=function(){
 return vweb.utils.request({
 method:"GET",
-url:"/backend/user/",
-success:success,
-error:error,
-before:before,
+url:"/vweb/backend/user/",
 });
 }
-vweb.user.set=function({
-user,
-success=null,
-error=null,
-before=null
-}){
+vweb.user.set=function(user){
 return vweb.utils.request({
 method:"POST",
-url:"/backend/user/",
+url:"/vweb/backend/user/",
 data:user,
-success:success,
-error:error,
-before:before,
 });
 }
-vweb.user.activate=function({
-code="",
-success=null,
-error=null,
-before=null
-}){
+vweb.user.activate=function(code=""){
 return vweb.utils.request({
 method:"POST",
-url:"/backend/auth/activate",
+url:"/vweb/backend/auth/activate",
 data:{
 "2fa":code,
 },
-success:success,
-error:error,
-before:before,
 });
 }
 vweb.user.change_password=function({
 current_password="",
 password="",
 verify_password="",
-success=null,
-error=null,
-before=null
 }){
 return vweb.utils.request({
 method:"POST",
-url:"/backend/user/change_password",
+url:"/vweb/backend/user/change_password",
 data:{
 current_password:current_password,
 password:password,
 verify_password:verify_password,
 },
-success:success,
-error:error,
-before:before,
 });
 }
-vweb.user.generate_api_key=function({
-success=null,
-error=null,
-before=null
-}){
+vweb.user.generate_api_key=function(){
 return vweb.utils.request({
 method:"POST",
-url:"/backend/user/api_key",
-success:success,
-error:error,
-before:before,
+url:"/vweb/backend/user/api_key",
 });
 }
-vweb.user.revoke_api_key=function({
-success=null,
-error=null,
-before=null
-}){
+vweb.user.revoke_api_key=function(){
 return vweb.utils.request({
 method:"DELETE",
-url:"/backend/user/api_key",
-success:success,
-error:error,
-before:before,
+url:"/vweb/backend/user/api_key",
 });
 }
-vweb.user.load=function({
-path="",
-success=null,
-error=null,
-before=null
-}){
+vweb.user.load=function(path,def=""){
 return vweb.utils.request({
 method:"GET",
-url:"/backend/user/data",
+url:"/vweb/backend/user/data",
 data:{
 path:path,
+def:"",
 },
-success:success,
-error:error,
-before:before,
 });
 }
-vweb.user.save=function({
-path="",
-data={},
-success=null,
-error=null,
-before=null
-}){
+vweb.user.save=function(path="",data={}){
 return vweb.utils.request({
 method:"POST",
-url:"/backend/user/data",
+url:"/vweb/backend/user/data",
 data:{
 path:path,
 data:data,
 },
-success:success,
-error:error,
-before:before,
+});
+}
+vweb.user.load_protected=function(path,def=""){
+return vweb.utils.request({
+method:"GET",
+url:"/vweb/backend/user/data/protected",
+data:{
+path:path,
+def:def,
+},
 });
 }
 vweb.auth={};
@@ -7051,22 +7241,16 @@ email="",
 username="",
 password="",
 code="",
-success=null,
-error=null,
-before=null,
 }){
 return vweb.utils.request({
 method:"POST",
-url:"/backend/auth/signin",
+url:"/vweb/backend/auth/signin",
 data:{
 email:email,
 username:username,
 password:password,
 "2fa":code,
 },
-success:success,
-error:error,
-before:before,
 });
 }
 vweb.auth.sign_up=function({
@@ -7076,13 +7260,10 @@ first_name="",
 last_name="",
 password="",
 verify_password="",
-success=null,
-error=null,
-before=null
 }){
 return vweb.utils.request({
 method:"POST",
-url:"/backend/auth/signup",
+url:"/vweb/backend/auth/signup",
 data:{
 username:username,
 email:email,
@@ -7091,39 +7272,21 @@ last_name:last_name,
 password:password,
 verify_password:verify_password,
 },
-success:success,
-error:error,
-before:before,
 });
 }
-vweb.auth.sign_out=function({
-success=null,
-error=null,
-before=null
-}){
+vweb.auth.sign_out=function(){
 return vweb.utils.request({
 method:"POST",
-url:"/backend/auth/signout",
-success:success,
-error:error,
-before:before,
+url:"/vweb/backend/auth/signout",
 });
 }
-vweb.auth.send_2fa=function({
-email="",
-success=null,
-error=null,
-before=null
-}){
+vweb.auth.send_2fa=function(email=""){
 return vweb.utils.request({
 method:"GET",
-url:"/backend/auth/2fa",
+url:"/vweb/backend/auth/2fa",
 data:{
 email:email,
 },
-success:success,
-error:error,
-before:before,
 });
 }
 vweb.auth.forgot_password=function({
@@ -7131,22 +7294,16 @@ email="",
 code="",
 password="",
 verify_password="",
-success=null,
-error=null,
-before=null
 }){
 return vweb.utils.request({
 method:"POST",
-url:"/backend/auth/forgot_password",
+url:"/vweb/backend/auth/forgot_password",
 data:{
 email:email,
 "2fa":code,
 password:password,
 verify_password:verify_password,
 },
-success:success,
-error:error,
-before:before,
 });
 }
 vweb.themes={};
@@ -7186,68 +7343,419 @@ e._on_theme_update(e);
 })
 }
 vweb.payments={};
-vweb.payments.stripe={};
-vweb.payments.products=[];vweb.payments.selected_products=[];
-vweb.payments.find_product=function(product_id){
-for(let i=0;i<vweb.payments.products.length;i++){
-const p=vweb.payments.products[i];
-if(e.id==product_id){
-return p;
+vweb.payments.shopping_cart=[];
+vweb.payments._initialize_stripe=function(){
+if(this.stripe===undefined){
+if(this.publishable_key==null){
+throw Error("Define the \"vweb.payments.publishable_key\" attribute with your stripe publishable key.");
+}
+this.stripe=Stripe(this.publishable_key);
 }
 }
-console.error("Product \"",product_id,"\" does not exist.");
-return null;
+vweb.payments._initialize_elements=function(){
+if(this._elements==null){
+if(this._client_secret==null){
+throw Error("No payment intent was created using \"vweb.payments.charge()\" or the shopping cart has been edited after the initial charge.");
 }
-vweb.payments.add_product=function(product_id){
-vweb.payments.selected_products.push(vweb.payments.products.find_product(product_id));
-}
-vweb.payments.remove_product=function(product_id){
-new_products=[];
-for(let i=0;i<vweb.payments.selected_products.length;i++){
-const p=vweb.payments.selected_products[i];
-if(e.id!=product_id){
-new_products.push(p);;
+this._elements=this.stripe.elements({
+clientSecret:this._client_secret,
+});
 }
 }
-vweb.payments.selected_products=new_products;
+vweb.payments._reset=function(){
+this._client_secret=null;
+this._elements=null;
+if(this._address_element!=null){
+this._address_element.stripe_element.destroy();
 }
-vweb.payments.charge=function({
-return_url=window.location.href,
-success=null,
-error=null,
-}){
-product_ids=[];
-for(let i=0;i<vweb.payments.selected_products.length;i++){
-product_ids.push(vweb.payments.selected_products[i].id);
+this._address_element=null;
+if(this._payment_element!=null){
+this._payment_element.stripe_element.destroy();
+}
+this._payment_element=null;
+this._payment_intent_id=null;
+}
+vweb.payments.get_products=async function(){
+return new Promise((resolve,reject)=>{
+if(this._products!==undefined){
+return this._products;
 }
 vweb.utils.request({
-method:"POST",
-url:"/backend/payments/charge",
-data:{
-products:product_ids,
-payment_type:"ideal",
-card_number:null,
-card_exp_month:null,
-card_exp_year:null,
-card_cvc:null,
-return_url:return_url,
-},
-success:function(status,response){
-if(response.client_secret!=null){
-vweb.payments.stripe.confirmPayment({
-clientSecret:response.client_secret,
-confirmParams:{
-return_url:return_url,
-payment_method:repsonse.payment_method_id,
-},
+method:"GET",
+url:"/vweb/backend/payments/products",
+})
+.then((products)=>{
+this._products=products;
+resolve(this._products);
+})
+.catch((err)=>{
+reject(err);
+})
 })
 }
-if(success!=null){
-success();
+vweb.payments.get_product=async function(id){
+return new Promise(async(resolve,reject)=>{
+const products=await this.get_products();
+let product;
+products.iterate((p)=>{
+if(p.id===id){
+product=p;
+return true;
 }
-},
-error:error,
+if(p.is_subscription){
+return p.plans.iterate((plan)=>{
+if(plan.id===id){
+product=plan;
+return true;
+}
 });
+}
+})
+if(product===undefined){
+return reject(`Product "${id}" does not exist.`);
+}
+resolve(product);
+})
+}
+vweb.payments.has_pending_charge=function(){
+return this._client_secret!=null;
+}
+vweb.payments.charge=async function(){
+return new Promise(async(resolve,reject)=>{
+this._client_secret=null;
+this._return_url=null;
+this._elements=null;
+vweb.payments.cart.refresh();
+if(vweb.payments.cart.items.length===0){
+throw Error("No products were added to the shopping cart.");
+}
+try{
+const result=await vweb.utils.request({
+method:"POST",
+url:"/vweb/backend/payments/charge",
+data:{
+cart:vweb.payments.cart.items,
+}
+})
+this._client_secret=result.client_secret;
+this._return_url=result.return_url;
+resolve();
+}catch(error){
+return reject(error);
+}
+})
+}
+vweb.payments.confirm_charge=async function(){
+return new Promise(async(resolve,reject)=>{
+if(this._client_secret==null){
+throw Error("No payment intent was created using \"vweb.payments.charge()\" or the shopping cart has been edited after the initial charge.");
+}
+if(this._return_url==null){
+throw Error("No payment intent was created using \"vweb.payments.charge()\".");
+}
+if(this._elements===undefined){
+throw Error("No payment object was created using \"vweb.payments.create_payment_element()\".");
+}
+this._initialize_stripe();
+let result=await this._elements.submit();
+if(result.error){
+return reject(result.error.message);
+}
+result=await this.stripe.confirmPayment({
+elements:this._elements,
+clientSecret:this._client_secret,
+redirect:"always",
+confirmParams:{
+return_url:this._return_url,
+},
+});
+if(result.error){
+return reject(result.error.message);
+}
+this.cart.clear();
+resolve();
+})
+}
+vweb.payments.charge_status=async function(client_secret){
+return new Promise(async(resolve,reject)=>{
+this._initialize_stripe();
+const result=await this.stripe.retrievePaymentIntent(client_secret);
+if(result.error){
+return reject(response.error);
+}
+let message,charged=false,cancelled=false,processing=false;
+switch(result.paymentIntent.status){
+case "requires_payment_method":
+message="The payment requires a payment method.";
+break;
+case "requires_confirmation":
+message="The payment requires confirmation.";
+break;
+case "requires_action":
+message="The payment requires action.";
+break;
+case "processing":
+processing=true;
+message="The payment is still processing.";
+break;
+case "requires_capture":
+message="The payment requires capture.";
+break;
+case "canceled":
+cancelled=true;
+message="The payment has been cancelled.";
+break;
+case "succeeded":
+charged=true;
+message="The payment has succeeded.";
+break;
+}
+resolve({
+status:result.paymentIntent.status,
+charged:charged,
+cancelled:cancelled,
+processing:processing,
+message:message,
+payment_intent:result.paymentIntent,
+});
+})
+}
+vweb.payments.create_payment_element=function(){
+if(this._payment_element!=null){
+return this._payment_element;
+}
+this._initialize_stripe();
+this._initialize_elements();
+const element=VStack();
+element.stripe_element=this._elements.create("payment");
+element.stripe_element.mount(element);
+return element;
+}
+vweb.payments.create_address_element=function(client_secret,mode="billing"){
+if(this._address_element!=null){
+return this._address_element;
+}
+this._initialize_stripe();
+this._initialize_elements();
+const element=VStack();
+element.stripe_element=this._elements.create("address",{
+mode:mode,
+});
+element.stripe_element.mount(element);
+return element;
+}
+vweb.payments.get_currency_symbol=function(currency){
+switch(currency.toLowerCase()){
+case "aed":return "د.إ";
+case "afn":return "Af";
+case "all":return "L";
+case "amd":return "֏";
+case "ang":return "ƒ";
+case "aoa":return "Kz";
+case "ars":return "$";
+case "aud":return "$";
+case "awg":return "ƒ";
+case "azn":return "₼";
+case "bam":return "KM";
+case "bbd":return "Bds$";
+case "bdt":return "৳";
+case "bgn":return "лв";
+case "bhd":return ".د.ب";
+case "bif":return "FBu";
+case "bmd":return "BD$";
+case "bnd":return "B$";
+case "bob":return "Bs";
+case "brl":return "R$";
+case "bsd":return "B$";
+case "btn":return "Nu.";
+case "bwp":return "P";
+case "byn":return "Br";
+case "bzd":return "BZ$";
+case "cad":return "$";
+case "cdf":return "FC";
+case "chf":return "Fr";
+case "clf":return "UF";
+case "clp":return "$";
+case "cny":return "¥";
+case "cop":return "$";
+case "crc":return "₡";
+case "cuc":return "CUC$";
+case "cup":return "CUP$";
+case "cve":return "$";
+case "czk":return "Kč";
+case "djf":return "Fdj";
+case "dkk":return "kr";
+case "dop":return "RD$";
+case "dzd":return "دج";
+case "egp":return "E£";
+case "ern":return "Nfk";
+case "etb":return "Br";
+case "eur":return "€";
+case "fjd":return "FJ$";
+case "fkp":return "£";
+case "fok":return "F$";
+case "gbp":return "£";
+case "gel":return "₾";
+case "ghc":return "₵";
+case "gip":return "£";
+case "gmd":return "D";
+case "gnf":return "FG";
+case "gtq":return "Q";
+case "gyd":return "GY$";
+case "hkd":return "HK$";
+case "hnl":return "L";
+case "hrk":return "kn";
+case "htg":return "G";
+case "huf":return "Ft";
+case "idr":return "Rp";
+case "ils":return "₪";
+case "inr":return "₹";
+case "iqd":return "د.ع";
+case "irr":return "﷼";
+case "isk":return "kr";
+case "jmd":return "J$";
+case "jod":return "JD";
+case "jpy":return "¥";
+case "kes":return "Ksh";
+case "kgs":return "с";
+case "khr":return "៛";
+case "kmf":return "CF";
+case "kpw":return "₩";
+case "krw":return "₩";
+case "kwd":return "KD";
+case "kyd":return "CI$";
+case "kzt":return "₸";
+case "lak":return "₭";
+case "lbp":return "L£";
+case "lkr":return "Rs";
+case "lrd":return "L$";
+case "lsl":return "L";
+case "lyd":return "ل.د";
+case "mad":return "د.م.";
+case "mdl":return "L";
+case "mnt":return "₮";
+case "mop":return "MOP$";
+case "mur":return "Rs";
+case "mvr":return "Rf";
+case "mwk":return "MK";
+case "mxn":return "$";
+case "myr":return "RM";
+case "mzn":return "MTn";
+case "nad":return "N$";
+case "ngn":return "₦";
+case "nio":return "C$";
+case "nok":return "kr";
+case "npr":return "रू";
+case "nzd":return "$";
+case "omr":return "ر.ع.";
+case "pab":return "B/.";
+case "pen":return "S/.";
+case "pgk":return "K";
+case "php":return "₱";
+case "pkr":return "Rs";
+case "pln":return "zł";
+case "pyg":return "₲";
+case "qar":return "ر.ق";
+case "ron":return "lei";
+case "rsd":return "din.";
+case "rub":return "₽";
+case "rwf":return "FRw";
+case "sar":return "ر.س";
+case "sbd":return "SI$";
+case "scr":return "Sr";
+case "sdg":return "ج.س.";
+case "sek":return "kr";
+case "sgd":return "S$";
+case "shp":return "£";
+case "sll":return "Le";
+case "sos":return "S";
+case "srd":return "SRD$";
+case "ssp":return "£";
+case "std":return "Db";
+case "sek":return "kr";
+case "syp":return "S£";
+case "szl":return "L";
+case "thb":return "฿";
+case "tjs":return "ЅМ";
+case "tmt":return "m";
+case "tnd":return "د.ت";
+case "top":return "T$";
+case "try":return "₺";
+case "ttd":return "TT$";
+case "twd":return "NT$";
+case "tzs":return "TSh";
+case "uah":return "₴";
+case "ugx":return "USh";
+case "usd":return "$";
+case "uyu":return "$U";
+case "uzs":return "лв";
+case "ves":return "Bs.S.";
+case "vnd":return "₫";
+case "vuv":return "VT";
+case "wst":return "WS$";
+case "xaf":return "FCFA";
+case "xcd":return "EC$";
+case "xof":return "CFA";
+case "xpf":return "CFP";
+case "yer":return "﷼";
+case "zar":return "R";
+case "zmw":return "ZK";
+}
+return null;
+}
+vweb.payments.cart={};
+vweb.payments.cart.refresh=function(){
+try{
+this.items=JSON.parse(localStorage.getItem("vweb_shopping_cart"))||[];
+}catch(err){
+this.items=[];
+}
+vweb.payments._reset();
+}
+vweb.payments.cart.refresh();
+vweb.payments.cart.save=function(cart){
+localStorage.setItem("vweb_shopping_cart",JSON.stringify(this.items));
+vweb.payments._reset();
+}
+vweb.payments.cart.add=async function(id,quantity=1){
+this.refresh();const found=this.items.iterate((item)=>{
+if(item.product.id===id){
+item.quantity+=quantity;
+return true;
+}
+})
+if(found!==true){
+const product=await vweb.payments.get_product(id);
+this.items.push({
+product:product,
+quantity:quantity,
+});
+}
+this.save();
+}
+vweb.payments.cart.remove=async function(id,quantity=1){
+this.refresh();let new_cart=[];
+this.items.iterate((item)=>{
+if(item.product.id===id){
+if(quantity==="all"){
+item.quantity=0;
+}else{
+item.quantity-=quantity;
+}
+}
+if(item.quantity>0){
+new_cart.push(item);
+}
+})
+this.items.length=0;
+new_cart.iterate((item)=>{
+this.items.push(item);
+})
+this.save();
+}
+vweb.payments.cart.clear=async function(id,quantity=1){
+this.items=[];
+this.save();
 }
 Array.prototype.first=function(){
 return this[0];
@@ -7366,7 +7874,7 @@ return null;
 String.prototype.first_not_of=function(exclude=[],start_index=0){
 for(let i=start_index;i<this.length;i++){
 if(!exclude.includes(this.charAt(i))){
-return i;
+return this.charAt(i);
 }
 }
 return null;
@@ -7374,7 +7882,7 @@ return null;
 String.prototype.first_index_not_of=function(exclude=[],start_index=0){
 for(let i=start_index;i<this.length;i++){
 if(!exclude.includes(this.charAt(i))){
-return this.charAt(i);
+return i;
 }
 }
 return null;
@@ -7385,7 +7893,7 @@ start_index=this.length-1;
 }
 for(let i=start_index;i>=0;i--){
 if(!exclude.includes(this.charAt(i))){
-return i;
+return this.charAt(i);
 }
 }
 return null;
@@ -7396,7 +7904,7 @@ start_index=this.length-1;
 }
 for(let i=start_index;i>=0;i--){
 if(!exclude.includes(this.charAt(i))){
-return this.charAt(i);
+return i;
 }
 }
 return null;

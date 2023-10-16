@@ -57,7 +57,7 @@ class CodeBlockElement extends CreateVElementClass({
 	// Highlight code.
 	highlight(options = {}) {
 		options.element = this;
-		vhighlight.highlight(options);
+		vhighlight.tokenize(options);
 		return this;
 	}
 
@@ -99,6 +99,13 @@ class CodePreElement extends CreateVElementClass({
 			this.text(code.replaceAll("<", "&lt;").replaceAll(">", "&gt;"));
 		}
 
+	}
+
+	// Highlight code.
+	highlight(options = {}) {
+		options.element = this;
+		vhighlight.tokenize(options);
+		return this;
 	}
 
 }

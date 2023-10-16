@@ -22,6 +22,11 @@ class InputElement extends CreateVElementClass({
 		"text-align": "start",
 		"white-space": "nowrap",
 	},
+	default_attributes: {
+        "spellcheck": "false",
+        "autocorrect": "off",
+        "autocapitalize": "none",
+	},
 }) {
 	
 	// Constructor.

@@ -15,6 +15,7 @@ const {vlib} = require("./vinc.js");
 // Endpoint.
 
 /*  @docs: {
+ *  @chapter: Backend
     @title: FileWatcher
     @description: 
         Used to watch all included files and restart the server when any changes have been made.
@@ -45,6 +46,7 @@ class FileWatcher {
         target = "start.js",
         args = [],
         interval = 500,
+        excluded = [],
 
     }) {
 
@@ -53,6 +55,7 @@ class FileWatcher {
         this.target = target;
         this.args = [target, ...args];
         this.interval = interval;
+        this.excluded = excluded;
 
         // Check source.
         if (this.source instanceof vlib.Path) {
@@ -113,8 +116,12 @@ class FileWatcher {
             libfs.readdirSync(dir).iterate((name) => scan_file(libpath.join(dir, name)));    
         }
         const scan_file = (path) => {
+            if (this.excluded.includes(path)) {
+                return null;
+            }
             const stat = libfs.statSync(path);
             if (this.mtimes[path] != stat.mtimeMs) {
+                // console.log("Changed path: ", path)
                 this.has_changed = true;
             }
             this.mtimes[path] = stat.mtimeMs;

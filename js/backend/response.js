@@ -11,6 +11,11 @@ const zlib = require('zlib');
 // ---------------------------------------------------------
 // Response object.
 
+/*  @docs 
+ *  @chapter: Backend
+ *  @title: Response
+ *  @description: The response object.
+ */
 class Response {
     constructor(res) {
 
@@ -59,6 +64,29 @@ class Response {
     // Functions.
 
     // Send a response.
+	/*  @docs:
+     *  @title: Send
+     *  @description: Send a response
+     *  @parameter:
+     *      @name: status
+     *      @description: The response status.
+     *      @type: number
+	 *  @parameter:
+     *      @name: headers
+     *      @description: The response headers.
+     *      @type: object
+	 *  @parameter:
+     *      @name: data
+     *      @description: The response data.
+     *      @type: undefined, string
+	 *  @parameter:
+     *      @name: compress
+     *      @description: A boolean indicating if the response data should be compressed.
+     *      @type: boolean
+     *  @usage:
+     *      ...
+     *      response.send({status: 200, data: "Hello World!"});
+     */
     send({status = 200, headers = {}, data = null, compress = false}) {
 
         // Set status code.
@@ -82,26 +110,86 @@ class Response {
         }
 
         // Set data.
-        if (data != null) {
-            this.res.write(data); // do not use toString() here or it will cause issues with writing compressed data.
+        if (data !== null) {
+            if (typeof data === 'object' && Buffer.isBuffer(data) === false && (data instanceof Uint8Array) === false) {
+                this.res.write(JSON.stringify(data));
+            } else {
+                this.res.write(data); // do not use toString() here or it will cause issues with writing binary data.
+            }
         }
-
-        // Set content length.a
 
         // End.
         this.res.end();
     }
 
-    // Send a response.
+    // Send a successs response.
+	/*  @docs:
+     *  @title: Send Successs
+     *  @description: Send a response
+     *  @parameter:
+     *      @name: status
+     *      @description: The response status.
+     *      @type: number
+	 *  @parameter:
+     *      @name: headers
+     *      @description: The response headers.
+     *      @type: object
+	 *  @parameter:
+     *      @name: data
+     *      @description: The response data.
+     *      @type: undefined, string
+	 *  @parameter:
+     *      @name: compress
+     *      @description: A boolean indicating if the response data should be compressed.
+     *      @type: boolean
+     *  @usage:
+     *      ...
+     *      response.success({data: "Hello World!"});
+     */
     success({status = 200, headers = {}, data = null, compress = false}) {
         return this.send({status: status, headers: headers, data: data, compress: compress});
     }
+	
+	// Send an error response.
+	/*  @docs:
+     *  @title: Send Error
+     *  @description: Send an error response
+     *  @parameter:
+     *      @name: status
+     *      @description: The response status.
+     *      @type: number
+	 *  @parameter:
+     *      @name: headers
+     *      @description: The response headers.
+     *      @type: object
+	 *  @parameter:
+     *      @name: data
+     *      @description: The response data.
+     *      @type: undefined, string
+	 *  @parameter:
+     *      @name: compress
+     *      @description: A boolean indicating if the response data should be compressed.
+     *      @type: boolean
+     *  @usage:
+     *      ...
+     *      response.error({data: "Some error occured"});
+     */
     error({status = 500, headers = {}, data = null, compress = false}) {
         return this.send({status: status, headers: headers, data: data, compress: compress});
     }
 
     // Set headers.
-    // Does not remove previously assigned headers but adds them to the response instead.
+	/*  @docs:
+     *  @title: Set Headers
+     *  @description: Add new headers to the response data.
+	 *  @parameter:
+     *      @name: headers
+     *      @description: The new response headers.
+     *      @type: object
+     *  @usage:
+     *      ...
+     *      response.set_headers({"Connection": "close"});
+     */
     set_headers(headers = {}) {
         if (headers === null) { return null; }
         Object.keys(headers).forEach((key) => {
@@ -109,11 +197,36 @@ class Response {
         });
     }
 
-    // Set a cookie(s).
-    // @warning: Will only be added to the response when the user uses `send()`, `success()` or `error()`.
+    // Set a cookie.
+	/*  @docs:
+     *  @title: Set cookie.
+     *  @description: Set a cookie that will be sent with the response.
+	 *  @warning: Will only be added to the response when the user uses `send()`, `success()` or `error()`.
+	 *  @parameter:
+     *      @name: cookie
+     *      @description: The cookie string.
+     *      @type: string
+     *  @usage:
+     *      ...
+     *      response.set_cookie("MyCookie=Hello World;");
+     */
     set_cookie(cookie) {
         this.cookies.push(cookie);
     }
+	
+	// Set cookies.
+	/*  @docs:
+     *  @title: Set Cookies
+     *  @description: Set a cookie that will be sent with the response.
+	 *  @warning: Will only be added to the response when the user uses `send()`, `success()` or `error()`.
+	 *  @parameter:
+     *      @name: cookies
+     *      @description: The cookie strings.
+     *      @type: ...string
+     *  @usage:
+     *      ...
+     *      response.set_cookies("MyCookie1=Hello World;", "MyCookie2=Hello Univsere;");
+     */
     set_cookies(cookies) {
         for (let i = 0; i < cookies.length; i++) {
             this.cookies.push(cookies[i]);
@@ -128,37 +241,37 @@ class Response {
         return this.res.headersSent;
     }
     set headers_sent(val) {
-        return this.res.headersSent = val;
+        this.res.headersSent = val;
     }
     get send_date() {
         return this.res.sendDate;
     }
     set send_date(val) {
-        return this.res.sendDate = val;
+        this.res.sendDate = val;
     }
     get status_code() {
         return this.res.statusCode;
     }
     set status_code(val) {
-        return this.res.statusCode = val;
+        this.res.statusCode = val;
     }
     get status_message() {
         return this.res.statusMessage;
     }
     set status_message(val) {
-        return this.res.statusMessage = val;
+        this.res.statusMessage = val;
     }
     get strict_content_length() {
         return this.res.strictContentLength;
     }
     set strict_content_length(val) {
-        return this.res.strictContentLength = val;
+        this.res.strictContentLength = val;
     }
     get writable_ended() {
         return this.res.writableEnded;
     }
     set writable_ended(val) {
-        return this.res.writableEnded = val;
+        this.res.writableEnded = val;
     }
     get finished() {
         return this.res.finished;
@@ -167,7 +280,7 @@ class Response {
         return this.res.writableFinished;
     }
     set writable_finished(val) {
-        return this.res.writableFinished = val;
+        this.res.writableFinished = val;
     }
 
     // Copy default functions.

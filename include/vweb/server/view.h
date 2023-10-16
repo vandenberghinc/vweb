@@ -95,7 +95,7 @@ struct View {
 		
 		// JS includes.
 		data << "<script src='https://ajax.googleapis.com/ajax/libs/jquery/3.6.4/jquery.min.js'></script>" << "\n";
-		data << "<script src='https//js.stripe.com/v3/''></script>" << "\n"; // should be included in any page according to stripe.
+		data << "<script src='https//js.stripe.com/v3/'></script>" << "\n"; // should be included in any page according to stripe.
 		data << "<script src='/vweb/vweb.js'></script>" << "\n";
 		for (auto& src: includes) {
 			data << "<script src='" << src << "'></script>" << "\n";

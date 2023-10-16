@@ -15,6 +15,7 @@ const libnodemailer = require('nodemailer');
 // Imports.
 
 const {vlib, vhighlight} = require("./vinc.js");
+const Status = require("./status.js");
 const Mutex = require("./mutex.js");
 const Endpoint = require("./endpoint.js");
 const Response = require("./response.js");
@@ -24,32 +25,45 @@ const FileWatcher = require("./file_watcher.js");
 // ---------------------------------------------------------
 // The server object.
 
+class StripeError extends Error {
+    constructor(message) {
+        super(message);
+    }
+}
+
 /*  @docs: {
- *  @title: Meta
- *  @description: The js view meta information class.
+ *  @chapter: Backend
+ *  @title: Server
+ *  @description: 
+ *      The backend server class.
+ *      When the https parameters `certificate` and `private_key` are defined, the server will run automatically on http and https.
+ *  @parameter: {
+ *      @name: production
+ *      @description: Whether the server is in production more, or in development mode.
+ *      @type: boolean
+ *      @required: true
+ *  }
  *  @parameter: {
  *      @name: ip
  *      @description: The ip where the server will run on.
  *      @type: string
- *      @required
+ *      @required: true
  *  }
  *  @parameter: {
  *      @name: port
  *      @description: The port where the server will run on.
  *      @type: string
- *      @required
+ *      @required: true
  *  }
  *  @parameter: {
  *      @name: certificate
- *      @description: The path to the certificate file.
+ *      @description: The path to the certificate.
  *      @type: string
- *      @required
  *  }
  *  @parameter: {
  *      @name: private_key
  *      @description: The path to the private key file.
  *      @type: string
- *      @required
  *  }
  *  @parameter: {
  *      @name: passphrase
@@ -60,19 +74,19 @@ const FileWatcher = require("./file_watcher.js");
  *      @name: domain
  *      @description: The full domain url without `http://` or `https://`.
  *      @type: string
- *      @required
+ *      @required: true
  *  }
  *  @parameter: {
  *      @name: statics
  *      @description: Array with path's to static directories.
  *      @type: array[string]
- *      @required
+ *      @required: true
  *  }
  *  @parameter: {
  *      @name: database
  *      @description: The path to the database directory.
  *      @type: string
- *      @required
+ *      @required: true
  *  }
  *  @parameter: {
  *      @name: default_headers
@@ -88,7 +102,13 @@ const FileWatcher = require("./file_watcher.js");
  *      @name: enable_2fa
  *      @description: Enable 2fa for user authentication.
  *      @type: boolean
- *      @required
+ *      @required: true
+ *  }
+ *  @parameter: {
+ *      @name: enable_account_activation
+ *      @description: Enable account activation by email after a user signs up.
+ *      @type: boolean
+ *      @required: true
  *  }
  *  @parameter: {
  *      @name: smtp_sender
@@ -96,7 +116,6 @@ const FileWatcher = require("./file_watcher.js");
  *          The smtp sender address may either be a string with the email address, e.g. `your@email.com`.
  *          Or an array with the sender name and email address, e.g. `["Sender", "your@email.com"]`.
  *      @type: string, array
- *      @required
  *  }
  *  @parameter: {
  *      @name: smtp
@@ -104,14 +123,76 @@ const FileWatcher = require("./file_watcher.js");
  *          The smpt arguments object.
  *          More information about the arguments can be found at the nodemailer <link https://nodemailer.com/smtp/>documentation<link>.
  *      @type: object
- *      @required
  *  }
  *  @parameter: {
- *      @name: production
- *      @description: Whether the server is in production more, or in development mode.
- *      @type: boolean
- *      @required
+ *      @name: mail_body_2fa
+ *      @description: The default 2fa mail body.
+ *      @type: string
+ *      @required: true
  *  }
+ *  @parameter:
+ *      @name: stripe_secret_key
+ *      @type: string
+ *      @description: The stripe secret key. Required to accept payments.
+ *  @parameter:
+ *      @name: payment_products
+ *      @type: object
+ *      @description: 
+ *          The payment products or subscriptions.
+ *
+ *          When the payment products has a value defined for attribute `recurring` it will become a subscription instead of a one-time payment.
+ *
+ *          Warning: The stripe products that do not match any of the payment products' id's will be deactivated and all subscriptions cancelled.
+ *
+ *          Warning: The payment product objects are accessable by anyone through the backend rest api so they should not contain any sensitive data.
+ *          
+ *          A one-time payment product object looks like:
+ *          ```js
+ *          {
+ *              id: "prod_premium",                 // an unique id across your entire stripe account. Warning: this id can never be changed. Or the old product will be deactivated from your stripe account.
+ *              name: "Premium",                    // the name of the subscription.
+ *              description: "...",                 // the description of the subscription.
+ *              price: 9.99,                        // price in decimals.
+ *              currency: "eur",                    // ISO currency code (lowercase)
+ *              recurring: [1, "month"],            // (optional) the recurring interval count and format, should be defined for subscriptions.
+ *              statement_descriptor: undefined,    // (optional) An arbitrary string to be displayed on your customer’s credit card or bank statement, max 22 chars long.
+ *              tax_behavior: undefined,            // (optional) tax behavior.
+ *              icon: undefined,                    // (optional) the absolute url to the products icon.
+ *          }```
+ *
+ *          A subscription product looks like:
+ *          ```js
+ *          {
+ *              plans: [{
+ *                  id: "prod_premium",              // an unique id across your entire stripe account. Warning: this id can never be changed. Or the old product will be deactivated from your stripe account.
+ *                  name: "Premium",                // the name of the subscription.
+ *                  description: "...",             // the description of the subscription.
+ *                  price: 9.99,                    // price in decimals.
+ *              }],
+ *              currency: "eur",                    // ISO currency code (lowercase)
+ *              interval: "month",                  // the recurring interval format, the following values are supported `["day", "week", "month", "year"]`.
+ *              interval_count: 1,                  // (optional) the recurring interval count, by default `1`.
+ *              statement_descriptor: undefined,    // (optional) An arbitrary string to be displayed on your customer’s credit card or bank statement, max 22 chars long.
+ *              tax_behavior: undefined,            // (optional) tax behavior.
+ *              icon: undefined,                    // (optional) the absolute url to the products icon.
+ *          }```
+ *
+ *          The following attributes may be defined in the subscription object and will be used for all the plan objects when the plan object's attribute is not defined.
+ *          Or they may be defined for each plan to specify a unique value per plan.
+ *              - name
+ *              - description
+ *              - currency
+ *              - interval
+ *              - interval_count
+ *              - statement_descriptor
+ *              - tax_behavior
+ *              - icon
+ *
+ *          When the user purchases a subscription for one of the plans, the other active plans from that subscription will automatically be cancelled.
+ *  @parameter:
+ *      @name: payment_return_url
+ *      @type: string
+ *      @description: The absolute url where the user should be redirected to after a payment (e.g. https://mydomain.com/payments/redirect)
  *  @parameter: {
  *      @name: file_watcher
  *      @description: The file watcher arguments, define to enable file watching. The parameter may either be an FileWatcher object, an object with arguments or a string for the `source` argument.
@@ -231,6 +312,7 @@ class Server {
 
     // Constructor.
     constructor({
+        production = false,
         ip = "127.0.0.1",
         port = 8000,
         certificate = null,
@@ -242,9 +324,13 @@ class Server {
         default_headers = null,
         token_expiration = 86400,
         enable_2fa = false,
+        enable_account_activation = true,
         smtp_sender = null,
         smtp = null,
-        production = false,
+        mail_body_2fa = "<p>Your 2FA code is: {{2FA}}.</p>",
+        stripe_secret_key = null,
+        payment_products = [],
+        payment_return_url = null,
         file_watcher = null,
     }) {
 
@@ -278,17 +364,28 @@ class Server {
         this.port = port;
         this.ip = ip;
         if (certificate != null) {
-            this.certificate = new vlib.Path(certificate).load('utf8');
+            this.certificate = new vlib.Path(certificate).load_sync('utf8');
         }
         if (private_key != null) {
-            this.private_key = new vlib.Path(private_key).load('utf8');
+            this.private_key = new vlib.Path(private_key).load_sync('utf8');
         }
         this.domain = domain;
         this.statics = statics.map((path) => new vlib.Path(path));
-        this.database = new vlib.Path(database);
+        this.database = new vlib.Path(database).abs();
         this.enable_2fa = enable_2fa;
+        this.enable_account_activation = enable_account_activation;
         this.production = production;
         this.token_expiration = token_expiration;
+        this.mail_body_2fa = mail_body_2fa;
+        this.stripe_enabled = stripe_secret_key != null;
+        if (stripe_secret_key != null) {
+            this.stripe = require("stripe")(stripe_secret_key);
+            if (payment_return_url == null) {
+                throw Error("Define parameter \"payment_return_url\" to define an absolute url where the user should be redirected to after a payment.");
+            }
+        }
+        this.payment_products = payment_products;
+        this.payment_return_url = payment_return_url;
 
         // Default headers.
         if (default_headers === null) {
@@ -301,9 +398,9 @@ class Server {
                 "X-Frame-Options": "DENY",
                 "Strict-Transport-Security": "max-age=31536000",
                 "Content-Security-Policy": 
-                    "default-src 'self' *.google-analytics.com https://my.spline.design; " +
+                    "default-src 'self' js.stripe.com *.google-analytics.com https://my.spline.design; " +
                     "img-src 'self' *.google-analytics.com raw.githubusercontent.com www.w3.org; " +
-                    "script-src 'self' 'unsafe-inline' ajax.googleapis.com www.googletagmanager.com googletagmanager.com *.google-analytics.com raw.githubusercontent.com code.jquery.com; " +
+                    "script-src 'self' 'unsafe-inline' js.stripe.com ajax.googleapis.com www.googletagmanager.com googletagmanager.com *.google-analytics.com raw.githubusercontent.com code.jquery.com; " +
                     "style-src 'self' 'unsafe-inline'; " +
                     "upgrade-insecure-requests; " +
                     "block-all-mixed-content;",
@@ -311,9 +408,6 @@ class Server {
         } else {
             this.default_headers = default_headers;
         }
-
-        // 2fa mail.
-        this.mail_body_2fa = "<p>Your 2FA code is: {{2FA}}.</p>"
 
         // Define your list of endpoints
         this.endpoints = [];
@@ -329,6 +423,9 @@ class Server {
                 additional_paths = additional_paths.concat(this._create_static_endpoints(path.base(), path));
             });
 
+            // Add the vweb backend source files to the additional files.
+            additional_paths.push(__dirname);
+
             // Initialize file watcher.
             if (typeof file_watcher === "string" || file_watcher instanceof vlib.Path) {
                 this.file_watcher = new FileWatcher({source: file_watcher});
@@ -338,6 +435,7 @@ class Server {
             } else {
                 this.file_watcher = new FileWatcher(file_watcher);
             }
+            this.file_watcher.excluded.push(this.database.str());
 
             // Add default and static endpoints.
             this.file_watcher.additional_paths = additional_paths;
@@ -351,7 +449,7 @@ class Server {
         this.smtp_enabled = smtp_sender !== null && typeof smtp === "object";
         if (this.smtp_enabled) {
             this.smtp_sender = smtp_sender;
-            this.smtp = libnodemailer.createTransport({smtp});
+            this.smtp = libnodemailer.createTransport(smtp);
         }
         
         // Create an HTTPS server
@@ -373,12 +471,16 @@ class Server {
 
     // Iterate a subpath directory in the database.
     _iter_db_dir(subpath, callback) {
-        this.database.join(subpath).paths_sync().iterate(callback);
+        this.database.join(subpath).paths_sync().iterate_async_await((path) => {
+            if (path.name() !== ".DS_Store") {
+                return callback(path);
+            }
+        });
     }
 
     // Check of the uid is within the max uid range.
     _check_uid_within_range(uid) {
-        if (uid == null || uid < 0) {
+        if (uid == null || uid < 0 || uid == "") {
             throw Error("Undefined user id.");
         }
         else if (uid > this.max_uid) {
@@ -433,20 +535,26 @@ class Server {
         if (!path.exists()) {
             return obj;
         }
-        const data = path.load();
-        const key = 0;
+        const data = path.load_sync();
+        let key = 0;
         const info = {line: "", line_number: 0}
         for (let i = 0; i < data.length; i++) {
             const c = data.charAt(i);
             if (c == '\n') {
+                if (obj[keys[key]] == null) {
+                    obj[keys[key]] = "";
+                }
                 ++key;
             } else {
-                if (obj[keys[key]] === null) {
+                if (obj[keys[key]] == null) {
                     obj[keys[key]] = "";
                 }
                 obj[keys[key]] += c;
             }
         }
+        // for (let i = key; i < keys.length; i++) {
+        //     obj[keys[i]] = "";
+        // }
         return obj;
     }
 
@@ -459,13 +567,14 @@ class Server {
             } else {
                 data += obj[keys[i]].toString();
             }
+            data += "\n";
         }
-        path.save_sync(path, data);
+        path.save_sync(data);
     }
 
     // Save or delete uid by username,
     _sys_save_uid_by_username(uid, username) {
-        this.database.join(`.sys/usernames/${username}`, false).save_sync(uid);
+        this.database.join(`.sys/usernames/${username}`, false).save_sync(uid.toString());
     }
     _sys_delete_uid_by_username(username) {
         this.database.join(`.sys/usernames/${username}`, false).del_sync();
@@ -473,7 +582,7 @@ class Server {
 
     // Save or delete uid by email,
     _sys_save_uid_by_email(uid, email) {
-        this.database.join(`.sys/emails/${email}`, false).save_sync(uid);
+        this.database.join(`.sys/emails/${email}`, false).save_sync(uid.toString());
     }
     _sys_delete_uid_by_email(email) {
         this.database.join(`.sys/emails/${email}`, false).del_sync();
@@ -491,7 +600,7 @@ class Server {
         }
      */
     _sys_load_user(uid) {
-        return this._sys_save_data_into_obj(this.database.join(`.sys/users/${uid}`, false), {uid: uid}, [
+        return this._sys_load_data_into_obj(this.database.join(`.sys/users/${uid}`, false), {uid: uid}, [
             "first_name",
             "last_name",
             "username",
@@ -514,6 +623,7 @@ class Server {
             ],
         );
     }
+
     // @todo the parameter requires the full sys user object.
     _sys_delete_user(user) {
         throw Error("@todo the parameter requires the full sys user object.");
@@ -530,7 +640,7 @@ class Server {
         }
      */
     _sys_load_user_token(uid) {
-        const obj = this._sys_save_data_into_obj(this.database.join(`.sys/tokens/${uid}`, false), {expiration: 0}, [
+        const obj = this._sys_load_data_into_obj(this.database.join(`.sys/tokens/${uid}`, false), {expiration: 0}, [
             "expiration",
             "token",
         ]);
@@ -561,7 +671,7 @@ class Server {
         }
      */
     _sys_load_user_2fa(uid) {
-        const obj = this._sys_save_data_into_obj(this.database.join(`.sys/2fa/${uid}`, false), {expiration: 0}, [
+        const obj = this._sys_load_data_into_obj(this.database.join(`.sys/2fa/${uid}`, false), {expiration: 0}, [
             "expiration",
             "code",
         ]);
@@ -605,85 +715,25 @@ class Server {
         return token;
     }
 
-    // Get a cookie value.
-    // Returns null when the cookie is not found.
-    _get_cookie(name, request) {
-        if (request.headers.cookie === undefined) {
-            return null;
-        }
-        const cookie = request.headers.cookie;
-        let key = "";
-        let value = "";
-        let get_value = false;
-        let skip = false;
-        for (let x = 0; x < cookie.length; x++) {
-            const c = cookie.charAt(y);
-
-            // Skip till next cookie.
-            if (skip) {
-                if (c == ";") {
-                    skip = false;
-                }
-            } else {
-
-                // Skip whitespace in keys.
-                if (!get_value && (c == " " || c == "\t")) {
-                    continue;
-                }
-
-                // End of cookie.
-                else if (c == ";") {
-                    if (get_value) {
-                        return value;
-                    } else {
-                        key = "";
-                    }
-                }
-
-                // End of cookie key.
-                else if (c == "=") {
-                    if (key == name) {
-                        get_value = false;
-                    } else {
-                        skip = true;
-                    }
-                }
-
-                // Add char to value.
-                else if (get_value) {
-                    value += c;
-                }
-
-                // Add char to key.
-                else {
-                    key += c;
-                }
-            }
-        }
-        if (value.length > 0) {
-            return value;
-        }
-        return null;
-    }
-
     // Perform authentication on a request.
-    // Returns the uid of the user when authentication was successfull, otherwise `null`.
-    _authenticate(request, response) {
+    // When the authentication has failed an args object for response.send will be returned.
+    // On a successfull authentication `null` will be returned.
+    _authenticate(request) {
 
         // // Get api key key from bearer.
         const authorization = request.headers["Authorization"];
         if (authorization !== undefined) {
             if (typeof authorization !== "string") {
-                response.send({
+                return {
                     status: 400, 
                     data: "Bad Request: Invalid authorization header.",
-                });
+                };
             }
             if (!authorization.eq_first("Bearer ")) {
-                response.send({
+                return {
                     status: 400, 
                     data: "Bad Request: Invalid authorization scheme, the authorization scheme must be \"Bearer\".",
-                });
+                };
             }
             let api_key = "";
             for (let i = 7; i < authorization.length; i++) {
@@ -695,42 +745,45 @@ class Server {
             }
             const uid = this.get_uid_by_api_key(api_key);
             if (!this.verify_api_key_by_uid(uid, api_key)) {
-                response.send({
+                return {
                     status: 401, 
                     data: "Unauthorized.",
-                });
-                return null;
+                };
 
             }
-            return uid;
+            request.uid = uid;
+            return true;
         }
 
         // Get token from cookies.
         else {
-            const token = this._get_cookie("T", request);
-            if (token == null) {
-                return null;
-            }
-            const uid = this.get_uid_by_api_key(api_key);
-            if (!this.verify_token_by_uid(uid, api_key)) {
-                response.send({
+            if (request.cookies.T == null || request.cookies.T.value == null) {
+                return {
                     status: 302, 
                     headers: {"Location": `/signin?next=${request.url}`},
                     data: "Permission denied.",
-                });
-                return null;
+                };
+            }
+            const token = request.cookies.T.value;
+            const uid = this.get_uid_by_api_key(token);
+            if (!this.verify_token_by_uid(uid, token)) {
+                return {
+                    status: 302, 
+                    headers: {"Location": `/signin?next=${request.url}`},
+                    data: "Permission denied.",
+                };
 
             }
-            return uid;
+            request.uid = uid;
+            return null;
         }
 
         // Authentication failed.
-        response.send({
+        return {
             status: 302, 
             headers: {"Location": `/signin?next=${request.url}`},
             data: "Permission denied.",
-        });
-        return null;
+        };
     }
 
     // Sign a user in and return a response.
@@ -747,7 +800,7 @@ class Server {
         // Response.
         response.send({
             status: 200,
-            data: {"message": "Successfully signed in."}
+            data: {message: "Successfully signed in."}
         });
     }
 
@@ -768,7 +821,7 @@ class Server {
     _create_token_cookie(response, token) {
         response.set_header("Cache-Control", "max-age=0, no-cache, no-store, must-revalidate, proxy-revalidate");
         response.set_header("Access-Control-Allow-Credentials", "true");
-        const expires = new Date(Date.now().getTime() + this.token_expiration * 1000);
+        let expires = new Date(new Date().getTime() + this.token_expiration * 1000);
         if (typeof token === "object") {
             token = token.token;
         }
@@ -778,13 +831,13 @@ class Server {
     // Create user headers.
     //  - Should be called when a user is authenticated.
     _create_user_cookie(response, uid) {
-        if (uid != null && uid <= this.max_uid) {
+        if (uid != null && uid >= 0 && uid <= this.max_uid) {
             response.set_cookie(`UserID=${uid}; Path=/; SameSite=Strict; Secure;`);
-            const is_activated = this.enable_2fa ? this.is_activated(uid) : true;
+            const is_activated = this.enable_account_activation ? this.is_activated(uid) : true;
             response.set_cookie(`UserActivated=${is_activated}; Path=/; SameSite=Strict; Secure;`);
         } else {
             response.set_cookie(`UserID=-1; Path=/; SameSite=Strict; Secure;`);
-            const is_activated = this.enable_2fa ? false : true;
+            const is_activated = this.enable_account_activation ? false : true;
             response.set_cookie(`UserActivated=${is_activated}; Path=/; SameSite=Strict; Secure;`);
         }
     }
@@ -802,14 +855,14 @@ class Server {
     // Reset all default cookies.
     // - Should be called when a user signs out.
     _reset_cookies(response) {
-        response.set_cookie("Set-Cookie", "T=; Path=/; SameSite=Strict; Secure; HttpOnly;");
-        response.set_cookie("Set-Cookie", "UserID=-1; Path=/; SameSite=Strict; Secure;");
-        response.set_cookie("Set-Cookie", "UserActivated=false; Path=/; SameSite=Strict; Secure;");
-        response.set_cookie("Set-Cookie", "2FAUserID=-1; Path=/; SameSite=Strict; Secure;");
-        response.set_cookie("Set-Cookie", "UserName=; Path=/; SameSite=Strict; Secure;");
-        response.set_cookie("Set-Cookie", "UserFirstName=; Path=/; SameSite=Strict; Secure;");
-        response.set_cookie("Set-Cookie", "UserLastName=; Path=/; SameSite=Strict; Secure;");
-        response.set_cookie("Set-Cookie", "UserEmail=; Path=/; SameSite=Strict; Secure;");
+        response.set_cookie("T=; Path=/; SameSite=Strict; Secure; HttpOnly;");
+        response.set_cookie("UserID=-1; Path=/; SameSite=Strict; Secure;");
+        response.set_cookie("UserActivated=false; Path=/; SameSite=Strict; Secure;");
+        // response.set_cookie("2FAUserID=-1; Path=/; SameSite=Strict; Secure;");
+        response.set_cookie("UserName=; Path=/; SameSite=Strict; Secure;");
+        response.set_cookie("UserFirstName=; Path=/; SameSite=Strict; Secure;");
+        response.set_cookie("UserLastName=; Path=/; SameSite=Strict; Secure;");
+        response.set_cookie("UserEmail=; Path=/; SameSite=Strict; Secure;");
     }
 
     // ---------------------------------------------------------
@@ -845,24 +898,22 @@ class Server {
 
             // Add file.
             else {
-                const subpath = path.str().substr(base.length)
+                let subpath = path.str().substr(base.length)
                 if (subpath.charAt(0) != "/") {
                     subpath = "/" + subpath;
                 }
-                let data = path.load_sync();
+                let data;
                 if (path.extension() === ".js") {
+                    data = path.load_sync();
                     const compiler = new vhighlight.JSCompiler({
                         line_breaks: true,
                         double_line_breaks: false,
                         comments: false,
                         white_space: false,
                     })
-                    try {
-                        data = compiler.compile_code(data, path.str());
-                    } catch (err) {
-                        console.error("JS Compile error:");
-                        console.error(err);
-                    }
+                    data = compiler.compile_code(data, path.str());
+                } else {
+                    data = path.load_sync({type: null});
                 }
                 this.endpoint(new Endpoint({
                     method: "GET",
@@ -877,6 +928,8 @@ class Server {
 
     // Create default endpoints.
     _create_default_endpoints() {
+
+        // Default static endpoints.
         const defaults = [
             {
                 method: "GET",
@@ -903,7 +956,7 @@ class Server {
                 path: new vlib.Path(vhighlight.web_exports.js),
             },
         ]
-        const paths = [];
+        const additional_file_watcher_paths = [];
         defaults.iterate((item) => {
             this.endpoint(new Endpoint({
                 method: item.method,
@@ -912,9 +965,654 @@ class Server {
                 content_type: item.content_type,
                 compress: item.compress,
             }))
-            paths.push(item.path.str());
+            additional_file_watcher_paths.push(item.path.str());
         })
-        return paths;
+
+
+        // ---------------------------------------------------------
+        // Default auth endpoints.
+        
+        this.endpoint(
+            
+            // Send 2fa.
+            {
+                method: "GET",
+                endpoint: "/vweb/backend/auth/2fa",
+                content_type: "application/json",
+                rate_limit: 10,
+                rate_limit_duration: 60,
+                callback: (request, response) => {
+                    
+                    // Get params.
+                    let email;
+                    try {
+                        email = request.param("email")
+                    } catch (err) {
+                        return response.error({status: Status.bad_request, data: {error: err.message}});
+                    }
+                    
+                    // Get uid.
+                    let uid;
+                    if ((uid = this.get_uid_by_email(email)) == null) {
+                        return response.success({
+                            data: {message: "A 2FA code was sent if the specified email exists."},
+                        });
+                    }
+                    
+                    // Send.
+                    this.send_2fa({uid:uid, request:request});
+                    return response.success({
+                        data: {message: "A 2FA code was sent if the specified email exists."},
+                    });
+                    
+                }
+            },
+        
+            // Sign in.
+            {
+                method: "POST",
+                endpoint: "/vweb/backend/auth/signin",
+                content_type: "application/json",
+                rate_limit: 10,
+                rate_limit_duration: 60,
+                callback: (request, response) => {
+
+                    // Get params.
+                    let email, email_err, username, username_err, password, uid, code;
+                    try {
+                        email = request.param("email")
+                    } catch (err) {
+                        email_err = err;
+                    }
+                    try {
+                        username = request.param("username")
+                    } catch (err) {
+                        username_err = err;
+                    }
+                    if (email_err && username_err) {
+                        return response.error({status: Status.bad_request, data: {error: email_err.message}});
+                    }
+                    try {
+                        password = request.param("password")
+                    } catch (err) {
+                        return response.error({status: Status.bad_request, data: {error: err.message}});
+                    }
+                    
+                    // Get uid.
+                    if (email) {
+                        if ((uid = this.get_uid_by_email(email)) == null) {
+                            return response.error({
+                                status: Status.unauthorized,
+                                data: {error: "Unauthorized."}
+                            });
+                        }
+                    } else {
+                        if ((uid = this.get_uid(username)) == null) {
+                            return response.error({
+                                status: Status.unauthorized,
+                                data: {error: "Unauthorized."}
+                            });
+                        }
+                    }
+                    
+                    // Verify password.
+                    if (this.verify_password(uid, password)) {
+                        
+                        // Verify 2fa.
+                        if (this.enable_2fa) {
+
+                            // Get 2FA.
+                            try {
+                                code = request.param("2fa")
+                            } catch (err) {
+                                this.send_2fa({uid:uid, request:request});
+                                return response.send({
+                                    status: Status.two_factor_auth_required,
+                                    data: {error: "2FA required."}
+                                });
+                            }
+
+                            // Verify 2FA.
+                            if (!this.verify_2fa(uid, code)) {
+                                return response.send({
+                                    status: Status.unauthorized,
+                                    data: {error: "Invalid 2FA code."}
+                                });
+                            }
+                        }
+                        
+                        // Sign in.
+                        return this._sign_in_response(response, uid);
+                    }
+
+                    // Unauthorized.
+                    return response.send({
+                        status: Status.unauthorized,
+                        data: {error: "Unauthorized."}
+                    });
+                }
+            },
+        
+            // Sign out.
+            {
+                method: "POST",
+                endpoint: "/vweb/backend/auth/signout",
+                content_type: "application/json",
+                authenticated: true,
+                rate_limit: 10,
+                rate_limit_duration: 60,
+                callback: (request, response) => {
+                    
+                    // Delete token.
+                    this._sys_delete_user_token(request.uid);
+                    
+                    // Create headers.
+                    this._reset_cookies(response);
+                    
+                    // Response.
+                    return response.success({
+                        data: {message: "Successfully signed out."},
+                    })
+                }
+            },
+        
+            // Sign up.
+            {
+                method: "POST",
+                endpoint: "/vweb/backend/auth/signup",
+                content_type: "application/json",
+                rate_limit: 10,
+                rate_limit_duration: 60,
+                callback: async (request, response) => {
+                    
+                    // Get params.
+                    let first_name, last_name, username, email, pass, verify_pass;
+                    try {
+                        username = request.param("username");
+                        first_name = request.param("first_name");
+                        last_name = request.param("last_name");
+                        email = request.param("email");
+                        pass = request.param("password");
+                        verify_pass = request.param("verify_password");
+                    } catch (err) {
+                        return response.error({status: Status.bad_request, data: {error: err.message}});
+                    }
+                    
+                    // Verify password.
+                    if (pass != verify_pass) {
+                        return response.error({
+                            status: Status.bad_request,
+                            data: {error: "Passwords do not match."}
+                        });
+                    }
+                    
+                    // Create.
+                    let uid;
+                    try {
+                        uid = await this.create_user({
+                            first_name: first_name,
+                            last_name: last_name,
+                            username: username,
+                            email: email,
+                            password: pass
+                        });
+                    } catch (err) {
+                        return response.error({status: Status.bad_request, data: {error: err.message}});
+                    }
+                    
+                    // Send 2fa code for activation.
+                    if (this.enable_account_activation) {
+                        this.send_2fa({uid:uid, request:request});
+                    }
+                    
+                    // Sign in.
+                    return this._sign_in_response(response, uid);
+                    
+                }
+            },
+        
+            // Activate account.
+            {
+                method: "POST",
+                endpoint: "/vweb/backend/auth/activate",
+                content_type: "application/json",
+                rate_limit: 10,
+                rate_limit_duration: 60,
+                callback: (request, response) => {
+                    
+                    // Vars.
+                    let uid = request.uid;
+                    
+                    // Get uid by cookie.
+                    if (uid == null) {
+                        const value = request.cookies["UserID"].value;
+                        if (value != null && value != "-1") {
+                            uid = parseInt(value);
+                            if (isNaN(uid)) {
+                                uid = null;
+                            }
+                        }
+                    }
+                    
+                    // Check uid.
+                    if (uid == null) {
+                        return response.error({status: Status.forbidden, data: {error: "Permission denied."}});
+                    }
+                    
+                    // Get param.
+                    let code;
+                    try {
+                        code = request.param("2fa");
+                    } catch (err) {
+                        return response.error({status: Status.bad_request, data: {error: err.message}});
+                    }
+
+                    // Verify.
+                    if (this.verify_2fa(uid, code)) {
+                        
+                        // Set activated.
+                        this.set_activated(uid, true);
+                        
+                        // Response.
+                        this._create_user_cookie(response, uid);
+                        return response.success({data: {message: "Successfully verified the 2FA code."}});
+                    }
+                    
+                    // Invalid code.
+                    else {
+                        return response.error({status: Status.forbidden, data: {error: "Permission denied."}});
+                    }
+                }
+            },
+        
+            // Forgot password.
+            {
+                method: "POST",
+                endpoint: "/vweb/backend/auth/forgot_password",
+                content_type: "application/json",
+                rate_limit: 10,
+                rate_limit_duration: 60,
+                callback: (request, response) => {
+                    
+                    // Get params.
+                    let email, code, pass, verify_pass;
+                    try {
+                        email = request.param("email");
+                        code = request.param("2fa");
+                        pass = request.param("password");
+                        verify_pass = request.param("verify_password");
+                    } catch (err) {
+                        return response.error({status: Status.bad_request, data: {error: err.message}});
+                    }
+                    
+                    // Verify password.
+                    if (pass != verify_pass) {
+                        return response.error({status: Status.bad_request, data: {error: "Passwords do not match."}});
+                    }
+                    
+                    // Get uid.
+                    let uid;
+                    if ((uid = this.get_uid_by_email(email)) == null) {
+                        return response.error({status: Status.forbidden, data: {error: "Permission denied."},});
+                    }
+                    
+                    // Verify 2fa.
+                    if (!this.verify_2fa(uid, code)) {
+                        return response.error({status: Status.forbidden, data: {error: "Invalid 2FA code."},});
+                    }
+                    
+                    // Set password.
+                    this.set_password(uid, pass);
+                    
+                    // Sign in.
+                    return this._sign_in_response(response, uid);
+                }
+            },
+        )
+        
+        // ---------------------------------------------------------
+        // Default user endpoints.
+
+        this.endpoint(
+        
+            // Get user.
+            {
+                method: "GET",
+                endpoint: "/vweb/backend/user",
+                content_type: "application/json",
+                authenticated: true,
+                rate_limit: 10,
+                rate_limit_duration: 60,
+                callback: (request, response) => {
+                    return response.success({data: this.get_user(request.uid)});
+                }
+            },
+
+            // Set user.
+            {
+                method: "POST",
+                endpoint: "/vweb/backend/user",
+                authenticated: true,
+                rate_limit: 10,
+                rate_limit_duration: 60,
+                callback: (request, response) => {
+                    this.set_user(request.uid, request.params);
+                    this._create_detailed_user_cookie(response, request.uid);
+                    return response.success({data: {message: "Successfully updated your account."}});
+                }
+            },
+        
+            // Change password.
+            {
+                method: "POST",
+                endpoint: "/vweb/backend/user/change_password",
+                authenticated: true,
+                rate_limit: 10,
+                rate_limit_duration: 60,
+                callback: (request, response) => {
+                    
+                    // Get params.
+                    let current_pass, pass, verify_pass;
+                    try {
+                        current_pass = request.param("current_password");
+                        pass = request.param("password");
+                        verify_pass = request.param("verify_password");
+                    } catch (err) {
+                        return response.error({status: Status.bad_request, data: {error: err.message}});
+                    }
+                    
+                    // Verify old password.
+                    if (!this.verify_password(request.uid, current_pass)) {
+                        return response.error({
+                            status: Status.unauthorized,
+                            data: {error: "Incorrect password."},
+                        });
+                    }
+                    
+                    // Verify new password.
+                    if (pass != verify_pass) {
+                        return response.error({
+                            status: Status.bad_request,
+                            data: {error: "Passwords do not match."},
+                        });
+                    }
+                    
+                    // Set password.
+                    this.set_password(request.uid, pass);
+                    
+                    // Success.
+                    return response.success({
+                        status: Status.success,
+                        data: {message: "Successfully updated your password."},
+                    });
+                }
+            },
+        
+            // Generate api key.
+            {
+                method: "POST",
+                endpoint: "/vweb/backend/user/api_key",
+                authenticated: true,
+                rate_limit: 10,
+                rate_limit_duration: 60,
+                callback: (request, response) => {
+                    return response.success({
+                        data: {
+                            "message": "Successfully generated an API key.",
+                            "api_key": this.generate_api_key(request.uid),
+                        }
+                    });
+                }
+            },
+        
+            // Revoke api key.
+            {
+                method: "DELETE",
+                endpoint: "/vweb/backend/user/api_key",
+                authenticated: true,
+                rate_limit: 10,
+                rate_limit_duration: 60,
+                callback: (request, response) => {
+                    this.revoke_api_key(request.uid);
+                    return response.send({
+                        status: Status.success,
+                        data: {message: "Successfully revoked your API key."},
+                    });
+                }
+            },
+            
+            // Load data.
+            {
+                method: "GET",
+                endpoint: "/vweb/backend/user/data",
+                authenticated: true,
+                rate_limit: 10,
+                rate_limit_duration: 60,
+                callback: (request, response) => {
+                    let path, def;
+                    try {
+                        path = request.param("path");
+                    } catch (err) {
+                        return response.error({status: Status.bad_request, data: {error: err.message}});
+                    }
+                    try {
+                        def = request.param("default");
+                    } catch (err) {
+                        def = null;
+                    }
+                    try {
+                        return response.send({
+                            status: Status.success,
+                            data: this.load_user_data(request.uid, path, def)
+                        });
+                    } catch (err) {
+                        return response.error({status: Status.internal_server_error, data: {error: err.message}});
+                    }
+                }
+            },
+        
+            // Save data.
+            {
+                method: "POST",
+                endpoint: "/vweb/backend/user/data",
+                authenticated: true,
+                rate_limit: 10,
+                rate_limit_duration: 60,
+                callback: (request, response) => {
+                    let path, data;
+                    try {
+                        path = request.param("path");
+                        data = request.param("data");
+                    } catch (err) {
+                        return response.error({status: Status.bad_request, data: {error: err.message}});
+                    }
+                    try {
+                        this.save_user_data(request.uid, path, data);
+                    } catch (err) {
+                        return response.error({status: Status.internal_server_error, data: {error: err.message}});
+                    }
+                    return response.send({
+                        status: Status.success,
+                        data: {message: "Successfully saved."},
+                    });
+                }
+            },
+
+            // Load proteced data.
+            {
+                method: "GET",
+                endpoint: "/vweb/backend/user/data/protected",
+                authenticated: true,
+                rate_limit: 10,
+                rate_limit_duration: 60,
+                callback: (request, response) => {
+                    let path, def;
+                    try {
+                        path = request.param("path");
+                    } catch (err) {
+                        return response.error({status: Status.bad_request, data: {error: err.message}});
+                    }
+                    try {
+                        def = request.param("default");
+                    } catch (err) {
+                        def = null;
+                    }
+                    try {
+                        return response.send({
+                            status: Status.success,
+                            data: this.load_protected_user_data(request.uid, path, def)
+                        });
+                    } catch (err) {
+                        return response.error({status: Status.internal_server_error, data: {error: err.message}});
+                    }
+                }
+            },
+        )
+
+        // ---------------------------------------------------------
+        // Payments endpoints.
+        if (this.stripe_enabled) {
+            this.endpoint(
+            
+                // Get products.
+                {
+                    method: "GET",
+                    endpoint: "/vweb/backend/payments/products",
+                    content_type: "application/json",
+                    rate_limit: 10,
+                    rate_limit_duration: 60,
+                    callback: (request, response) => {
+                        return response.success({data: this.payment_products});
+                    }
+                },
+
+                // Charge a shopping cart.
+                {
+                    method: "POST",
+                    endpoint: "/vweb/backend/payments/charge",
+                    content_type: "application/json",
+                    rate_limit: 10,
+                    rate_limit_duration: 60,
+                    callback: async (request, response) => {
+
+                        // Get shopping cart.
+                        let cart;
+                        try {
+                            cart = request.param("cart", "array");
+                        } catch (err) {
+                            return response.error({status: Status.bad_request, data: {error: err.message}});
+                        }
+
+                        // Create a customer or retrieve the customer id from the signed in user.
+                        let cid, email, first_name, last_name;
+                        if (request.uid != null) {
+                            this._check_uid_within_range(request.uid);
+                            cid = await this._get_stripe_cid(request.uid)
+                        } else {
+                            try {
+                                email = request.param("email");
+                                first_name = request.param("first_name");
+                                last_name = request.param("last_name");
+                            } catch (err) {
+                                return response.error({status: Status.bad_request, data: {error: err.message}});
+                            }
+                            cid = await this._create_stripe_customer(email, `${first_name} ${last_name}`).id;
+                        }
+
+                        // Check the shopping cart.
+                        let is_subscription = null;
+                        const products = [];
+                        cart.iterate((item) => {
+                            if (is_subscription === null) {
+                                is_subscription = item.product.is_subscription;
+                            }
+                            else if (is_subscription != item.product.is_subscription) {
+                                return response.error({
+                                    status: Status.bad_request,
+                                    error: "Subscription and one-time payment products can not be charged in one request.",
+                                })
+                            }
+                            for (let i = 0; i < item.quantity; i++) {
+                                products.push(item.product);
+                            }
+                        })
+
+                        // Charge the shopping cart.
+                        let result;
+                        if (is_subscription) {
+                            if (products.length > 1) {
+                                throw Error("Only one subscription can be charged at the time.");
+                            }
+                            result = await this.create_subscription({
+                                uid: request.uid,
+                                cid: cid,
+                                product: cart[0].product,
+                            })
+                        } else {
+                            result = await this.create_payment({
+                                uid: request.uid,
+                                cid: cid,
+                                products: products,
+                                email: email,
+                            })
+                        }
+
+                        // Handle the result.
+                        if (result.error) {
+                            return response.error({
+                                status: Status.bad_request,
+                                data: result,
+                            })
+                        } else {
+                            return response.success({
+                                data: {
+                                    return_url: this.payment_return_url,
+                                    ...result,
+                                }
+                            })
+                        }
+                    }
+                },
+
+                // Get the status of a payment intent.
+                // {
+                //     method: "GET",
+                //     endpoint: "/vweb/backend/payments/charge/status",
+                //     content_type: "application/json",
+                //     rate_limit: 10,
+                //     rate_limit_duration: 60,
+                //     callback: async (request, response) => {
+
+                //         // Get shopping cart.
+                //         let payment_intent_id;
+                //         try {
+                //             payment_intent_id = request.param("payment_intent");
+                //         } catch (err) {
+                //             return response.error({status: Status.bad_request, data: {error: err.message}});
+                //         }
+
+                //         // Get payment intent.
+                //         let payment_intent;
+                //         try {
+                //             payment_intent = await this.stripe.paymentIntents.retrieve(payment_intent_id);
+                //         } catch (error) {
+                //             throw new StripeError(error.message); // since the default stripe errors do not have a stacktrace.
+                //         }
+
+                //         // Send result.
+                //         return response.success({
+                //             data: {
+                //                 status: payment_intent.status,
+                //                 payment_intent: payment_intent,
+                //             }
+                //         })
+                //     }
+                // },
+            );
+        }
+
+        // Handler.
+        return additional_file_watcher_paths;
     }
 
     // Create the sitemap endpoint.
@@ -925,6 +1623,7 @@ class Server {
         this.endpoints.iterate((endpoint) => {
             if (
                 endpoint.data == null &&
+                endpoint.callback == null &&
                 endpoint.endpoint != "robots.txt" &&
                 !endpoint.authenticated
             ) {
@@ -953,10 +1652,592 @@ class Server {
     }
 
     // ---------------------------------------------------------
+    // Stripe (private).
+    /* 
+        Sources: 
+            * https://stripe.com/docs/api/prices?lang=node
+            * https://stripe.com/docs/api/subscriptions/create?lang=node
+            * https://stripe.com/docs/payments/accept-a-payment?platform=web&ui=elements&client=html
+            * https://stripe.com/docs/billing/subscriptions/build-subscriptions?ui=elements
+     */
+
+    // Check if a uid has a stripe customer id.
+    _sys_has_stripe_cid(uid) {
+        return this.database.join(`.sys/stripe_cids/${uid}`, false).exists();
+    }
+
+    // Load, save or delete stripe customer id by uid.
+    _sys_load_stripe_cid(uid, customer_id) {
+        return this.database.join(`.sys/stripe_cids/${uid}`, false).load_sync();
+    }
+    _sys_save_stripe_cid(uid, customer_id) {
+        this.database.join(`.sys/stripe_cids/${uid}`, false).save_sync(customer_id);
+    }
+    _sys_delete_stripe_cid(customer_id) {
+        this.database.join(`.sys/stripe_cids/${uid}`, false).del_sync();
+    }
+
+    // Get the stripe customer id of a uid, or a create a stripe customer when the uid does not yet have a stripe customer id.
+    async _get_stripe_cid(uid) {
+        if (this._sys_has_stripe_cid(uid)) {
+            return this._sys_load_stripe_cid(uid);
+        }
+        const user = this.get_user(uid);
+        const customer = await this._create_stripe_customer(user.email, `${user.first_name} ${user.last_name}`);
+        this._sys_save_stripe_cid(uid, customer.id);
+        return customer.id;
+    }
+
+    // Create a stripe customer without any user attached.
+    async _create_stripe_customer(email, full_name) {
+        try {
+            return await this.stripe.customers.create({
+                email: email,
+                name: full_name,
+            });
+        } catch (error) {
+            throw new StripeError(error.message); // since the default stripe errors do not have a stacktrace.
+        }
+    }
+
+    // Get a product by id.
+    // Throws an error when the product was not found.
+    _get_payment_product_by_id(id) {
+        return this.payment_products.iterate((p) => {
+            if (p.is_subscription) {
+                if (p.id === id) {
+                    return p;
+                }
+                return p.plans.iterate((plan) => {
+                    if (plan.id === id) {
+                        return plan;
+                    }
+                })
+            }
+            else if (p.id === id) {
+                return p;
+            }
+        })
+    }
+
+    // Delete a stripe customer.
+    async _delete_stripe_customer(uid) {
+        if (this._sys_has_stripe_cid(uid)) {
+            let result;
+            try {
+                result = await this.stripe.customers.del(this._sys_load_stripe_cid(uid));
+            } catch (error) {
+                throw new StripeError(error.message); // since the default stripe errors do not have a stacktrace.
+            }
+            if (result.deleted !== true) {
+                throw Error(`Failed to delete the stripe customer object for user "${uid}".`);
+            }
+            this._sys_delete_stripe_cid(uid);
+        }
+    }
+
+    // Update the name and email address of a stripe customer.
+    async _update_stripe_customer(uid, user) {
+        if (this._sys_has_stripe_cid(uid)) {
+            const cid = this._sys_load_stripe_cid(uid);
+            try {
+                await this.stripe.customers.update(
+                    cid, 
+                    {
+                        email: user.email,
+                        name: `${user.first_name} ${user.last_name}`,
+                    }
+                );
+            } catch (error) {
+                throw new StripeError(error.message); // since the default stripe errors do not have a stacktrace.
+            }
+        }
+    }
+
+    // Update a price.
+    async _get_price(price_id) {
+        try {
+            return await this.stripe.prices.retrieve(price_id);
+        } catch (error) {
+            throw new StripeError(error.message); // since the default stripe errors do not have a stacktrace.
+        }
+    }
+
+    // Deactivate a price.
+    // Prices cant be correctly updated with recurring or prices so when a product price has been edited a new price object should be created.
+    // @note: When a price is deactivated all subscriptions linked to this price will automatically be cancelled.
+    async _deactivate_price(price_id) {
+        await this._cancel_all_subscriptions(price_id)
+        try {
+            return await this.stripe.prices.update(price_id, {
+                active: false,
+            });
+        } catch (error) {
+            throw new StripeError(error.message); // since the default stripe errors do not have a stacktrace.
+        }
+    }
+
+    // Create a price for a product.
+    async _create_price(product) {
+        try {
+            const result = await this.stripe.prices.create({
+                currency: product.currency,
+                unit_amount_decimal: Math.round(product.price * 100),
+                tax_behavior: product.tax_behavior,
+                recurring: product.is_subscription ? {
+                    interval: product.interval,
+                    interval_count: product.interval_count,
+                } : undefined,
+                product: product.id,
+            });
+            product.price_id = result.id;
+        } catch (error) {
+            throw new StripeError(error.message); // since the default stripe errors do not have a stacktrace.
+        }
+    }
+
+    // Get a product by stripe subscription id.
+    async _get_product(product_id) {
+        try {
+            return await this.stripe.products.retrieve(product_id);
+        } catch (error) {
+            throw new StripeError(error.message); // since the default stripe errors do not have a stacktrace.
+        }
+    }
+
+    // Get all products.
+    async _get_products() {
+        try {
+            const result = await this.stripe.products.list();
+            if (Array.isArray(result.data)) {
+                return result.data;
+            }
+            return [];
+        } catch (error) {
+            throw new StripeError(error.message); // since the default stripe errors do not have a stacktrace.
+        }
+    }
+
+    // Create a product.
+    async _create_product(product) {
+        try {
+            const result = await this.stripe.products.create({
+                id: product.id,
+                name: product.name,
+                description: product.description,
+                statement_descriptor: product.statement_descriptor,
+                default_price_data: {
+                    currency: product.currency,
+                    unit_amount_decimal: Math.round(product.price * 100),
+                    tax_behavior: product.tax_behavior,
+                    recurring: product.is_subscription ? {
+                        interval: product.interval,
+                        interval_count: product.interval_count,
+                    } : undefined,
+                },
+            });
+            product.price_id = result.default_price;
+        } catch (error) {
+            throw new StripeError(error.message); // since the default stripe errors do not have a stacktrace.
+        }
+    }
+
+    // Update a product.
+    // @warning: When the second argument "stripe_product" is undefined, then this function will assume the stripe product does not exist and a new product will be created.
+    async _update_product(product, stripe_product) {
+
+        // When the stripe product does not yet exist.
+        if (stripe_product === undefined) {
+            await this._create_product(product);
+        }
+
+        // When the stripe product already exists.
+        else {
+
+            // Vars.
+            let stripe_price;
+            const has_no_price = stripe_product.default_price == null;
+            let update_price = false;
+
+            // Check if the price object should be updated.
+            if (has_no_price === false) {
+                update_price = await (async () => {
+
+                    // Fetch the price object.
+                    stripe_price = await this._get_price(stripe_product.default_price);
+
+                    // Not active.
+                    if (stripe_price.active !== true)  {
+                        return true;
+                    }
+
+                    // Changed price.
+                    if (parseFloat(stripe_price.unit_amount_decimal) / 100 !== product.price) {
+                        return true;
+                    }
+
+                    // Changed currency.
+                    if (stripe_price.currency !== product.currency) {
+                        return true;
+                    }
+
+                    // Changed recurring status.
+                    if (
+                        (stripe_price.type === "recurring" && !product.is_subscription) ||
+                        (stripe_price.type !== "recurring" && product.is_subscription)
+                    ) {
+                        return true;
+                    }
+
+                    // Changed recurring interval.
+                    if (product.is_subscription && (product.interval_count !== stripe_price.recurring.interval_count || product.interval !== stripe_price.recurring.interval)) {
+                        return true;
+                    }
+
+                    // Should not be updated.
+                    return false;
+
+                })();
+
+            }
+
+            // Create a price object.
+            if (has_no_price) {
+                await this._create_price(product); // automatically assigns the price id.
+            }
+
+            // Update the price object.
+            else if (update_price) {
+                try {
+                    await this.stripe.products.update(product.id, {
+                        default_price: null,
+                    });
+                } catch (error) {
+                    throw new StripeError(error.message); // since the default stripe errors do not have a stacktrace.
+                }
+                await this._deactivate_price(stripe_price.id);
+                await this._create_price(product); // automatically assigns the price id.
+            }
+
+            // Set price id.
+            else {
+                product.price_id = stripe_price.id;
+            }
+
+            // Check if the name or description has changed.
+            if (
+                has_no_price ||
+                update_price ||
+                (stripe_product.name !== product.name) ||
+                (stripe_product.description !== product.description) ||
+                (product.statement_descriptor != null && stripe_product.statement_descriptor !== product.statement_descriptor) ||
+                (product.icon != null && (stripe_product.images.length === 0 || stripe_product.images[0] !== product.icon))
+            ) {
+                try {
+                    await this.stripe.products.update(product.id, {
+                        // id: product.id,
+                        name: product.name,
+                        description: product.description,
+                        statement_descriptor: product.statement_descriptor,
+                        default_price: product.price_id,
+                        images: [product.icon],
+                    });
+                } catch (error) {
+                    throw new StripeError(error.message); // since the default stripe errors do not have a stacktrace.
+                }
+            }
+
+        }
+    }
+
+    // Deactivate a product.
+    // When the product is a subscription all active subscriptions will be cancelled.
+    async _deactivate_product(stripe_product) {
+
+        // Deactivate the price object.
+        // Also cancels all the active subscriptions.
+        if (stripe_product.default_price != null) {
+            try {
+                await this.stripe.products.update(stripe_product.id, {
+                    default_price: null,
+                });
+            } catch (error) {
+                throw new StripeError(error.message); // since the default stripe errors do not have a stacktrace.
+            }
+            await this._deactivate_price(stripe_product.default_price);
+        }
+
+        // Delete the product.
+        try {
+            await this.stripe.products.update(stripe_product.id, {
+                active: false,
+            });
+        } catch (error) {
+            throw new StripeError(error.message); // since the default stripe errors do not have a stacktrace.
+        }
+    }
+
+    // Get a subscription by stripe subscription id.
+    async _get_subscription(sub_id) {
+        try {
+            return await this.stripe.products.retrieve(sub_id);
+        } catch (error) {
+            throw new StripeError(error.message); // since the default stripe errors do not have a stacktrace.
+        }
+    }
+
+    // Cancel all subscriptions for a price id.
+    async _cancel_subscription(sub_id) {
+        try {
+            await this.stripe.subscriptions.cancel(sub_id);
+        } catch (error) {
+            throw new StripeError(error.message); // since the default stripe errors do not have a stacktrace.
+        }
+    }
+
+    // Cancel all subscriptions for a price id.
+    async _cancel_all_subscriptions(price_id) {
+        const price = await this._get_price(price_id);
+        // console.error("Cancel subscriptions:", price_id, price);
+        if (price.type === "recurring") {
+            let result;
+            try {
+                result = await this.stripe.subscriptions.list({
+                    price: price_id,
+                })
+            } catch (error) {
+                throw new StripeError(error.message); // since the default stripe errors do not have a stacktrace.
+            }
+            if (Array.isArray(result.data)) {
+                result.data.iterate_async_await((subscription) => {
+                    const items = subscription.items;
+                    if (subscription.status === "active" || subscription.status === "trialing") {
+                        return this.stripe.subscriptions.cancel(subscription.id);
+                    }
+                })
+            }
+        }
+    }
+
+    // Get the object of the user defined product ids where a user has an active subscription to.
+    // Returns an object with `{<product-id>: <subscription-id>}`.
+    async _get_subscriptions(uid, cid = null) {
+        if (cid == null) {
+            cid = await this._get_stripe_cid(uid);
+        }
+        let result;
+        try {
+            result = await this.stripe.subscriptions.list({
+                customer: cid,
+            })
+        } catch (error) {
+            throw new StripeError(error.message); // since the default stripe errors do not have a stacktrace.
+        }
+        const products = {};
+        if (Array.isArray(result.data)) {
+            result.data.iterate((subscription) => {
+                const items = subscription.items;
+                if ((subscription.status === "active" || subscription.status === "trialing") && Array.isArray(items.data) && items.data.length > 0) {
+                    products[items.data[0].price.product] = items.data[0].subscription;
+                }
+            })
+        }
+        return products;
+    }
+
+    // Check if a user is subscribed to a specific product.
+    async _is_subscribed(uid, product) {
+        return await this._get_subscriptions(uid)[product.id] !== undefined;
+    }
+
+    // Add or remove a subscription to the user's active subscriptions.
+    _add_active_subscription(uid, prod_id, sub_id) {
+        const dir = this.database.join(`.sys/stripe_subs/${uid}`, false);
+        if (dir.exists() === false) {
+            dir.mkdir_sync();
+        }
+        const path = dir.join(prod_id, false);
+        path.save_sync(sub_id);
+    }
+    _remove_active_subscription(uid, prod_id) {
+        const dir = this.database.join(`.sys/stripe_subs/${uid}`, false);
+        if (dir.exists() === false) {
+            return null;
+        }
+        const path = dir.join(prod_id, false);
+        if (path.exists() === false) {
+            return null;
+        }
+        path.del_sync();
+    }
+
+    // Check the user's subscription statuses, check for any unpaid or cancelled subscriptions and remove them from the active subscriptions.
+    _verify_subscriptions() {
+
+        // Iterate all users.
+        this._iter_db_dir(".sys/users", async (path) => {
+            const uid = path.name();
+            const cid_path = this.database.join(`.sys/stripe_cids/${uid}`, false);
+            if (cid_path.exists()) {
+
+                // Vars.
+                const cid = cid_path.load_sync();
+                const subs = await this._get_subscriptions(null, cid);
+                const active_sub_dir = this.database.join(`.sys/stripe_subs/${uid}`, false);
+                if (active_sub_dir.exists() === false) {
+                    active_sub_dir.mkdir_sync();
+                }
+
+                // Check if all the saved active subscriptions are still valid subscriptions.
+                active_sub_dir.paths_sync().iterate((path) => {
+                    const prod_id = path.name();
+                    if (subs[prod_id] == null) {
+                        path.del_sync();
+                    }
+                });
+
+                // Check if all the stripe subscriptions are added as an active subscription.
+                Object.keys(subs).iterate((prod_id) => this._add_active_subscription(uid, prod_id, subs[prod_id]));
+            }
+        });
+    }
+
+    // Initialize the payment products.
+    async _initialize_products() {
+        
+        // Fetch all current stripe products.
+        const stripe_products = await this._get_products();
+
+        // Check a payment product / plan product.
+        const product_ids = [];
+        let product_index = 0;
+        const check_product = (product) => {
+            ++product_index;
+
+            // Check if the product has an id.
+            if (product.id == null || product.id === "") {
+                throw Error(`Product ${product_index} does not have an assigned "id" attribute (string).`);
+            }
+            else if (product_ids.includes(product.id)) {
+                throw Error(`Product ${product_index} has a non unique id "${product.id}".`);
+            }
+            product_ids.push(product.id);
+
+            // Check attributes.
+            if (typeof product.name !== "string" || product.name === "") {
+                throw Error(`Product "${product.id}" does not have an assigned "name" attribute (string).`);
+            }
+            if (typeof product.description !== "string" || product.description === "") {
+                throw Error(`Product "${product.id}" does not have an assigned "description" attribute (string).`);
+            }
+            if (typeof product.currency !== "string" || product.currency === "") {
+                throw Error(`Product "${product.id}" does not have an assigned "currency" attribute (string).`);
+            }
+            if (typeof product.price !== "number") {
+                throw Error(`Product "${product.id}" does not have an assigned "price" attribute (number).`);
+            }
+            if (product.is_subscription && product.interval == null) {
+                throw Error(`Product "${product.id}" does not have an assigned "interval" attribute (string).`);   
+            }
+            if (product.is_subscription && product.interval_count == null) {
+                product.interval_count = 1;
+            }
+            if (product.interval_count != null && typeof product.interval_count !== "number") {
+                throw Error(`Product "${product.id}" has an incorrect value type for attribute "interval_count", the valid type is "number".`);
+            }
+            if (product.interval != null && product.interval !== "day" && product.interval !== "week" && product.interval !== "month" && product.interval !== "year") {
+                throw Error(`Product "${product.id}" has an incorrect "interval" attribute, the interval string should be "day", "week", "month" or "year" not "${product.interval}".`);
+            }
+            if (product.statement_descriptor != null && typeof product.statement_descriptor !== "string") {
+                throw Error(`Product "${product.id}" has an incorrect value type for attribute "statement_descriptor", the valid type is "string" (max 22 characters).`);
+            }
+            if (product.statement_descriptor != null && product.statement_descriptor.length > 22) {
+                throw Error(`Product "${product.id}" has a too long string value for attribute "statement_descriptor" (max 22 characters).`);
+            }
+        }
+
+        // Expand the payment products.
+        let sub_products = 0;
+        this.payment_products.iterate((product) => {
+            if (product.plans != null) {
+                if (product.plans != null && Array.isArray(product.plans) === false) {
+                    throw Error(`Product "${product_index}" has an incorrect value type for attribute "plans", the valid type is "array".`);
+                }
+                product.id = `sub_${sub_products}`
+                if (product_ids.includes(product.id)) {
+                    throw Error(`Another product has a reserved id "${product.id}".`);
+                }
+                product_ids.push(product.id);
+                ++sub_products;
+                product.is_subscription = true;
+                product.plans.iterate((plan) => {
+                    plan.is_subscription = true;
+                    plan.sub_id = product.id;
+                    if (plan.name == null ) { plan.name = product.name; }
+                    if (plan.description == null ) { plan.description = product.description; }
+                    if (plan.currency == null ) { plan.currency = product.currency; }
+                    if (plan.interval == null ) { plan.interval = product.interval; }
+                    if (plan.interval_count == null ) { plan.interval_count = product.interval_count; }
+                    if (plan.statement_descriptor == null ) { plan.statement_descriptor = product.statement_descriptor; }
+                    if (plan.tax_behavior == null ) { plan.tax_behavior = product.tax_behavior; }
+                    if (plan.icon == null ) { plan.icon = product.icon; }
+                    check_product(plan);
+                })
+            } else {
+                product.is_subscription = false;
+                check_product(product);
+            }
+        })
+
+        // Delete all stripe products that are not part of the payment products.
+        stripe_products.iterate_async_await((stripe_product) => {
+            const found = this.payment_products.iterate((product) => {
+                if (product.is_subscription) {
+                    return product.plans.iterate((plan) => {
+                        if (plan.id === stripe_product.id) {
+                            return true;  
+                        }
+                    })
+                } else if (product.id === stripe_product.id) {
+                    return true;
+                }
+            })
+            if (found !== true) {
+                return this._deactivate_product(stripe_product);
+            }
+        })
+
+        // Iterate the payment products.
+        await this.payment_products.iterate_async_await(async (product) => {
+            const check_product = async (product) => {
+
+                // Check if the stripe product exists.
+                let stripe_product;
+                stripe_products.iterate((x) => {
+                    if (x.id === product.id) {
+                        stripe_product = x;
+                        return false;
+                    }
+                })
+
+                // Update the stripe product when required.
+                return this._update_product(product, stripe_product);
+            }
+
+            // Check plans or one-time product.
+            if (product.is_subscription) {
+                await product.plans.iterate_async_await(check_product);
+            } else {
+                return check_product(product);
+            }
+        })
+    }
+
+    // ---------------------------------------------------------
     // Server (private).
 
     // Initialize.
-    _initialize() {
+    async _initialize() {
 
         // Check & create database.
         if (this.database.exists()) {
@@ -971,6 +2252,8 @@ class Server {
             ".sys/keys",
             ".sys/unactivated",
             ".sys/2fa",
+            ".sys/stripe_cids",
+            ".sys/stripe_subs",
             "users",
         ].iterate((subpath) => {
             this.database.join(subpath).mkdir_sync();
@@ -981,17 +2264,22 @@ class Server {
         if (!path.exists()) {
             this.hash_key = this._sys_generate_crypto_key(32);
             path.save_sync(JSON.stringify({
-                sha256: this.has_key,
+                sha256: this.hash_key,
             }));
         } else {
             const data = JSON.parse(path.load_sync());
             this.hash_key = data["sha256"];
+            if (this.hash_key === undefined) {
+                this.hash_key = this._sys_generate_crypto_key(32);
+                data["sha256"] = this.hash_key;
+                path.save_sync(JSON.stringify(data));
+            }
         }
         
         // Get max user id.
         this.max_uid = 0;
-        this._iter_db_dir(".sys/users", (name) => {
-            const uid = parseInt(name);
+        this._iter_db_dir(".sys/users", (path) => {
+            const uid = parseInt(path.name());
             if (uid > this.max_uid) {
                 this.max_uid = uid;
             }
@@ -1027,10 +2315,10 @@ class Server {
         })
         
         // Stripe.
-        // if (stripe.is_defined()) {
-        //     stripe.products() = config.stripe_products;
-        //     stripe.check_products();
-        // }
+        if (this.stripe_enabled) {
+            // await this._initialize_products()
+            // this._verify_subscriptions();
+        }
     }
 
     // Serve a client.
@@ -1087,8 +2375,17 @@ class Server {
             // Check rate limiting.
             // @todo.
 
-            // Perform authentication.
-            if (endpoint.authenticated && !this._authenticate(request, response)) {
+            // Always perform authentication so the request.uid will also be assigned even when the endpoint is not authenticated.
+            const auth_result = this._authenticate(request);
+
+            // Reset cookies when authentication has failed, so the UserID cookies etc will be reset.
+            if (auth_result !== null) {
+                this._reset_cookies(response);
+            }
+
+            // When the endpoint is authenticated and the authentication has failed then send the error response.
+            if (auth_result !== null && endpoint.authenticated) {
+                response.send(auth_result);
                 log_endpoint_result();
                 return resolve();
             }
@@ -1129,7 +2426,15 @@ class Server {
     // Server.
 
     // Start the server.
-    start() {
+	/*  @docs {
+     *  @title: Start
+     *  @description:
+     *      Start the server.
+     *  @usage:
+     *      ...
+     *      server.start();
+     } */
+    async start() {
 
         // Inside file watcher process.
         if (this.https === undefined && this.http === undefined) {
@@ -1137,7 +2442,7 @@ class Server {
         }
 
         // Initialize.
-        this._initialize();
+        await this._initialize();
 
         // Callbacks.
         let is_running = false;
@@ -1179,17 +2484,34 @@ class Server {
     }
 
     // Stop the server and exit the program.
-    stop() {
+	/*  @docs {
+     *  @title: Stop
+     *  @description:
+     *      Stop the server and exit the program by default.
+     *  @parameter: {
+     *      @name: exit
+     *      @description: A boolean indicating whether the program should exit after stopping the server.
+     *      @type: boolean
+     *  }
+     *  @usage:
+     *      ...
+     *      server.stop();
+     } */
+    stop(exit = true) {
         if (this.https === undefined && this.http === undefined) {
             return null; // inside file watcher process.
         }
         if (this.https !== undefined) {
             this.https.close((code) => { 
-                process.exit(0);
+				if (exit) {
+                	process.exit(0);
+				}
             });
         }
         this.http.close((code) => { 
-            process.exit(0);
+			if (exit) {
+            	process.exit(0);
+			}
         });
     }
 
@@ -1200,6 +2522,7 @@ class Server {
     /*  @docs {
      *  @title: Username Exists
      *  @description: Check if a username exists.
+	 *  @type: boolean
      *  @return: Returns a boolean indicating whether the username exists or not.
      *  @parameter: {
      *      @name: username
@@ -1218,6 +2541,7 @@ class Server {
     /*  @docs {
      *  @title: Email Exists
      *  @description: Check if a email exists.
+	 *  @type: boolean
      *  @return: Returns a boolean indicating whether the email exists or not.
      *  @parameter: {
      *      @name: email
@@ -1226,7 +2550,7 @@ class Server {
      *  }
      *  @usage:
      *      ...
-     *      Bool exists = server.email_exists("some\@email.com");
+     *      const exists = server.email_exists("some\@email.com");
      } */
     email_exists(email) {
         return this.database.join(`.sys/emails/${email}`, false).exists();
@@ -1244,7 +2568,7 @@ class Server {
      *  }
      *  @usage:
      *      ...
-     *      Bool activated = server.is_activated(0);
+     *      const activated = server.is_activated(0);
      } */
     is_activated(uid) {
         return !this.database.join(`.sys/unactivated/${uid}`, false).exists();
@@ -1269,10 +2593,11 @@ class Server {
      *      server.set_activated(0, true);
      } */
     set_activated(uid, activated) {
+        const path = this.database.join(`.sys/unactivated/${uid}`, false);
         if (activated == true) {
-            this.database.join(`.sys/unactivated/${uid}`, false).del_sync();
+            path.del_sync();
         } else {
-            libfd.writeFileSync(`${this.database}/.sys/unactivated/${uid}`, "");
+            path.save_sync("");
         }
     }
     
@@ -1350,10 +2675,15 @@ class Server {
         });
         this._sys_save_uid_by_username(uid, username);
         this._sys_save_uid_by_email(uid, email);
-        this.set_activated(uid, false);
+        if (this.enable_account_activation) {
+            this.set_activated(uid, false);
+        }
         
         // Create user dir.
         this.database.join(`/users/${uid}/`).mkdir_sync();
+        this.database.join(`/users/${uid}/private`).mkdir_sync();
+        this.database.join(`/users/${uid}/protected`).mkdir_sync();
+        this.database.join(`/users/${uid}/public`).mkdir_sync();
         
         // Return uid.
         return uid;
@@ -1373,9 +2703,10 @@ class Server {
      *      ...
      *      server.delete_user(0);
      } */
-    delete_user(uid) {
+    async delete_user(uid) {
         this._check_uid_within_range(uid);
         this._sys_delete_user(uid);
+        await this._delete_stripe_customer();
         this.database.join(`users/${uid}`, false).del_sync();
     }
     
@@ -1400,10 +2731,11 @@ class Server {
      *      ...
      *      server.set_first_name(0, "Name");
      } */
-    set_first_name(uid, first_name) {
+    async set_first_name(uid, first_name) {
         const user = this.get_user(uid);
         user.first_name = first_name;
         this._sys_save_user(uid, user);
+        await this._update_stripe_customer(uid, user);
     }
     
     // Set a user's last name.
@@ -1427,10 +2759,11 @@ class Server {
      *      ...
      *      server.set_first_name(0, "Name");
      } */
-    set_last_name(uid, last_name) {
+    async set_last_name(uid, last_name) {
         const user = this.get_user(uid);
         user.last_name = last_name;
         this._sys_save_user(uid, user);
+        await this._update_stripe_customer(uid, user);
     }
     
     // Set a user's username.
@@ -1454,7 +2787,7 @@ class Server {
      *      ...
      *      server.set_username(0, "newusername");
      } */
-    set_username(uid, username) {
+    async set_username(uid, username) {
         if (this.username_exists(username)) {
             throw Error(`Username "${username}" already exists.`);
         }
@@ -1485,7 +2818,7 @@ class Server {
      *      ...
      *      server.set_email(0, "new\@email.com");
      } */
-    set_email(uid, email) {
+    async set_email(uid, email) {
         if (this.email_exists(email)) {
             throw Error(`Email "${email}" already exists.`);
         }
@@ -1493,6 +2826,7 @@ class Server {
         user.email = email;
         this._sys_save_user(uid, user);
         this._sys_save_uid_by_email(uid, email);
+        await this._update_stripe_customer(uid, user);
     }
     
     // Set a user's password.
@@ -1516,7 +2850,7 @@ class Server {
      *      ...
      *      server.set_password(0, "XXXXXX");
      } */
-    set_password(uid, password) {
+    async set_password(uid, password) {
         const user = this.get_user(uid);
         user.password = this._hmac(password);
         this._sys_save_user(uid, user);
@@ -1546,18 +2880,21 @@ class Server {
      *      ...
      *      server.set_user(0, {first_name: "John", last_name: "Doe"});
      } */
-    set_user(uid, user) {
+    async set_user(uid, user) {
         const current_user = this.get_user(uid);
         let old_username = null, old_email = null;
+        let stripe_update_required = false;
         
         // First name.
         if (user.first_name != null && user.first_name != current_user.first_name) {
             current_user.first_name = user.first_name;
+            stripe_update_required = true;
         }
         
         // Last name.
         if (user.last_name != null && user.last_name != current_user.last_name) {
             current_user.last_name = user.last_name;
+            stripe_update_required = true;
         }
         
         // Username.
@@ -1576,17 +2913,23 @@ class Server {
             }
             old_email = current_user.email;
             current_user.email = user.email;
+            stripe_update_required = true;
         }
         
         // Save.
         this._sys_save_user(uid, current_user);
         if (old_username !== null) {
-            this._sys_save_uid_by_username(suid, current_user.username);
-            this._sys_delete_uid_by_username(suid, old_username);
+            this._sys_save_uid_by_username(uid, current_user.username);
+            this._sys_delete_uid_by_username(uid, old_username);
         }
         if (old_email !== null) {
-            this._sys_save_uid_by_email(suid, current_user.email);
-            this._sys_delete_uid_by_email(suid, old_email);
+            this._sys_save_uid_by_email(uid, current_user.email);
+            this._sys_delete_uid_by_email(uid, old_email);
+        }
+
+        // Update stripe customer.
+        if (stripe_update_required) {
+            await this._update_stripe_customer(uid, user);
         }
         
     }
@@ -1610,7 +2953,7 @@ class Server {
      *      if ((uid = server.get_uid("myusername")) !== null) { ... }
      } */
     get_uid(username) {
-        if (username == null) {
+        if (username == null || username === "") {
             return null;
         }
         const path = this.database.join(`.sys/usernames/${username}`, false);
@@ -1643,7 +2986,7 @@ class Server {
      *      if ((uid = server.get_uid_by_email("my\@email.com")) !== null) { ... }
      } */
     get_uid_by_email(email) {
-        if (email == null) {
+        if (email == null || email === "") {
             return null;
         }
         const path = this.database.join(`.sys/emails/${email}`, false);
@@ -1835,14 +3178,78 @@ class Server {
         }
         return this.get_user(uid);
     }
+
+    // Load user data helper.
+    _load_user_data(uid, subpath, def, privacy) {
+        // Check uid.
+        this._check_uid_within_range(uid);
+
+        // Check path.
+        if (subpath.indexOf("..") !== -1) {
+            throw Error(`Permission denied (path-injection).`);
+        }
+        const path = this.database.join(`users/${uid}/${privacy}/${subpath}`, false).abs();
+        if (path.str().eq_first(`${this.database}/users/${uid}/${privacy}/`) === false) {
+            throw Error(`Permission denied (path-injection).`);
+        }
+
+        // Does not exist.
+        if (!path.exists()) {
+            if (def !== null) {
+                return def;
+            }
+        }
+
+        // Load data.
+        const data = path.load_sync();
+
+        // Cast data.
+        if (def == null || typeof def === "string") {
+            return data;
+        } else if (typeof def === "boolean") {
+            return data === "true" || data === "1" || data === "True" || data === "TRUE";
+        } else if (typeof def === "number") {
+            return parseFloat(data);
+        } else if (Array.isArray(def)) {
+            return JSON.parse(data);
+        } else if (typeof def === "object") {
+            data = JSON.parse(data);
+            Object.keys(def).iterate((key) => {
+                if (data[key] === undefined) {
+                    data[key] = def[key];
+                }
+            })
+            return data;
+        } else {
+            throw Error(`Invalid data type "${type}", the valid options are ["string", "array", "object"].`);
+        }
+    }
+
+    // Save user data helper.
+    _save_user_data(uid, subpath, privacy) {
+
+        // Check uid.
+        this._check_uid_within_range(uid);
+
+        // Check path.
+        if (subpath.indexOf("..") !== -1) {
+            throw Error(`Permission denied (path-injection).`);
+        }
+        const path = this.database.join(`users/${uid}/${privacy}/${subpath}`, false).abs();
+        if (path.str().eq_first(`${this.database}/users/${uid}/${privacy}/`) === false) {
+            throw Error(`Permission denied (path-injection).`);
+        }
+        return path;
+    }
     
     // Load user data.
     /*  @docs {
-     *  @title: Load user data
+     *  @title: Load Public User Data
      *  @description:
-     *      Load user data by subpath.
+     *      Load public user data by subpath.
      *
-     *      The subpath resides in the user's data directory.
+     *      The subpath resides in the user's protected data directory.
+     *  @warning: The authenticated user always has read and write access to all data inside the user's protected directory through the backend rest api. Any other users or unauthenticated users do not have access to this data.
      *  @return:
      *      Returns the loaded data.
      *
@@ -1858,45 +3265,26 @@ class Server {
      *      @type: string
      *  }
      *  @parameter: {
-     *      @name: type
-     *      @description: The data types to load, valid types are [`string`, `array`, `object`].
-     *      @type: string
+     *      @name: def
+     *      @description: The default data to be returned when the data does not exist. When the data does exist the data will parsed into the type of the `def` parameter.
+     *      @type: boolean, number, string, array, object.
      *  }
      *  @usage:
      *      ...
      *      const data = server.load_user_data(0, "mydata", "object");
      } */
-    load_user_data(uid, subpath, type) {
-        this._check_uid_within_range(uid);
-        const path = this.database.join(`users/${uid}/${subpath}`, false);
-        if (!path.exists()) {
-            if (type === "string") {
-                return "";
-            } else if (type === "array") {
-                return [];
-            } else if (type === "object") {
-                return {};
-            } else {
-                throw Error(`Invalid data type "${type}", the valid options are ["string", "array", "object"].`);
-            }
-        }
-        const data = path.load_sync();
-        if (type === "string") {
-            return data;
-        } else if (type === "array" || type === "object") {
-            return JSON.parse(data);
-        } else {
-            throw Error(`Invalid data type "${type}", the valid options are ["string", "array", "object"].`);
-        }
+    load_user_data(uid, subpath, def = null) {
+        return this._load_user_data(uid, subpath, def, "public");
     }
     
     // Save user data.
     /*  @docs {
-     *  @title: Save user data
+     *  @title: Load Public User Data
      *  @description:
      *      Save user data by subpath.
      *
-     *      The subpath resides in the user's data directory.
+     *      The subpath resides in the user's protected data directory.
+     *  @warning: The authenticated user always has read and write access to all data inside the user's protected directory through the backend rest api. Any other users or unauthenticated users do not have access to this data.
      *  @parameter: {
      *      @name: uid
      *      @description: The uid of the user.
@@ -1918,14 +3306,181 @@ class Server {
      *      server.save_user_data(0, "mystring", "Hello World!");
      } */
     save_user_data(uid, subpath, data) {
-        this._check_uid_within_range(uid);
-        const path = this.database.join(`users/${uid}/${subpath}`, false);
-        if (type === "string") {
+
+        // Initialize path.
+        const path = this._save_user_data(uid, subpath, "public");
+
+        // Save casted data.
+        if (data == null || typeof data === "string") {
             path.save_sync(data);
-        } else if (type === "array" || type === "object") {
+        } else if (typeof data === "boolean" || typeof data === "number") {
+            path.save_sync(data.toString());
+        } else if (Array.isArray(data) || typeof data === "object") {
             path.save_sync(JSON.stringify(data));
         } else {
-            throw Error(`Invalid data type "${type}", the valid options are ["string", "array", "object"].`);
+            throw Error(`Invalid data type "${type}", the valid options are ["boolean", "number", "string", "array", "object"].`);
+        }
+    }
+
+    // Load user data.
+    /*  @docs {
+     *  @title: Load Protected User
+     *  @description:
+     *      Load protected user data by subpath.
+     *
+     *      The subpath resides in the user's protected data directory.
+     *  @warning: The authenticated user always has read access to all data inside the user's protected directory through the backend rest api. Any other users or unauthenticated users do not have access to this data.
+     *  @return:
+     *      Returns the loaded data.
+     *
+     *      Returns an empty type object when the data does not exist.
+     *  @parameter: {
+     *      @name: uid
+     *      @description: The uid of the user.
+     *      @type: number
+     *  }
+     *  @parameter: {
+     *      @name: subpath
+     *      @description: The subpath to the file.
+     *      @type: string
+     *  }
+     *  @parameter: {
+     *      @name: def
+     *      @description: The default data to be returned when the data does not exist. When the data does exist the data will parsed into the type of the `def` parameter.
+     *      @type: boolean, number, string, array, object.
+     *  }
+     *  @usage:
+     *      ...
+     *      const data = server.load_protected_user_data(0, "mydata", "object");
+     } */
+    load_protected_user_data(uid, subpath, def = null) {
+        return this._load_user_data(uid, subpath, def, "protected");
+    }
+    
+    // Save user data.
+    /*  @docs {
+     *  @title: Save Proteced User Data
+     *  @description:
+     *      Save protected user data by subpath.
+     *
+     *      The subpath resides in the user's protected data directory.
+     *  @warning: The authenticated user always has read access to all data inside the user's protected directory through the backend rest api. Any other users or unauthenticated users do not have access to this data.
+     *  @parameter: {
+     *      @name: uid
+     *      @description: The uid of the user.
+     *      @type: number
+     *  }
+     *  @parameter: {
+     *      @name: subpath
+     *      @description: The subpath to the file.
+     *      @type: string
+     *  }
+     *  @parameter: {
+     *      @name: data
+     *      @description: The data to save.
+     *      @type: string, array, object
+     *  }
+     *  @usage:
+     *      ...
+     *      server.save_protected_user_data(0, "mydata", {"Hello": "World!"});
+     *      server.save_protected_user_data(0, "mystring", "Hello World!");
+     } */
+    save_protected_user_data(uid, subpath, data) {
+
+        // Initialize path.
+        const path = this._save_user_data(uid, subpath, "protected");
+
+        // Save casted data.
+        if (data == null || typeof data === "string") {
+            path.save_sync(data);
+        } else if (typeof data === "boolean" || typeof data === "number") {
+            path.save_sync(data.toString());
+        } else if (Array.isArray(data) || typeof data === "object") {
+            path.save_sync(JSON.stringify(data));
+        } else {
+            throw Error(`Invalid data type "${type}", the valid options are ["boolean", "number", "string", "array", "object"].`);
+        }
+    }
+
+    // Load user data.
+    /*  @docs {
+     *  @title: Load Private User Data
+     *  @description:
+     *      Load private user data by subpath.
+     *
+     *      The subpath resides in the user's private data directory.
+     *
+     *      The user has no read or write access to the private directory.
+     *  @return:
+     *      Returns the loaded data.
+     *
+     *      Returns an empty type object when the data does not exist.
+     *  @parameter: {
+     *      @name: uid
+     *      @description: The uid of the user.
+     *      @type: number
+     *  }
+     *  @parameter: {
+     *      @name: subpath
+     *      @description: The subpath to the file.
+     *      @type: string
+     *  }
+     *  @parameter: {
+     *      @name: def
+     *      @description: The default data to be returned when the data does not exist. When the data does exist the data will parsed into the type of the `def` parameter.
+     *      @type: boolean, number, string, array, object.
+     *  }
+     *  @usage:
+     *      ...
+     *      const data = server.load_private_user_data(0, "mydata", "object");
+     } */
+    load_private_user_data(uid, subpath, def = null) {
+        return this._load_user_data(uid, subpath, def, "private");
+    }
+    
+    // Save user data.
+    /*  @docs {
+     *  @title: Save Private User Data
+     *  @description:
+     *      Save private user data by subpath.
+     *
+     *      The subpath resides in the user's private data directory.
+     *
+     *      The user has no read or write access to the private directory.
+     *  @parameter: {
+     *      @name: uid
+     *      @description: The uid of the user.
+     *      @type: number
+     *  }
+     *  @parameter: {
+     *      @name: subpath
+     *      @description: The subpath to the file.
+     *      @type: string
+     *  }
+     *  @parameter: {
+     *      @name: data
+     *      @description: The data to save.
+     *      @type: string, array, object
+     *  }
+     *  @usage:
+     *      ...
+     *      server.save_private_user_data(0, "mydata", {"Hello": "World!"});
+     *      server.save_private_user_data(0, "mystring", "Hello World!");
+     } */
+    save_private_user_data(uid, subpath, data) {
+
+        // Initialize path.
+        const path = this._save_user_data(uid, subpath, "private");
+
+        // Save casted data.
+        if (data == null || typeof data === "string") {
+            path.save_sync(data);
+        } else if (typeof data === "boolean" || typeof data === "number") {
+            path.save_sync(data.toString());
+        } else if (Array.isArray(data) || typeof data === "object") {
+            path.save_sync(JSON.stringify(data));
+        } else {
+            throw Error(`Invalid data type "${type}", the valid options are ["boolean", "number", "string", "array", "object"].`);
         }
     }
     
@@ -2191,14 +3746,17 @@ class Server {
         body = "",
         attachments = [],
     }) {
-        if (!this.smtp_enabled) {
-            throw Error("SMTP is not enabled, define the required server argument on initialization to enable smtp.");
-        }
         return new Promise((resolve, reject) => {
+
+            // Not enabled.
+            if (this.smtp_enabled === false) {
+                return reject("SMTP is not enabled, define the required server argument on initialization to enable smtp.");
+            }
 
             // Check args.
             if (sender === null) {
-                return reject(`Parameter "sender" should be a defined value of type "string" or "array".`);
+                sender = this.smtp_sender;
+                // return reject(`Parameter "sender" should be a defined value of type "string" or "array".`);
             }
             if (recipients.length === 0) {
                 return reject(`The mail has no recipients.`);
@@ -2269,11 +3827,6 @@ class Server {
      *      @type: object
      *  }
      *  @parameter: {
-     *      @name: response
-     *      @description: The response object from the client request.
-     *      @type: Response
-     *  }
-     *  @parameter: {
      *      @name: mail_body
      *      @description: 
      *          The mail body in HTML. 
@@ -2293,14 +3846,14 @@ class Server {
      *  }
      *  @usage:
      *      ...
-     *      server.send_2fa({uid: 0, request: request, response: response});
+     *      server.send_2fa({uid: 0, request: request});
      } */
     async send_2fa({
         uid, 
         request,
-        response, 
         mail_body = null,
         expiration = 300,
+        _device = null,
     }) {
         this._check_uid_within_range(uid);
         
@@ -2315,7 +3868,10 @@ class Server {
         const user = this.get_user(uid);
         
         // Get device.
-        const device = response.get_header("User-Agent");
+        let device;
+        if (_device === null) {
+            device = request.headers["user-agent"];
+        }
         
         // Replace body.
         let body;
@@ -2375,10 +3931,333 @@ class Server {
         const now = Date.now();
         const status = auth.code != null && now < auth.expiration && auth.code == code;
         if (status || now > auth.expiration) {
-            this._sys_delete_user_2fa(suid);
+            this._sys_delete_user_2fa(uid);
         }
         return status;
     }
+
+    // Create a subscription
+    /*  @docs {
+     *  @title: Create Subscription.
+     *  @description:
+     *      Create a subscription for one of the products.
+     *  @parameter: {
+     *      @name: uid
+     *      @description: The user id.
+     *      @type: number
+     *  }
+     *  @parameter: {
+     *      @name: product_id
+     *      @description: The id of the subscription payment product.
+     *      @type: string
+     *  }
+     *  @type: object.
+     *  @return: Returns an object with the client secret that should be passed to the frontend.
+     *  @usage:
+     *      ...
+     *      server.create_subscription({uid: 0, product_id: "prod_sub_basic"});
+     } */
+    async create_subscription({uid, product_id, product = null, cid = null}) {
+
+        // Get the products.
+        if (product == null) {
+            product = this._get_payment_product_by_id(product_id);
+            if (product == null) {
+                throw Error(`Unknown product id "${product_id}".`);
+            }
+            if (product.is_subscription === false) {
+                throw Error(`Product "${product.name}" is not a subscription product.`);
+            }
+        }
+
+        // Check subscription product.
+        else if (product.is_subscription === false) {
+            throw Error(`Product "${product.name}" is not a subscription product.`);
+        }
+
+        // Check product.
+        if (product == null) {
+            throw Error("Undefined product.");
+        }
+
+        // Check products price id.
+        if (product.price_id == null) {
+            throw Error("The product's price id must be defined to create a subscription.");
+        }
+
+        // Retrieve the cid from the user.
+        if (cid == null) {
+
+            // Check uid.
+            if (uid == null) {
+                throw Error("One of the following parameters must be defined \"uid\" or \"cid\".");
+            }
+
+            // Check uid.
+            this._check_uid_within_range(uid);
+
+            // Get cid.
+            cid = await this._get_stripe_cid(uid)
+
+        }
+
+        // Fetch the user's subscriptions.
+        const user_subs = await this._get_subscriptions(null, cid);
+
+        // Check if the user is already subscribed.
+        if (user_subs[product.id] !== undefined) {
+            return {
+                error: `You are already subscribed to product \"${product.name}\".`,
+                already_subscribed: true,
+            }
+        }
+
+        // Cancel the other active plans from this subscription.
+        const subscription_product = this._get_payment_product_by_id(product.sub_id);
+        if (subscription_product == null) {
+            throw Error(`Unable to find payment product "${product.sub_id}".`);
+        }
+        subscription_product.plans.iterate_async_await((plan) => {
+            if (plan.id !== product.id && user_subs[plan.id] !== undefined) {
+                return this._cancel_subscription(user_subs[plan.id])
+            }
+        })
+
+        // Create subscription.
+        let result;
+        try {
+            result = await this.stripe.subscriptions.create({
+                customer: cid,
+                items: [
+                    {price: product.price_id},
+                ],
+                payment_behavior: "default_incomplete",
+                payment_settings: { save_default_payment_method: 'on_subscription' },
+                expand: ['latest_invoice.payment_intent'],
+            });
+        } catch (error) {
+            throw new StripeError(error.message); // since the default stripe errors do not have a stacktrace.
+        }
+
+        // Response for frontend.
+        return {
+            id: result.id,
+            client_secret: result.latest_invoice.payment_intent.client_secret,
+        };
+    }
+
+    // Create a payment
+    /*  @docs {
+     *  @title: Create Payment.
+     *  @description:
+     *      Create a subscription for one of the products.
+     *  @parameter: {
+     *      @name: uid
+     *      @description: The user id.
+     *      @type: number
+     *  }
+     *  @parameter: {
+     *      @name: product_ids
+     *      @description: The id of the one-time payment product.
+     *      @type: string
+     *  }
+     *  @type: object.
+     *  @return: Returns an object with the client secret that should be passed to the frontend.
+     *  @usage:
+     *      ...
+     *      server.create_payment({uid: 0, product_ids: ["prod_basic"]});
+     } */
+    async create_payment({uid, product_ids, products = null, cid = null, email = null}) {
+
+        // Get products.
+        let price = 0, currency;
+        if (Array.isArray(products) === false) {
+
+            // Check args.
+            if (Array.isArray(product_ids) === false) {
+                throw Error(`Parameter "product_ids" has an invalid value type "${typeof product_ids}", the valid value type is "array".`);
+            } else if (product_ids.length === 0) {
+                throw Error(`No product ids were specified.`);
+            }
+
+            // Get the products.
+            const products = [];
+            product_ids.iterate((id) => {
+                const found = this.payment_products.iterate((p) => {
+                    if (p.id === id) {
+                        if (p.is_subscription) {
+                            throw Error(`Product "${p.name}" is a subscription product.`);
+                        }
+                        else if (currency == null) {
+                            currency = p.currency;
+                        }
+                        else if (currency !== p.currency) {
+                            throw Error(`Products with different currencies can not be charged in a single request ("${currency}" and "${p.currency}").`);
+                        }
+                        price += Math.round(p.price * 100);
+                        products.push(p)
+                        return true;
+                    }
+                })
+                if (found !== true) {
+                    throw Error(`Unknown product id "${id}".`);
+                }
+            })
+        }
+
+        // Check one-time products.
+        else {
+            products.iterate((p) => {
+                if (p.is_subscription) {
+                    throw Error(`Product "${p.name}" is a subscription product.`);
+                }
+                else if (currency == null) {
+                    currency = p.currency;
+                }
+                else if (currency !== p.currency) {
+                    throw Error(`Products with different currencies can not be charged in a single request ("${currency}" and "${p.currency}").`);
+                }
+                price += Math.round(p.price * 100);
+            })
+        }
+
+        // Retrieve the cid from the user.
+        if (cid == null) {
+
+            // Check uid.
+            if (uid == null) {
+                throw Error("One of the following parameters must be defined \"uid\" or \"cid\".");
+            }
+
+            // Load the user's email.
+            email = this.get_user(uid).email
+
+            // Get the customer id.
+            cid = await this._get_stripe_cid(uid);
+
+        }
+
+        // Retrieve the email when both the cid and uid are defined.
+        else if (uid != null && email == null) {
+            email = this.get_user(uid).email
+        }
+
+        // Check the email.
+        else if (email == null) {
+            throw Error("Define parameter \"email\".");
+        }
+
+        // Create a description and statement descriptor.
+        let description, statement_descriptor;
+        if (products.length === 1) {
+            description = products[0].description;
+            statement_descriptor = products[0].statement_descriptor;
+        }
+
+        // Create a payment intent.
+        let result;
+        try {
+            result = await this.stripe.paymentIntents.create({
+                customer: cid,
+                amount: price,
+                currency: currency,
+                receipt_email: email,
+                description: description,
+                statement_descriptor: statement_descriptor,
+                automatic_payment_methods: {
+                    enabled: true,
+                },
+            });
+        } catch (error) {
+            throw new StripeError(error.message); // since the default stripe errors do not have a stacktrace.
+        }
+
+        // Response for frontend.
+        return {
+            id: result.id,
+            client_secret: result.client_secret,
+        };
+    }
+    
+
+    // Make invoice.
+    /*  @ docs {
+     *  @title: Create Invoice
+     *  @description:
+     *      Create an invoice for one or multiple payment products.
+     *  @parameter: {
+     *      @name: uid
+     *      @description: The user id.
+     *      @type: number
+     *  }
+     *  @parameter: {
+     *      @name: product_ids
+     *      @description: The id's of the payment products.
+     *      @type: array[string]
+     *  }
+     *  @type: object.
+     *  @return: Returns an object with the client secret that should be passed to the frontend.
+     *  @usage:
+     *      ...
+     *      server.create_payment(0, ["prod_basic"]);
+     } 
+    create_invoice(uid, product_ids) {
+
+        // Get the products.
+        const products = [];
+        product_ids.iterate((id) => {
+            const found = this.payment_products.iterate((product) => {
+                if (product.id === id) {
+                    if (product.recurring != null) {
+                        throw Error(`Only one-time payment products can be passed to "create_payment()", product "${product.name}" is a subscription product.`);
+                    }
+                    products.push(product);
+                    return true;
+                }
+            })
+            if (found !== true) {
+                throw Error(`Unknown product id "${id}".`);
+            }
+        })
+
+        // Check the uid.
+        this._check_uid_within_range(uid);
+
+        // Get the stripe customer id.
+        const cid = this._get_stripe_cid(uid);
+
+        // Create an invoice.
+        let invoice = await this.stripe.invoices.create({
+            customer: cid,
+            collection_method: "charge_automatically",
+            days_until_due: 30,
+            automatic_tax: {enabled: true},
+        });
+
+        // Add products to the invoice.
+        products.iterate((product) => {
+            await this.stripe.invoiceItems.create({
+                customer: cid,
+                price: product.price_id,
+                description: product.description,
+            });
+        })
+
+        // Finalize the invoice.
+        invoice = await this.stripe.invoices.finalizeInvoice(invoice.id, {
+            auto_advance: true,
+        });
+
+        // Retrieve the payment's intent client secret.
+        const payment_intent = this.stripe.paymentIntents.retrieve(invoice.payment_intent);
+
+        // Return the client secret to the frontend.
+        return {
+            client_secret: payment_intent.client_secret,
+        }
+        
+    }
+    */
 
     // ---------------------------------------------------------
     // Endpoints.
@@ -2407,7 +4286,7 @@ class Server {
         }
         return this;
     }
-};
+}
 
 // ---------------------------------------------------------
 // Exports.

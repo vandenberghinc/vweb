@@ -1,5 +1,37 @@
 {
-	"ssh_remotes": [
+    "build_system": "none",
+    "compiler": "g++",
+    "compile_args": [],
+    "source_files": [],
+    "ip": "127.0.0.1",
+    "port": "8000",
+    "executable_args": [],
+    "excluded_path_patterns": [
+        "*.DS_Store",
+        "*.git",
+        "*.xcodeproj",
+        "*node_modules",
+        "files",
+        "include",
+        "main",
+        "js/package-lock.json",
+        "demojs/package-lock.json"
+    ],
+    "excluded_code_scanning_path_patterns": [
+        "js/frontend/vweb.js",
+        "js/frontend/libs/pako.min.js",
+        "js/frontend/*"
+    ],
+    "excluded_code_scanning_rules": [
+        "no-undef",
+        "no-unused-vars",
+        "no-mixed-spaces-and-tabs",
+        "no-unreachable",
+        "no-fallthrough",
+        "no-constant-condition",
+        "no-async-promise-executor"
+    ],
+    "ssh_remotes": [
         {
             "alias": "dev.vinc",
             "destination": "/Volumes/persistance/private/vinc/vweb/",
@@ -10,5 +42,8 @@
             "destination": "/vserver/storages/vinc/vweb/",
             "enabled": true
         }
-    ]
+    ],
+    "git_username": null,
+    "git_email": null,
+    "git_remotes": []
 }

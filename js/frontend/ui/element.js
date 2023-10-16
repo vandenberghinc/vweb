@@ -443,29 +443,45 @@ function CreateVElementClass({
 		// A function is also accepted and will be executed.
 		append(...children) {
 			for (let i = 0; i < children.length; i++) {
-				const child = children[i];
+				let child = children[i];
 				if (child != null) {
 
+					// Array.
+					if (Array.isArray(child)) {
+						this.append(...child);
+					}
+
 					// VWeb element.
-					if (child.element_type != null) {
+					else if (child.element_type != null) {
 						if (
 							child.element_type == "ForEach" ||
 							child.element_type == "If" ||
 							child.element_type == "IfDeviceWith"
 						) {
 							child.append_children_to(this);
-					} else {
-						this.appendChild(child);
+						} else {
+							if (child._assign_to_parent_as !== undefined) {
+								this[child._assign_to_parent_as] = child;
+								console.log(child._assign_to_parent_as);
+							}
+							this.appendChild(child);
+						}
 					}
-				}
 
 					// Execute function.
 					else if (vweb.utils.is_func(child)) {
-						this.append(child());
+						child = child();
+						if (child._assign_to_parent_as !== undefined) {
+							this[child._assign_to_parent_as] = child;
+						}
+						this.append(child);
 					}
 
 					// Node element.
 					else if (child instanceof Node) {
+						if (child._assign_to_parent_as !== undefined) {
+							this[child._assign_to_parent_as] = child;
+						}
 						this.appendChild(child);
 					}
 
@@ -484,31 +500,46 @@ function CreateVElementClass({
 		}
 		zstack_append(...children) {
 			for (let i = 0; i < children.length; i++) {
-				const child = children[i];
+				let child = children[i];
 				if (child != null) {
 
+					// Array.
+					if (Array.isArray(child)) {
+						this.zstack_append(...child);
+					}
+
 					// VWeb element.
-					if (child.element_type != null) {
+					else if (child.element_type != null) {
 						child.style.gridArea = "1 / 1 / 2 / 2";
 						if (
 							child.element_type == "ForEach" ||
 							child.element_type == "If" ||
 							child.element_type == "IfDeviceWith"
-							) {
+						) {
 							child.append_children_to(this);
-					} else {
-						this.appendChild(child);
+						} else {
+							if (child._assign_to_parent_as !== undefined) {
+								this[child._assign_to_parent_as] = child;
+							}
+							this.appendChild(child);
+						}
 					}
-				}
 
 					// Execute function.
 					else if (vweb.utils.is_func(child)) {
-						this.append(child());
+						child = child();
+						if (child._assign_to_parent_as !== undefined) {
+							this[child._assign_to_parent_as] = child;
+						}
+						this.append(child);
 					}
 
 					// Node element.
 					else if (child instanceof Node) {
 						child.style.gridArea = "1 / 1 / 2 / 2";
+						if (child._assign_to_parent_as !== undefined) {
+							this[child._assign_to_parent_as] = child;
+						}
 						this.appendChild(child);
 					}
 
@@ -516,7 +547,6 @@ function CreateVElementClass({
 					else if (vweb.utils.is_string(child)) {
 						this.appendChild(document.createTextNode(child));	
 					}
-
 				}
 			}
 			return this;
@@ -524,6 +554,9 @@ function CreateVElementClass({
 
 		// Append to parent element.
 		append_to(parent) {
+			if (this._assign_to_parent_as !== undefined) {
+				parent[this._assign_to_parent_as] = this;
+			}
 			parent.appendChild(this);
 			return this;
 		}
@@ -537,6 +570,9 @@ function CreateVElementClass({
 				this.innerHTML = "";
 			} else {
 				while (this.firstChild) {
+					if (this.firstChild._assign_to_parent_as !== undefined) {
+						parent[this.firstChild._assign_to_parent_as] = this;
+					}
 					parent.appendChild(this.firstChild)
 				}
 			}
@@ -567,6 +603,14 @@ function CreateVElementClass({
 
 		// Get child by index.
 		child(index) {
+			return this.children[index];
+		}
+
+		// Get child by index.
+		get(index) {
+			if (index < 0 || index >= this.children.length) {
+				return undefined;
+			}
 			return this.children[index];
 		}
 
@@ -621,19 +665,16 @@ function CreateVElementClass({
 		width_by_columns(columns) {
 			let margin_left = this.style.marginLeft;
 			let margin_right = this.style.marginRight;
-			if (margin_left == null) {
+			if (!margin_left) {
 				margin_left = "0px";
 			}
-			if (margin_right == null) {
+			if (!margin_right) {
 				margin_right = "0px";
 			}
 			if (columns == null) {
 				columns = 1;
 			}
 			this.style.flexBasis = "calc(100% / " + columns + " - (" + margin_left + " + " + margin_right + "))";
-			// overflow needs to be set to hidden since it can cause the flex box ...
-			// calculations by the js template to fail.
-			this.style.overflow = "hidden";
 			return this;
 		}
 
@@ -836,6 +877,100 @@ function CreateVElementClass({
 			return this;
 		}
 
+		// Set the elements side by side till a specified width.
+		side_by_side({
+			columns = 2,			// the amount of column elements that will be put on one row.
+			spacing = 10,			// spacing between the items in pixels.
+			hide_dividers = false,	// hide dividers when they would appear on a row.
+		}) {
+			if (this.element_type !== "HStack") {
+				throw Error("This function os only supported for element \"HStackElement\".");
+			}
+
+			// Set flex basis.
+			const flex_basis = (child, basis) => {
+				const computed = window.getComputedStyle(child);
+				child.flex_basis(`calc(${basis*100}% - ${computed.marginLeft || "0px"} - ${computed.marginLeft || "0px"} - 1px)`) // minus 1px cause sometimes it will wrap and not go side to side without the -1px.
+			}
+
+			// Check if the child is the last non divider child.
+			const is_last_non_divider = (child) => {
+				if (child.nextSiblingElement == null) {
+					return true;
+				} else if (child.nextSiblingElement.element_type !== "Divider") {
+					return false;
+				} else {
+					return is_last_non_divider(child.nextSiblingElement);
+				}
+			}
+
+			// Iterate children.
+			let col_children = [];
+			let row_width = 0;
+			this.iterate((child) => {
+
+				// Divider element.
+				if (child.element_type === "Divider") {
+					if (cols > 0 && hide_dividers) {
+						child.hide();
+					} else {
+						child.show();
+						flex_basis(child, 1.0);
+					}
+				}
+
+				// No divider.
+				else {
+
+					// Is last non divider node.
+					const is_last_node = is_last_non_divider(child)
+
+					// Get the child's custom basis.
+					const child_custom_basis = child._side_by_side_basis;
+					const basis = child_custom_basis == null ? 1 / columns : child_custom_basis;
+
+					// Set flex basis.
+					flex_basis(child, basis);
+					row_width += basis;
+
+					// Is the end of the row.
+					const is_row_end = row_width >= 1.0;
+
+					// Set spacing.
+					if (spacing !== 0) {
+						if (is_row_end === false && is_last_node === false && col_children.length === 0) {
+							child.margin_right(spacing / 2);
+						} else if (is_row_end === false && is_last_node === false && col_children.length + 1 === columns) {
+							child.margin_right(spacing / 2);
+							child.margin_left(spacing / 2);
+						} else if (col_children.length !== 0) {
+							child.margin_left(spacing / 2);
+						}
+					}
+					col_children.push([child, child_custom_basis]);
+
+					// Check last node.
+					if (is_last_node) {
+						col_children.iterate((i) => {
+							flex_basis(i[0], i[1] == null ? 1 / col_children.length : i[1]);
+						})
+					}
+					
+					// Reset.
+					if (is_row_end) {
+						col_children = [];
+					}
+				}
+			})
+		}
+
+		// Set the side by side basis for a node.
+		// Must be set in floating percentages so 0.0 till 1.0.
+		side_by_side_basis(basis) {
+			this._side_by_side_basis = basis;
+			return this;
+		}
+
 		// ---------------------------------------------------------
 		// Alignment functions.
 		
@@ -848,6 +983,7 @@ function CreateVElementClass({
 					return this;
 				case "VStack":
 				case "Scroller":
+				case "View":
 					this.style.alignItems = value;
 					return this;
 				default:
@@ -874,6 +1010,7 @@ function CreateVElementClass({
 					return this;
 				case "VStack":
 				case "Scroller":
+				case "View":
 					this.style.justifyContent = value;
 					return this;
 				case "Text":
@@ -1175,6 +1312,7 @@ function CreateVElementClass({
 		
 		// Style dictionary.
 		// - Returns the css attributes when param css_attr is null.
+		// - When this function returns all the default styles that where not assigned to the object it will cause nasty behaviour with `set_defaults()`.
 		styles(css_attr) {
 			if (css_attr == null) {
 				let dict = {};
@@ -1182,29 +1320,29 @@ function CreateVElementClass({
 					let value = this.style[property];
 					if (
 						this.style.hasOwnProperty(property)
-						 // || (value !== undefined && value !== "") // otherwise css styles assigned with "var(...)" do not show up.
 					) {
+						const is_index = (/^\d+$/).test(property);
 
 						// Custom css styles will be a direct key instead of the string index.
-						// if (property[0] == "-") { 
-						if (!(/^\d+$/).test(property) && value != '' && typeof value !== 'function') { 
-							// console.log(property);
+						if (property[0] == "-" && is_index === false && value != '' && typeof value !== 'function') { 
 							dict[property] = value;
 						}
 
 						// Default styles will be an index string instead of the key.
-						else { 
+						else if (is_index) { 
 							const key = this.style[property];
 							const value = this.style[key];
-							// if (this.element_type === "Divider") {
-							// 	console.log(key, value);
-							// }
 							if (
 								key !== '' && key !== undefined && typeof key !== 'function' &&
 								value !== '' && value !== undefined && typeof value !== 'function'
 							) {
 								dict[key] = value;
 							}
+						}
+
+						// When the object is a style object it does not seem to work correctly.
+						else if (this.element_type === "Style") {
+							dict[property] = value;
 						}
 					}
 
@@ -1407,10 +1545,11 @@ function CreateVElementClass({
 			for (let i = 0; i < keyframes.length; i++) {
 				if (keyframes[i] instanceof StyleElement) {
 					keyframes[i] = keyframes[i].styles();
-				}
-				for (let key in keyframes[i]) {
-					if (vweb.utils.is_numeric(keyframes[i][key]) && convert.includes(key)) {
-						keyframes[i][key] = this.pad_numeric(keyframes[i][key]);
+				} else {
+					for (let key in keyframes[i]) {
+						if (vweb.utils.is_numeric(keyframes[i][key]) && convert.includes(key)) {
+							keyframes[i][key] = this.pad_numeric(keyframes[i][key]);
+						}
 					}
 				}
 			}
@@ -1679,7 +1818,7 @@ function CreateVElementClass({
 	        		const e = this;
 	        		this.onscroll = function(t) {
 	        			clearTimeout(timer);
-	        			setTimeout(() => opts_or_callback.callback(e, t), delay);
+	        			setTimeout(() => opts_or_callback.callback(e, t), opts_or_callback.delay);
 		        	}
 	        	}
 	        }
@@ -2222,7 +2361,7 @@ function CreateVElementClass({
 		        end = this.children.length;
 		    }
 		    for (let i = start; i < end; i++) {    
-		        const res = handler(this.children[i]);
+		        const res = handler(this.children[i], i);
 		        if (res != null) {
 		            return res;
 		        }
@@ -2243,7 +2382,7 @@ function CreateVElementClass({
 		        end = this.childNodes.length;
 		    }
 		    for (let i = start; i < end; i++) {    
-		        const res = handler(this.childNodes[i]);
+		        const res = handler(this.childNodes[i], i);
 		        if (res != null) {
 		            return res;
 		        }
@@ -2252,8 +2391,11 @@ function CreateVElementClass({
 		};
 
 		// Set the current element as the default.
-		set_default() {
-			E.default_style = this.styles();
+		set_default(Type) {
+			if (Type == null) {
+				Type = E;
+			}
+			Type.default_style = this.styles();
 			return this;
 		}
 
@@ -2313,7 +2455,7 @@ function CreateVElementClass({
 		}
 
 		// ---------------------------------------------------------
-		// Custom functions for some derived classes.
+		// Parent functions.
 
 		// Get or set the parent element.
 		// Only assigned when this is a child element of a specific Element derived class, such as LoaderButton.
@@ -2334,6 +2476,18 @@ function CreateVElementClass({
 				return this._abs_parent;
 			}
 			this._abs_parent = value;
+			return this;
+		}
+
+		// Assign the current element to an attribute of the parent by calling this function.
+		assign_to_parent_as(name) {
+			this._assign_to_parent_as = name;
+			return this;
+		}
+
+		// Execute a function with this element as parameter and return the current object.
+		exec(callback) {
+			callback(this);
 			return this;
 		}
 

@@ -81,35 +81,117 @@ vweb.utils.device_height = function() {
 	return (window.innerHeight > 0) ? window.innerHeight : screen.height;
 }
 
-// Get endpoint sub url.
-vweb.utils.endpoint = function() {
-	endpoint = window.location.href.replace("https://", "").replace("http://", "");
-	endpoint = endpoint.substr(endpoint.indexOf('/'), endpoint.length);
-	endpoint = endpoint.replaceAll("//", "/");
-	if (endpoint.length == 0) {
-		return '/'
+// Get the endpoint sub url of a full domain url.
+// When parameter "url" is undefined it uses the current url.
+vweb.utils.endpoint = function(url) {
+	if (url == null) {
+		return vweb.utils.endpoint(window.location.href);	
 	} else {
-		while (endpoint.length > 1 && endpoint[endpoint.length - 1] == '/') {
-			endpoint = endpoint.substr(0, endpoint.length - 1);
+
+		// strip http:// etc.
+		let endpoint = url.replace("https://", "").replace("http://", "");
+
+		// Remove domain.
+		endpoint = endpoint.substr(endpoint.indexOf('/'), endpoint.length);
+
+		// Strip query.
+		let end;
+		if ((end = endpoint.indexOf("?")) !== -1) {
+			endpoint = endpoint.substr(0, end);
+		}
+
+		// Clean.
+		endpoint = endpoint.replaceAll("//", "/");
+
+		// Remove last slash.
+		if (endpoint.length == 0) {
+			return '/'
+		} else {
+			while (endpoint.length > 1 && endpoint[endpoint.length - 1] == '/') {
+				endpoint = endpoint.substr(0, endpoint.length - 1);
+			}
+		}
+		return endpoint;
+	}
+}
+
+// Check if the cookies need to be parsed again.
+vweb.utils.cookies_parse_required = function() {
+	return document.cookie !== this._last_cookies;
+}
+
+// Get the cookies.
+vweb.utils.cookies = function() {
+	if (this.cookies_parse_required() === false) {
+		return this._cookies;
+	}
+
+	// Attributes.
+	this._cookies = {};
+	this._last_cookies = document.cookie;
+
+	// Vars.
+	let is_key = true, is_str = null;
+	let key = "", value = "";
+
+	// Wrapper.
+	const append = () => {
+		if (key.length > 0) {
+			this._cookies[key] = value;
+		}
+		value = "";
+		key = "";
+		is_key = true;
+		is_str = null;
+	}
+
+	// Parse.
+	for (let i = 0; i < document.cookie.length; i++) {
+		const c = document.cookie.charAt(i);
+
+		// Is key.
+		if (is_key) {
+			if (c === " " || c === "\t") {
+				continue;
+			}
+			else if (c === "=") {
+				is_key = false;
+			} else {
+				key += c;
+			}
+		}
+
+		// Is value.
+		else {
+
+			// End of string.
+			if (is_str != null && is_str === c) {
+				value = value.substr(1, value.length - 1);
+				append();
+			}
+
+			// End of cookie.
+			else if (c === ";") {
+				append();
+			}
+
+			// Append to value.
+			else {
+				// Start of string.
+				if (value.length === 0 && (c === "\"" || c=== "'")) {
+					is_str = c;
+				}
+				value += c;
+			}
 		}
 	}
-	return endpoint;
+	append();
+	return this._cookies;
 }
 
 // Get a cookie value by name.
 vweb.utils.cookie = function(name) {
-	let index = document.cookie.indexOf(name + "=");
-	if (index == -1) {
-		return null;
-	}
-	index += name.length + 1;
-	const value = document.cookie.substr(index, document.cookie.length);
-	if (value == null) { return null; }
-	index = value.indexOf(';');
-	if (index == -1) {
-		return value;
-	}
-	return value.substr(0, index);
+	return vweb.utils.cookies()[name];
 }
 
 // Get style name for vendor prefix.
@@ -157,13 +239,13 @@ vweb.utils.url_param = function(name, def = null) {
 // Url encode.
 vweb.utils.url_encode = function(params) {
 	const encodedParams = [];
-	for (const key in params) {
-		if (params.hasOwnProperty(key)) {
-			const encodedKey = encodeURIComponent(key);
-			const encodedValue = encodeURIComponent(params[key]);
-			encodedParams.push(`${encodedKey}=${encodedValue}`);
-		}
-	}
+	// for (const key in params) {
+		// if (params.hasOwnProperty(key)) {
+	Object.keys(params).iterate((key) => {
+		const encodedKey = encodeURIComponent(key);
+		const encodedValue = encodeURIComponent(params[key]);
+		encodedParams.push(`${encodedKey}=${encodedValue}`);
+	});
 	return encodedParams.join('&');
 }
 
@@ -171,35 +253,35 @@ vweb.utils.url_encode = function(params) {
 vweb.utils.request = function({
 	method = "GET",			// method.
 	url = null,				// url or endpoint.
-	params = null,			// params.
+	data = null,			// data or params.
 	json = true, 			// json response.
 	credentials = "true",
 }) {
-	if (params != null && !vweb.utils.is_string(params)) {
-		params = JSON.stringify(params);
+	if (data != null && !vweb.utils.is_string(data)) {
+		data = JSON.stringify(data);
 	}
 	return new Promise((resolve, reject) => {
 		$.ajax({
 			type: method,
 			url: url,
-			data: params,
+			data: data,
 			dataType: json ? "json" : null,
 			mimeType: json ? "application/json" : "text/plain",
 			contentType: "application/json",
 			credentials: credentials,
 			async: true,
-			success: function (data, _, response) {
-				resolve({status: response.status, data: data, response: response});
+			success: function (data, _, xhr) {
+				resolve(data, xhr.status, xhr);
 			},
 			error: function(xhr, status, e) {
+				console.log(xhr)
 				let response;
-				console.log(e);
 				try {
 					response = JSON.parse(xhr.responseText);
 					if (response.status === undefined) {
 						response.status = xhr.status;
 					}
-				} catch (e) {
+				} catch (err) {
 					response = {error: xhr.responseText == null ? e : xhr.responseText, status: xhr.status};
 				}
 				reject(response)
@@ -384,7 +466,7 @@ vweb.utils.fuzzy_search = ({
 						if (match != null && (min_match === null || match < min_match)) {
 							min_match = match;
 						}
-					};
+					}
 					match = min_match;
 				} else {
 					if (target[key] == null) { continue; }

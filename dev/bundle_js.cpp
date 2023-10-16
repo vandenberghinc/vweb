@@ -14,7 +14,7 @@ int main() {
 	// Array<Int> x;
 	// auto y = x[0];
 		
-	// Global paths.
+	// Global 240
 	Path vweb = Path(__FILE__).base(2);
 	Path vinc = Path(__FILE__).base(3);
 	
@@ -23,9 +23,8 @@ int main() {
 	Path css = vweb.join("js/frontend/css");
 	
 	// Include vhighlight.
-	// Path css = vweb.join("include/vweb/ui/css");
-	// vinc.join("vhighlight/include/vhighlight/js/vhighlight.js").cp(js.join("libs/vhighlight.js"));
-	// vinc.join("vhighlight/include/vhighlight/css/vhighlight.css").cp(css.join("vhighlight.css"));
+	// vinc.join("vhighlight/css/vhighlight.css").cp(css.join("vhighlight.cs"));
+	// vinc.join("vhighlight/vhighlight.js").cp(js.join("libs/vhighlight.js"));
 	
 	// Bundle js dir.
 	Code bundled = vlib::JavaScript::bundle({

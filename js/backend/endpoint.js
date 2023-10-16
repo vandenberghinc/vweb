@@ -13,6 +13,7 @@ const zlib = require('zlib');
 // Endpoint.
 
 /*  @docs: {
+ *  @chapter: Backend
     @title: Endpoint
     @description: The endpoint class.
     @parameter: {
@@ -63,7 +64,7 @@ const zlib = require('zlib');
     }
     @parameter: {
         @name: content_type
-        @description: The content type for parameter `data`.
+        @description: The content type for parameter `data` or `callback`.
         @type: string
     }
     @parameter: {
@@ -110,6 +111,9 @@ class Endpoint {
             this.endpoint = "/" + this.endpoint;
         }
         this.endpoint = this.endpoint.replaceAll("//", "/");
+        if (this.endpoint.length > 1 && this.endpoint.charAt(this.endpoint.length - 1) === "/") {
+            this.endpoint = this.endpoint.substr(0, this.endpoint.length - 1);
+        }
 
         // Argument `view` may also be passed as an object instead of class View.
         if (view == null) {
@@ -130,12 +134,13 @@ class Endpoint {
         // }
 
         // Set content length.
+        // Somehow it is off when using data??
         this.content_length = null;
-        if (this.data !== null) {
-            this.content_length = this.data.length;
-        } else if (this.view !== null) {
-            this.content_length = this.view.html.length;
-        }
+        // if (this.data !== null) {
+        //     this.content_length = this.data.length;
+        // } else if (this.view !== null) {
+        //     this.content_length = this.view.html.length;
+        // }
     }
 
     // Serve a client.
@@ -162,15 +167,20 @@ class Endpoint {
                 response.set_header("Content-Length", this.content_length);
             }
 
+            // Set content type.
+            if (this.content_type != null) {
+                response.set_header("Content-Type", this.content_type);
+            }
+
             // Callback.
             if (this.callback !== null) {
-                const promise = this.callback(request, response);
-                if (promise instanceof Promise) {
-                    try {
+                try {
+                    const promise = this.callback(request, response);
+                    if (promise instanceof Promise) {
                         await promise;
-                    } catch (err) {
-                        return reject(err);
                     }
+                } catch (err) {
+                    return reject(err);
                 }
             }
 
@@ -183,7 +193,6 @@ class Endpoint {
             else if (this.data !== null) {
                 response.send({
                     status: 200, 
-                    headers: {'Content-Type': this.content_type}, 
                     data: this.data,
                 });
             }

@@ -8,7 +8,7 @@
 @vweb_register_element
 class ButtonElement extends CreateVElementClass({
 	type: "Button",
-	tag: "a",
+	tag: "div",
 	default_style: {
 		"margin": "0px 0px 0px",
 		"padding": "5px 10px 5px 10px",
@@ -58,6 +58,7 @@ class BorderButtonElement extends CreateVElementClass({
 		"text-decoration": "none",
 		"position": "relative",
 		"z-index": 0,
+		"background": "none",
 		// Custom.
 		"--child-color": "black",
 		"--child-background": "black",
@@ -90,11 +91,11 @@ class BorderButtonElement extends CreateVElementClass({
 		// delete styles["--child-webkit-background-clip"];
 		// this.styles(styles);
 
-		// Border child.
+		// Border child so it can support border gradients.
 		this.border_e = VElement()
 			.content("")
 			.position("absolute")
-			.z_index(-1)
+			// .z_index(-1)
 			.inset(0)
 			.padding(BorderButtonElement.default_style["--child-border-width"])
 			.border_radius(BorderButtonElement.default_style["--child-border-radius"])
@@ -103,7 +104,7 @@ class BorderButtonElement extends CreateVElementClass({
 			.mask_composite("exclude")
 			.styles({
 				"-webkit-mask": "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
-				"-webkit-mask-composite": "exclude", //"xor",
+				"-webkit-mask-composite": navigator.userAgent.includes("Firefox") ? "exclude" : "xor",
 			})
 
 		// Text child.
@@ -196,7 +197,9 @@ class BorderButtonElement extends CreateVElementClass({
 class LoaderButtonElement extends HStackElement {
 
 	// Default styling.
-	static default_style = Object.assign({}, HStackElement.default_style, {
+	// static default_style = Object.assign({}, HStackElement.default_style, {
+	static default_style = {
+		...HStackElement.default_style,
 		"margin": "0px",
 		"padding": "12.5px 10px 12.5px 10px",
 		"border-radius": "25px",
@@ -209,10 +212,10 @@ class LoaderButtonElement extends HStackElement {
 		"--loader-height": "25px",
 		"--loader-margin-right": "15px",
 		"--loader-margin-top": "-2px",
-	});
+	};
 
 	// Constructor.
-	constructor(text = "", loader = RingLoader()) {
+	constructor(text = "", loader = RingLoader) {
 
 		// Initialize base classes.
 		super();
@@ -229,11 +232,11 @@ class LoaderButtonElement extends HStackElement {
 		this.center_vertical()
 
 		// Children.
-		this.loader = loader
+		this.loader = loader()
 			.frame(LoaderButtonElement.default_style["--loader-width"], LoaderButtonElement.default_style["--loader-height"])
 			.margin_right(LoaderButtonElement.default_style["--loader-margin-right"])
 			.margin_top(LoaderButtonElement.default_style["--loader-margin-top"])
-			.background(THEME.button_txt)
+			.background("white")
 			.update()
 			.hide();
 		this.loader.parent(this);
@@ -274,10 +277,10 @@ class LoaderButtonElement extends HStackElement {
 	styles(style_dict) {
 		if (style_dict == null) {
 			let styles = super.styles();
-			styles["--loader-width"] = this.loader.style.width;
-			styles["--loader-height"] = this.loader.style.height;
-			styles["--loader-margin-right"] = this.loader.margin_right();
-			styles["--loader-margin-top"] = this.loader.margin_top();
+			styles["--loader-width"] = this.loader.style.width || "25px";
+			styles["--loader-height"] = this.loader.style.height || "25px";
+			styles["--loader-margin-right"] = this.loader.margin_right() || "15px";
+			styles["--loader-margin-top"] = this.loader.margin_top() || "-2px";
 			return styles;
 		} else {
 			return super.styles(style_dict);

@@ -27,7 +27,6 @@ class ScrollerElement extends CreateVElementClass({
         "content-visibility": "auto", // improve rendering.
         "align-content": "flex-start", // align items at start, do not stretch / space when inside HStack.
         "align-items": "flex-start", // align items at start, do not stretch / space when inside HStack.
-
     },
 }) {
     
@@ -42,18 +41,20 @@ class ScrollerElement extends CreateVElementClass({
             this.position("relative"); // is required for attribute "track" 
         }
         super.overflow("hidden"); // should always be hidden to enable scrolling, and otherwise the thumb not be visible due to overflow width.
+        this.class("hide_scrollbar")
         this.styles({
             "content-visibility": "auto",
         })
 
         // Content.
         this.content = VStack(...children)
-            .class("hide_scrollbar")
             .parent(this)
+            .class("hide_scrollbar")
             .position("relative") // in case it has absolute children that should scroll, otherwise the content wont scroll without "relative".
             .frame("100%", "100%")
-            .flex("1 1 0") // otherwise it expands its parent.
+            .flex("1 1 0") // flex-basis 0 otherwise it expands its parent.
             .overflow("scroll")
+            .overscroll_behavior("none")
             .styles({
                 "content-visibility": "auto",
             })
@@ -71,6 +72,7 @@ class ScrollerElement extends CreateVElementClass({
             .box_shadow("0px 0px 5px #00000020")
         this.track = VStack(this.thumb)
             .parent(this)
+            .class("hide_scrollbar")
             .position(5, 5, 5, null)
             .width(10)
             .background_color("transparent")
@@ -78,10 +80,12 @@ class ScrollerElement extends CreateVElementClass({
             .transition("background-color 0.3s linear")
             .assign("background_value", "#28292E")
             .overflow("visible")
-            .class("hide_scrollbar")
 
         // Add children.
         super.append(this.content, this.track);
+
+        // The on scroll callbacks.
+        this.on_scroll_callbacks = [];
 
         // Alias functions.
         // this.raw_append = super.append.bind(super);
@@ -287,11 +291,39 @@ class ScrollerElement extends CreateVElementClass({
         this.content.overflow_x(value);
         return this;
     }
+    super_overflow_x(value) {
+        if (value == null) {
+            return super.overflow_x();
+        }
+        super.overflow_x(value);
+        return this;
+    }
     overflow_y(value) {
         if (value == null) {
             return this.content.overflow_y();
         }
         this.content.overflow_y(value);
+        return this;
+    }
+    super_overflow_y(value) {
+        if (value == null) {
+            return super.overflow_y();
+        }
+        super.overflow_y(value);
+        return this;
+    }
+
+    // Show the overflow so the scroller no longer scrolls.
+    show_overflow() {
+        super.overflow("visible");
+        this.content.overflow("visible");
+        return this;
+    }
+
+    // Hide the overflow so the scroller can scrolls.
+    hide_overflow() {
+        super.overflow("hidden");
+        this.content.overflow("auto");
         return this;
     }
 
@@ -332,40 +364,70 @@ class ScrollerElement extends CreateVElementClass({
         return this.content.scrollWidth;
     }
 
-    // Add a on scroll event.
-    on_scroll(handler) {
-        this.content.addEventListener("scroll", handler);
+    // Add a on scroll callback.
+    on_scroll(opts_or_callback = {callback: null, delay: null}) {
+        if (opts_or_callback == null) { return this.on_scroll_callbacks; }
+        let callback;
+        if (vweb.utils.is_func(opts_or_callback)) {
+            const e = this;
+            callback = (event) => opts_or_callback(e, event);
+            this.on_scroll_callbacks.push({callback, user_callback: opts_or_callback});
+        } else {
+            if (opts_or_callback.delay == null) {
+                callback = opts_or_callback.callback;
+            } else {
+                let timer;
+                const e = this;
+                callback = function(t) {
+                    clearTimeout(timer);
+                    setTimeout(() => opts_or_callback.callback(e, t), opts_or_callback.delay);
+                }
+            }
+            this.on_scroll_callbacks.push({callback, user_callback: opts_or_callback.callback});
+        }
+        this.content.addEventListener("scroll", callback);
         return this;
     }
-    remove_on_scroll(handler) {
-        this.content.removeEventListener("scroll", handler);
+
+    // Remove a on scroll callback.
+    remove_on_scroll(callback) {
+        let dropped = [];
+        this.on_scroll_callbacks.iterate((item) => {
+            if (item.user_callback === callback) {
+                this.content.removeEventListener("scroll", item.callback);
+            } else {
+                dropped.push(item);
+            }
+        })
+        this.on_scroll_callbacks = dropped;
         return this;
     }
 
     // Small wrapper to set scroll top without triggering a certain on scroll handler.
-    set_scroll_top_without_event(top, handler) {
-        this.remove_on_scroll(handler);
-        this.scroll_top(top);
-        this.on_scroll(handler);
+    set_scroll_top_without_event(top) {
+        return this.set_scroll_position_without_event(top);
     }
 
     // Small wrapper to set scroll left without triggering a certain on scroll handler.
-    set_scroll_left_without_event(left, handler) {
-        this.remove_on_scroll(handler);
-        this.scroll_left(left);
-        this.on_scroll(handler);
+    set_scroll_left_without_event(left) {
+        return this.set_scroll_position_without_event(null, left);
     }
 
     // Small wrapper to set scroll top / left without triggering a certain on scroll handler.
-    set_scroll_position_without_event(top = null, left = null, handler) {
-        this.remove_on_scroll(handler);
+    set_scroll_position_without_event(top = null, left = null) {
+        this.on_scroll_callbacks.iterate((item) => {
+            this.content.removeEventListener("scroll", item.callback);
+        });
         if (top != null) {
             this.scroll_top(top);
         }
         if (left != null) {
             this.scroll_left(left);
         }
-        this.on_scroll(handler);
+        this.on_scroll_callbacks.iterate((item) => {
+            this.content.addEventListener("scroll", item.callback);
+        });
+        return this;
     }
     
 }

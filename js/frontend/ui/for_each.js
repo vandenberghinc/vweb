@@ -23,8 +23,18 @@ class ForEachElement extends CreateVElementClass({
 		super();
 		
 		// Iterate.
-		for (let i = 0; i < items.length; i++) {
-			this.append(func(items[i], i));
+		if (Array.isArray(items)) {
+			for (let i = 0; i < items.length; i++) {
+				this.append(func(items[i], i));
+			}
+		} else if (typeof items === "object") {
+			let index = 0;
+			Object.keys(items).iterate((key) => {
+				this.append(func(key, items[key], index));
+				++index;
+			})
+		} else {
+			throw Error(`Parameter "items" has an invalid value type, the valid value types are "array" or "object".`);
 		}
 		
 	}
