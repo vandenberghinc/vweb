@@ -132,6 +132,11 @@ class PopupElement extends VStackElement {
 	    this.z_index(10000)
 	}
 
+	// Set default since it inherits HStackElement.
+	set_default() {
+		return super.set_default(PopupElement);
+	}
+
 	// Await the previous popup.
 	async await() {
 		await this.mutex.lock();

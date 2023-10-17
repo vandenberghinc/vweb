@@ -8,7 +8,11 @@ vweb.elements = {};
 
 // Get by id.
 vweb.elements.get = function(id) {
-	return document.getElementById(id);
+	const e = document.getElementById(id);
+	if (e == null) {
+		throw Error(`Unable to find element with id "${id}".`)
+	}
+	return e;
 }
 vweb.elements.get_by_id = function(id) {
 	return vweb.elements.get(id)

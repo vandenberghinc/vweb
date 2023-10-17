@@ -462,7 +462,6 @@ function CreateVElementClass({
 						} else {
 							if (child._assign_to_parent_as !== undefined) {
 								this[child._assign_to_parent_as] = child;
-								console.log(child._assign_to_parent_as);
 							}
 							this.appendChild(child);
 						}
@@ -878,44 +877,98 @@ function CreateVElementClass({
 		}
 
 		// Set the elements side by side till a specified width.
+		/* 	@docs:
+		 * 	@title: Side by Side
+		 * 	@description: Set the elements side by side till a specified width.
+		 * 	@param: 
+		 * 		@name: columns 
+		 * 		@type: number 
+		 *		@desc: The amount of column elements that will be put on one row.
+		 * 	@param: 
+		 * 		@name: hspacing 
+		 * 		@type: number 
+		 *		@desc: The horizontal spacing between the columns in pixels.
+		 * 	@param: 
+		 * 		@name: vspacing 
+		 * 		@type: number 
+		 *		@desc: The vertical spacing between the rows in pixels.
+		 * 	@param: 
+		 * 		@name: hide_dividers 
+		 * 		@type: boolean 
+		 *		@desc: Hide dividers when they would appear on a row.
+		 */
 		side_by_side({
-			columns = 2,			// the amount of column elements that will be put on one row.
-			spacing = 10,			// spacing between the items in pixels.
-			hide_dividers = false,	// hide dividers when they would appear on a row.
+			columns = 2,			
+			hspacing = 10,			
+			vspacing = 10,			
+			hide_dividers = false,	
 		}) {
 			if (this.element_type !== "HStack") {
 				throw Error("This function os only supported for element \"HStackElement\".");
 			}
 
+			// Vars.
+			let col_children = [];
+			let row_width = 0;
+			let row = 0;
+
+			// Styling.
+			// this.justify_content("space-between")
+			this.box_sizing("border-box")
+
 			// Set flex basis.
-			const flex_basis = (child, basis) => {
-				const computed = window.getComputedStyle(child);
-				child.flex_basis(`calc(${basis*100}% - ${computed.marginLeft || "0px"} - ${computed.marginLeft || "0px"} - 1px)`) // minus 1px cause sometimes it will wrap and not go side to side without the -1px.
+			const flex_basis = (child, basis, margin) => {
+				child.width(`calc(${basis*100}% - ${margin}px)`);
+				child.min_width(`calc(${basis*100}% - ${margin}px)`);
+				child.max_width(`calc(${basis*100}% - ${margin}px)`);
+			}
+
+			// Set flex on the columns.
+			const set_flex = () => {
+				let index = 0;
+				let margin = 0;
+				col_children.iterate((i) => {
+					const child = i[0];
+					if (index > 0) {
+						child.margin_left(hspacing);
+						margin += hspacing;
+					}
+					++index;
+				});
+				col_children.iterate((i) => {
+					const child = i[0];
+					child.overflow("hidden")
+					flex_basis(
+						child, 
+						i[1] == null ? 1 / col_children.length : i[1], 
+						margin / col_children.length,
+					);
+				})
 			}
 
 			// Check if the child is the last non divider child.
 			const is_last_non_divider = (child) => {
-				if (child.nextSiblingElement == null) {
+				if (child.nextElementSibling == null) {
 					return true;
-				} else if (child.nextSiblingElement.element_type !== "Divider") {
+				} else if (child.nextElementSibling.element_type !== "Divider") {
 					return false;
 				} else {
-					return is_last_non_divider(child.nextSiblingElement);
+					return is_last_non_divider(child.nextElementSibling);
 				}
 			}
 
 			// Iterate children.
-			let col_children = [];
-			let row_width = 0;
 			this.iterate((child) => {
 
 				// Divider element.
 				if (child.element_type === "Divider") {
-					if (cols > 0 && hide_dividers) {
+					if (col_children.length > 0 && hide_dividers) {
 						child.hide();
 					} else {
 						child.show();
-						flex_basis(child, 1.0);
+						child.margin_top(vspacing)
+						child.margin_bottom(0)
+						flex_basis(child, 1.0, 0);
 					}
 				}
 
@@ -929,39 +982,44 @@ function CreateVElementClass({
 					const child_custom_basis = child._side_by_side_basis;
 					const basis = child_custom_basis == null ? 1 / columns : child_custom_basis;
 
-					// Set flex basis.
-					flex_basis(child, basis);
-					row_width += basis;
-
-					// Is the end of the row.
-					const is_row_end = row_width >= 1.0;
-
-					// Set spacing.
-					if (spacing !== 0) {
-						if (is_row_end === false && is_last_node === false && col_children.length === 0) {
-							child.margin_right(spacing / 2);
-						} else if (is_row_end === false && is_last_node === false && col_children.length + 1 === columns) {
-							child.margin_right(spacing / 2);
-							child.margin_left(spacing / 2);
-						} else if (col_children.length !== 0) {
-							child.margin_left(spacing / 2);
-						}
+					// Set margins.
+					child.stretch(true);
+					child.box_sizing("border-box")
+					child.margin_left(0); // reset for when it is called inside @media.
+					if (row > 0) {
+						child.margin_top(vspacing);
+					} else {
+						child.margin_top(0); // reset for when it is called inside @media.
 					}
-					col_children.push([child, child_custom_basis]);
 
-					// Check last node.
-					if (is_last_node) {
-						col_children.iterate((i) => {
-							flex_basis(i[0], i[1] == null ? 1 / col_children.length : i[1]);
-						})
-					}
-					
-					// Reset.
-					if (is_row_end) {
+					// When the childs basis + the row width would overflow 1 then add it to the next line.
+					if (row_width + basis > 1) {
+						set_flex();
+						++row;
+						row_width = 0;
 						col_children = [];
+						col_children.push([child, child_custom_basis]);
 					}
+
+					// When the child basis + the row width would equal 1 or the node is the last node item then add the columns.
+					else if (row_width + basis === 1 || is_last_node) {
+						col_children.push([child, child_custom_basis]);
+						set_flex();
+						++row;
+						row_width = 0;
+						col_children = [];	
+					}
+
+					// Otherwise add to the colums.
+					else {
+						col_children.push([child, child_custom_basis]);
+					}
+
+					// Increment row width.
+					row_width += basis;
 				}
 			})
+			return this;
 		}
 
 		// Set the side by side basis for a node.
@@ -1092,7 +1150,9 @@ function CreateVElementClass({
 
 		// Border, 1 till 3 args.
 		border(...values) {
-			if (values.length === 1) {
+			if (values.length === 0) {
+				return this.style.border;
+			} else if (values.length === 1) {
 				this.style.border = values[0];
 			} else if (values.length === 2) {
 				this.style.border = this.pad_numeric(values[0]) + " solid " + values[1];
@@ -1106,7 +1166,10 @@ function CreateVElementClass({
 
 		// Adds shadow to the object, 1 or 4 args.
 		shadow(...values) {
-			if (values.length === 1) {
+			if (values.length === 0) {
+				return this.style.boxShadow;
+			}
+			else if (values.length === 1) {
 				return this.box_shadow(this.pad_numeric(values[0]));
 			} else if (values.length === 4) {
 				return this.box_shadow(
@@ -2453,6 +2516,28 @@ function CreateVElementClass({
 			}
 			return this;
 		}
+
+		// Specifies an alternate text when the original element fails to display.
+        /*	@docs: {
+         *	@title: Alt
+         *	@description: 
+         *		Specifies an alternate text when the original element fails to display.
+         *		The equivalent of HTML attribute `alt`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        alt(value) {
+            if (value == null) { return this.getAttribute("alt"); }
+        	this.setAttribute("alt", value)
+        	return this;
+        }
 
 		// ---------------------------------------------------------
 		// Parent functions.
@@ -9939,28 +10024,6 @@ function CreateVElementClass({
         	return this;
         }
 
-        // Specifies an alternate text when the original element fails to display.
-        /*	@docs: {
-         *	@title: Alt
-         *	@description: 
-         *		Specifies an alternate text when the original element fails to display.
-         *		The equivalent of HTML attribute `alt`.
-         *		
-         *		Returns the attribute value when parameter `value` is `null`.
-         *	@return: 
-         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
-         *		@name: value
-         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-         *	}: 
-         *	@inherit: false
-         } */ 
-        alt(value) {
-            if (value == null) { return super.alt; }
-        	super.alt = value;
-        	return this;
-        }
-
         // Specifies that the script is executed asynchronously (only for external scripts).
         /*	@docs: {
          *	@title: Async
@@ -11157,8 +11220,8 @@ function CreateVElementClass({
          *	@inherit: false
          } */ 
         readonly(value) {
-            if (value == null) { return super.readonly; }
-        	super.readonly = value;
+            if (value == null) { return super.readOnly; }
+        	super.readOnly = value;
         	return this;
         }
 

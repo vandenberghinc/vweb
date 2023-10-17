@@ -813,6 +813,7 @@ int main() {
 		"on_scroll", // limits recalling with clearTimeout.
 		"opacity", // custom opacity func.
 		"on_context_menu", // custom func.
+		"alt", // requires manual func.
 	};
 	
 	// Pad numeric funcs.

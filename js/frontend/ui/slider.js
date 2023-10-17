@@ -116,6 +116,11 @@ class SliderElement extends VStackElement {
 
     }
 
+    // Set default since it inherits HStackElement.
+    set_default() {
+        return super.set_default(SliderElement);
+    }
+
     // Get or set the enabled color.
     enabled_color(value) {
         if (value == null) {

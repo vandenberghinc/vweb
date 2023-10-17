@@ -503,6 +503,11 @@ class VirtualScrollerElement extends ScrollerElement {
 
     }
 
+    // Set default since it inherits HStackElement.
+    set_default() {
+        return super.set_default(VirtualScrollerElement);
+    }
+
     // Replace overflow.
     overflow(value) {
         if (value == null) {

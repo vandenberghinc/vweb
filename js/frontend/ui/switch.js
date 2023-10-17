@@ -68,6 +68,11 @@ class SwitchElement extends VStackElement {
         })
     }
 
+    // Set default since it inherits an element.
+	set_default() {
+		return super.set_default(SwitchElement);
+	}
+
     // Set width.
 	width(value) {
 		if (value == null) {

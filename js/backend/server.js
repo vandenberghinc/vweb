@@ -94,6 +94,12 @@ class StripeError extends Error {
  *      @type: object
  *  }
  *  @parameter: {
+ *      @name: favicon
+ *      @description: The path to the favicon.
+ *      @type: string
+ *      @required: true
+ *  }
+ *  @parameter: {
  *      @name: token_expiration
  *      @description: The token a sign in token will be valid in seconds.
  *      @type: number
@@ -322,6 +328,7 @@ class Server {
         statics = [],
         database = null,
         default_headers = null,
+        favicon = null,
         token_expiration = 86400,
         enable_2fa = false,
         enable_account_activation = true,
@@ -353,6 +360,9 @@ class Server {
         if (typeof database !== "string") {
             throw Error(`Parameter "database" should be a defined value of type "string".`);
         }
+        if (typeof favicon !== "string") {
+            throw Error(`Parameter "favicon" should be a defined value of type "string".`);
+        }
         // if (typeof smtp_sender !== "string" && !Array.isArray(smtp_sender)) {
         //     throw Error(`Parameter "smtp_sender" should database a defined value of type "string" or "array".`);
         // }
@@ -372,6 +382,7 @@ class Server {
         this.domain = domain;
         this.statics = statics.map((path) => new vlib.Path(path));
         this.database = new vlib.Path(database).abs();
+        this.favicon = favicon;
         this.enable_2fa = enable_2fa;
         this.enable_account_activation = enable_account_activation;
         this.production = production;
@@ -929,6 +940,19 @@ class Server {
     // Create default endpoints.
     _create_default_endpoints() {
 
+        // Vars.
+        const additional_file_watcher_paths = [];
+
+        // Add favicon.
+        const favicon = new vlib.Path(this.favicon);
+        this.endpoint(new Endpoint({
+            method: "GET",
+            endpoint: "/favicon.ico",
+            data: favicon.load_sync({type: null}),
+            content_type: this._sys_get_content_type(favicon.extension()),
+        }))
+        additional_file_watcher_paths.push(favicon.str());
+
         // Default static endpoints.
         const defaults = [
             {
@@ -956,7 +980,6 @@ class Server {
                 path: new vlib.Path(vhighlight.web_exports.js),
             },
         ]
-        const additional_file_watcher_paths = [];
         defaults.iterate((item) => {
             this.endpoint(new Endpoint({
                 method: item.method,

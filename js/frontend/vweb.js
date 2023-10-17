@@ -442,7 +442,11 @@ return score
 }
 vweb.elements={};
 vweb.elements.get=function(id){
-return document.getElementById(id);
+const e=document.getElementById(id);
+if(e==null){
+throw Error(`Unable to find element with id "${id}".`)
+}
+return e;
 }
 vweb.elements.get_by_id=function(id){
 return vweb.elements.get(id)
@@ -851,7 +855,6 @@ child.append_children_to(this);
 }else{
 if(child._assign_to_parent_as!==undefined){
 this[child._assign_to_parent_as]=child;
-console.log(child._assign_to_parent_as);
 }
 this.appendChild(child);
 }
@@ -1196,6 +1199,101 @@ z_index(value){
 this.style.zIndex=value;
 return this;
 }
+side_by_side({
+columns=2,
+hspacing=10,
+vspacing=10,
+hide_dividers=false,
+}){
+if(this.element_type!=="HStack"){
+throw Error("This function os only supported for element \"HStackElement\".");
+}
+let col_children=[];
+let row_width=0;
+let row=0;
+this.box_sizing("border-box")
+const flex_basis=(child,basis,margin)=>{
+child.width(`calc(${basis*100}% - ${margin}px)`);
+child.min_width(`calc(${basis*100}% - ${margin}px)`);
+child.max_width(`calc(${basis*100}% - ${margin}px)`);
+}
+const set_flex=()=>{
+let index=0;
+let margin=0;
+col_children.iterate((i)=>{
+const child=i[0];
+if(index>0){
+child.margin_left(hspacing);
+margin+=hspacing;
+}
+++index;
+});
+col_children.iterate((i)=>{
+const child=i[0];
+child.overflow("hidden")
+flex_basis(
+child,
+i[1]==null ? 1/col_children.length:i[1],
+margin/col_children.length,
+);
+})
+}
+const is_last_non_divider=(child)=>{
+if(child.nextElementSibling==null){
+return true;
+}else if(child.nextElementSibling.element_type!=="Divider"){
+return false;
+}else{
+return is_last_non_divider(child.nextElementSibling);
+}
+}
+this.iterate((child)=>{
+if(child.element_type==="Divider"){
+if(col_children.length>0&&hide_dividers){
+child.hide();
+}else{
+child.show();
+child.margin_top(vspacing)
+child.margin_bottom(0)
+flex_basis(child,1.0,0);
+}
+}
+else{
+const is_last_node=is_last_non_divider(child)
+const child_custom_basis=child._side_by_side_basis;
+const basis=child_custom_basis==null ? 1/columns:child_custom_basis;
+child.stretch(true);
+child.box_sizing("border-box")
+child.margin_left(0);if(row>0){
+child.margin_top(vspacing);
+}else{
+child.margin_top(0);}
+if(row_width+basis>1){
+set_flex();
+++row;
+row_width=0;
+col_children=[];
+col_children.push([child,child_custom_basis]);
+}
+else if(row_width+basis===1||is_last_node){
+col_children.push([child,child_custom_basis]);
+set_flex();
+++row;
+row_width=0;
+col_children=[];
+}
+else{
+col_children.push([child,child_custom_basis]);
+}
+row_width+=basis;
+}
+})
+return this;
+}
+side_by_side_basis(basis){
+this._side_by_side_basis=basis;
+return this;
+}
 align(value){
 switch(this.base_element_type){
 case "HStack":
@@ -1285,7 +1383,9 @@ this.style.color=value;
 return this;
 }
 border(...values){
-if(values.length===1){
+if(values.length===0){
+return this.style.border;
+}else if(values.length===1){
 this.style.border=values[0];
 }else if(values.length===2){
 this.style.border=this.pad_numeric(values[0])+" solid "+values[1];
@@ -1297,7 +1397,10 @@ console.error("Invalid number of arguments for function \"border()\".");
 return this;
 }
 shadow(...values){
-if(values.length===1){
+if(values.length===0){
+return this.style.boxShadow;
+}
+else if(values.length===1){
 return this.box_shadow(this.pad_numeric(values[0]));
 }else if(values.length===4){
 return this.box_shadow(
@@ -2042,6 +2145,11 @@ this.style.outline="none";
 this.setAttribute('tabindex','-1');
 this.style.outline="none";
 }
+return this;
+}
+alt(value){
+if(value==null){return this.getAttribute("alt");}
+this.setAttribute("alt",value)
 return this;
 }
 parent(value){
@@ -3909,11 +4017,6 @@ if(value==null){return super.action;}
 super.action=value;
 return this;
 }
-alt(value){
-if(value==null){return super.alt;}
-super.alt=value;
-return this;
-}
 async(value){
 if(value==null){return super.async;}
 super.async=value;
@@ -4175,8 +4278,8 @@ super.preload=value;
 return this;
 }
 readonly(value){
-if(value==null){return super.readonly;}
-super.readonly=value;
+if(value==null){return super.readOnly;}
+super.readOnly=value;
 return this;
 }
 rel(value){
@@ -5178,6 +5281,9 @@ this.content.append(this.height_measurer)
 this.render(true);
 this.content.addEventListener("scroll",()=>this.render())
 }
+set_default(){
+return super.set_default(VirtualScrollerElement);
+}
 overflow(value){
 if(value==null){
 return this.content.overflow();
@@ -5418,6 +5524,9 @@ this.remove();
 document.body.removeEventListener("mousedown",this.remove_child_callback);
 }
 }
+set_default(){
+return super.set_default(ContextMenuElement);
+}
 popup(event){
 event.preventDefault();
 super.show();
@@ -5548,6 +5657,9 @@ this.center()
 this.center_vertical()
 this.z_index(10000)
 }
+set_default(){
+return super.set_default(PopupElement);
+}
 async await(){
 await this.mutex.lock();
 this.mutex.unlock();
@@ -5677,6 +5789,9 @@ this.value(enabled,false);
 this.on_theme_update(()=>{
 this.value(this._enabled,false);
 })
+}
+set_default(){
+return super.set_default(SwitchElement);
 }
 width(value){
 if(value==null){
@@ -6762,6 +6877,9 @@ this.value(value);
 })
 }
 }
+set_default(){
+return super.set_default(SliderElement);
+}
 enabled_color(value){
 if(value==null){
 return this._enabled_color;
@@ -6985,6 +7103,170 @@ this.placeholder(placeholder);
 }
 vweb.elements.register(PhoneNumberInputElement);
 function PhoneNumberInput(...args){return new PhoneNumberInputElement(...args);}
+
+
+class LabeledInputElement extends VStackElement{
+static default_style={
+...VStackElement.default_style,
+"color":"inherit",
+"font-size":"16px",
+"--input-padding":"12px",
+"--input-border-radius":"5px",
+"--input-border":"1px solid gray",
+"--focus-color":"#8EB8EB",
+};
+constructor({
+label="Label",
+placeholder="Input",
+readonly=false,
+type=Input,
+}={}){
+super();
+this.base_element_type="LabeledInput";
+this._focus_color=LabeledInputElement.default_style["--focus-color"];
+this.styles(LabeledInputElement.default_style);
+this.label=Text(label)
+.parent(this)
+.font_size("inherit")
+.margin_bottom(5)
+.color("inherit");
+this.input=type(placeholder)
+.parent(this)
+.color("inherit")
+.readonly(readonly)
+.font_size("inherit")
+.padding(LabeledInputElement.default_style["--input-padding"])
+.margin(0)
+.border_radius(LabeledInputElement.default_style["--input-border-radius"])
+.border(LabeledInputElement.default_style["--input-border"])
+.width("100%")
+.stretch(true)
+.transition("outline 0.2s ease-in-out, box-shadow 0.2s ease-in-out")
+.on_focus((element)=>{
+element.outline(`1px solid ${this._focus_color}`)
+element.box_shadow(`0 0 0 4px ${this._focus_color}80`)
+})
+.on_blur((element)=>{
+element.outline("none")
+element.box_shadow(`none`)
+})
+this.append(this.label,this.input);
+}
+styles(style_dict){
+if(style_dict==null){
+let styles=super.styles();
+styles["--input-padding"]=this.input.padding();
+styles["--input-border-radius"]=this.input.border_radius();
+styles["--input-border"]=this.input.border();
+styles["--focus-color"]=this._focus_color;
+return styles;
+}else{
+return super.styles(style_dict);
+}
+}
+set_default(){
+return super.set_default(LabeledInputElement);
+}
+focus_color(val){
+if(val==null){return this._focus_color;}
+this._focus_color=val;
+return this;
+}
+value(val){if(val==null){return this.input.value();}this.input.value(val);return this;}
+text(val){if(val==null){return this.input.text();}this.input.text(val);return this;}
+on_enter(val){if(val==null){return this.input.on_enter();}this.input.on_enter(val);return this;}
+on_input(val){if(val==null){return this.input.on_input();}this.input.on_input(val);return this;}
+border(val){if(val==null){return this.input.border();}this.input.border(val);return this;}
+border_radius(val){if(val==null){return this.input.border_radius();}this.input.border_radius(val);return this;}
+border_color(val){if(val==null){return this.input.border_color();}this.input.border_color(val);return this;}
+border_width(val){if(val==null){return this.input.border_width();}this.input.border_width(val);return this;}
+border_style(val){if(val==null){return this.input.border_style();}this.input.border_style(val);return this;}
+}
+vweb.elements.register(LabeledInputElement);
+function LabeledInput(...args){return new LabeledInputElement(...args);}
+
+
+class ImageInputElement extends HStackElement{
+static default_style={
+...HStackElement.default_style,
+"margin":"0px",
+"padding":"12px",
+"border-radius":"5px",
+"border":"1px solid gray",
+"color":"inherit",
+"font-size":"16px",
+"--image-mask-color":"#000",
+"--image-size":"20px",
+"--image-margin-right":"10px",
+"--image-margin-left":"5px",
+"--image-alt":"VWeb",
+"--focus-color":"#8EB8EB",
+};
+constructor({
+image="",
+placeholder="Input",
+readonly=false,
+type=Input,
+alt="",
+}={}){
+super();
+this.base_element_type="ImageInput";
+this._focus_color=ImageInputElement.default_style["--focus-color"];
+this.styles(ImageInputElement.default_style);
+this.image=ImageMask(image)
+.parent(this)
+.mask_color(ImageInputElement.default_style["--image-mask-color"])
+.frame(ImageInputElement.default_style["--image-size"],ImageInputElement.default_style["--image-size"])
+.margin(0,ImageInputElement.default_style["--image-margin-right"],0,ImageInputElement.default_style["--image-margin-left"])
+.alt(alt!=="" ? alt:ImageInputElement.default_style["--image-alt"]);
+this.input=type(placeholder)
+.parent(this)
+.color("inherit")
+.readonly(readonly)
+.font_size("inherit")
+.margin(0)
+.stretch(true)
+.on_focus((element)=>{
+this.outline(`1px solid ${this._focus_color}`)
+this.box_shadow(`0 0 0 4px ${this._focus_color}80`)
+})
+.on_blur((element)=>{
+this.outline("none")
+this.box_shadow(`none`)
+})
+this.transition("outline 0.2s ease-in-out, box-shadow 0.2s ease-in-out")
+this.append(this.image,this.input);
+}
+styles(style_dict){
+if(style_dict==null){
+let styles=super.styles();
+styles["--image-mask-color"]=this.image.mask_color();
+styles["--image-size"]=this.image.width();
+styles["--image-margin-right"]=this.image.margin_right();
+styles["--image-margin-left"]=this.image.margin_left();
+styles["--image-alt"]=this.image.alt()||"VWeb";
+styles["--focus-color"]=this._focus_color;
+return styles;
+}else{
+return super.styles(style_dict);
+}
+}
+set_default(){
+return super.set_default(ImageInputElement);
+}
+focus_color(val){
+if(val==null){return this._focus_color;}
+this._focus_color=val;
+return this;
+}
+value(val){if(val==null){return this.input.value();}this.input.value(val);return this;}
+text(val){if(val==null){return this.input.text();}this.input.text(val);return this;}
+on_enter(val){if(val==null){return this.input.on_enter();}this.input.on_enter(val);return this;}
+on_input(val){if(val==null){return this.input.on_input();}this.input.on_input(val);return this;}
+mask_color(val){if(val==null){return this.image.mask_color();}this.image.mask_color(val);return this;}
+}
+vweb.elements.register(ImageInputElement);
+function ImageInput(...args){return new ImageInputElement(...args);}
 
 
 class InputBoxElement extends CreateVElementClass({

@@ -63,6 +63,11 @@ class ContextMenuElement extends VStackElement {
 	    }
 	}
 
+	// Set default since it inherits an element.
+	set_default() {
+		return super.set_default(ContextMenuElement);
+	}
+
 	// Popup the context menu by a event.
 	popup(event) {
 
