@@ -3224,7 +3224,7 @@ class Server {
         }
 
         // Load data.
-        const data = path.load_sync();
+        let data = path.load_sync();
 
         // Cast data.
         if (def == null || typeof def === "string") {
