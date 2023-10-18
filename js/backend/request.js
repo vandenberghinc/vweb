@@ -27,15 +27,37 @@ class Request {
         // Body.
         this.body = "";
 
-        // Create a promise to await the incoming data.
-        this.req.on("data", (data) => {
-            this.body += data.toString();
-        })
-        this.promise = new Promise((resolve) => {
-            this.req.on("end", () => {
-                resolve();
+        // Decompress data.
+        const content_encoding = req.headers['content-encoding'];
+        if (content_encoding === "gzip" || content_encoding === "deflate") {
+            let stream;
+            if (content_encoding === "gzip") {
+                stream = zlib.createGunzip();
+            } else if (content_encoding === "deflate") {
+                stream = zlib.createInflate();
+            }
+            req.pipe(stream)
+            stream.on("data", (data) => {
+                this.body += data.toString();
             })
-        })
+            this.promise = new Promise((resolve) => {
+                stream.on("end", () => {
+                    resolve();
+                })
+            })
+        }
+
+        // Create a promise to await the incoming data.
+        else {
+            this.req.on("data", (data) => {
+                this.body += data.toString();
+            })
+            this.promise = new Promise((resolve) => {
+                this.req.on("end", () => {
+                    resolve();
+                })
+            })
+        }
 
         // Copy all lowercase functions.
         this.on = this.req.on.bind(this.req);

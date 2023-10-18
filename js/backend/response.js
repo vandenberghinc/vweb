@@ -104,7 +104,7 @@ class Response {
 
         // @todo compress.
         if (compress) {
-            this.res.setHeader("Content-Encoding", "deflate");
+            this.res.setHeader("Content-Encoding", "gzip");
             this.res.setHeader("Vary", "Accept-Encoding");
             data = zlib.gzipSync(data, {level: zlib.constants.Z_BEST_COMPRESSION});
         }

@@ -51,9 +51,8 @@ class StripeError extends Error {
  *  }
  *  @parameter: {
  *      @name: port
- *      @description: The port where the server will run on.
- *      @type: string
- *      @required: true
+ *      @description: The port where the server will run on. Leave the port `null` to run on port `80` for http and on port `443` for https.
+ *      @type: number
  *  }
  *  @parameter: {
  *      @name: certificate
@@ -345,9 +344,9 @@ class Server {
         if (typeof ip !== "string") {
             throw Error(`Parameter "ip" should be a defined value of type "string".`);
         }
-        if (typeof port !== "number") {
-            throw Error(`Parameter "port" should be a defined value of type "number".`);
-        }
+        // if (typeof port !== "number") {
+        //     throw Error(`Parameter "port" should be a defined value of type "number".`);
+        // }
         // if (typeof certificate !== "string") {
         //     throw Error(`Parameter "certificate" should be a defined value of type "string".`);
         // }
@@ -732,7 +731,7 @@ class Server {
     _authenticate(request) {
 
         // // Get api key key from bearer.
-        const authorization = request.headers["Authorization"];
+        const authorization = request.headers["authorization"];
         if (authorization !== undefined) {
             if (typeof authorization !== "string") {
                 return {
@@ -757,13 +756,13 @@ class Server {
             const uid = this.get_uid_by_api_key(api_key);
             if (!this.verify_api_key_by_uid(uid, api_key)) {
                 return {
-                    status: 401, 
+                    status: Status.unauthorized, 
                     data: "Unauthorized.",
                 };
 
             }
             request.uid = uid;
-            return true;
+            return null;
         }
 
         // Get token from cookies.
@@ -2339,8 +2338,8 @@ class Server {
         
         // Stripe.
         if (this.stripe_enabled) {
-            // await this._initialize_products()
-            // this._verify_subscriptions();
+            await this._initialize_products()
+            this._verify_subscriptions();
         }
     }
 
@@ -2467,12 +2466,26 @@ class Server {
         // Initialize.
         await this._initialize();
 
+        // Set default port.
+        let http_port, https_port
+        if (this.port == null) {
+            http_port = 80;
+            https_port = 443;
+        } else {
+            http_port = this.port;
+            https_port = this.port + 1;
+        }
+
         // Callbacks.
         let is_running = false;
         const on_running = () => {
             if (!is_running) {
                 is_running = true;
-                console.log(`Running on ${this.ip}:${this.port}.`); // @warning if you change this running on text you should update vide::BuildSystem since that depends on this log line.
+                if (this.https !== undefined) {
+                    console.log(`Running on http://${this.ip}:${http_port} and https://${this.ip}:${https_port}.`); // @warning if you change this running on text you should update vide::BuildSystem since that depends on this log line.
+                } else {
+                    console.log(`Running on http://${this.ip}:${http_port}.`); // @warning if you change this running on text you should update vide::BuildSystem since that depends on this log line.
+                }
             }
         }
         const on_error = (error) => {
@@ -2494,12 +2507,12 @@ class Server {
         }
 
         // Listen.
+        this.http.listen(http_port, this.ip, on_running);
+        this.http.on("error", on_error);
         if (this.https !== undefined) {
-            this.https.listen(this.port, this.ip, on_running);
+            this.https.listen(https_port, this.ip, on_running);
             this.https.on("error", on_error);
         }
-        this.http.listen(this.port, this.ip, on_running);
-        this.http.on("error", on_error);
 
         // Set signals.
         process.on('SIGTERM', () => process.exit(0)); // the "this.https.close()" handler does not always get executed when run from vide build system, so use "process.exit()" instead.
