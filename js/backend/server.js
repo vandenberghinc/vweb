@@ -194,6 +194,10 @@ class StripeError extends Error {
  *              - icon
  *
  *          When the user purchases a subscription for one of the plans, the other active plans from that subscription will automatically be cancelled.
+ *
+ *          Warning: 
+ *              - The stripe settings should be configured to cancel subscriptions when all payment attempts on a subscription renewal have failed.
+ *                It should be configured by default but it can be configered under "Manage failed payments" at https://dashboard.stripe.com/settings/billing/automatic.
  *  @parameter:
  *      @name: payment_return_url
  *      @type: string
@@ -204,6 +208,11 @@ class StripeError extends Error {
  *      @type: FileWatcher, object, string.
  *  }
  } */
+
+
+// @tdo implement 3D secure "requires_action" status for a refund and payment intent.
+// https://stripe.com/docs/payments/3d-secure
+
 class Server {
 
     // Mimes for content type detection.
@@ -1509,6 +1518,7 @@ class Server {
                 },
 
                 // Charge a shopping cart.
+                // @todo convert to using quotes instead of subscriptions and invoices, this way a single charge request can handle both subscriptions and one-time payments in a single request. And a quote's PDF can be downloaded. And it accepts the quantity param for a single product.
                 {
                     method: "POST",
                     endpoint: "/vweb/backend/payments/charge",
@@ -1596,41 +1606,155 @@ class Server {
                     }
                 },
 
-                // Get the status of a payment intent.
-                // {
-                //     method: "GET",
-                //     endpoint: "/vweb/backend/payments/charge/status",
-                //     content_type: "application/json",
-                //     rate_limit: 10,
-                //     rate_limit_duration: 60,
-                //     callback: async (request, response) => {
+                // Charge a shopping cart.
+                {
+                    method: "POST",
+                    endpoint: "/vweb/backend/payments/webhook",
+                    content_type: "application/json",
+                    rate_limit: 10000,
+                    rate_limit_duration: 60,
+                    callback: async (request, response) => {
 
-                //         // Get shopping cart.
-                //         let payment_intent_id;
-                //         try {
-                //             payment_intent_id = request.param("payment_intent");
-                //         } catch (err) {
-                //             return response.error({status: Status.bad_request, data: {error: err.message}});
-                //         }
+                        // Get the event.
+                        let event;
+                        try {
+                            event = await stripe.webhooks.constructEvent(
+                                request.body,
+                                request.headers['stripe-signature'],
+                                process.env.STRIPE_WEBHOOK_SECRET
+                            );
+                        } catch (err) {
+                            console.error(`⚠️  Webhook signature verification failed: ${err.message}`);
+                            return response.error({status: Status.unauthorized, data: {error: "Webhook signature verification failed."}});
+                        }
 
-                //         // Get payment intent.
-                //         let payment_intent;
-                //         try {
-                //             payment_intent = await this.stripe.paymentIntents.retrieve(payment_intent_id);
-                //         } catch (error) {
-                //             throw new StripeError(error.message); // since the default stripe errors do not have a stacktrace.
-                //         }
+                        // Extract the object from the event.
+                        const data_obj = event.data.object;
 
-                //         // Send result.
-                //         return response.success({
-                //             data: {
-                //                 status: payment_intent.status,
-                //                 payment_intent: payment_intent,
-                //             }
-                //         })
-                //     }
-                // },
+                        // Get the uid of the customer.
+                        let uid, cid;
+                        if (data_obj.customer) {
+                            uid = this._sys_load_uid_by_stripe_cid(data_obj.customer);
+                            cid = data_obj.customer;
+                        }
+
+                        // Save the users payment method.
+                        // Already handled in `create_subscription()`.
+                        // if (data_obj['billing_reason'] === 'subscription_create') {
+                        //     const payment_intent = await stripe.paymentIntents.retrieve(data_obj['payment_intent']);
+                        //     await stripe.subscriptions.update(data_obj['subscription'], {default_payment_method: payment_intent.payment_method});
+                        //     await stripe.customers.update(payment_intent.customer, {invoice_settings: {default_payment_method: payment_intent.payment_method}});
+                        // };
+
+                        // Switch the status.
+                        switch (event.type) {
+
+                            // Type: payment_intent.payment_failed
+                            // Occurs when a PaymentIntent has failed the attempt to create a payment method or a payment.
+                            // data.object is a payment intent
+                            case "payment_intent.payment_failed":
+                                if (this.on_payment_failed != null) {
+                                    this.on_payment_failed({
+                                        uid: uid,
+                                        cid: cid,
+                                        is_subscription: data_obj.metadata.is_subscription,
+                                        cart: data_obj.metadata.cart,
+                                        payment_intent: data_obj,
+                                    })
+                                }
+                                break;
+
+                            // Type: payment_intent.requires_action
+                            // Occurs when a PaymentIntent transitions to requires_action state, for example when 3D secure is needed.
+                            // data.object is a payment intent
+                            case "payment_intent.requires_action":
+                                if (this.on_payment_requires_action != null) {
+                                    this.on_payment_requires_action({
+                                        uid: uid,
+                                        cid: cid,
+                                        is_subscription: data_obj.metadata.is_subscription,
+                                        cart: data_obj.metadata.cart,
+                                        payment_intent: data_obj,
+                                    })
+                                }
+                                break;
+
+                            // Type: payment_intent.succeeded
+                            // Occurs when a PaymentIntent has successfully completed payment.
+                            // This will fire for both one-time payments and for subscriptions.
+                            // data.object is a payment intent
+                            case "payment_intent.succeeded":
+
+                                // Is a subscription.
+                                if (data_obj.metadata.is_subscription === true) {
+
+                                    // Callback.
+                                    if (this.on_susbcription != null) {
+                                        this.on_susbcription({
+                                            uid: uid,
+                                            cid: cid,
+                                            cart: data_obj.metadata.cart,
+                                            payment_intent: data_obj,
+                                        });
+                                    }
+                                }
+
+                                // Not a subscription.
+                                else {
+
+                                    // Callback.
+                                    if (this.on_payment != null) {
+                                        this.on_payment({
+                                            uid: uid,
+                                            cid: cid,
+                                            payment_intent: data_obj,
+                                            cart: data_obj.metadata.cart,
+                                            is_subscription: data_obj.metadata.is_subscription,
+                                        });
+                                    }
+                                }
+                                break;
+
+                            // Type: customer.subscription.deleted
+                            // Occurs whenever a customer’s subscription ends.
+                            // data.object is a subscription.
+                            case "customer.subscription.deleted":
+
+                                // Check uid.
+                                this._check_uid_within_range(uid);
+
+                                // Deactivate the user's subscription in the database.
+                                this._remove_active_subscription(uid, data_obj.payment_intent)
+
+                                // Callback.
+                                if (this.on_susbcription_cancelled != null) {
+                                    this.on_susbcription_cancelled({
+                                        uid: uid,
+                                        cid: cid,
+                                        cart: data_obj.metadata.cart,
+                                        payment_intent: data_obj,
+                                    });
+                                }
+                                break;
+
+                            // @todo handle successfull refund by emailing the user.
+
+                            // @todo handle failed refund by emailing the user. Also add requires action to this list. Tell the user to contact the website.
+
+                        }
+                    }
+                },
             );
+
+            const webhookEndpoint = await stripe.webhookEndpoints.create({
+                url: `https://${this.domain}/vweb/backend/payments/webhook`,
+                enabled_events: [
+                    'charge.failed',
+                    'charge.succeeded',
+                ],
+            });
+
+
         }
 
         // Handler.
@@ -1681,22 +1805,28 @@ class Server {
             * https://stripe.com/docs/api/subscriptions/create?lang=node
             * https://stripe.com/docs/payments/accept-a-payment?platform=web&ui=elements&client=html
             * https://stripe.com/docs/billing/subscriptions/build-subscriptions?ui=elements
-     */
+     
+    */
 
     // Check if a uid has a stripe customer id.
     _sys_has_stripe_cid(uid) {
-        return this.database.join(`.sys/stripe_cids/${uid}`, false).exists();
+        return this.database.join(`.sys/stripe_uids/${uid}`, false).exists();
     }
 
     // Load, save or delete stripe customer id by uid.
-    _sys_load_stripe_cid(uid, customer_id) {
-        return this.database.join(`.sys/stripe_cids/${uid}`, false).load_sync();
+    _sys_load_stripe_cid(uid) {
+        return this.database.join(`.sys/stripe_uids/${uid}`, false).load_sync();
     }
-    _sys_save_stripe_cid(uid, customer_id) {
-        this.database.join(`.sys/stripe_cids/${uid}`, false).save_sync(customer_id);
+    _sys_load_uid_by_stripe_cid(cid) {
+        return this.database.join(`.sys/stripe_cids/${cid}`, false).load_sync();
     }
-    _sys_delete_stripe_cid(customer_id) {
-        this.database.join(`.sys/stripe_cids/${uid}`, false).del_sync();
+    _sys_save_stripe_cid(uid, cid) {
+        this.database.join(`.sys/stripe_uids/${uid}`, false).save_sync(cid);
+        this.database.join(`.sys/stripe_cids/${cid}`, false).save_sync(uid);
+    }
+    _sys_delete_stripe_cid(uid, cid) {
+        this.database.join(`.sys/stripe_uids/${uid}`, false).del_sync();
+        this.database.join(`.sys/stripe_cids/${cid}`, false).del_sync();
     }
 
     // Get the stripe customer id of a uid, or a create a stripe customer when the uid does not yet have a stripe customer id.
@@ -1746,15 +1876,16 @@ class Server {
     async _delete_stripe_customer(uid) {
         if (this._sys_has_stripe_cid(uid)) {
             let result;
+            const cid = this._sys_load_stripe_cid(uid);
             try {
-                result = await this.stripe.customers.del(this._sys_load_stripe_cid(uid));
+                result = await this.stripe.customers.del(cid);
             } catch (error) {
                 throw new StripeError(error.message); // since the default stripe errors do not have a stacktrace.
             }
             if (result.deleted !== true) {
                 throw Error(`Failed to delete the stripe customer object for user "${uid}".`);
             }
-            this._sys_delete_stripe_cid(uid);
+            this._sys_delete_stripe_cid(uid, cid);
         }
     }
 
@@ -1804,7 +1935,7 @@ class Server {
         try {
             const result = await this.stripe.prices.create({
                 currency: product.currency,
-                unit_amount_decimal: Math.round(product.price * 100),
+                unit_amount_decimal: parseInt(product.price * 100),
                 tax_behavior: product.tax_behavior,
                 recurring: product.is_subscription ? {
                     interval: product.interval,
@@ -1850,7 +1981,7 @@ class Server {
                 statement_descriptor: product.statement_descriptor,
                 default_price_data: {
                     currency: product.currency,
-                    unit_amount_decimal: Math.round(product.price * 100),
+                    unit_amount_decimal: parseInt(product.price * 100),
                     tax_behavior: product.tax_behavior,
                     recurring: product.is_subscription ? {
                         interval: product.interval,
@@ -2092,6 +2223,20 @@ class Server {
         }
         path.del_sync();
     }
+    _check_active_subscription(uid, prod_id) {
+        const dir = this.database.join(`.sys/stripe_subs/${uid}`, false);
+        if (dir.exists() === false) {
+            dir.mkdir_sync();
+        }
+        const path = dir.join(prod_id, false);
+        let exists = true, sub_id;
+        if (path.exists() === false)  {
+            exists = false;
+            return {exists, sub_id};
+        }
+        sub_id = path.load_sync();
+        return {exists, sub_id};
+    }
 
     // Check the user's subscription statuses, check for any unpaid or cancelled subscriptions and remove them from the active subscriptions.
     _verify_subscriptions() {
@@ -2099,7 +2244,7 @@ class Server {
         // Iterate all users.
         this._iter_db_dir(".sys/users", async (path) => {
             const uid = path.name();
-            const cid_path = this.database.join(`.sys/stripe_cids/${uid}`, false);
+            const cid_path = this.database.join(`.sys/stripe_uids/${uid}`, false);
             if (cid_path.exists()) {
 
                 // Vars.
@@ -2274,6 +2419,7 @@ class Server {
             ".sys/keys",
             ".sys/unactivated",
             ".sys/2fa",
+            ".sys/stripe_uids",
             ".sys/stripe_cids",
             ".sys/stripe_subs",
             "users",
@@ -4068,18 +4214,92 @@ class Server {
                     {price: product.price_id},
                 ],
                 payment_behavior: "default_incomplete",
-                payment_settings: { save_default_payment_method: 'on_subscription' },
+                payment_settings: {
+                    save_default_payment_method: 'on_subscription'
+                },
                 expand: ['latest_invoice.payment_intent'],
+                metadata: {
+                    plan_id: product.id,
+                    product_id: product.id,
+                    price: product.price,
+                    subcription_id: result.id,
+                    is_subscription: true,
+                },
             });
         } catch (error) {
             throw new StripeError(error.message); // since the default stripe errors do not have a stacktrace.
         }
 
+        // Update the payment intent to save the user's payment method for future usage.
+        const payment_intent = await this.stripe.paymentIntents.update(
+            result.latest_invoice.payment_intent.id,
+            {
+                setup_future_usage: "off_session", // required to automatically renew the subscription using the same payment method that will confirm the payment intent.
+                metadata: {
+                    plan_id: product.id,
+                    product_id: product.id,
+                    price: product.price,
+                    subcription_id: result.id,
+                    is_subscription: true,
+                },
+            }
+        );
+
         // Response for frontend.
         return {
             id: result.id,
-            client_secret: result.latest_invoice.payment_intent.client_secret,
+            client_secret: payment_intent.client_secret,
         };
+    }
+
+    // Cancel a subscription
+    // @todo convert to use invoice instead of a payment intent directly. This is also required when a user wants to refund only one product.
+    /*  @docs {
+     *  @title: Cancel Subscription
+     *  @description:
+     *      Cancel an active subscription.
+     *  @parameter: {
+     *      @name: uid
+     *      @description: The user id.
+     *      @type: number
+     *      @required: true
+     *  }
+     *  @parameter: {
+     *      @name: id
+     *      @description: The product's plan id of the user defined subscription product.
+     *      @type: string
+     *      @required: true
+     *  }
+     *  @parameter: {
+     *      @name: sub_id
+     *      @description: This parameter is optional, it can be passed to cancel a specific subscription by subscription id. When parameter `id` is passed, the subscription id will automatically be retrieved.
+     *      @type: string
+     *  }
+     *  @usage:
+     *      ...
+     *      server.cancel_subscription({uid: 0, id: "sub_basic"});
+     } */
+    async cancel_subscription({uid, id, sub_id = null}) {
+
+        // Check params.
+        if (typeof uid !== "number") {
+            throw Error(`Parameter "uid" has an invalid value type "${typeof uid}", the valid value type is "number".`);
+        }
+        if (typeof id !== "string") {
+            throw Error(`Parameter "id" has an invalid value type "${typeof id}", the valid value type is "string".`);
+        }
+
+        // Get the sub id.
+        const {exists, sub_id} = this._check_active_subscription(uid, id);
+        if (exists === false) {
+            throw Error(`User "${uid}" does not have a subscription on product "${id}".`);
+        }
+
+        // Cancel the subscriptions.
+        await this._cancel_subscription(sub_id);
+
+        // Remove from subscriptions.
+        this._remove_active_subscription(uid, id);
     }
 
     // Create a payment
@@ -4105,9 +4325,29 @@ class Server {
      } */
     async create_payment({uid, product_ids, products = null, cid = null, email = null}) {
 
+        // Vars.
+        let meta_cart = [];
+        let price_ids = [];
+
+        // Check products.
+        if (Array.isArray(products)) {
+            products.iterate((p) => {
+                if (p.is_subscription) {
+                    throw Error(`Product "${p.name}" is a subscription product.`);
+                }
+                else if (currency == null) {
+                    currency = p.currency;
+                }
+                else if (currency !== p.currency) {
+                    throw Error(`Products with different currencies can not be charged in a single request ("${currency}" and "${p.currency}").`);
+                }
+                meta_cart.push({product: p.id, price: p.price});
+                price_ids.push(p.price_id);
+            })
+        }
+
         // Get products.
-        let price = 0, currency;
-        if (Array.isArray(products) === false) {
+        else {
 
             // Check args.
             if (Array.isArray(product_ids) === false) {
@@ -4117,7 +4357,7 @@ class Server {
             }
 
             // Get the products.
-            const products = [];
+            products = [];
             product_ids.iterate((id) => {
                 const found = this.payment_products.iterate((p) => {
                     if (p.id === id) {
@@ -4130,30 +4370,15 @@ class Server {
                         else if (currency !== p.currency) {
                             throw Error(`Products with different currencies can not be charged in a single request ("${currency}" and "${p.currency}").`);
                         }
-                        price += Math.round(p.price * 100);
                         products.push(p)
+                        meta_cart.push({product: p.id, price: p.price});
+                        price_ids.push(p.price_id);
                         return true;
                     }
                 })
                 if (found !== true) {
                     throw Error(`Unknown product id "${id}".`);
                 }
-            })
-        }
-
-        // Check one-time products.
-        else {
-            products.iterate((p) => {
-                if (p.is_subscription) {
-                    throw Error(`Product "${p.name}" is a subscription product.`);
-                }
-                else if (currency == null) {
-                    currency = p.currency;
-                }
-                else if (currency !== p.currency) {
-                    throw Error(`Products with different currencies can not be charged in a single request ("${currency}" and "${p.currency}").`);
-                }
-                price += Math.round(p.price * 100);
             })
         }
 
@@ -4179,7 +4404,7 @@ class Server {
         }
 
         // Check the email.
-        else if (email == null) {
+        if (email == null) {
             throw Error("Define parameter \"email\".");
         }
 
@@ -4190,29 +4415,307 @@ class Server {
             statement_descriptor = products[0].statement_descriptor;
         }
 
-        // Create a payment intent.
-        let result;
+        // Stripe requests.
+        let invoice, payment_intent;
         try {
-            result = await this.stripe.paymentIntents.create({
+
+            // Create an invoice
+            invoice = await this.stripe.invoices.create({
                 customer: cid,
-                amount: price,
-                currency: currency,
-                receipt_email: email,
                 description: description,
                 statement_descriptor: statement_descriptor,
-                automatic_payment_methods: {
-                    enabled: true,
-                },
+                collection_method: "charge_automatically",
+                days_until_due: 30,
             });
+
+            // Add items to the invoice.
+            for (let i = 0; i < price_ids.length; i++) {
+                await this.stripe.invoices.create({
+                    customer: cid,
+                    price: price_ids[i],
+                    invoice: invoice.id,
+                });
+            }
+
+            // Finalize the invoice.
+            invoice = await this.stripe.invoices.finalizeInvoice({
+                invoice.id,
+                {
+                    auto_advance: false,
+                    expand: ["payment_intent"],
+                }
+            });
+
+            // Update the payment intent.
+            payment_intent = await this.stripe.paymentIntents.update(
+                invoice.payment_intent.id,
+                {
+                    setup_future_usage: "off_session",
+                    metadata: {
+                        cart: meta_cart,
+                        is_subscription: false,
+                    },
+                }
+            );
         } catch (error) {
             throw new StripeError(error.message); // since the default stripe errors do not have a stacktrace.
         }
 
         // Response for frontend.
         return {
-            id: result.id,
-            client_secret: result.client_secret,
+            id: invoice.id,
+            client_secret: payment_intent.client_secret,
         };
+
+        /* V1 using a payment intent.
+
+            // Get products.
+            let price = 0, currency, meta_cart = [];
+            if (Array.isArray(products) === false) {
+
+                // Check args.
+                if (Array.isArray(product_ids) === false) {
+                    throw Error(`Parameter "product_ids" has an invalid value type "${typeof product_ids}", the valid value type is "array".`);
+                } else if (product_ids.length === 0) {
+                    throw Error(`No product ids were specified.`);
+                }
+
+                // Get the products.
+                products = [];
+                product_ids.iterate((id) => {
+                    const found = this.payment_products.iterate((p) => {
+                        if (p.id === id) {
+                            if (p.is_subscription) {
+                                throw Error(`Product "${p.name}" is a subscription product.`);
+                            }
+                            else if (currency == null) {
+                                currency = p.currency;
+                            }
+                            else if (currency !== p.currency) {
+                                throw Error(`Products with different currencies can not be charged in a single request ("${currency}" and "${p.currency}").`);
+                            }
+                            meta_cart.push({product: p.id, price: p.price});
+                            price += parseInt(p.price * 100);
+                            products.push(p)
+                            return true;
+                        }
+                    })
+                    if (found !== true) {
+                        throw Error(`Unknown product id "${id}".`);
+                    }
+                })
+            }
+
+            // Check one-time products.
+            else {
+                products.iterate((p) => {
+                    if (p.is_subscription) {
+                        throw Error(`Product "${p.name}" is a subscription product.`);
+                    }
+                    else if (currency == null) {
+                        currency = p.currency;
+                    }
+                    else if (currency !== p.currency) {
+                        throw Error(`Products with different currencies can not be charged in a single request ("${currency}" and "${p.currency}").`);
+                    }
+                    meta_cart.push({product: p.id, price: p.price});
+                    price += parseInt(p.price * 100);
+                })
+            }
+
+            // Retrieve the cid from the user.
+            if (cid == null) {
+
+                // Check uid.
+                if (uid == null) {
+                    throw Error("One of the following parameters must be defined \"uid\" or \"cid\".");
+                }
+
+                // Load the user's email.
+                email = this.get_user(uid).email
+
+                // Get the customer id.
+                cid = await this._get_stripe_cid(uid);
+
+            }
+
+            // Retrieve the email when both the cid and uid are defined.
+            else if (uid != null && email == null) {
+                email = this.get_user(uid).email
+            }
+
+            // Check the email.
+            else if (email == null) {
+                throw Error("Define parameter \"email\".");
+            }
+
+            // Create a description and statement descriptor.
+            let description, statement_descriptor;
+            if (products.length === 1) {
+                description = products[0].description;
+                statement_descriptor = products[0].statement_descriptor;
+            }
+
+            // Create a payment intent.
+            let result;
+            try {
+                result = await this.stripe.paymentIntents.create({
+                    customer: cid,
+                    amount: price,
+                    currency: currency,
+                    receipt_email: email,
+                    description: description,
+                    statement_descriptor: statement_descriptor,
+                    setup_future_usage: "off_session",
+                    metadata: {
+                        cart: meta_cart,
+                        is_subscription: false,
+                    },
+                    automatic_payment_methods: {
+                        enabled: true,
+                    },
+                });
+            } catch (error) {
+                throw new StripeError(error.message); // since the default stripe errors do not have a stacktrace.
+            }
+
+            // Response for frontend.
+            return {
+                id: result.id,
+                client_secret: result.client_secret,
+            };
+        */
+    }
+
+    // Create a refund for a payment intent.
+    /*  @docs {
+     *  @title: Create Refund
+     *  @description:
+     *      Create a refund for a payment intent.
+     *
+     *      When the payment intent is part of a subscription, the active subscription will automatically be cancelled.
+     *  @parameter:
+     *      @name: id
+     *      @description: The id of the payment intent.
+     *      @type: string
+     *  @parameter:
+     *      @name: amount
+     *      @description: The amount to refund as a floating number. When left undefined the entire amount will be refunded.
+     *      @type: number
+     *  @usage:
+     *      ...
+     *      server.create_refund("...");
+     } */
+    async create_refund({payment_intent, amount = null}) {
+
+        // Retrieve the payment intent.
+        const payment_intent_id = payment_intent;
+        try {
+            payment_intent = await this.stripe.paymentIntents.retrieve(payment_intent_id);
+        } catch (error) {
+            throw new StripeError(error.message); // since the default stripe errors do not have a stacktrace.
+        }
+
+        // Check if the payment intent is part of a subscription and if so cancel the subscription.
+        if (payment_intent.metadata.sub_id && payment_intent.metadata.is_subscription) {
+            await this._cancel_subscription(payment_intent.metadata.sub_id);
+        }
+
+        // Create subscription.
+        let result;
+        try {
+            result = await this.stripe.refunds.create({
+                payment_intent: payment_intent_id,
+                amount: amount == null ? undefined : parseInt(amount * 100),
+            });
+        } catch (error) {
+            throw new StripeError(error.message); // since the default stripe errors do not have a stacktrace.
+        }
+
+        // Return the refund info.
+        return result;
+    }
+
+    // Retrieve the created payment intents of a user.
+    /*  @docs {
+     *  @title: Get Payments
+     *  @description:
+     *      Retrieve the created payment intents of a user.
+     *
+     *      Payments created by vweb have some additional metadata to indicate if the payment was a subscription and a cart to show the products purchased by this payment intent.
+     *
+     *      The metadata of a one-time payment looks like:
+     *      ```js
+     *      {
+     *          cart: [
+     *              {
+     *                  id: <string>,       // the user defiend product id of the subscription plan.
+     *                  price: <number>,    // the price of the product.
+     *              },
+     *              ...
+     *          ],
+     *          is_subscription: false,     // boolean indicating this payment intent is not from a subscription.
+     *      }
+     *      ```
+     *
+     *      The metadata of a subscription looks like:
+     *      ```js
+     *      {
+     *          plan_id: <string>           // the subscription's plan id of the user defined product.
+     *          product_id: <string>,       // the user defiend product id of the subscription plan.
+     *          price: <number>,            // the price of the subscription.
+     *          subcription_id: <string>,   // the id of the stripe subscription object.
+     *          is_subscription: true,      // boolean indicating this payment intent is from a subscription.
+     *      }
+     *      ```
+     *  @parameter:
+     *      @name: uid
+     *      @description: The uid of the user.
+     *      @type: number
+     *  @parameter:
+     *      @name: limit
+     *      @description: A limit on the number of objects to be returned. Limit can range between 1 and 100, and the default is 100.
+     *      @type: number
+     *  @parameter:
+     *      @name: ending_before
+     *      @description: A cursor for use in pagination. `ending_before` is an object ID that defines your place in the list. For instance, if you make a list request and receive 100 objects, starting with `obj_bar`, your subsequent call can include `ending_before=obj_bar` in order to fetch the previous page of the list.
+     *      @type: number
+     *  @parameter:
+     *      @name: starting_after
+     *      @description: A cursor for use in pagination. `starting_after` is an object ID that defines your place in the list. For instance, if you make a list request and receive 100 objects, ending with `obj_foo`, your subsequent call can include `starting_after=obj_foo` in order to fetch the next page of the list.
+     *      @type: number
+     *  @usage:
+     *      ...
+     *      server.create_refund("...");
+     } */
+    async get_payments({
+        uid,  
+        limit = 100,
+        ending_before = null,
+        starting_after = null,
+    }) {
+
+        // Check uid.
+        this._check_uid_within_range(uid);
+
+        // Get stripe cid.
+        const cid = this._get_stripe_cid(uid);
+
+        // Create subscription.
+        let result;
+        try {
+            result = await this.stripe.paymentIntents.list({
+                customer: cid,
+                limit: limit,
+                ending_before: ending_before,
+                starting_after: starting_after,
+            });
+        } catch (error) {
+            throw new StripeError(error.message); // since the default stripe errors do not have a stacktrace.
+        }
+
+        // Return the list.
+        return {data: result.data, has_more: result.has_more};
     }
     
 
