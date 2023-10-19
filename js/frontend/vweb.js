@@ -7625,7 +7625,6 @@ e._on_theme_update(e);
 })
 }
 vweb.payments={};
-vweb.payments.shopping_cart=[];
 vweb.payments._initialize_stripe=function(){
 if(this.stripe===undefined){
 if(this.publishable_key==null){
@@ -7634,33 +7633,57 @@ throw Error("Define the \"vweb.payments.publishable_key\" attribute with your st
 this.stripe=Stripe(this.publishable_key);
 }
 }
-vweb.payments._initialize_elements=function(){
-if(this._elements==null){
+vweb.payments._initialize_address_elements=function(appearance={}){
+if(this._address_elements==null){
+if(this.cart.items.length===0){
+throw Error("The shopping cart does not contain any items.");
+}
+let price=0,currency;
+this.cart.items.iterate((item)=>{
+price+=parseInt(item.product.price*100)*item.quantity;
+if(currency===undefined){
+currency=item.product.currency;
+}else if(currency!=item.product.currency){
+throw Error("Products with different currencies can not be charged in a single request.");
+}
+})
+this._address_elements=this.stripe.elements({
+mode:"payment",
+amount:price,
+currency:currency,
+appearance:appearance,
+});
+}
+}
+vweb.payments._initialize_payment_elements=function(appearance={}){
+if(this._payment_elements==null){
 if(this._client_secret==null){
 throw Error("No payment intent was created using \"vweb.payments.charge()\" or the shopping cart has been edited after the initial charge.");
 }
-this._elements=this.stripe.elements({
+this._payment_elements=this.stripe.elements({
 clientSecret:this._client_secret,
+appearance:appearance,
 });
 }
 }
 vweb.payments._reset=function(){
 this._client_secret=null;
-this._elements=null;
+this._address=null;
+this._address_elements=null;
 if(this._address_element!=null){
 this._address_element.stripe_element.destroy();
 }
 this._address_element=null;
+this._payment_elements=null;
 if(this._payment_element!=null){
 this._payment_element.stripe_element.destroy();
 }
 this._payment_element=null;
-this._payment_intent_id=null;
 }
 vweb.payments.get_products=async function(){
 return new Promise((resolve,reject)=>{
 if(this._products!==undefined){
-return this._products;
+return resolve(this._products);
 }
 vweb.utils.request({
 method:"GET",
@@ -7693,7 +7716,7 @@ return true;
 });
 }
 })
-if(product===undefined){
+if(product==null){
 return reject(`Product "${id}" does not exist.`);
 }
 resolve(product);
@@ -7706,10 +7729,22 @@ vweb.payments.charge=async function(){
 return new Promise(async(resolve,reject)=>{
 this._client_secret=null;
 this._return_url=null;
-this._elements=null;
-vweb.payments.cart.refresh();
+this._payment_elements=null;
+this._payment_element=null;
 if(vweb.payments.cart.items.length===0){
-throw Error("No products were added to the shopping cart.");
+return reject(new Error("No products were added to the shopping cart."));
+}
+if(this._address_elements==null){
+return reject(new Error("No address element was created using \"vweb.payments.create_address_element()\"."));
+}
+const{error}=await this._address_elements.submit();
+if(error){
+return reject(error);
+}
+const address_info=await this._address_element.stripe_element.getValue();
+this._address=address_info.value;
+if(address_info.complete!==true){
+return reject(new Error("Incomplete address information."));
 }
 try{
 const result=await vweb.utils.request({
@@ -7717,6 +7752,9 @@ method:"POST",
 url:"/vweb/backend/payments/charge",
 data:{
 cart:vweb.payments.cart.items,
+name:this._address.name,
+phone:this._address.phone,
+address:this._address.address,
 }
 })
 this._client_secret=result.client_secret;
@@ -7730,22 +7768,30 @@ return reject(error);
 vweb.payments.confirm_charge=async function(){
 return new Promise(async(resolve,reject)=>{
 if(this._client_secret==null){
-throw Error("No payment intent was created using \"vweb.payments.charge()\" or the shopping cart has been edited after the initial charge.");
+return reject(new Error("No payment intent was created using \"vweb.payments.charge()\" or the shopping cart has been edited after the initial charge."));
 }
 if(this._return_url==null){
-throw Error("No payment intent was created using \"vweb.payments.charge()\".");
+return reject(new Error("No payment intent was created using \"vweb.payments.charge()\"."));
 }
-if(this._elements===undefined){
-throw Error("No payment object was created using \"vweb.payments.create_payment_element()\".");
+if(this._payment_element==null){
+return reject(new Error("No payment element was created using \"vweb.payments.create_payment_element()\"."));
+}
+if(this._address==null){
+return reject(new Error("No address element was defined using \"vweb.payments.create_payment_element()\"."));
 }
 this._initialize_stripe();
-let result=await this._elements.submit();
-if(result.error){
-return reject(result.error.message);
+const{error}=await this._payment_elements.submit();
+if(error){
+return reject(error);
 }
-result=await this.stripe.confirmPayment({
-elements:this._elements,
+let result=await this.stripe.confirmPayment({
+elements:this._payment_elements,
 clientSecret:this._client_secret,
+shipping:{
+name:this._address.name,
+phone:this._address.phone,
+address:this._address.address,
+},
 redirect:"always",
 confirmParams:{
 return_url:this._return_url,
@@ -7802,29 +7848,29 @@ payment_intent:result.paymentIntent,
 });
 })
 }
+vweb.payments.create_address_element=function(mode="billing"){
+if(this._address_element!=null){
+return this._address_element;
+}
+this._initialize_stripe();
+this._initialize_address_elements();
+this._address_element=VStack();
+this._address_element.stripe_element=this._address_elements.create("address",{
+mode:mode,
+});
+this._address_element.stripe_element.mount(this._address_element);
+return this._address_element;
+}
 vweb.payments.create_payment_element=function(){
 if(this._payment_element!=null){
 return this._payment_element;
 }
 this._initialize_stripe();
-this._initialize_elements();
-const element=VStack();
-element.stripe_element=this._elements.create("payment");
-element.stripe_element.mount(element);
-return element;
-}
-vweb.payments.create_address_element=function(client_secret,mode="billing"){
-if(this._address_element!=null){
-return this._address_element;
-}
-this._initialize_stripe();
-this._initialize_elements();
-const element=VStack();
-element.stripe_element=this._elements.create("address",{
-mode:mode,
-});
-element.stripe_element.mount(element);
-return element;
+this._initialize_payment_elements();
+this._payment_element=VStack();
+this._payment_element.stripe_element=this._payment_elements.create("payment");
+this._payment_element.stripe_element.mount(this._payment_element);
+return this._payment_element;
 }
 vweb.payments.get_currency_symbol=function(currency){
 switch(currency.toLowerCase()){

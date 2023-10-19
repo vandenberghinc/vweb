@@ -5,7 +5,6 @@
 
 // Payments module.
 vweb.payments = {};
-vweb.payments.shopping_cart = [];
 
 // Initialize stipe.
 vweb.payments._initialize_stripe = function() {
@@ -17,31 +16,63 @@ vweb.payments._initialize_stripe = function() {
 	}
 }
 
-// Initialize the strip elements object.
-vweb.payments._initialize_elements = function() {
-	if (this._elements == null) {
+// The elements object used for creating the "address" element must be created before posting the charge in order to calculate tax collection.
+vweb.payments._initialize_address_elements = function(appearance = {}) {
+	if (this._address_elements == null) {
+		if (this.cart.items.length === 0) {
+			throw Error("The shopping cart does not contain any items.");
+		}
+		let price = 0, currency;
+		this.cart.items.iterate((item) => {
+			price += parseInt(item.product.price * 100) * item.quantity;
+			if (currency === undefined) {
+				currency = item.product.currency;
+			} else if (currency != item.product.currency) {
+				throw Error("Products with different currencies can not be charged in a single request.");
+			}
+		})
+		this._address_elements = this.stripe.elements({
+			mode: "payment",
+			amount: price,
+			currency: currency,
+			appearance: appearance,
+		});
+	}
+}
+
+// The elements forthe "payment" element must be attached to the client secret since some products like subscriptions require other payment methods.
+vweb.payments._initialize_payment_elements = function(appearance = {}) {
+	if (this._payment_elements == null) {
 		if (this._client_secret == null) {
 			throw Error("No payment intent was created using \"vweb.payments.charge()\" or the shopping cart has been edited after the initial charge.");
 		}
-		this._elements = this.stripe.elements({
+		this._payment_elements = this.stripe.elements({
 			clientSecret: this._client_secret,
+			appearance: appearance,
 		});
 	}
 }
 
 // Reset the charge objects after a shopping cart edit.
 vweb.payments._reset = function() {
+
+	// Reset client secret.
 	this._client_secret = null;
-	this._elements = null;
+
+	// Reset address elements.
+	this._address = null;
+	this._address_elements = null;
 	if (this._address_element != null) {
 		this._address_element.stripe_element.destroy();
 	}
 	this._address_element = null;
+
+	// Reset payment elements.
+	this._payment_elements = null;
 	if (this._payment_element != null) {
 		this._payment_element.stripe_element.destroy();
 	}
 	this._payment_element = null;
-	this._payment_intent_id = null;
 }
 
 // Fetch the payment products.
@@ -55,7 +86,7 @@ vweb.payments._reset = function() {
 vweb.payments.get_products = async function() {
 	return new Promise((resolve, reject) => {
 		if (this._products !== undefined) {
-			return this._products;
+			return resolve(this._products);
 		}
 		vweb.utils.request({
 			method: "GET",
@@ -97,7 +128,7 @@ vweb.payments.get_product = async function(id) {
 				});
 			}
 		})
-		if (product === undefined) {
+		if (product == null) {
 			return reject(`Product "${id}" does not exist.`);
 		}
 		resolve(product);
@@ -119,24 +150,46 @@ vweb.payments.has_pending_charge = function() {
  * 	@chapter: Client
  * 	@title: Charge Shopping Cart
  *	@description: 
- *		Create a payment intent to charge the shopping cart asynchronously.
+ *		Create a payment intent to charge the shopping cart asynchronously. 
+ *
+ *		A payment can be charged after the following conditions are met:
+ *			1) Products must be added to the shopping cart using `vweb.payments.cart.add()`.
+ *			2) The address element must have been filled in and created using `vweb.payments.create_address_element()`. This is required for automatic tax.
+ *
  *		The charge must still be confirmed using `vweb.payment.confirm_charge()`.
  *
  *		Throws an error when no products are added to the shopping cart.
  */
 vweb.payments.charge = async function() {
 	return new Promise(async (resolve, reject) => {
+		
 		// Reset vars.
 		this._client_secret = null;
 		this._return_url = null;
-		this._elements = null;
-
-		// Get the cart.
-		vweb.payments.cart.refresh();
+		this._payment_elements = null;
+		this._payment_element = null;
 		
 		// Check shopping cart.
 		if (vweb.payments.cart.items.length === 0) {
-			throw Error("No products were added to the shopping cart.");
+			return reject(new Error("No products were added to the shopping cart."));
+		}
+
+		// Check the address object.
+		if (this._address_elements == null) {
+			return reject(new Error("No address element was created using \"vweb.payments.create_address_element()\"."));
+		}
+
+		// Submit the address elements.
+		const {error} = await this._address_elements.submit();
+		if (error) {
+			return reject(error);
+		}
+
+		// Get address.
+		const address_info = await this._address_element.stripe_element.getValue();
+		this._address = address_info.value;
+		if (address_info.complete !== true) {
+			return reject(new Error("Incomplete address information."));	
 		}
 
 		// Create a backend request.
@@ -146,6 +199,9 @@ vweb.payments.charge = async function() {
 				url: "/vweb/backend/payments/charge",
 				data: {
 					cart: vweb.payments.cart.items,
+					name: this._address.name,
+					phone: this._address.phone,
+					address: this._address.address,
 				}
 			})
 			this._client_secret = result.client_secret;
@@ -163,35 +219,48 @@ vweb.payments.charge = async function() {
  * 	@title: Confirm Charge Shopping Cart
  *	@description: 
  *		Confirm the charge of the shopping cart asynchronously.
+ *
+ *		A charge can be confirmed after the following conditions are met:
+ *			1) Products must be added to the shopping cart using `vweb.payments.cart.add()`.
+ *			2) The address element must have been filled in and created using `vweb.payments.create_address_element()`. This is required for automatic tax.
+ *			3) A charge was created using `vweb.payments.charge()`.
+ *			4) The payment element must have been filled in and created using `vweb.payments.create_payment_element()`.
  */
 vweb.payments.confirm_charge = async function() {
 	return new Promise(async (resolve, reject) => {
 
 		// Checks.
 		if (this._client_secret == null) {
-			throw Error("No payment intent was created using \"vweb.payments.charge()\" or the shopping cart has been edited after the initial charge.");
+			return reject(new Error("No payment intent was created using \"vweb.payments.charge()\" or the shopping cart has been edited after the initial charge."));
 		}
 		if (this._return_url == null) {
-			throw Error("No payment intent was created using \"vweb.payments.charge()\".");
+			return reject(new Error("No payment intent was created using \"vweb.payments.charge()\"."));
 		}
-		// Check the elements object.
-		if (this._elements === undefined) {
-			throw Error("No payment object was created using \"vweb.payments.create_payment_element()\".");
+		if (this._payment_element == null) {
+			return reject(new Error("No payment element was created using \"vweb.payments.create_payment_element()\"."));
+		}
+		if (this._address == null) {
+			return reject(new Error("No address element was defined using \"vweb.payments.create_payment_element()\"."));
 		}
 
 		// Initialize stripe.
 		this._initialize_stripe();
 
 		// Submit the elements.
-		let result = await this._elements.submit();
-		if (result.error) {
-			return reject(result.error.message);
+		const {error} = await this._payment_elements.submit();
+		if (error) {
+			return reject(error);
 		}
 
 		// Confirm the payment intent.
-		result = await this.stripe.confirmPayment({
-			elements: this._elements,
+		let result = await this.stripe.confirmPayment({
+			elements: this._payment_elements,
 			clientSecret: this._client_secret,
+			shipping: {
+				name: this._address.name,
+				phone: this._address.phone,
+				address: this._address.address,
+			},
 			redirect: "always",
 			confirmParams: {
 				return_url: this._return_url,
@@ -291,6 +360,40 @@ vweb.payments.charge_status = async function(client_secret) {
 	})
 }
 
+// Create a address element.
+/* 	@docs:
+ * 	@chapter: Client
+ * 	@title: Create Address Element
+ *	@description: Create an address element to collect the payment's address details.
+ *	@warning: This element should be created each time the page renders or updated after a shopping cart update. This function automatically returns the cached element when this function has been called twice without any updates to the shopping cart.
+ *	@param:
+ * 		@name: billing
+ *		@description: The address mode either `"billing"` or `"shipping"`.
+ */
+vweb.payments.create_address_element = function(mode = "billing") {
+
+	// Return the already created object.
+	if (this._address_element != null) {
+		return this._address_element;
+	}
+
+	// Initialize stripe.
+	this._initialize_stripe();
+
+	// Initialize the elements.
+	this._initialize_address_elements();
+
+	// Create the stack and mount the stripe object.
+	this._address_element = VStack();
+	this._address_element.stripe_element = this._address_elements.create("address", {
+		mode: mode,
+	});
+	this._address_element.stripe_element.mount(this._address_element);
+
+	// Return the mounted element.
+	return this._address_element;
+}
+
 // Create a payment element.
 /* 	@docs:
  * 	@chapter: Client
@@ -309,49 +412,15 @@ vweb.payments.create_payment_element = function() {
 	this._initialize_stripe();
 
 	// Initialize the elements.
-	this._initialize_elements();
+	this._initialize_payment_elements();
 
 	// Create the stack and mount the stripe object.
-	const element = VStack();
-	element.stripe_element = this._elements.create("payment");
-	element.stripe_element.mount(element);
+	this._payment_element = VStack();
+	this._payment_element.stripe_element = this._payment_elements.create("payment");
+	this._payment_element.stripe_element.mount(this._payment_element);
 
 	// Return the mounted element.
-	return element;
-}
-
-// Create a address element.
-/* 	@docs:
- * 	@chapter: Client
- * 	@title: Create Address Element
- *	@description: Create an address element to collect the payment's address details.
- *	@warning: This element should be created each time the page renders or updated after a shopping cart update. This function automatically returns the cached element when this function has been called twice without any updates to the shopping cart.
- *	@param:
- * 		@name: client_secret
- *		@description: The client secret from the backend's payment intent.
- */
-vweb.payments.create_address_element = function(client_secret, mode = "billing") {
-
-	// Return the already created object.
-	if (this._address_element != null) {
-		return this._address_element;
-	}
-
-	// Initialize stripe.
-	this._initialize_stripe();
-
-	// Initialize the elements.
-	this._initialize_elements();
-
-	// Create the stack and mount the stripe object.
-	const element = VStack();
-	element.stripe_element = this._elements.create("address", {
-		mode: mode,
-	});
-	element.stripe_element.mount(element);
-
-	// Return the mounted element.
-	return element;
+	return this._payment_element;
 }
 
 // Get the currency symbol for a product currency.
@@ -533,7 +602,10 @@ vweb.payments.cart = {};
 /* 	@docs:
  * 	@chapter: Client
  * 	@title: Refresh Cart
- *	@description: Refresh the shopping cart.
+ *	@description:
+ *		Refresh the shopping cart.
+ *
+ *		The current cart items are accessable as `vweb.payments.cart.items`.
  */
 vweb.payments.cart.refresh = function() {
 
@@ -553,7 +625,10 @@ vweb.payments.cart.refresh();
 /* 	@docs:
  * 	@chapter: Client
  * 	@title: Save Cart
- *	@description: Save the shopping cart in the local storage.
+ *	@description:
+ *		Save the shopping cart in the local storage.
+ *
+ *		The current cart items are accessable as `vweb.payments.cart.items`.
  */
 vweb.payments.cart.save = function(cart) {
 
@@ -574,6 +649,8 @@ vweb.payments.cart.save = function(cart) {
  *		When the product was already added to the shopping cart only the quantity will be incremented.
  *
  *		An error will be thrown the product id does not exist.
+ *
+ *		The current cart items are accessable as `vweb.payments.cart.items`.
  *	@parameter:
  * 		@name: id
  *		@description: The product's id.
@@ -609,6 +686,8 @@ vweb.payments.cart.add = async function(id, quantity = 1) {
  *		Remove a product from the shopping cart.
  *
  *		Does not throw an error when the product was not added to the shopping cart.
+ *
+ *		The current cart items are accessable as `vweb.payments.cart.items`.
  *	@parameter:
  * 		@name: id
  *		@description: The product's id.
@@ -648,6 +727,8 @@ vweb.payments.cart.remove = async function(id, quantity = 1) {
  *		Clear the shopping cart.
  *
  *		Will automatically be called if `vweb.payments.confirm_charge()` finished without any errors.
+ *
+ *		The current cart items are accessable as `vweb.payments.cart.items`.
  */
 vweb.payments.cart.clear = async function(id, quantity = 1) {
 	this.items = [];
