@@ -140,10 +140,6 @@ class StripeError extends Error {
  *      @type: string
  *      @description: The stripe secret key. Required to accept payments.
  *  @parameter:
- *      @name: stripe_webhook_key
- *      @type: string
- *      @description: The stripe webhook secret key. Required to accept payments.
- *  @parameter:
  *      @name: payment_products
  *      @type: object
  *      @description: 
@@ -498,6 +494,13 @@ class Server {
         payment_return_url = null,
         automatic_tax = true,
         file_watcher = null,
+        on_refund = null,
+        on_refund_failed = null,
+        on_payment_requires_action = null,
+        on_payment_failed = null,
+        on_payment = null,
+        on_susbcription = null,
+        on_susbcription_cancelled = null,
     }) {
 
         // Check args.
@@ -553,9 +556,6 @@ class Server {
             if (typeof payment_return_url !== "string") {
                 throw Error("Define parameter \"payment_return_url\" to define an absolute url where the user should be redirected to after a payment.");
             }
-            if (typeof stripe_webhook_key !== "string") {
-                throw Error(`Parameter "stripe_webhook_key" should be a defined value of type "string".`);
-            }
             if (payment_return_url.charAt(0) === "/") {
                 payment_return_url = `http${private_key === null ? "" : "s"}://${domain}${payment_return_url}`;
             }
@@ -564,6 +564,13 @@ class Server {
         this.payment_products = payment_products;
         this.payment_return_url = payment_return_url;
         this.automatic_tax = automatic_tax;
+        this.on_refund = on_refund;
+        this.on_refund_failed = on_refund_failed;
+        this.on_payment_requires_action = on_payment_requires_action;
+        this.on_payment_failed = on_payment_failed;
+        this.on_payment = on_payment;
+        this.on_susbcription = on_susbcription;
+        this.on_susbcription_cancelled = on_susbcription_cancelled;
 
         // Default headers.
         if (default_headers === null) {
@@ -1714,7 +1721,11 @@ class Server {
                         }
 
                         // Create a payment.
-                        const {client_secret} = await this.create_payment({uid: request.uid, cid: cid, email: email, cart: cart, address: address});
+                        try {
+                            const {client_secret} = await this.create_payment({uid: request.uid, cid: cid, email: email, cart: cart, address: address});
+                        } catch (error) {
+                            return response.error({data: {error: error.message}});
+                        }
 
                         // Response.
                         return response.success({
@@ -1784,7 +1795,7 @@ class Server {
                 },
 
                 // Charge a shopping cart.
-                // @todo upadte the webhook listen events.
+                // Can be tested with cli command `stripe listen --events refund.updated,invoice.payment_action_required,invoice.payment_failed,invoice.payment_succeeded,customer.subscription.created,customer.subscription.deleted --skip-verify --forward-to localhost:8000/vweb/backend/payments/webhook`
                 {
                     method: "POST",
                     endpoint: "/vweb/backend/payments/webhook",
@@ -1798,13 +1809,13 @@ class Server {
                         // Get the event.
                         let event;
                         try {
-                            event = await stripe.webhooks.constructEvent(
+                            event = await this.stripe.webhooks.constructEvent(
                                 request.body,
                                 request.headers['stripe-signature'],
                                 this.stripe_webhook_key,
                             );
                         } catch (err) {
-                            console.error(`⚠️  Webhook signature verification failed: ${err.message}`);
+                            console.error(`Error: Webhook signature verification failed: ${err.message}`);
                             return response.error({status: Status.unauthorized, data: {error: "Webhook signature verification failed."}});
                         }
 
@@ -1818,55 +1829,56 @@ class Server {
                             cid = obj.customer;
                         }
 
+                        console.log(event);
+
                         // Save the users payment method.
                         // Already handled in `create_subscription()`.
                         // if (obj['billing_reason'] === 'subscription_create') {
-                        //     const payment_intent = await stripe.paymentIntents.retrieve(obj['payment_intent']);
-                        //     await stripe.subscriptions.update(obj['subscription'], {default_payment_method: payment_intent.payment_method});
-                        //     await stripe.customers.update(payment_intent.customer, {invoice_settings: {default_payment_method: payment_intent.payment_method}});
+                        //     const payment_intent = await this.stripe.paymentIntents.retrieve(obj['payment_intent']);
+                        //     await this.stripe.subscriptions.update(obj['subscription'], {default_payment_method: payment_intent.payment_method});
+                        //     await this.stripe.customers.update(payment_intent.customer, {invoice_settings: {default_payment_method: payment_intent.payment_method}});
                         // };
 
                         // Switch the status.
                         // All event types are documented at https://stripe.com/docs/api/events/types.
                         switch (event.type) {
 
-                            // Type: charge.refunded
-                            // Occurs whenever a charge is refunded, including partial refunds.
-                            // data.object is a charge
-                            case "charge.refunded":
+                            // Type: refund.updated
+                            // Occurs whenever a refund from a customer’s cash balance is updated.
+                            // data.object is a refund
+                            case "refund.updated": {
 
-                                // Check if a mail should be sent.
-                                // When the user returns an object with {send_mail: false} then no mail will be sent.
-                                let send_mail = true;
+                                // Successful refund.
+                                if (obj.status === "success") {
 
-                                // Callback.
-                                if (this.on_refund != null) {
-                                    const result = this.on_refund({
-                                        uid: uid,
-                                        cid: cid,
-                                        quote_id: obj.metadata.quote,
-                                        invoice_id: obj.metadata.invoice,
-                                        refund: obj,
-                                    });
-                                    if (result instanceof Promise) {
-                                        result = await result;
+                                    // Check if a mail should be sent.
+                                    // When the user returns an object with {send_mail: false} then no mail will be sent.
+                                    let send_mail = true;
+
+                                    // Callback.
+                                    if (this.on_refund != null) {
+                                        const result = this.on_refund({
+                                            uid: uid,
+                                            cid: cid,
+                                            quote_id: obj.metadata.quote,
+                                            invoice_id: obj.metadata.invoice,
+                                            refund: obj,
+                                        });
+                                        if (result instanceof Promise) {
+                                            result = await result;
+                                        }
+                                        if (send_mail && result != null && typeof result === "object" && result.send_mail === false) {
+                                            send_mail = false;
+                                        }
                                     }
-                                    if (send_mail && result != null && typeof result === "object" && result.send_mail === false) {
-                                        send_mail = false;
-                                    }
+
+                                    // Send an email to the user of a successfull refund.
+                                    // @todo.
+
                                 }
 
-                                // Send an email to the user of a successfull refund.
-                                // @todo.
-
-                                // Break.
-                                break;
-
-                            // Type: charge.refund.updated
-                            // Occurs whenever a refund is updated, on selected payment methods.
-                            // data.object is a refund
-                            case "charge.refunded.updated":
-                                if (obj.status === "failed" || obj.status === "requires_action") {
+                                // Failed refund.
+                                else if (obj.status === "failed" || obj.status === "requires_action") {
 
                                     // Check if a mail should be sent.
                                     // When the user returns an object with {send_mail: false} then no mail will be sent.
@@ -1907,13 +1919,14 @@ class Server {
                                 }
 
                                 // Break.
-                                break;                            
+                                break; 
+                            }                           
                             
 
                             // Type: invoice.payment_action_required
                             // Occurs whenever an invoice payment attempt requires further user action to complete.
                             // data.object is an invoice
-                            case "invoice.payment_action_required":
+                            case "invoice.payment_action_required": {
                                 if (this.on_payment_requires_action != null) {
                                     this.on_payment_requires_action({
                                         uid: uid,
@@ -1922,11 +1935,12 @@ class Server {
                                     })
                                 }
                                 break;
+                            }
 
                             // Type: invoice.payment_failed
                             // Occurs whenever an invoice payment attempt fails, due either to a declined payment or to the lack of a stored payment method.
                             // data.object is an invoice
-                            case "invoice.payment_failed":
+                            case "invoice.payment_failed": {
                                 if (this.on_payment_failed != null) {
                                     this.on_payment_failed({
                                         uid: uid,
@@ -1935,11 +1949,12 @@ class Server {
                                     })
                                 }
                                 break;
+                            }
 
                             // Type: invoice.payment_succeeded
                             // Occurs whenever an invoice payment attempt succeeds.
                             // data.object is an invoice
-                            case "invoice.payment_succeeded":
+                            case "invoice.payment_succeeded": {
 
                                 // Only the non subscription line items of the invoice need to be handled.
                                 // Subscription events are catched by "customer.subscription.created".
@@ -1955,7 +1970,7 @@ class Server {
 
                                     // Skip recurring.
                                     if (item.price.type === "recurring") {
-                                        return null;
+                                        continue;
                                     }
 
                                     // Callback.
@@ -1983,11 +1998,12 @@ class Server {
 
                                 // Break.
                                 break;
+                            }
 
                             // Type: customer.subscription.created
                             // Occurs whenever a customer is signed up for a new plan.
                             // data.object is a subscription
-                            case "customer.subscription.created":
+                            case "customer.subscription.created": {
 
                                 // Check if a mail should be sent.
                                 // When the user returns an object with {send_mail: false} then no mail will be sent.
@@ -2000,7 +2016,7 @@ class Server {
 
                                     // Skip non recurring.
                                     if (item.price.type !== "recurring") {
-                                        return null;
+                                        continue;
                                     }
 
                                     // Get the product.
@@ -2048,11 +2064,12 @@ class Server {
 
                                 // Break.
                                 break;
+                            }
 
                             // Type: customer.subscription.deleted
                             // Occurs whenever a customer’s subscription ends.
                             // data.object is a subscription.
-                            case "customer.subscription.deleted":
+                            case "customer.subscription.deleted": {
 
                                 // Check uid.
                                 this._check_uid_within_range(uid);
@@ -2063,11 +2080,12 @@ class Server {
 
                                 // Get the line items of the subscription.
                                 const data = this._stripe_parse_as_list(obj.items.data);
-                                data.iterate((item) => {
+                                for (let i = 0; i < data.length; i++) {
+                                    const item = data[i];
 
                                     // Skip non recurring.
                                     if (item.price.type !== "recurring") {
-                                        return null;
+                                        continue;
                                     }
 
                                     // Get the product.
@@ -2093,20 +2111,25 @@ class Server {
                                         }
                                     }
                                     
-                                })
+                                }
 
                                 // Send an email of cancelled subscription.
                                 // @todo.
 
                                 // Break.
                                 break;
+                            }
 
                             // Default.
                             default: break;
 
                         }
+
+                        // Send response to avoid unfinished response.
+                        return response.success();
                     }
                 },
+
             );
         }
 
@@ -2268,6 +2291,7 @@ class Server {
         if (this._sys_has_stripe_cid(uid)) {
             return this._sys_load_stripe_cid(uid);
         }
+        console.log("CREATE STRIPE CUSTOMER")
         const user = this.get_user(uid);
         const customer = await this._stripe_create_customer(user.email, `${user.first_name} ${user.last_name}`);
         this._sys_save_stripe_cid(uid, customer.id);
@@ -2582,7 +2606,7 @@ class Server {
             } catch (error) {
                 throw new StripeError(error.message); // since the default stripe errors do not have a stacktrace.
             }
-            await data.iterate_async_await((subscription) => {
+            await data.iterate_async_await(async (subscription) => {
                 const items = subscription.items;
                 if (subscription.status === "active" || subscription.status === "trialing") {
                     await this.stripe.subscriptions.cancel(subscription.id);
@@ -2940,22 +2964,41 @@ class Server {
             // Initialize products.
             await this._initialize_products()
 
-            // Verify subscriptions.
-            // this._verify_subscriptions();
-
-            // Create the webook.
-            // @todo test.
-            if (this.production) {
-                await this.stripe.webhookEndpoints.create({
-                    url: `https://${this.domain}/vweb/backend/payments/webhook`,
-                    enabled_events: [
-                        "invoice.payment_action_required",
-                        "invoice.payment_failed",
-                        "invoice.payment_succeeded",
-                        "customer.subscription",
-                        "customer.subscription",
-                    ],
+            // Create the webohok.
+            const url = `https://${this.domain}/vweb/backend/payments/webhook`;
+            const enabled_events = [
+                "refund.updated",
+                "invoice.payment_action_required",
+                "invoice.payment_failed",
+                "invoice.payment_succeeded",
+                "customer.subscription.created",
+                "customer.subscription.deleted",
+            ];
+            const result = await this.stripe.webhookEndpoints.list();
+            const webhooks = this._stripe_parse_as_list(result.data);
+            let secret = await webhooks.iterate_async_await(async (webhook) => {
+                if (webhook.url === url) {
+                    if (enabled_events.eq(webhook.enabled_events)) {
+                        return this.database.join(".sys/keys/stripe_webhook_key", false).load_sync();
+                    } else {
+                        await this.stripe.webhookEndpoints.update(
+                            webhook.id, 
+                            {enabled_events: enabled_events}
+                        );
+                        return this.database.join(".sys/keys/stripe_webhook_key", false).load_sync();
+                    }
+                }
+            })
+            if (secret === null) {
+                const result = await this.stripe.webhookEndpoints.create({
+                    url: url,
+                    enabled_events: enabled_events,
                 });
+                secret = result.secret;
+                this.database.join(".sys/keys/stripe_webhook_key", false).save_sync(secret);
+            }
+            if (this.stripe_webhook_key == null) {
+                this.stripe_webhook_key = secret;
             }
         }
     }
@@ -2967,7 +3010,7 @@ class Server {
 
             // Log endpoint result.
             const log_endpoint_result = (message = null, status = null) => {
-                console.log(`${Date.now()} ${method} ${endpoint_url}: ${message === null ? response.status_message : message} [${status === null ? response.status_code : status}].`);
+                // console.log(`${Date.now()} ${method} ${endpoint_url}: ${message === null ? response.status_message : message} [${status === null ? response.status_code : status}].`);
             }
 
             // Initialize the request and wait till all the data has come in.
@@ -4850,6 +4893,7 @@ class Server {
     }
 
     // Retrieve the created payment quotes of a user.
+    // @todo TEST
     /*  @docs {
      *  @title: Get Payments
      *  @description:
@@ -4908,14 +4952,12 @@ class Server {
             throw new StripeError(error.message); // since the default stripe errors do not have a stacktrace.
         }
 
-        // Convert to array.
-        result.data = this._stripe_parse_as_list(result.data);
-
         // Return the list.
-        return {payments: result.data, has_more: result.has_more};
+        return {payments: this._stripe_parse_as_list(result.data), has_more: result.has_more};
     }
 
     // Create a refund for a payment intent.
+    // @todo TEST
     /*  @docs {
      *  @title: Create Refund
      *  @description:
@@ -4923,8 +4965,12 @@ class Server {
      *
      *      When the payment intent is part of a subscription, the active subscription will automatically be cancelled.
      *  @parameter:
-     *      @name: id
+     *      @name: quote
      *      @description: The id of the charged quote.
+     *      @type: string
+     *  @parameter:
+     *      @name: invoice
+     *      @description: The id of the charged invoice, conditionally required.
      *      @type: string
      *  @parameter:
      *      @name: uid
@@ -4938,13 +4984,28 @@ class Server {
      *      ...
      *      server.create_refund("...");
      } */
-    async create_refund({id, uid = null, amount = null}) {
+    async create_refund({quote = null, invoice = null, uid = null, amount = null}) {
 
-        // Retrieve the quote.
-        let quote;
+        // Check params.
+        if (quote == null && invoice == null) {
+            throw Error("Define parameter \"invoice\" or \"quote\".");
+        }
+
+        // Get invoice from quote.
+        if (invoice == null) {
+            try {
+                const quote_obj = await this.stripe.quotes.retrieve(quote);
+                invoice = quote_obj.invoice;
+            } catch (error) {
+                throw new StripeError(error.message); // since the default stripe errors do not have a stacktrace.
+            }    
+        }
+
+        // Retrieve the invoice.
+        let invoice_obj;
         try {
-            quote = await this.stripe.quotes.retrieve(id, {
-                "expand": ["invoice.payment_intent"],
+            invoice_obj = await this.stripe.invoices.retrieve(id, {
+                "expand": ["payment_intent"],
             });
         } catch (error) {
             throw new StripeError(error.message); // since the default stripe errors do not have a stacktrace.
@@ -4967,7 +5028,7 @@ class Server {
             // Retrieve the quote's line items.
             let line_items;
             try {
-                line_items = await this.stripe.quotes.listLineItems(id, {
+                line_items = await this.stripe.invoices.listLineItems(id, {
                     limit: 100,
                 });
                 line_items = this._stripe_parse_as_list(line_items.data);
@@ -4993,11 +5054,11 @@ class Server {
         let refund;
         try {
             refund = await this.stripe.refunds.create({
-                payment_intent: quote.invoice.payment_intent.id,
+                payment_intent: invoice_obj.payment_intent,
                 amount: amount == null ? undefined : parseInt(amount * 100),
                 metadata: {
-                    quote: quote.id,
-                    invoice: quote.invoice.id,
+                    quote: quote,
+                    invoice: invoice,
                 },
             });
         } catch (error) {
@@ -5014,6 +5075,7 @@ class Server {
     }
 
     // Check if a user is subscribed to a specific product.
+    // @todo TEST
     /*  @docs {
      *  @title: Is Subscribed
      *  @description:
@@ -5039,10 +5101,11 @@ class Server {
     }
 
     // Get the subscriptions of a user.
+    // @todo TEST
     /*  @docs {
-     *  @title: Get Subscription
+     *  @title: Get Subscription Id
      *  @description:
-     *      Get the subscription id of the product from a user.
+     *      Get the subscription id from a user's subscription by product id.
      *  @parameter:
      *      @name: uid
      *      @description: The id of the user to retrieve the subscription id from.
@@ -5052,7 +5115,7 @@ class Server {
      *      @description: The id of product to retrieve the subscription id from.
      *      @type: string
      *  @type: null, string
-     *  @return: When the user is not subscribed to the product `null` will be returned. When the user is subscribed to the product the id of the subscription will be returned.
+     *  @return: When the user is not subscribed to the product `null` will be returned. When the user is subscribed to the product the subscription id will be returned.
      *  @usage:
      *      ...
      *      const id = server.get_subscription(0, "sub_basic");
@@ -5067,6 +5130,31 @@ class Server {
     }
 
     // Get the subscriptions of a user.
+    // @todo TEST
+    /*  @docs {
+     *  @title: Get Subscription Object
+     *  @description:
+     *      Get the stripe subscription object by a subscription id.
+     *  @parameter:
+     *      @name: id
+     *      @description: The subscription id.
+     *      @type: string
+     *  @type: object
+     *  @return: The stripe subscription object will be returned. more info about the object can be found at https://stripe.com/docs/api/subscriptions/object.
+     *  @usage:
+     *      ...
+     *      const subscription = server.get_subscription_obj("sub_xxxxxxxx");
+     } */
+    async get_subscription_obj(id) {
+        try {
+            return await this.stripe.subscriptions.retrieve(id);
+        } catch (error) {
+            throw new StripeError(error.message); // since the default stripe errors do not have a stacktrace.
+        }
+    }
+
+    // Get the subscriptions of a user.
+    // @todo TEST
     /*  @docs {
      *  @title: Get Subscriptions
      *  @description:
@@ -5087,7 +5175,7 @@ class Server {
     }
 
     // Cancel a subscription
-    // @todo a subscription object can have multiple subscription items so the current implementation wont work.
+    // @todo TEST
     /*  @docs {
      *  @title: Cancel Subscription
      *  @description: Cancel an active subscription.

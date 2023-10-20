@@ -87,7 +87,7 @@ class Response {
      *      ...
      *      response.send({status: 200, data: "Hello World!"});
      */
-    send({status = 200, headers = {}, data = null, compress = false}) {
+    send({status = 200, headers = {}, data = null, compress = false} = {}) {
 
         // Set status code.
         this.res.statusCode = status;
@@ -146,7 +146,7 @@ class Response {
      *      ...
      *      response.success({data: "Hello World!"});
      */
-    success({status = 200, headers = {}, data = null, compress = false}) {
+    success({status = 200, headers = {}, data = null, compress = false} = {}) {
         return this.send({status: status, headers: headers, data: data, compress: compress});
     }
 	
@@ -174,7 +174,7 @@ class Response {
      *      ...
      *      response.error({data: "Some error occured"});
      */
-    error({status = 500, headers = {}, data = null, compress = false}) {
+    error({status = 500, headers = {}, data = null, compress = false} = {}) {
         return this.send({status: status, headers: headers, data: data, compress: compress});
     }
 
