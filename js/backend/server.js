@@ -1241,7 +1241,7 @@ class Server {
                 method: "GET",
                 endpoint: "/vweb/backend/auth/2fa",
                 content_type: "application/json",
-                rate_limit: 10,
+                rate_limit: 100,
                 rate_limit_duration: 60,
                 callback: async (request, response) => {
                     
@@ -1275,7 +1275,7 @@ class Server {
                 method: "POST",
                 endpoint: "/vweb/backend/auth/signin",
                 content_type: "application/json",
-                rate_limit: 10,
+                rate_limit: 100,
                 rate_limit_duration: 60,
                 callback: async (request, response) => {
 
@@ -1361,7 +1361,7 @@ class Server {
                 endpoint: "/vweb/backend/auth/signout",
                 content_type: "application/json",
                 authenticated: true,
-                rate_limit: 10,
+                rate_limit: 100,
                 rate_limit_duration: 60,
                 callback: (request, response) => {
                     
@@ -1383,7 +1383,7 @@ class Server {
                 method: "POST",
                 endpoint: "/vweb/backend/auth/signup",
                 content_type: "application/json",
-                rate_limit: 10,
+                rate_limit: 100,
                 rate_limit_duration: 60,
                 callback: async (request, response) => {
                     
@@ -1438,7 +1438,7 @@ class Server {
                 method: "POST",
                 endpoint: "/vweb/backend/auth/activate",
                 content_type: "application/json",
-                rate_limit: 10,
+                rate_limit: 100,
                 rate_limit_duration: 60,
                 callback: async (request, response) => {
                     
@@ -1492,7 +1492,7 @@ class Server {
                 method: "POST",
                 endpoint: "/vweb/backend/auth/forgot_password",
                 content_type: "application/json",
-                rate_limit: 10,
+                rate_limit: 100,
                 rate_limit_duration: 60,
                 callback: async (request, response) => {
                     
@@ -1543,10 +1543,11 @@ class Server {
                 endpoint: "/vweb/backend/user",
                 content_type: "application/json",
                 authenticated: true,
-                rate_limit: 10,
+                rate_limit: 100,
                 rate_limit_duration: 60,
-                callback: (request, response) => {
-                    return response.success({data: await this.get_user(request.uid)});
+                callback: async (request, response) => {
+                    const user = await this.get_user(request.uid);
+                    return response.success({data: user});
                 }
             },
 
@@ -1555,7 +1556,7 @@ class Server {
                 method: "POST",
                 endpoint: "/vweb/backend/user",
                 authenticated: true,
-                rate_limit: 10,
+                rate_limit: 100,
                 rate_limit_duration: 60,
                 callback: async (request, response) => {
                     await this.set_user(request.uid, request.params);
@@ -1569,7 +1570,7 @@ class Server {
                 method: "POST",
                 endpoint: "/vweb/backend/user/change_password",
                 authenticated: true,
-                rate_limit: 10,
+                rate_limit: 100,
                 rate_limit_duration: 60,
                 callback: async (request, response) => {
                     
@@ -1615,7 +1616,7 @@ class Server {
                 method: "POST",
                 endpoint: "/vweb/backend/user/api_key",
                 authenticated: true,
-                rate_limit: 10,
+                rate_limit: 100,
                 rate_limit_duration: 60,
                 callback: async (request, response) => {
                     return response.success({
@@ -1632,7 +1633,7 @@ class Server {
                 method: "DELETE",
                 endpoint: "/vweb/backend/user/api_key",
                 authenticated: true,
-                rate_limit: 10,
+                rate_limit: 100,
                 rate_limit_duration: 60,
                 callback: async (request, response) => {
                     await this.revoke_api_key(request.uid);
@@ -1648,7 +1649,7 @@ class Server {
                 method: "GET",
                 endpoint: "/vweb/backend/user/data",
                 authenticated: true,
-                rate_limit: 10,
+                rate_limit: 100,
                 rate_limit_duration: 60,
                 callback: async (request, response) => {
                     let path, def;
@@ -1678,7 +1679,7 @@ class Server {
                 method: "POST",
                 endpoint: "/vweb/backend/user/data",
                 authenticated: true,
-                rate_limit: 10,
+                rate_limit: 100,
                 rate_limit_duration: 60,
                 callback: async (request, response) => {
                     let path, data;
@@ -1705,7 +1706,7 @@ class Server {
                 method: "GET",
                 endpoint: "/vweb/backend/user/data/protected",
                 authenticated: true,
-                rate_limit: 10,
+                rate_limit: 100,
                 rate_limit_duration: 60,
                 callback: async (request, response) => {
                     let path, def;
@@ -1741,7 +1742,7 @@ class Server {
                     method: "GET",
                     endpoint: "/vweb/backend/payments/products",
                     content_type: "application/json",
-                    rate_limit: 10,
+                    rate_limit: 100,
                     rate_limit_duration: 60,
                     callback: (request, response) => {
                         return response.success({data: this.payment_products});
@@ -1754,7 +1755,7 @@ class Server {
                     endpoint: "/vweb/backend/payments/payments",
                     content_type: "application/json",
                     authenticated: true,
-                    rate_limit: 10,
+                    rate_limit: 100,
                     rate_limit_duration: 60,
                     callback: async (request, response) => {
                         let status, days, limit;
@@ -1780,13 +1781,32 @@ class Server {
                     }
                 },
 
+                // Get subscriptions.
+                {
+                    method: "GET",
+                    endpoint: "/vweb/backend/payments/subscriptions",
+                    content_type: "application/json",
+                    authenticated: true,
+                    rate_limit: 100,
+                    rate_limit_duration: 60,
+                    callback: async (request, response) => {
+                        let subscriptions;
+                        try {
+                            subscriptions = await this.get_subscriptions(request.uid);
+                        } catch (error) {
+                            return response.error({data: {error: error.message}});
+                        }
+                        return response.success({data: subscriptions});
+                    }
+                },
+
                 // Is subscribed.
                 {
                     method: "POST",
                     endpoint: "/vweb/backend/payments/subscribed",
                     content_type: "application/json",
                     authenticated: true,
-                    rate_limit: 10,
+                    rate_limit: 100,
                     rate_limit_duration: 60,
                     callback: async (request, response) => {
                         let product;
@@ -1805,32 +1825,13 @@ class Server {
                     }
                 },
 
-                // Get subscriptions.
-                {
-                    method: "GET",
-                    endpoint: "/vweb/backend/payments/subscriptions",
-                    content_type: "application/json",
-                    authenticated: true,
-                    rate_limit: 10,
-                    rate_limit_duration: 60,
-                    callback: async (request, response) => {
-                        let subscriptions;
-                        try {
-                            subscriptions = await this.get_subscriptions(request.uid);
-                        } catch (error) {
-                            return response.error({data: {error: error.message}});
-                        }
-                        return response.success({data: subscriptions});
-                    }
-                },
-
                 // Cancel subscription.
                 {
                     method: "DELETE",
                     endpoint: "/vweb/backend/payments/subscription",
                     content_type: "application/json",
                     authenticated: true,
-                    rate_limit: 10,
+                    rate_limit: 100,
                     rate_limit_duration: 60,
                     callback: async (request, response) => {
                         let product;
@@ -1851,22 +1852,23 @@ class Server {
                 // Get refundable payments.
                 {
                     method: "GET",
-                    endpoint: "/vweb/backend/payments/refund",
+                    endpoint: "/vweb/backend/payments/refundable",
                     content_type: "application/json",
                     authenticated: true,
-                    rate_limit: 10,
+                    rate_limit: 100,
                     rate_limit_duration: 60,
                     callback: async (request, response) => {
-                        let days, limit;
+                        let days, limit, refunded;
                         try {
                             days = request.param("days", "number", 14);
                             limit = request.param("limit", "number", null);
+                            refunded = request.param("refunded", "boolean", true);
                         } catch (err) {
                             return response.error({status: Status.bad_request, data: {error: err.message}});
                         }
                         let payments;
                         try {
-                            payments = await this.get_refundable_payments({uid: request.uid, days: days, limit: limit, _refund: false});
+                            payments = await this.get_refundable_payments({uid: request.uid, days: days, refunded: refunded, limit: limit});
                         } catch (error) {
                             return response.error({data: {error: error.message}});
                         }
@@ -1882,7 +1884,7 @@ class Server {
                     endpoint: "/vweb/backend/payments/refund",
                     content_type: "application/json",
                     authenticated: true,
-                    rate_limit: 10,
+                    rate_limit: 100,
                     rate_limit_duration: 60,
                     callback: async (request, response) => {
                         let payment;
@@ -1906,7 +1908,7 @@ class Server {
                     method: "POST",
                     endpoint: "/vweb/backend/payments/charge",
                     content_type: "application/json",
-                    rate_limit: 10,
+                    rate_limit: 100,
                     rate_limit_duration: 60,
                     callback: async (request, response) => {
 
@@ -2065,8 +2067,26 @@ class Server {
                             // data.object is a refund
                             case "refund.updated": {
 
+                                // Set failure description.
+                                if (obj.status === "failed") {
+                                    obj.failure_description = ;
+                                    break;
+                                }
+
+                                // Set the status description.
+                                this._stripe_parse_refund(obj)
+
+                                // Update the invoice's line item to set the refund status for `get_products()`.
+                                await this.stripe.invoiceItems.update(obj.metadata.invoice_item, {
+                                    metadata: {
+                                        refund: obj.id,
+                                        refund_status: obj.status,
+                                        refund_status_description: obj.status_description,
+                                    }
+                                })
+
                                 // Successful refund.
-                                if (obj.status === "success") {
+                                if (obj.status === "succeeded") {
 
                                     // Check if a mail should be sent.
                                     // When the user returns an object with {send_mail: false} then no mail will be sent.
@@ -2102,10 +2122,7 @@ class Server {
                                     let send_mail = true;
                                     
                                     // Set failure reason and description.
-                                    if (obj.status === "failed") {
-                                        obj.failure_description = this._stripe_parse_refund_failure_reason(obj.failure_reason);
-                                        break;
-                                    } else {
+                                    if (obj.status === "requires_action") {
                                         obj.failure_reason = "requires_action";
                                         obj.failure_description = "The refund requires user action.";
                                     }
@@ -2413,24 +2430,58 @@ class Server {
         return data;
     }
 
-    // Parse the failure reason of a refund.
-    _stripe_parse_refund_failure_reason(failure_reason) {
-        switch (failure_reason) {
-            case "charge_for_pending_refund_disputed": 
-                return "A customer disputed the charge while the refund is pending. In this case, we recommend accepting or challenging the dispute instead of refunding to avoid duplicate reimbursements to the customer.";
-            case "declined": 
-                return "Refund declined by our financial partners.";
-            case "expired_or_canceled_card": 
-                return "Payment method is canceled by a customer or expired by the partner.";
-            case "insufficient_funds": 
-                return "Refund is pending due to insufficient funds and has crossed the pending refund expiry window.";
-            case "lost_or_stolen_card": 
-                return "Refund has failed due to loss or theft of the original card.";
-            case "merchant_request": 
-                return "Refund failed upon the business’s request.";
+    // Parse the a refund object.
+    _stripe_parse_refund(refund) {
+
+        // Failure description.
+        if (refund.status === "failed") {
+            switch (failure_reason) {
+                case "charge_for_pending_refund_disputed": 
+                    refund.failure_description = "A customer disputed the charge while the refund is pending. In this case, we recommend accepting or challenging the dispute instead of refunding to avoid duplicate reimbursements to the customer.";
+                    break;
+                case "declined": 
+                    refund.failure_description = "Refund declined by our financial partners.";
+                    break;
+                case "expired_or_canceled_card": 
+                    refund.failure_description = "Payment method is canceled by a customer or expired by the partner.";
+                    break;
+                case "insufficient_funds": 
+                    refund.failure_description = "Refund is pending due to insufficient funds and has crossed the pending refund expiry window.";
+                    break;
+                case "lost_or_stolen_card": 
+                    refund.failure_description = "Refund has failed due to loss or theft of the original card.";
+                    break;
+                case "merchant_request": 
+                    refund.failure_description = "Refund failed upon the business’s request.";
+                    break;
+                case "unknown": 
+                default:
+                    refund.failure_description = "Refund has failed due to an unknown reason.";
+                    break;
+            }
+        }
+
+        // Status description.
+        switch (refund.status) {
+            case "pending": 
+                refund.status_description = "The refund request is still processing.";
+                break;
+            case "succeeded": 
+                refund.status_description = "The payment has successfully been refunded.";
+                break;
+            case "failed": 
+                refund.status_description = refund.failure_description;
+                break;
+            case "requires_action": 
+                refund.status_description = "The refund request requires action.";
+                break;
+            case "canceled": 
+                refund.status_description = "The refund request has been cancelled.";
+                break;
             case "unknown": 
             default:
-                return "Refund has failed due to an unknown reason.";
+                refund.status_description = "Unknown status.";
+                break;
         }
     }
 
@@ -5042,6 +5093,10 @@ class Server {
      *      @description: A cursor for use in pagination. `starting_after` is an object ID that defines your place in the list. For instance, if you make a list request and receive 100 objects, ending with `obj_foo`, your subsequent call can include `starting_after=obj_foo` in order to fetch the next page of the list.
      *      @type: null, string
      *  @parameter:
+     *      @name: refunded
+     *      @description: Include the payments for which a refund has been requested.
+     *      @type: boolean
+     *  @parameter:
      *      @name: limit
      *      @description: A limit on the number of objects to be returned. Leave the limit `null` to disable the limit.
      *      @type: null, number
@@ -5052,12 +5107,19 @@ class Server {
      *      A payment product has the following attributes:
      *      ```js
      *      {
-     *          product: <object>,           // the user defined product that was purchased.
-     *          quantity: <number>,          // the quantity of the purchased product.
-     *          timestamp: <number>,         // the unix timestamp in seconds of the purchase.
-     *          pdf: <string>,               // the url string to the pdf download link.
-     *          invoice: <string>,           // the invoice's id of the purchase.
-     *          payment_intent: <string>,    // the payment intent's id of the purchase.
+     *          timestamp: <number>,            // the unix timestamp in seconds of the purchase.
+     *          product: <object>,              // the user defined product that was purchased.
+     *          quantity: <number>,             // the quantity of the purchased product.
+     *          amount: <number>,               // the total charged amount by this purchase.
+     *          refund: {                       // the refund object when a refund request has been made. This value will be `null` when no refund request has been made for this payment.
+     *              id: <string>,               // the id of the refund request.
+     *              status: <string>,           // the status of the refund request, the status can be "processing", "succeeded", "failed", "requires_action", "canceled".
+     *              description: <string>,      // the status description of the refund request.
+     *          },
+     *          pdf: <string>,                  // the url string to the pdf download link.
+     *          invoice: <string>,              // the invoice's id of the purchase.
+     *          invoice_item: <string>,         // the invoice item's id of the purchase.
+     *          payment_intent: <string>,       // the payment intent's id of the purchase.
      *      }
      *      ```
      *  @usage:
@@ -5070,6 +5132,7 @@ class Server {
         days = null,
         ending_before = null,
         starting_after = null,
+        refunded = true,
         limit = null,
     }) {
 
@@ -5141,13 +5204,26 @@ class Server {
             await this._stripe_parse_as_list(result.data).iterate_async_await(async (item) => {
                 const items = this._stripe_parse_as_list(item.lines.data);
                 await items.iterate_async_await(async (line_item) => {
+                    let refund = null;
+                    if (line_item.metadata.refund) {
+                        refund = {
+                            id: line_item.metadata.refund,
+                            status: line_item.metadata.refund_status,
+                            description: line_item.metadata.refund_status_description,
+                        };
+                    }
+                    if (refunded === false && refund != null) {
+                        return null;
+                    }
                     payments.push({
+                        timestamp: line_item.price.created,
                         product: await this.get_product(line_item.price.product),
                         quantity: line_item.quantity,
                         amount: parseFloat(line_item.amount) / 100,
-                        timestamp: line_item.price.created,
+                        refund: refund,
                         pdf: item.invoice_pdf,
                         invoice: item.id,
+                        invoice_item: line_item.id,
                         payment_intent: item.payment_intent,
                     });
                 })
@@ -5167,6 +5243,28 @@ class Server {
 
         // Handler.
         return payments;
+    }
+
+    // Get the subscriptions of a user.
+    // Use async to keep it persistent with other functions.
+    // @todo TEST
+    /*  @docs {
+     *  @title: Get Subscriptions
+     *  @description:
+     *      Get the subscriptions of a user.
+     *  @parameter:
+     *      @name: uid
+     *      @description: The id of the user you want to retrieve the subscriptions from.
+     *      @type: number
+     *  @type: array[string]
+     *  @return: Returns a list with the product id's the user is subscribed to.
+     *  @usage:
+     *      ...
+     *      const subscriptions = server.get_subscriptions(1);
+     } */
+    async get_subscriptions(uid) {
+        this._check_uid_within_range(uid);
+        return _sys_get_subscriptions(uid);
     }
 
     // Check if a user is subscribed to a specific product.
@@ -5194,28 +5292,6 @@ class Server {
         this._check_uid_within_range(uid);
         const {exists} = this._sys_check_subscription(uid, id, false);
         return exists;
-    }
-
-    // Get the subscriptions of a user.
-    // Use async to keep it persistent with other functions.
-    // @todo TEST
-    /*  @docs {
-     *  @title: Get Subscriptions
-     *  @description:
-     *      Get the subscriptions of a user.
-     *  @parameter:
-     *      @name: uid
-     *      @description: The id of the user you want to retrieve the subscriptions from.
-     *      @type: number
-     *  @type: array[string]
-     *  @return: Returns a list with the product id's the user is subscribed to.
-     *  @usage:
-     *      ...
-     *      const subscriptions = server.get_subscriptions(1);
-     } */
-    async get_subscriptions(uid) {
-        this._check_uid_within_range(uid);
-        return _sys_get_subscriptions(uid);
     }
 
     // Get the subscriptions of a user.
@@ -5274,31 +5350,28 @@ class Server {
 
     // Cancel a subscription
     // @todo TEST
-    /*  @docs {
+    /*  @docs:
      *  @title: Cancel Subscription
      *  @description: Cancel an active subscription.
      *  @warning: All the subscriptions that were purchased by the charge request in which the user bought the subscription will also be cancelled.
-     *  @parameter: {
+     *  @parameter:
      *      @name: uid
      *      @description: The user id.
      *      @type: number
      *      @required: true
-     *  }
-     *  @parameter: {
+     *  @parameter:
      *      @name: id
      *      @description: The product's plan id of the user defined subscription product.
      *      @type: string
      *      @required: true
-     *  }
-     *  @parameter: {
+     *  @parameter:
      *      @name: sub_id
      *      @description: This parameter is optional, it can be passed to cancel a specific subscription by subscription id. When parameter `id` is passed, the subscription id will automatically be retrieved.
      *      @type: string
-     *  }
      *  @usage:
      *      ...
      *      server.cancel_subscription({uid: 0, id: "sub_basic"});
-     } */
+     */
     async cancel_subscription(uid, id, sub_id = null) {
 
         // Check params.
@@ -5341,12 +5414,19 @@ class Server {
      *      A payment product has the following attributes:
      *      ```js
      *      {
-     *          product: <object>,           // the user defined product that was purchased.
-     *          quantity: <number>,          // the quantity of the purchased product.
-     *          timestamp: <number>,         // the unix timestamp in seconds of the purchase.
-     *          pdf: <string>,               // the url string to the pdf download link.
-     *          invoice: <string>,           // the invoice's id of the purchase.
-     *          payment_intent: <string>,    // the payment intent's id of the purchase.
+     *          timestamp: <number>,            // the unix timestamp in seconds of the purchase.
+     *          product: <object>,              // the user defined product that was purchased.
+     *          quantity: <number>,             // the quantity of the purchased product.
+     *          amount: <number>,               // the total charged amount by this purchase.
+     *          refund: {                       // the refund object when a refund request has been made. This value will be `null` when no refund request has been made for this payment.
+     *              id: <string>,               // the id of the refund request.
+     *              status: <string>,           // the status of the refund request, the status can be "processing", "succeeded", "failed", "requires_action", "canceled".
+     *              description: <string>,      // the status description of the refund request.
+     *          },
+     *          pdf: <string>,                  // the url string to the pdf download link.
+     *          invoice: <string>,              // the invoice's id of the purchase.
+     *          invoice_item: <string>,         // the invoice item's id of the purchase.
+     *          payment_intent: <string>,       // the payment intent's id of the purchase.
      *      }
      *      ```
      *  @parameter:
@@ -5358,6 +5438,10 @@ class Server {
      *      @description: The number of days for which the payment is still refundable.
      *      @type: null, number
      *  @parameter:
+     *      @name: refunded
+     *      @description: Include the payments for which a refund has been requested.
+     *      @type: boolean
+     *  @parameter:
      *      @name: limit
      *      @description: A limit on the number of objects to be returned. The limit can range between 1 and 100, the default is 100.
      *      @type: number
@@ -5365,8 +5449,8 @@ class Server {
      *      ...
      *      const payments = await server.get_refundable_payments({uid: 1, days: 14});
      } */
-    async get_refundable_payments({uid, days = 14, limit = null}) {
-        return await this.get_payments({uid: uid, days: days, limit: limit, status: "paid"})
+    async get_refundable_payments({uid, days = 14, refunded = true, limit = null}) {
+        return await this.get_payments({uid: uid, days: days, refunded: refunded, limit: limit, status: "paid"})
     }
 
     // Create a refund for a payment intent.
@@ -5377,123 +5461,63 @@ class Server {
      *      Create a refund for a payment intent.
      *
      *      When the payment intent is part of a subscription, the active subscription will automatically be cancelled.
-     *
-     *      One of the following parameters is always required: `payment`, `quote`, `invoice` or `payment_intent`.
-     *  @warning: 
-     *      When parameter `amount` is undefined the entire order linked to the payment's payment intent will be refunded. So when multiple products were purchased in this order, they will be refunded too.
-     *      
-     *      Therefore it is advised specify the `payment` parameter or the `amount` parameter.
-     *
-     *      The `payment` parameter automatically assigns the correct value to parameter `amount`.
      *  @type: object
      *  @usage: Returns the stripe refund object.
      *  @parameter:
      *      @name: payment
-     *      @description: The retrieved payment object from `Server.get_payments()` or `Server.get_refundable_payments()`. Parameter `payment` will make sure only the charged amount for that purchased product will be refunded and not the entire order.
+     *      @description: The retrieved payment object from `Server.get_payments()` or `Server.get_refundable_payments()`.
      *      @type: object
-     *  @parameter:
-     *      @name: quote
-     *      @description: The id of the charged quote.
-     *      @type: string
-     *  @parameter:
-     *      @name: invoice
-     *      @description: The id of the charged invoice, conditionally required.
-     *      @type: string
-     *  @parameter:
-     *      @name: payment_intent
-     *      @description: The id of the charged payment intent invoice, conditionally required.
-     *      @type: string
-     *  @parameter:
-     *      @name: uid
-     *      @description: Optionally provide the user id of the charged quote. When the uid is left undefined it will automatically be retrieved from the charged payment.
-     *      @type: number
-     *  @parameter:
-     *      @name: amount
-     *      @description: The amount to refund as a floating number. When left undefined the entire amount of the order will be refunded.
-     *      @type: number
      *  @usage:
      *      ...
-     *      await server.create_refund("...");
+     *      const payment = ...;
+     *      await server.create_refund(payment);
      } */
-    async create_refund({
-        payment = null,
-        quote = null, 
-        invoice = null, 
-        payment_intent = null, 
-        uid = null,
-        amount = null,
-    }) {
-
-        // Assign attributes by payment object.
-        if (payment != null) {
-            
-            // Check attributes.
-            if (typeof payment.amount !== "number") {
-                throw Error(`Parameter "payment.amount" has an incorrect type, the valid type is "number".`);
-            }
-            else if (typeof payment.invoice !== "string") {
-                throw Error(`Parameter "payment.invoice" has an incorrect type, the valid type is "string".`);
-            }
-            else if (typeof payment.payment_intent !== "string") {
-                throw Error(`Parameter "payment.payment_intent" has an incorrect type, the valid type is "string".`);
-            }
-
-            // Assign.
-            quote = payment.quote;
-            invoice = payment.invoice;
-            payment_intent = payment.payment_intent;
-            amount = payment.amount;
-        }
-
-        // Check params.
-        if (quote == null && invoice == null && payment_intent == null) {
-            throw Error("Define parameter \"invoice\" or \"quote\".");
-        }
+    async create_refund(payment) {
 
         // Vars.
-        let invoice_obj;
-        let payment_intent_id;
+        let invoice, invoice_obj, invoice_item, invoice_item_obj, payment_intent, amount, uid;
 
-        // By qoute.
-        if (quote != null) {
-            try {
-                const obj = await this.stripe.quotes.retrieve(quote, {
-                    expand: ["invoice"],
-                });
-                invoice_obj = obj.invoice;
-                payment_intent_id = invoice_obj.payment_intent;
-            } catch (error) {
-                throw new StripeError(error.message); // since the default stripe errors do not have a stacktrace.
-            }    
+        // Check args.
+        if (typeof payment !== "object") {
+            throw Error(`Parameter "payment" has an incorrect type, the valid type is "object".`);
         }
+        if (typeof payment.amount !== "number") {
+            throw Error(`Parameter "payment.amount" has an incorrect type, the valid type is "number".`);
+        }
+        if (typeof payment.invoice !== "string") {
+            throw Error(`Parameter "payment.invoice" has an incorrect type, the valid type is "string".`);
+        }
+        if (typeof payment.invoice_item !== "string") {
+            throw Error(`Parameter "payment.invoice_item" has an incorrect type, the valid type is "string".`);
+        }
+        if (typeof payment.payment_intent !== "string") {
+            throw Error(`Parameter "payment.payment_intent" has an incorrect type, the valid type is "string".`);
+        }
+
+        // Already refunded.
+        if (payment.refund_status === "succeeded") {
+            throw Error(`This payment was already successfully refunded.`);   
+        } else if (payment.refund_status != null && payment.refund_status !== "processing") {
+            throw Error(`A refund request has already been made for this payment.`);
+        }
+
+        // Assign.
+        invoice = payment.invoice;
+        invoice_item = payment.invoice_item;
+        payment_intent = payment.payment_intent;
+        amount = payment.amount;
 
         // By invoice.
-        else if (invoice != null) {
-            try {
-                invoice_obj = await this.stripe.invoices.retrieve(invoice);
-                payment_intent_id = invoice_obj.payment_intent;
-            } catch (error) {
-                throw new StripeError(error.message); // since the default stripe errors do not have a stacktrace.
-            }    
-        }
-
-        // By payment intent.
-        else if (payment_intent != null) {
-            try {
-                const obj = await this.stripe.paymentIntents.retrieve(payment_intent, {
-                    expand: ["invoice"],
-                });
-                invoice_obj = obj.invoice;
-                payment_intent_id = obj.id;
-            } catch (error) {
-                throw new StripeError(error.message); // since the default stripe errors do not have a stacktrace.
-            }    
+        try {
+            invoice_obj = await this.stripe.invoices.retrieve(invoice);
+        } catch (error) {
+            throw new StripeError(error.message); // since the default stripe errors do not have a stacktrace.
         }
 
         // Get the uid of the invoice.
         if (uid == null) {
             try {
-                uid = this._sys_load_uid_by_stripe_cid(invoice.customer);
+                uid = this._sys_load_uid_by_stripe_cid(invoice_obj.customer);
             } catch (err) {
                 uid = null;
             }
@@ -5501,31 +5525,24 @@ class Server {
             this._check_uid_within_range(uid);
         }
 
-        // Cancel the subscription line items.
-        if (uid != null) {
+        // Get the invoice item object.
+        try {
+            invoice_item_obj = await this.stripe.invoiceItems.retrieve(invoice_item);
+        } catch (error) {
+            throw new StripeError(error.message); // since the default stripe errors do not have a stacktrace.
+        }
 
-            // Retrieve the quote's line items.
-            let line_items;
-            try {
-                line_items = await this.stripe.invoices.listLineItems(invoice_obj.id, {
-                    limit: 100,
-                });
-                line_items = this._stripe_parse_as_list(line_items.data);
-            } catch (error) {
-                throw new StripeError(error.message); // since the default stripe errors do not have a stacktrace.
-            }
-
-            // Cancel all subscription line items.
-            if (Array.isArray(line_items)) {
-                await line_items.iterate_async_await(async (item) => {
-                    if (item.price.type === "recurring") {
-                        const {exists, sub_id} = this._sys_check_subscription(uid, item.price.product);
-                        if (exists) {
-                            await this._stripe_cancel_subscription(sub_id);
-                            this._sys_remove_subscription(uid, item.price.product);
-                        }
-                    }
-                })
+        // Cancel the subscription.
+        if (uid != null && invoice_item_obj.price.type === "recurring") {
+            const {exists, sub_id} = this._sys_check_subscription(uid, invoice_item_obj.price.product);
+            if (exists) {
+                await this._stripe_cancel_subscription(sub_id);
+                this._sys_remove_subscription(uid, invoice_item_obj.price.product);
+                if (typeof invoice_item_obj.subscription === "string" && sub_id !== invoice_item_obj.subscription) {
+                    await this._stripe_cancel_subscription(invoice_item_obj.subscription);    
+                }
+            } else if (typeof invoice_item_obj.subscription === "string") {
+                await this._stripe_cancel_subscription(invoice_item_obj.subscription);
             }
         }
 
@@ -5533,11 +5550,12 @@ class Server {
         let refund;
         try {
             refund = await this.stripe.refunds.create({
-                payment_intent: payment_intent_id,
+                payment_intent: payment_intent,
                 amount: amount == null ? undefined : parseInt(amount * 100),
                 metadata: {
-                    invoice: invoice_obj.id,
-                    payment_intent: payment_intent_id,
+                    invoice: invoice,
+                    invoice_item: invoice_item,
+                    payment_intent: payment_intent,
                 },
             });
         } catch (error) {
@@ -5545,8 +5563,23 @@ class Server {
         }
 
         // Parse the failed status.
-        if (refund.status === "failed") {
-            refund.failure_description = this._stripe_parse_refund_failure_reason(refund.failure_reason);
+        this._stripe_parse_refund(refund);
+
+        // Update the line item's metadata to set the refund id.
+        // This status will be updated by the webhook.
+        // Therefore the `Server.get_products()` can indicate if the payment was already refunded and add the status.
+        else {
+            try {
+                await this.stripe.invoiceItems.update(invoice_item, {
+                    metadata: {
+                        refund: refund.id,
+                        refund_status: refund.status,
+                        refund_status_description: refund.status_description,
+                    }
+                });
+            } catch (error) {
+                throw new StripeError(error.message); // since the default stripe errors do not have a stacktrace.
+            }
         }
 
         // Return the refund info.

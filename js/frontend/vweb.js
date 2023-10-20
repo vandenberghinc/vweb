@@ -7105,6 +7105,81 @@ vweb.elements.register(PhoneNumberInputElement);
 function PhoneNumberInput(...args){return new PhoneNumberInputElement(...args);}
 
 
+class ExtendedInputElement extends VStackElement{
+static default_style={
+...VStackElement.default_style,
+"color":"inherit",
+"font-size":"16px",
+"--input-padding":"12px",
+"--input-border-radius":"5px",
+"--input-border":"1px solid gray",
+"--focus-color":"#8EB8EB",
+};
+constructor({
+placeholder="Input",
+readonly=false,
+type=Input,
+}={}){
+super();
+this.base_element_type="LabeledInput";
+this._focus_color=ExtendedInputElement.default_style["--focus-color"];
+this.styles(ExtendedInputElement.default_style);
+this.input=type(placeholder)
+.parent(this)
+.color("inherit")
+.readonly(readonly)
+.font_size("inherit")
+.padding(ExtendedInputElement.default_style["--input-padding"])
+.margin(0)
+.border_radius(ExtendedInputElement.default_style["--input-border-radius"])
+.border(ExtendedInputElement.default_style["--input-border"])
+.width("100%")
+.stretch(true)
+.transition("outline 0.2s ease-in-out, box-shadow 0.2s ease-in-out")
+.on_focus((element)=>{
+element.outline(`1px solid ${this._focus_color}`)
+element.box_shadow(`0 0 0 4px ${this._focus_color}80`)
+})
+.on_blur((element)=>{
+element.outline("none")
+element.box_shadow(`none`)
+})
+this.append(this.input);
+}
+styles(style_dict){
+if(style_dict==null){
+let styles=super.styles();
+styles["--input-padding"]=this.input.padding();
+styles["--input-border-radius"]=this.input.border_radius();
+styles["--input-border"]=this.input.border();
+styles["--focus-color"]=this._focus_color;
+return styles;
+}else{
+return super.styles(style_dict);
+}
+}
+set_default(){
+return super.set_default(ExtendedInputElement);
+}
+focus_color(val){
+if(val==null){return this._focus_color;}
+this._focus_color=val;
+return this;
+}
+value(val){if(val==null){return this.input.value();}this.input.value(val);return this;}
+text(val){if(val==null){return this.input.text();}this.input.text(val);return this;}
+on_enter(val){if(val==null){return this.input.on_enter();}this.input.on_enter(val);return this;}
+on_input(val){if(val==null){return this.input.on_input();}this.input.on_input(val);return this;}
+border(val){if(val==null){return this.input.border();}this.input.border(val);return this;}
+border_radius(val){if(val==null){return this.input.border_radius();}this.input.border_radius(val);return this;}
+border_color(val){if(val==null){return this.input.border_color();}this.input.border_color(val);return this;}
+border_width(val){if(val==null){return this.input.border_width();}this.input.border_width(val);return this;}
+border_style(val){if(val==null){return this.input.border_style();}this.input.border_style(val);return this;}
+}
+vweb.elements.register(ExtendedInputElement);
+function ExtendedInput(...args){return new ExtendedInputElement(...args);}
+
+
 class LabeledInputElement extends VStackElement{
 static default_style={
 ...VStackElement.default_style,
@@ -7680,198 +7755,6 @@ this._payment_element.stripe_element.destroy();
 }
 this._payment_element=null;
 }
-vweb.payments.get_products=async function(){
-return new Promise((resolve,reject)=>{
-if(this._products!==undefined){
-return resolve(this._products);
-}
-vweb.utils.request({
-method:"GET",
-url:"/vweb/backend/payments/products",
-})
-.then((products)=>{
-this._products=products;
-resolve(this._products);
-})
-.catch((err)=>{
-reject(err);
-})
-})
-}
-vweb.payments.get_product=async function(id){
-return new Promise(async(resolve,reject)=>{
-const products=await this.get_products();
-let product;
-products.iterate((p)=>{
-if(p.id===id){
-product=p;
-return true;
-}
-if(p.is_subscription){
-return p.plans.iterate((plan)=>{
-if(plan.id===id){
-product=plan;
-return true;
-}
-});
-}
-})
-if(product==null){
-return reject(`Product "${id}" does not exist.`);
-}
-resolve(product);
-})
-}
-vweb.payments.has_pending_charge=function(){
-return this._client_secret!=null;
-}
-vweb.payments.charge=async function(){
-return new Promise(async(resolve,reject)=>{
-this._client_secret=null;
-this._return_url=null;
-this._payment_elements=null;
-this._payment_element=null;
-if(vweb.payments.cart.items.length===0){
-return reject(new Error("No products were added to the shopping cart."));
-}
-if(this._address_elements==null){
-return reject(new Error("No address element was created using \"vweb.payments.create_address_element()\"."));
-}
-const{error}=await this._address_elements.submit();
-if(error){
-return reject(error);
-}
-const address_info=await this._address_element.stripe_element.getValue();
-this._address=address_info.value;
-if(address_info.complete!==true){
-return reject(new Error("Incomplete address information."));
-}
-try{
-const result=await vweb.utils.request({
-method:"POST",
-url:"/vweb/backend/payments/charge",
-data:{
-cart:vweb.payments.cart.items,
-name:this._address.name,
-phone:this._address.phone,
-address:this._address.address,
-}
-})
-this._client_secret=result.client_secret;
-this._return_url=result.return_url;
-resolve();
-}catch(error){
-return reject(error);
-}
-})
-}
-vweb.payments.confirm_charge=async function(){
-return new Promise(async(resolve,reject)=>{
-if(this._client_secret==null){
-return reject(new Error("No payment intent was created using \"vweb.payments.charge()\" or the shopping cart has been edited after the initial charge."));
-}
-if(this._return_url==null){
-return reject(new Error("No payment intent was created using \"vweb.payments.charge()\"."));
-}
-if(this._payment_element==null){
-return reject(new Error("No payment element was created using \"vweb.payments.create_payment_element()\"."));
-}
-if(this._address==null){
-return reject(new Error("No address element was defined using \"vweb.payments.create_payment_element()\"."));
-}
-this._initialize_stripe();
-const{error}=await this._payment_elements.submit();
-if(error){
-return reject(error);
-}
-let result=await this.stripe.confirmPayment({
-elements:this._payment_elements,
-clientSecret:this._client_secret,
-shipping:{
-name:this._address.name,
-phone:this._address.phone,
-address:this._address.address,
-},
-redirect:"always",
-confirmParams:{
-return_url:this._return_url,
-},
-});
-if(result.error){
-return reject(result.error.message);
-}
-this.cart.clear();
-resolve();
-})
-}
-vweb.payments.charge_status=async function(client_secret){
-return new Promise(async(resolve,reject)=>{
-this._initialize_stripe();
-const result=await this.stripe.retrievePaymentIntent(client_secret);
-if(result.error){
-return reject(response.error);
-}
-let message,charged=false,cancelled=false,processing=false;
-switch(result.paymentIntent.status){
-case "requires_payment_method":
-message="The payment requires a payment method.";
-break;
-case "requires_confirmation":
-message="The payment requires confirmation.";
-break;
-case "requires_action":
-message="The payment requires action.";
-break;
-case "processing":
-processing=true;
-message="The payment is still processing.";
-break;
-case "requires_capture":
-message="The payment requires capture.";
-break;
-case "canceled":
-cancelled=true;
-message="The payment has been cancelled.";
-break;
-case "succeeded":
-charged=true;
-message="The payment has succeeded.";
-break;
-}
-resolve({
-status:result.paymentIntent.status,
-charged:charged,
-cancelled:cancelled,
-processing:processing,
-message:message,
-payment_intent:result.paymentIntent,
-});
-})
-}
-vweb.payments.create_address_element=function(mode="billing"){
-if(this._address_element!=null){
-return this._address_element;
-}
-this._initialize_stripe();
-this._initialize_address_elements();
-this._address_element=VStack();
-this._address_element.stripe_element=this._address_elements.create("address",{
-mode:mode,
-});
-this._address_element.stripe_element.mount(this._address_element);
-return this._address_element;
-}
-vweb.payments.create_payment_element=function(){
-if(this._payment_element!=null){
-return this._payment_element;
-}
-this._initialize_stripe();
-this._initialize_payment_elements();
-this._payment_element=VStack();
-this._payment_element.stripe_element=this._payment_elements.create("payment");
-this._payment_element.stripe_element.mount(this._payment_element);
-return this._payment_element;
-}
 vweb.payments.get_currency_symbol=function(currency){
 switch(currency.toLowerCase()){
 case "aed":return "د.إ";
@@ -8030,6 +7913,252 @@ case "zar":return "R";
 case "zmw":return "ZK";
 }
 return null;
+}
+vweb.payments.get_products=async function(){
+return new Promise((resolve,reject)=>{
+if(this._products!==undefined){
+return resolve(this._products);
+}
+vweb.utils.request({
+method:"GET",
+url:"/vweb/backend/payments/products",
+})
+.then((products)=>{
+this._products=products;
+resolve(this._products);
+})
+.catch((err)=>{
+reject(err);
+})
+})
+}
+vweb.payments.get_product=async function(id){
+return new Promise(async(resolve,reject)=>{
+const products=await this.get_products();
+let product;
+products.iterate((p)=>{
+if(p.id===id){
+product=p;
+return true;
+}
+if(p.is_subscription){
+return p.plans.iterate((plan)=>{
+if(plan.id===id){
+product=plan;
+return true;
+}
+});
+}
+})
+if(product==null){
+return reject(`Product "${id}" does not exist.`);
+}
+resolve(product);
+})
+}
+vweb.payments.get_payments=function({status="paid",days=30,limit=null}={}){
+return vweb.utils.request({
+method:"GET",
+url:"/vweb/backend/payments/payments",
+data:{
+status:status,
+days:days,
+limit:limit,
+},
+});
+}
+vweb.payments.get_subscriptions=function(){
+return vweb.utils.request({
+method:"GET",
+url:"/vweb/backend/payments/subscriptions",
+});
+}
+vweb.payments.is_subscribed=function(id){
+return vweb.utils.request({
+method:"POST",
+url:"/vweb/backend/payments/subscribed",
+data:{
+product:id,
+}
+});
+}
+vweb.payments.cancel_subscription=function(id){
+return vweb.utils.request({
+method:"DELETE",
+url:"/vweb/backend/payments/subscription",
+data:{
+product:id,
+}
+});
+}
+vweb.payments.get_refundable_payments=function({days=30,limit=null}={}){
+return vweb.utils.request({
+method:"GET",
+url:"/vweb/backend/payments/refundable",
+data:{
+days:days,
+limit:limit,
+},
+});
+}
+vweb.payments.create_refund=function(payment){
+return vweb.utils.request({
+method:"POST",
+url:"/vweb/backend/payments/refund",
+data:{
+payment:payment,
+},
+});
+}
+vweb.payments.create_address_element=function(mode="billing"){
+if(this._address_element!=null){
+return this._address_element;
+}
+this._initialize_stripe();
+this._initialize_address_elements();
+this._address_element=VStack();
+this._address_element.stripe_element=this._address_elements.create("address",{
+mode:mode,
+});
+this._address_element.stripe_element.mount(this._address_element);
+return this._address_element;
+}
+vweb.payments.create_payment_element=function(){
+if(this._payment_element!=null){
+return this._payment_element;
+}
+this._initialize_stripe();
+this._initialize_payment_elements();
+this._payment_element=VStack();
+this._payment_element.stripe_element=this._payment_elements.create("payment");
+this._payment_element.stripe_element.mount(this._payment_element);
+return this._payment_element;
+}
+vweb.payments.has_pending_charge=function(){
+return this._client_secret!=null;
+}
+vweb.payments.charge=async function(){
+return new Promise(async(resolve,reject)=>{
+this._client_secret=null;
+this._return_url=null;
+this._payment_elements=null;
+this._payment_element=null;
+if(vweb.payments.cart.items.length===0){
+return reject(new Error("No products were added to the shopping cart."));
+}
+if(this._address_elements==null){
+return reject(new Error("No address element was created using \"vweb.payments.create_address_element()\"."));
+}
+const{error}=await this._address_elements.submit();
+if(error){
+return reject(error);
+}
+const address_info=await this._address_element.stripe_element.getValue();
+this._address=address_info.value;
+if(address_info.complete!==true){
+return reject(new Error("Incomplete address information."));
+}
+try{
+const result=await vweb.utils.request({
+method:"POST",
+url:"/vweb/backend/payments/charge",
+data:{
+cart:vweb.payments.cart.items,
+name:this._address.name,
+phone:this._address.phone,
+address:this._address.address,
+}
+})
+this._client_secret=result.client_secret;
+this._return_url=result.return_url;
+resolve();
+}catch(error){
+return reject(error);
+}
+})
+}
+vweb.payments.confirm_charge=async function(){
+return new Promise(async(resolve,reject)=>{
+if(this._client_secret==null){
+return reject(new Error("No payment intent was created using \"vweb.payments.charge()\" or the shopping cart has been edited after the initial charge."));
+}
+if(this._return_url==null){
+return reject(new Error("No payment intent was created using \"vweb.payments.charge()\"."));
+}
+if(this._payment_element==null){
+return reject(new Error("No payment element was created using \"vweb.payments.create_payment_element()\"."));
+}
+if(this._address==null){
+return reject(new Error("No address element was defined using \"vweb.payments.create_payment_element()\"."));
+}
+this._initialize_stripe();
+const{error}=await this._payment_elements.submit();
+if(error){
+return reject(error);
+}
+let result=await this.stripe.confirmPayment({
+elements:this._payment_elements,
+clientSecret:this._client_secret,
+shipping:{
+name:this._address.name,
+phone:this._address.phone,
+address:this._address.address,
+},
+redirect:"always",
+confirmParams:{
+return_url:this._return_url,
+},
+});
+if(result.error){
+return reject(result.error.message);
+}
+this.cart.clear();
+resolve();
+})
+}
+vweb.payments.charge_status=async function(client_secret){
+return new Promise(async(resolve,reject)=>{
+this._initialize_stripe();
+const result=await this.stripe.retrievePaymentIntent(client_secret);
+if(result.error){
+return reject(response.error);
+}
+let message,charged=false,cancelled=false,processing=false;
+switch(result.paymentIntent.status){
+case "requires_payment_method":
+message="The payment requires a payment method.";
+break;
+case "requires_confirmation":
+message="The payment requires confirmation.";
+break;
+case "requires_action":
+message="The payment requires action.";
+break;
+case "processing":
+processing=true;
+message="The payment is still processing.";
+break;
+case "requires_capture":
+message="The payment requires capture.";
+break;
+case "canceled":
+cancelled=true;
+message="The payment has been cancelled.";
+break;
+case "succeeded":
+charged=true;
+message="The payment has succeeded.";
+break;
+}
+resolve({
+status:result.paymentIntent.status,
+charged:charged,
+cancelled:cancelled,
+processing:processing,
+message:message,
+payment_intent:result.paymentIntent,
+});
+})
 }
 vweb.payments.cart={};
 vweb.payments.cart.refresh=function(){

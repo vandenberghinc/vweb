@@ -156,6 +156,108 @@ class PhoneNumberInputElement extends CreateVElementClass({
 	
 }
 
+// Extended input.
+@vweb_constructor_wrapper
+@vweb_register_element
+class ExtendedInputElement extends VStackElement {
+
+	// Default styling.
+	// static default_style = Object.assign({}, HStackElement.default_style, {
+	static default_style = {
+		...VStackElement.default_style,
+		"color": "inherit",
+		"font-size": "16px",
+		// Custom.
+		"--input-padding": "12px",
+		"--input-border-radius": "5px",
+		"--input-border": "1px solid gray",
+		"--focus-color": "#8EB8EB",
+	};
+
+	// Constructor.
+	constructor({
+		placeholder = "Input",
+		readonly = false,
+		type = Input,
+	} = {}) {
+
+		// Initialize super.
+		super();
+
+		// Attributes.
+		this.base_element_type = "LabeledInput";
+		this._focus_color = ExtendedInputElement.default_style["--focus-color"];
+
+		// Set default styling.
+		this.styles(ExtendedInputElement.default_style);
+
+		// Input element.
+		this.input = type(placeholder)
+			.parent(this)
+			.color("inherit")
+			.readonly(readonly)
+			.font_size("inherit")
+			.padding(ExtendedInputElement.default_style["--input-padding"])
+			.margin(0)
+			.border_radius(ExtendedInputElement.default_style["--input-border-radius"])
+			.border(ExtendedInputElement.default_style["--input-border"])
+			.width("100%")
+			.stretch(true)
+			.transition("outline 0.2s ease-in-out, box-shadow 0.2s ease-in-out")
+			.on_focus((element) => {
+				element.outline(`1px solid ${this._focus_color}`)
+				element.box_shadow(`0 0 0 4px ${this._focus_color}80`)
+			})
+			.on_blur((element) => {
+				element.outline("none")
+				element.box_shadow(`none`)
+			})
+
+		// Append.
+		this.append(this.input);
+	}
+
+	// Get the styling attributes.
+	// The values of the children that may have been changed by the custom funcs should be added.
+	styles(style_dict) {
+		if (style_dict == null) {
+			let styles = super.styles();
+			styles["--input-padding"] = this.input.padding();
+			styles["--input-border-radius"] = this.input.border_radius();
+			styles["--input-border"] = this.input.border();
+			styles["--focus-color"] = this._focus_color;
+			return styles;
+		} else {
+			return super.styles(style_dict);
+		}
+	}
+
+	// Set default since it inherits an element.
+	set_default() {
+		return super.set_default(ExtendedInputElement);
+	}
+
+	// Set the focus color.
+	focus_color(val) {
+		if (val == null) { return this._focus_color; }
+		this._focus_color = val;
+		return this;
+	}
+
+	// ---------------------------------------------------------
+	// Relay functions.
+
+	value(val) { if (val == null) { return this.input.value(); } this.input.value(val); return this; }
+	text(val) { if (val == null) { return this.input.text(); } this.input.text(val); return this; }
+	on_enter(val) { if (val == null) { return this.input.on_enter(); } this.input.on_enter(val); return this; }
+	on_input(val) { if (val == null) { return this.input.on_input(); } this.input.on_input(val); return this; }
+	border(val) { if (val == null) { return this.input.border(); } this.input.border(val); return this; }
+	border_radius(val) { if (val == null) { return this.input.border_radius(); } this.input.border_radius(val); return this; }
+	border_color(val) { if (val == null) { return this.input.border_color(); } this.input.border_color(val); return this; }
+	border_width(val) { if (val == null) { return this.input.border_width(); } this.input.border_width(val); return this; }
+	border_style(val) { if (val == null) { return this.input.border_style(); } this.input.border_style(val); return this; }
+}
+
 // Labeled input.
 @vweb_constructor_wrapper
 @vweb_register_element

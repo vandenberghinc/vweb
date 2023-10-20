@@ -75,6 +75,178 @@ vweb.payments._reset = function() {
 	this._payment_element = null;
 }
 
+// Get the currency symbol for a product currency.
+// Returns `null` when the currency is not supported.
+/* 	@docs:
+ * 	@chapter: Client
+ * 	@title: Get Currency Symbol
+ *	@description: Get the currency symbol for a product currency.
+ *	@type: string, null
+ *	@return: Returns the currency symbol when the currency is supported, otherwise `null`
+ *	@param:
+ * 		@name: currency
+ *		@description: The currency from the product object.
+ */
+vweb.payments.get_currency_symbol = function(currency) {
+	switch (currency.toLowerCase()) {
+		case "aed": return "د.إ";
+    	case "afn": return "Af";
+    	case "all": return "L";
+    	case "amd": return "֏";
+    	case "ang": return "ƒ";
+    	case "aoa": return "Kz";
+    	case "ars": return "$";
+    	case "aud": return "$";
+    	case "awg": return "ƒ";
+    	case "azn": return "₼";
+    	case "bam": return "KM";
+    	case "bbd": return "Bds$";
+    	case "bdt": return "৳";
+    	case "bgn": return "лв";
+    	case "bhd": return ".د.ب";
+    	case "bif": return "FBu";
+    	case "bmd": return "BD$";
+    	case "bnd": return "B$";
+    	case "bob": return "Bs";
+    	case "brl": return "R$";
+    	case "bsd": return "B$";
+    	case "btn": return "Nu.";
+    	case "bwp": return "P";
+    	case "byn": return "Br";
+    	case "bzd": return "BZ$";
+    	case "cad": return "$";
+    	case "cdf": return "FC";
+    	case "chf": return "Fr";
+    	case "clf": return "UF";
+    	case "clp": return "$";
+    	case "cny": return "¥";
+    	case "cop": return "$";
+    	case "crc": return "₡";
+    	case "cuc": return "CUC$";
+    	case "cup": return "CUP$";
+    	case "cve": return "$";
+    	case "czk": return "Kč";
+    	case "djf": return "Fdj";
+    	case "dkk": return "kr";
+    	case "dop": return "RD$";
+    	case "dzd": return "دج";
+    	case "egp": return "E£";
+    	case "ern": return "Nfk";
+    	case "etb": return "Br";
+    	case "eur": return "€";
+    	case "fjd": return "FJ$";
+    	case "fkp": return "£";
+    	case "fok": return "F$";
+    	case "gbp": return "£";
+    	case "gel": return "₾";
+    	case "ghc": return "₵";
+    	case "gip": return "£";
+    	case "gmd": return "D";
+    	case "gnf": return "FG";
+    	case "gtq": return "Q";
+    	case "gyd": return "GY$";
+    	case "hkd": return "HK$";
+    	case "hnl": return "L";
+    	case "hrk": return "kn";
+    	case "htg": return "G";
+    	case "huf": return "Ft";
+    	case "idr": return "Rp";
+    	case "ils": return "₪";
+    	case "inr": return "₹";
+    	case "iqd": return "د.ع";
+    	case "irr": return "﷼";
+    	case "isk": return "kr";
+    	case "jmd": return "J$";
+    	case "jod": return "JD";
+    	case "jpy": return "¥";
+    	case "kes": return "Ksh";
+    	case "kgs": return "с";
+    	case "khr": return "៛";
+    	case "kmf": return "CF";
+    	case "kpw": return "₩";
+    	case "krw": return "₩";
+    	case "kwd": return "KD";
+    	case "kyd": return "CI$";
+    	case "kzt": return "₸";
+    	case "lak": return "₭";
+    	case "lbp": return "L£";
+    	case "lkr": return "Rs";
+    	case "lrd": return "L$";
+    	case "lsl": return "L";
+    	case "lyd": return "ل.د";
+    	case "mad": return "د.م.";
+    	case "mdl": return "L";
+    	case "mnt": return "₮";
+    	case "mop": return "MOP$";
+    	case "mur": return "Rs";
+    	case "mvr": return "Rf";
+    	case "mwk": return "MK";
+    	case "mxn": return "$";
+    	case "myr": return "RM";
+    	case "mzn": return "MTn";
+    	case "nad": return "N$";
+    	case "ngn": return "₦";
+    	case "nio": return "C$";
+    	case "nok": return "kr";
+    	case "npr": return "रू";
+    	case "nzd": return "$";
+    	case "omr": return "ر.ع.";
+    	case "pab": return "B/.";
+    	case "pen": return "S/.";
+    	case "pgk": return "K";
+    	case "php": return "₱";
+    	case "pkr": return "Rs";
+    	case "pln": return "zł";
+    	case "pyg": return "₲";
+    	case "qar": return "ر.ق";
+    	case "ron": return "lei";
+    	case "rsd": return "din.";
+    	case "rub": return "₽";
+    	case "rwf": return "FRw";
+    	case "sar": return "ر.س";
+    	case "sbd": return "SI$";
+    	case "scr": return "Sr";
+    	case "sdg": return "ج.س.";
+    	case "sek": return "kr";
+    	case "sgd": return "S$";
+    	case "shp": return "£";
+    	case "sll": return "Le";
+    	case "sos": return "S";
+    	case "srd": return "SRD$";
+    	case "ssp": return "£";
+    	case "std": return "Db";
+    	case "sek": return "kr";
+    	case "syp": return "S£";
+    	case "szl": return "L";
+    	case "thb": return "฿";
+    	case "tjs": return "ЅМ";
+    	case "tmt": return "m";
+    	case "tnd": return "د.ت";
+    	case "top": return "T$";
+    	case "try": return "₺";
+    	case "ttd": return "TT$";
+    	case "twd": return "NT$";
+    	case "tzs": return "TSh";
+    	case "uah": return "₴";
+    	case "ugx": return "USh";
+    	case "usd": return "$";
+    	case "uyu": return "$U";
+    	case "uzs": return "лв";
+    	case "ves": return "Bs.S.";
+    	case "vnd": return "₫";
+    	case "vuv": return "VT";
+    	case "wst": return "WS$";
+    	case "xaf": return "FCFA";
+    	case "xcd": return "EC$";
+    	case "xof": return "CFA";
+    	case "xpf": return "CFP";
+    	case "yer": return "﷼";
+    	case "zar": return "R";
+    	case "zmw": return "ZK";
+	}
+	return null;
+}
+
 // Fetch the payment products.
 /* 	@docs:
  * 	@chapter: Client
@@ -133,6 +305,254 @@ vweb.payments.get_product = async function(id) {
 		}
 		resolve(product);
 	})
+}
+
+// Get the user's payments.
+/* 	@docs:
+ * 	@chapter: Client
+ * 	@title: Get Payments
+ *	@description: Get the user's made payments.
+ *	@type: Promise
+ *  @return:
+ *      Returns a promise to a list of payments or a rejection with an error.
+ *
+ *      A payment product has the following attributes:
+ *      ```js
+ *      {
+ *          timestamp: <number>,            // the unix timestamp in seconds of the purchase.
+ *          product: <object>,              // the user defined product that was purchased.
+ *          quantity: <number>,             // the quantity of the purchased product.
+ *          amount: <number>,               // the total charged amount by this purchase.
+ *          refund: {                       // the refund object when a refund request has been made. This value will be `null` when no refund request has been made for this payment.
+ *              id: <string>,               // the id of the refund request.
+ *              status: <string>,           // the status of the refund request, the status can be "processing", "succeeded", "failed", "requires_action", "canceled".
+ *              description: <string>,      // the status description of the refund request.
+ *          },
+ *          pdf: <string>,                  // the url string to the pdf download link.
+ *          invoice: <string>,              // the invoice's id of the purchase.
+ *          invoice_item: <string>,         // the invoice item's id of the purchase.
+ *          payment_intent: <string>,       // the payment intent's id of the purchase.
+ *      }
+ *      ```
+ *  @parameter:
+ *      @name: status
+ *      @description: Filter the list by status, possible values are `[null, "draft", "open", "void", "paid", "uncollectible"]`.
+ *      @type: null, string
+ *  @parameter:
+ *      @name: days
+ *      @description: Since the amount of last days back, so `days: 30` will retrieve the payments of the last 30 days.
+ *      @type: null, number
+ *  @parameter:
+ *      @name: refunded
+ *      @description: Include the payments for which a refund has been requested.
+ *      @type: boolean
+ *  @parameter:
+ *      @name: limit
+ *      @description: A limit on the number of objects to be returned. Leave the limit `null` to disable the limit.
+ *      @type: null, number
+ */
+vweb.payments.get_payments = function({status = "paid", days = 30, refunded = true, limit = null} = {}) {
+	return vweb.utils.request({
+		method: "GET",
+		url: "/vweb/backend/payments/payments",
+		data: {
+			status: status,
+			days: days,
+			refunded: refunded,
+			limit: limit,
+		},
+	});
+}
+
+// Get the user's subscriptions.
+/* 	@docs:
+ * 	@chapter: Client
+ * 	@title: Get Subscriptions
+ *	@description: Get the user's active subscription id's.
+ *	@type: Promise
+ *	@return: Returns a promise to the list of product id's the user is subscribed.
+ */
+vweb.payments.get_subscriptions = function() {
+	return vweb.utils.request({
+		method: "GET",
+		url: "/vweb/backend/payments/subscriptions",
+	});
+}
+
+// Is subscribed
+/* 	@docs:
+ * 	@chapter: Client
+ * 	@title: Is Subscribed
+ *	@description: Check if the user is subscribed to a certain product.
+ *	@type: Promise
+ *	@return: Returns a promise to a an object holding boolean attribute `subscribed` indicating if the user is subscribed to the product or not.
+ *  @parameter:
+ *      @name: id
+ *      @description: The id of product to check.
+ *      @type: string
+ */
+vweb.payments.is_subscribed = function(id) {
+	return vweb.utils.request({
+		method: "POST",
+		url: "/vweb/backend/payments/subscribed",
+		data: {
+			product: id,
+		}
+	});
+}
+
+// Cancel subscription
+/* 	@docs:
+ * 	@chapter: Client
+ * 	@title: Cancel Subscription
+ *	@description: Cancel an active subscription of a product. 
+ *  @parameter:
+ *      @name: id
+ *      @description: The product's plan id of the user defined subscription product.
+ *      @type: string
+ *      @required: true
+ */
+vweb.payments.cancel_subscription = function(id) {
+	return vweb.utils.request({
+		method: "DELETE",
+		url: "/vweb/backend/payments/subscription",
+		data: {
+			product: id,
+		}
+	});
+}
+
+// Get the user's refundable payments.
+/* 	@docs:
+ * 	@chapter: Client
+ * 	@title: Get Refundable Payments
+ *	@description: Get the user's refundable payments.
+ *	@type: Promise
+ *  @return:
+ *      Returns a promise to a list of refundable payments or a rejection with an error.
+ *
+ *      A payment product has the following attributes:
+ *      ```js
+ *      {
+ *          timestamp: <number>,            // the unix timestamp in seconds of the purchase.
+ *          product: <object>,              // the user defined product that was purchased.
+ *          quantity: <number>,             // the quantity of the purchased product.
+ *          amount: <number>,               // the total charged amount by this purchase.
+ *          refund: {                       // the refund object when a refund request has been made. This value will be `null` when no refund request has been made for this payment.
+ *              id: <string>,               // the id of the refund request.
+ *              status: <string>,           // the status of the refund request, the status can be "processing", "succeeded", "failed", "requires_action", "canceled".
+ *              description: <string>,      // the status description of the refund request.
+ *          },
+ *          pdf: <string>,                  // the url string to the pdf download link.
+ *          invoice: <string>,              // the invoice's id of the purchase.
+ *          invoice_item: <string>,         // the invoice item's id of the purchase.
+ *          payment_intent: <string>,       // the payment intent's id of the purchase.
+ *      }
+ *      ```
+ *  @parameter:
+ *      @name: days
+ *      @description: The number of days for which the payment is still refundable.
+ *      @type: null, number
+ *  @parameter:
+ *      @name: refunded
+ *      @description: Include the payments for which a refund has been requested.
+ *      @type: boolean
+ *  @parameter:
+ *      @name: limit
+ *      @description: A limit on the number of objects to be returned. The limit can range between 1 and 100, the default is 100.
+ *      @type: number
+ */
+vweb.payments.get_refundable_payments = function({days = 30, refunded = true, limit = null} = {}) {
+	return vweb.utils.request({
+		method: "GET",
+		url: "/vweb/backend/payments/refundable",
+		data: {
+			days: days,
+			refunded: refunded,
+			limit: limit,
+		},
+	});
+}
+
+// Create a refund.
+/* 	@docs:
+ * 	@chapter: Client
+ * 	@title: Create Refund
+ *	@description: Create a refund payment request for a certain payment from `vweb.payments.get_refundable_payments`.
+ *	@type: Promise
+ *	@return: Returns a promise to the list of refundable payments. The payment objects are the same as `Server.get_refundable_payments()`.
+ */
+vweb.payments.create_refund = function(payment) {
+	return vweb.utils.request({
+		method: "POST",
+		url: "/vweb/backend/payments/refund",
+		data: {
+			payment: payment,
+		},
+	});
+}
+
+// Create a address element.
+/* 	@docs:
+ * 	@chapter: Client
+ * 	@title: Create Address Element
+ *	@description: Create an address element to collect the payment's address details.
+ *	@warning: This element should be created each time the page renders or updated after a shopping cart update. This function automatically returns the cached element when this function has been called twice without any updates to the shopping cart.
+ *	@param:
+ * 		@name: billing
+ *		@description: The address mode either `"billing"` or `"shipping"`.
+ */
+vweb.payments.create_address_element = function(mode = "billing") {
+
+	// Return the already created object.
+	if (this._address_element != null) {
+		return this._address_element;
+	}
+
+	// Initialize stripe.
+	this._initialize_stripe();
+
+	// Initialize the elements.
+	this._initialize_address_elements();
+
+	// Create the stack and mount the stripe object.
+	this._address_element = VStack();
+	this._address_element.stripe_element = this._address_elements.create("address", {
+		mode: mode,
+	});
+	this._address_element.stripe_element.mount(this._address_element);
+
+	// Return the mounted element.
+	return this._address_element;
+}
+
+// Create a payment element.
+/* 	@docs:
+ * 	@chapter: Client
+ * 	@title: Create Payment Element
+ *	@description: Create a payment element to collect the payment details.
+ *	@warning: This element should be created each time the page renders or updated after a shopping cart update. This function automatically returns the cached element when this function has been called twice without any updates to the shopping cart.
+ */
+vweb.payments.create_payment_element = function() {
+
+	// Return the already created object.
+	if (this._payment_element != null) {
+		return this._payment_element;
+	}
+
+	// Initialize stripe.
+	this._initialize_stripe();
+
+	// Initialize the elements.
+	this._initialize_payment_elements();
+
+	// Create the stack and mount the stripe object.
+	this._payment_element = VStack();
+	this._payment_element.stripe_element = this._payment_elements.create("payment");
+	this._payment_element.stripe_element.mount(this._payment_element);
+
+	// Return the mounted element.
+	return this._payment_element;
 }
 
 // Create a payment element.
@@ -358,241 +778,6 @@ vweb.payments.charge_status = async function(client_secret) {
 			payment_intent: result.paymentIntent,
 		});
 	})
-}
-
-// Create a address element.
-/* 	@docs:
- * 	@chapter: Client
- * 	@title: Create Address Element
- *	@description: Create an address element to collect the payment's address details.
- *	@warning: This element should be created each time the page renders or updated after a shopping cart update. This function automatically returns the cached element when this function has been called twice without any updates to the shopping cart.
- *	@param:
- * 		@name: billing
- *		@description: The address mode either `"billing"` or `"shipping"`.
- */
-vweb.payments.create_address_element = function(mode = "billing") {
-
-	// Return the already created object.
-	if (this._address_element != null) {
-		return this._address_element;
-	}
-
-	// Initialize stripe.
-	this._initialize_stripe();
-
-	// Initialize the elements.
-	this._initialize_address_elements();
-
-	// Create the stack and mount the stripe object.
-	this._address_element = VStack();
-	this._address_element.stripe_element = this._address_elements.create("address", {
-		mode: mode,
-	});
-	this._address_element.stripe_element.mount(this._address_element);
-
-	// Return the mounted element.
-	return this._address_element;
-}
-
-// Create a payment element.
-/* 	@docs:
- * 	@chapter: Client
- * 	@title: Create Payment Element
- *	@description: Create a payment element to collect the payment details.
- *	@warning: This element should be created each time the page renders or updated after a shopping cart update. This function automatically returns the cached element when this function has been called twice without any updates to the shopping cart.
- */
-vweb.payments.create_payment_element = function() {
-
-	// Return the already created object.
-	if (this._payment_element != null) {
-		return this._payment_element;
-	}
-
-	// Initialize stripe.
-	this._initialize_stripe();
-
-	// Initialize the elements.
-	this._initialize_payment_elements();
-
-	// Create the stack and mount the stripe object.
-	this._payment_element = VStack();
-	this._payment_element.stripe_element = this._payment_elements.create("payment");
-	this._payment_element.stripe_element.mount(this._payment_element);
-
-	// Return the mounted element.
-	return this._payment_element;
-}
-
-// Get the currency symbol for a product currency.
-// Returns `null` when the currency is not supported.
-/* 	@docs:
- * 	@chapter: Client
- * 	@title: Get Currency Symbol
- *	@description: Get the currency symbol for a product currency.
- *	@type: string, null
- *	@return: Returns the currency symbol when the currency is supported, otherwise `null`
- *	@param:
- * 		@name: currency
- *		@description: The currency from the product object.
- */
-vweb.payments.get_currency_symbol = function(currency) {
-	switch (currency.toLowerCase()) {
-		case "aed": return "د.إ";
-    	case "afn": return "Af";
-    	case "all": return "L";
-    	case "amd": return "֏";
-    	case "ang": return "ƒ";
-    	case "aoa": return "Kz";
-    	case "ars": return "$";
-    	case "aud": return "$";
-    	case "awg": return "ƒ";
-    	case "azn": return "₼";
-    	case "bam": return "KM";
-    	case "bbd": return "Bds$";
-    	case "bdt": return "৳";
-    	case "bgn": return "лв";
-    	case "bhd": return ".د.ب";
-    	case "bif": return "FBu";
-    	case "bmd": return "BD$";
-    	case "bnd": return "B$";
-    	case "bob": return "Bs";
-    	case "brl": return "R$";
-    	case "bsd": return "B$";
-    	case "btn": return "Nu.";
-    	case "bwp": return "P";
-    	case "byn": return "Br";
-    	case "bzd": return "BZ$";
-    	case "cad": return "$";
-    	case "cdf": return "FC";
-    	case "chf": return "Fr";
-    	case "clf": return "UF";
-    	case "clp": return "$";
-    	case "cny": return "¥";
-    	case "cop": return "$";
-    	case "crc": return "₡";
-    	case "cuc": return "CUC$";
-    	case "cup": return "CUP$";
-    	case "cve": return "$";
-    	case "czk": return "Kč";
-    	case "djf": return "Fdj";
-    	case "dkk": return "kr";
-    	case "dop": return "RD$";
-    	case "dzd": return "دج";
-    	case "egp": return "E£";
-    	case "ern": return "Nfk";
-    	case "etb": return "Br";
-    	case "eur": return "€";
-    	case "fjd": return "FJ$";
-    	case "fkp": return "£";
-    	case "fok": return "F$";
-    	case "gbp": return "£";
-    	case "gel": return "₾";
-    	case "ghc": return "₵";
-    	case "gip": return "£";
-    	case "gmd": return "D";
-    	case "gnf": return "FG";
-    	case "gtq": return "Q";
-    	case "gyd": return "GY$";
-    	case "hkd": return "HK$";
-    	case "hnl": return "L";
-    	case "hrk": return "kn";
-    	case "htg": return "G";
-    	case "huf": return "Ft";
-    	case "idr": return "Rp";
-    	case "ils": return "₪";
-    	case "inr": return "₹";
-    	case "iqd": return "د.ع";
-    	case "irr": return "﷼";
-    	case "isk": return "kr";
-    	case "jmd": return "J$";
-    	case "jod": return "JD";
-    	case "jpy": return "¥";
-    	case "kes": return "Ksh";
-    	case "kgs": return "с";
-    	case "khr": return "៛";
-    	case "kmf": return "CF";
-    	case "kpw": return "₩";
-    	case "krw": return "₩";
-    	case "kwd": return "KD";
-    	case "kyd": return "CI$";
-    	case "kzt": return "₸";
-    	case "lak": return "₭";
-    	case "lbp": return "L£";
-    	case "lkr": return "Rs";
-    	case "lrd": return "L$";
-    	case "lsl": return "L";
-    	case "lyd": return "ل.د";
-    	case "mad": return "د.م.";
-    	case "mdl": return "L";
-    	case "mnt": return "₮";
-    	case "mop": return "MOP$";
-    	case "mur": return "Rs";
-    	case "mvr": return "Rf";
-    	case "mwk": return "MK";
-    	case "mxn": return "$";
-    	case "myr": return "RM";
-    	case "mzn": return "MTn";
-    	case "nad": return "N$";
-    	case "ngn": return "₦";
-    	case "nio": return "C$";
-    	case "nok": return "kr";
-    	case "npr": return "रू";
-    	case "nzd": return "$";
-    	case "omr": return "ر.ع.";
-    	case "pab": return "B/.";
-    	case "pen": return "S/.";
-    	case "pgk": return "K";
-    	case "php": return "₱";
-    	case "pkr": return "Rs";
-    	case "pln": return "zł";
-    	case "pyg": return "₲";
-    	case "qar": return "ر.ق";
-    	case "ron": return "lei";
-    	case "rsd": return "din.";
-    	case "rub": return "₽";
-    	case "rwf": return "FRw";
-    	case "sar": return "ر.س";
-    	case "sbd": return "SI$";
-    	case "scr": return "Sr";
-    	case "sdg": return "ج.س.";
-    	case "sek": return "kr";
-    	case "sgd": return "S$";
-    	case "shp": return "£";
-    	case "sll": return "Le";
-    	case "sos": return "S";
-    	case "srd": return "SRD$";
-    	case "ssp": return "£";
-    	case "std": return "Db";
-    	case "sek": return "kr";
-    	case "syp": return "S£";
-    	case "szl": return "L";
-    	case "thb": return "฿";
-    	case "tjs": return "ЅМ";
-    	case "tmt": return "m";
-    	case "tnd": return "د.ت";
-    	case "top": return "T$";
-    	case "try": return "₺";
-    	case "ttd": return "TT$";
-    	case "twd": return "NT$";
-    	case "tzs": return "TSh";
-    	case "uah": return "₴";
-    	case "ugx": return "USh";
-    	case "usd": return "$";
-    	case "uyu": return "$U";
-    	case "uzs": return "лв";
-    	case "ves": return "Bs.S.";
-    	case "vnd": return "₫";
-    	case "vuv": return "VT";
-    	case "wst": return "WS$";
-    	case "xaf": return "FCFA";
-    	case "xcd": return "EC$";
-    	case "xof": return "CFA";
-    	case "xpf": return "CFP";
-    	case "yer": return "﷼";
-    	case "zar": return "R";
-    	case "zmw": return "ZK";
-	}
-	return null;
 }
 
 // The shopping cart object.
