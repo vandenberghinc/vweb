@@ -879,6 +879,71 @@ class Server {
         this.database.join(`.sys/2fa/${uid}`, false).del_sync();
     }
 
+    // Load user data helper.
+    // Use async to keep it persistent with other functions.
+    _sys_load_user_data(uid, subpath, def, privacy) {
+        // Check uid.
+        this._check_uid_within_range(uid);
+
+        // Check path.
+        if (subpath.indexOf("..") !== -1) {
+            throw Error(`Permission denied (path-injection).`);
+        }
+        const path = this.database.join(`users/${uid}/${privacy}/${subpath}`, false).abs();
+        if (path.str().eq_first(`${this.database}/users/${uid}/${privacy}/`) === false) {
+            throw Error(`Permission denied (path-injection).`);
+        }
+
+        // Does not exist.
+        if (!path.exists()) {
+            if (def !== null) {
+                return def;
+            }
+        }
+
+        // Load data.
+        let data = path.load_sync();
+
+        // Cast data.
+        if (def == null || typeof def === "string") {
+            return data;
+        } else if (typeof def === "boolean") {
+            return data === "true" || data === "1" || data === "True" || data === "TRUE";
+        } else if (typeof def === "number") {
+            return parseFloat(data);
+        } else if (Array.isArray(def)) {
+            return JSON.parse(data);
+        } else if (typeof def === "object") {
+            data = JSON.parse(data);
+            Object.keys(def).iterate((key) => {
+                if (data[key] === undefined) {
+                    data[key] = def[key];
+                }
+            })
+            return data;
+        } else {
+            throw Error(`Invalid data type "${type}", the valid options are ["string", "array", "object"].`);
+        }
+    }
+
+    // Save user data helper.
+    // Use async to keep it persistent with other functions.
+    _sys_save_user_data(uid, subpath, privacy) {
+
+        // Check uid.
+        this._check_uid_within_range(uid);
+
+        // Check path.
+        if (subpath.indexOf("..") !== -1) {
+            throw Error(`Permission denied (path-injection).`);
+        }
+        const path = this.database.join(`users/${uid}/${privacy}/${subpath}`, false).abs();
+        if (path.str().eq_first(`${this.database}/users/${uid}/${privacy}/`) === false) {
+            throw Error(`Permission denied (path-injection).`);
+        }
+        return path;
+    }
+
     // Create a sha hmac with the master key.
     _hmac(data) {
         const hmac = libcrypto.createHmac("sha256", this.hash_key);
@@ -903,7 +968,7 @@ class Server {
     // Perform authentication on a request.
     // When the authentication has failed an args object for response.send will be returned.
     // On a successfull authentication `null` will be returned.
-    _authenticate(request) {
+    async _authenticate(request) {
 
         // // Get api key key from bearer.
         const authorization = request.headers["authorization"];
@@ -928,8 +993,8 @@ class Server {
                 }
                 api_key += c;
             }
-            const uid = this.get_uid_by_api_key(api_key);
-            if (!this.verify_api_key_by_uid(uid, api_key)) {
+            const uid = await this.get_uid_by_api_key(api_key);
+            if (await this.verify_api_key_by_uid(uid, api_key) !== true) {
                 return {
                     status: Status.unauthorized, 
                     data: "Unauthorized.",
@@ -950,8 +1015,8 @@ class Server {
                 };
             }
             const token = request.cookies.T.value;
-            const uid = this.get_uid_by_api_key(token);
-            if (!this.verify_token_by_uid(uid, token)) {
+            const uid = await this.get_uid_by_api_key(token);
+            if (await this.verify_token_by_uid(uid, token) !== true) {
                 return {
                     status: 302, 
                     headers: {"Location": `/signin?next=${request.url}`},
@@ -972,15 +1037,15 @@ class Server {
     }
 
     // Sign a user in and return a response.
-    _sign_in_response(response, uid) {
+    async _sign_in_response(response, uid) {
 
         // Generate token.
         const token = this._generate_token(uid);
         
         // Create headers.
         this._create_token_cookie(response, token);
-        this._create_user_cookie(response, uid);
-        this._create_detailed_user_cookie(response, uid);
+        await this._create_user_cookie(response, uid);
+        await this._create_detailed_user_cookie(response, uid);
             
         // Response.
         response.send({
@@ -1015,10 +1080,10 @@ class Server {
     
     // Create user headers.
     //  - Should be called when a user is authenticated.
-    _create_user_cookie(response, uid) {
+    async _create_user_cookie(response, uid) {
         if (uid != null && uid >= 0 && uid <= this.max_uid) {
             response.set_cookie(`UserID=${uid}; Path=/; SameSite=Strict; Secure;`);
-            const is_activated = this.enable_account_activation ? this.is_activated(uid) : true;
+            const is_activated = this.enable_account_activation ? await this.is_activated(uid) : true;
             response.set_cookie(`UserActivated=${is_activated}; Path=/; SameSite=Strict; Secure;`);
         } else {
             response.set_cookie(`UserID=-1; Path=/; SameSite=Strict; Secure;`);
@@ -1029,8 +1094,8 @@ class Server {
     
     // Create user headers.
     //  - Should be called when a user has just signed in, signed up or changed their account.
-    _create_detailed_user_cookie(response, uid) {
-        const user = this.get_user(uid);
+    async _create_detailed_user_cookie(response, uid) {
+        const user = await this.get_user(uid);
         response.set_cookie(`UserName=${user.username}; Path=/; SameSite=Strict; Secure;`);
         response.set_cookie(`UserFirstName=${user.first_name} Path=/; SameSite=Strict; Secure;`);
         response.set_cookie(`UserLastName=${user.last_name}; Path=/; SameSite=Strict; Secure;`);
@@ -1178,7 +1243,7 @@ class Server {
                 content_type: "application/json",
                 rate_limit: 10,
                 rate_limit_duration: 60,
-                callback: (request, response) => {
+                callback: async (request, response) => {
                     
                     // Get params.
                     let email;
@@ -1190,14 +1255,14 @@ class Server {
                     
                     // Get uid.
                     let uid;
-                    if ((uid = this.get_uid_by_email(email)) == null) {
+                    if ((uid = await this.get_uid_by_email(email)) == null) {
                         return response.success({
                             data: {message: "A 2FA code was sent if the specified email exists."},
                         });
                     }
                     
                     // Send.
-                    this.send_2fa({uid:uid, request:request});
+                    await this.send_2fa({uid:uid, request:request});
                     return response.success({
                         data: {message: "A 2FA code was sent if the specified email exists."},
                     });
@@ -1212,7 +1277,7 @@ class Server {
                 content_type: "application/json",
                 rate_limit: 10,
                 rate_limit_duration: 60,
-                callback: (request, response) => {
+                callback: async (request, response) => {
 
                     // Get params.
                     let email, email_err, username, username_err, password, uid, code;
@@ -1237,14 +1302,14 @@ class Server {
                     
                     // Get uid.
                     if (email) {
-                        if ((uid = this.get_uid_by_email(email)) == null) {
+                        if ((uid = await this.get_uid_by_email(email)) == null) {
                             return response.error({
                                 status: Status.unauthorized,
                                 data: {error: "Unauthorized."}
                             });
                         }
                     } else {
-                        if ((uid = this.get_uid(username)) == null) {
+                        if ((uid = await this.get_uid(username)) == null) {
                             return response.error({
                                 status: Status.unauthorized,
                                 data: {error: "Unauthorized."}
@@ -1253,7 +1318,7 @@ class Server {
                     }
                     
                     // Verify password.
-                    if (this.verify_password(uid, password)) {
+                    if (await this.verify_password(uid, password)) {
                         
                         // Verify 2fa.
                         if (this.enable_2fa) {
@@ -1262,7 +1327,7 @@ class Server {
                             try {
                                 code = request.param("2fa")
                             } catch (err) {
-                                this.send_2fa({uid:uid, request:request});
+                                await this.send_2fa({uid:uid, request:request});
                                 return response.send({
                                     status: Status.two_factor_auth_required,
                                     data: {error: "2FA required."}
@@ -1270,7 +1335,7 @@ class Server {
                             }
 
                             // Verify 2FA.
-                            if (!this.verify_2fa(uid, code)) {
+                            if (await this.verify_2fa(uid, code) !== true) {
                                 return response.send({
                                     status: Status.unauthorized,
                                     data: {error: "Invalid 2FA code."}
@@ -1279,7 +1344,7 @@ class Server {
                         }
                         
                         // Sign in.
-                        return this._sign_in_response(response, uid);
+                        return await this._sign_in_response(response, uid);
                     }
 
                     // Unauthorized.
@@ -1359,11 +1424,11 @@ class Server {
                     
                     // Send 2fa code for activation.
                     if (this.enable_account_activation) {
-                        this.send_2fa({uid:uid, request:request});
+                        await this.send_2fa({uid:uid, request:request});
                     }
                     
                     // Sign in.
-                    return this._sign_in_response(response, uid);
+                    return await this._sign_in_response(response, uid);
                     
                 }
             },
@@ -1375,7 +1440,7 @@ class Server {
                 content_type: "application/json",
                 rate_limit: 10,
                 rate_limit_duration: 60,
-                callback: (request, response) => {
+                callback: async (request, response) => {
                     
                     // Vars.
                     let uid = request.uid;
@@ -1405,13 +1470,13 @@ class Server {
                     }
 
                     // Verify.
-                    if (this.verify_2fa(uid, code)) {
+                    if (await this.verify_2fa(uid, code)) {
                         
                         // Set activated.
-                        this.set_activated(uid, true);
+                        await this.set_activated(uid, true);
                         
                         // Response.
-                        this._create_user_cookie(response, uid);
+                        await this._create_user_cookie(response, uid);
                         return response.success({data: {message: "Successfully verified the 2FA code."}});
                     }
                     
@@ -1429,7 +1494,7 @@ class Server {
                 content_type: "application/json",
                 rate_limit: 10,
                 rate_limit_duration: 60,
-                callback: (request, response) => {
+                callback: async (request, response) => {
                     
                     // Get params.
                     let email, code, pass, verify_pass;
@@ -1449,20 +1514,20 @@ class Server {
                     
                     // Get uid.
                     let uid;
-                    if ((uid = this.get_uid_by_email(email)) == null) {
+                    if ((uid = await this.get_uid_by_email(email)) == null) {
                         return response.error({status: Status.forbidden, data: {error: "Permission denied."},});
                     }
                     
                     // Verify 2fa.
-                    if (!this.verify_2fa(uid, code)) {
+                    if (await this.verify_2fa(uid, code) !== true) {
                         return response.error({status: Status.forbidden, data: {error: "Invalid 2FA code."},});
                     }
                     
                     // Set password.
-                    this.set_password(uid, pass);
+                    await this.set_password(uid, pass);
                     
                     // Sign in.
-                    return this._sign_in_response(response, uid);
+                    return await this._sign_in_response(response, uid);
                 }
             },
         )
@@ -1481,7 +1546,7 @@ class Server {
                 rate_limit: 10,
                 rate_limit_duration: 60,
                 callback: (request, response) => {
-                    return response.success({data: this.get_user(request.uid)});
+                    return response.success({data: await this.get_user(request.uid)});
                 }
             },
 
@@ -1492,9 +1557,9 @@ class Server {
                 authenticated: true,
                 rate_limit: 10,
                 rate_limit_duration: 60,
-                callback: (request, response) => {
-                    this.set_user(request.uid, request.params);
-                    this._create_detailed_user_cookie(response, request.uid);
+                callback: async (request, response) => {
+                    await this.set_user(request.uid, request.params);
+                    await this._create_detailed_user_cookie(response, request.uid);
                     return response.success({data: {message: "Successfully updated your account."}});
                 }
             },
@@ -1506,7 +1571,7 @@ class Server {
                 authenticated: true,
                 rate_limit: 10,
                 rate_limit_duration: 60,
-                callback: (request, response) => {
+                callback: async (request, response) => {
                     
                     // Get params.
                     let current_pass, pass, verify_pass;
@@ -1519,7 +1584,7 @@ class Server {
                     }
                     
                     // Verify old password.
-                    if (!this.verify_password(request.uid, current_pass)) {
+                    if (await this.verify_password(request.uid, current_pass) !== true) {
                         return response.error({
                             status: Status.unauthorized,
                             data: {error: "Incorrect password."},
@@ -1535,7 +1600,7 @@ class Server {
                     }
                     
                     // Set password.
-                    this.set_password(request.uid, pass);
+                    await this.set_password(request.uid, pass);
                     
                     // Success.
                     return response.success({
@@ -1552,11 +1617,11 @@ class Server {
                 authenticated: true,
                 rate_limit: 10,
                 rate_limit_duration: 60,
-                callback: (request, response) => {
+                callback: async (request, response) => {
                     return response.success({
                         data: {
                             "message": "Successfully generated an API key.",
-                            "api_key": this.generate_api_key(request.uid),
+                            "api_key": await this.generate_api_key(request.uid),
                         }
                     });
                 }
@@ -1569,8 +1634,8 @@ class Server {
                 authenticated: true,
                 rate_limit: 10,
                 rate_limit_duration: 60,
-                callback: (request, response) => {
-                    this.revoke_api_key(request.uid);
+                callback: async (request, response) => {
+                    await this.revoke_api_key(request.uid);
                     return response.send({
                         status: Status.success,
                         data: {message: "Successfully revoked your API key."},
@@ -1585,7 +1650,7 @@ class Server {
                 authenticated: true,
                 rate_limit: 10,
                 rate_limit_duration: 60,
-                callback: (request, response) => {
+                callback: async (request, response) => {
                     let path, def;
                     try {
                         path = request.param("path");
@@ -1600,7 +1665,7 @@ class Server {
                     try {
                         return response.send({
                             status: Status.success,
-                            data: this.load_user_data(request.uid, path, def)
+                            data: await this.load_user_data(request.uid, path, def)
                         });
                     } catch (err) {
                         return response.error({status: Status.internal_server_error, data: {error: err.message}});
@@ -1615,7 +1680,7 @@ class Server {
                 authenticated: true,
                 rate_limit: 10,
                 rate_limit_duration: 60,
-                callback: (request, response) => {
+                callback: async (request, response) => {
                     let path, data;
                     try {
                         path = request.param("path");
@@ -1624,7 +1689,7 @@ class Server {
                         return response.error({status: Status.bad_request, data: {error: err.message}});
                     }
                     try {
-                        this.save_user_data(request.uid, path, data);
+                        await this.save_user_data(request.uid, path, data);
                     } catch (err) {
                         return response.error({status: Status.internal_server_error, data: {error: err.message}});
                     }
@@ -1642,7 +1707,7 @@ class Server {
                 authenticated: true,
                 rate_limit: 10,
                 rate_limit_duration: 60,
-                callback: (request, response) => {
+                callback: async (request, response) => {
                     let path, def;
                     try {
                         path = request.param("path");
@@ -1657,7 +1722,7 @@ class Server {
                     try {
                         return response.send({
                             status: Status.success,
-                            data: this.load_protected_user_data(request.uid, path, def)
+                            data: await this.load_protected_user_data(request.uid, path, def)
                         });
                     } catch (err) {
                         return response.error({status: Status.internal_server_error, data: {error: err.message}});
@@ -1683,8 +1748,160 @@ class Server {
                     }
                 },
 
+                // Get made payments.
+                {
+                    method: "GET",
+                    endpoint: "/vweb/backend/payments/payments",
+                    content_type: "application/json",
+                    authenticated: true,
+                    rate_limit: 10,
+                    rate_limit_duration: 60,
+                    callback: async (request, response) => {
+                        let status, days, limit;
+                        try {
+                            status = request.param("status", null, "paid");
+                            days = request.param("days", "number", 30);
+                            limit = request.param("limit", "number", null);
+                        } catch (error) {
+                            return response.error({status: Status.bad_request, data: {error: error.message}});
+                        }
+                        let payments;
+                        try {
+                            payments = await this.get_payments({
+                                uid: request.uid,  
+                                status: status,
+                                days: days,
+                                limit: limit,
+                            });
+                        } catch (error) {
+                            return response.error({data: {error: error.message}});
+                        }
+                        return response.success({data: payments});
+                    }
+                },
+
+                // Is subscribed.
+                {
+                    method: "POST",
+                    endpoint: "/vweb/backend/payments/subscribed",
+                    content_type: "application/json",
+                    authenticated: true,
+                    rate_limit: 10,
+                    rate_limit_duration: 60,
+                    callback: async (request, response) => {
+                        let product;
+                        try {
+                            product = request.param("product");
+                        } catch (error) {
+                            return response.error({status: Status.bad_request, data: {error: error.message}});
+                        }
+                        let subscribed;
+                        try {
+                            subscribed = await this.is_subscribed(request.uid, product);
+                        } catch (error) {
+                            return response.error({data: {error: error.message}});
+                        }
+                        return response.success({data: {subscribed: subscribed}});
+                    }
+                },
+
+                // Get subscriptions.
+                {
+                    method: "GET",
+                    endpoint: "/vweb/backend/payments/subscriptions",
+                    content_type: "application/json",
+                    authenticated: true,
+                    rate_limit: 10,
+                    rate_limit_duration: 60,
+                    callback: async (request, response) => {
+                        let subscriptions;
+                        try {
+                            subscriptions = await this.get_subscriptions(request.uid);
+                        } catch (error) {
+                            return response.error({data: {error: error.message}});
+                        }
+                        return response.success({data: subscriptions});
+                    }
+                },
+
+                // Cancel subscription.
+                {
+                    method: "DELETE",
+                    endpoint: "/vweb/backend/payments/subscription",
+                    content_type: "application/json",
+                    authenticated: true,
+                    rate_limit: 10,
+                    rate_limit_duration: 60,
+                    callback: async (request, response) => {
+                        let product;
+                        try {
+                            product = request.param("product");
+                        } catch (error) {
+                            return response.error({status: Status.bad_request, data: {error: error.message}});
+                        }
+                        try {
+                            await this.cancel_subscription(request.uid, product)
+                        } catch (error) {
+                            return response.error({data: {error: error.message}});
+                        }
+                        return response.success({data: {message: "Successfully cancelled your subscription."}});
+                    }
+                },
+
+                // Get refundable payments.
+                {
+                    method: "GET",
+                    endpoint: "/vweb/backend/payments/refund",
+                    content_type: "application/json",
+                    authenticated: true,
+                    rate_limit: 10,
+                    rate_limit_duration: 60,
+                    callback: async (request, response) => {
+                        let days, limit;
+                        try {
+                            days = request.param("days", "number", 14);
+                            limit = request.param("limit", "number", null);
+                        } catch (err) {
+                            return response.error({status: Status.bad_request, data: {error: err.message}});
+                        }
+                        let payments;
+                        try {
+                            payments = await this.get_refundable_payments({uid: request.uid, days: days, limit: limit, _refund: false});
+                        } catch (error) {
+                            return response.error({data: {error: error.message}});
+                        }
+                        return response.success({
+                            data: payments,
+                        });
+                    }
+                },
+
+                // Request a refund.
+                {
+                    method: "POST",
+                    endpoint: "/vweb/backend/payments/refund",
+                    content_type: "application/json",
+                    authenticated: true,
+                    rate_limit: 10,
+                    rate_limit_duration: 60,
+                    callback: async (request, response) => {
+                        let payment;
+                        try {
+                            payment = request.param("payment", "object");
+                        } catch (err) {
+                            return response.error({status: Status.bad_request, data: {error: err.message}});
+                        }
+                        let refund;
+                        try {
+                            refund = await this.create_refund({payment: payment, uid: request.uid});
+                        } catch (error) {
+                            return response.error({data: {error: error.message}});
+                        }
+                        return response.success({data: refund});
+                    }
+                },
+
                 // Charge a shopping cart.
-                // @todo convert to using quotes instead of subscriptions and invoices, this way a single charge request can handle both subscriptions and one-time payments in a single request. And a quote's PDF can be downloaded. And it accepts the quantity param for a single product.
                 {
                     method: "POST",
                     endpoint: "/vweb/backend/payments/charge",
@@ -1721,8 +1938,10 @@ class Server {
                         }
 
                         // Create a payment.
+                        let client_secret;
                         try {
-                            const {client_secret} = await this.create_payment({uid: request.uid, cid: cid, email: email, cart: cart, address: address});
+                            const res = await this.create_payment({uid: request.uid, cid: cid, email: email, cart: cart, address: address});
+                            client_secret = res.client_secret;
                         } catch (error) {
                             return response.error({data: {error: error.message}});
                         }
@@ -1794,7 +2013,7 @@ class Server {
                     }
                 },
 
-                // Charge a shopping cart.
+                // Stripe Webhook.
                 // Can be tested with cli command `stripe listen --events refund.updated,invoice.payment_action_required,invoice.payment_failed,invoice.payment_succeeded,customer.subscription.created,customer.subscription.deleted --skip-verify --forward-to localhost:8000/vweb/backend/payments/webhook`
                 {
                     method: "POST",
@@ -1803,8 +2022,6 @@ class Server {
                     rate_limit: 10000,
                     rate_limit_duration: 60,
                     callback: async (request, response) => {
-
-                        // @todo handle refund webhook.
 
                         // Get the event.
                         let event;
@@ -1978,7 +2195,7 @@ class Server {
                                         const result = this.on_payment({
                                             uid: uid,
                                             cid: cid,
-                                            product: this.get_product(item.price.product),
+                                            product: await this.get_product(item.price.product),
                                             quantity: item.quantity,
                                             address: obj.customer_address,
                                             invoice_item: item,
@@ -2020,14 +2237,14 @@ class Server {
                                     }
 
                                     // Get the product.
-                                    const product = this.get_product(item.price.product, true);
+                                    const product = await this.get_product(item.price.product, true);
 
                                     // Active the user's subscription in the database.
                                     this._sys_add_subscription(uid, product.id, item.subscription); // the item's sub id is the same as the main object's sub id.
 
                                     // Cancel the other subscriptions plans that are part of this product.
                                     // The `create_payment()` function makes sure there are not multiple subscription plans of the same subscription product charged in a single request.
-                                    const parent_product = this.get_product(product.parent_id, true);
+                                    const parent_product = await this.get_product(product.parent_id, true);
                                     for (let p = 0; p < parent_product.plans.length; p++) {
                                         const plan = parent_product.plans[p];
                                         if (plan.id != product.id) {
@@ -2089,7 +2306,7 @@ class Server {
                                     }
 
                                     // Get the product.
-                                    const product = this.get_product(item.price.product, true);
+                                    const product = await this.get_product(item.price.product, true);
 
                                     // Deactivate the user's subscription in the database.
                                     this._sys_remove_subscription(uid, product.id);
@@ -2292,7 +2509,7 @@ class Server {
             return this._sys_load_stripe_cid(uid);
         }
         console.log("CREATE STRIPE CUSTOMER")
-        const user = this.get_user(uid);
+        const user = await this.get_user(uid);
         const customer = await this._stripe_create_customer(user.email, `${user.first_name} ${user.last_name}`);
         this._sys_save_stripe_cid(uid, customer.id);
         return customer.id;
@@ -2614,66 +2831,6 @@ class Server {
             })
         }
     }
-
-    // Get the object of the user defined product ids where a user has an active subscription to.
-    // Returns an object with `{<product-id>: <subscription-id>}`.
-    /*
-    async _stripe_get_subscriptions(uid, cid = null) {
-        if (cid == null) {
-            cid = await this._stripe_get_cid(uid);
-        }
-        let data;
-        try {
-            const result = await this.stripe.subscriptions.list({
-                customer: cid,
-            })
-            data = this._stripe_parse_as_list(result.data);
-        } catch (error) {
-            throw new StripeError(error.message); // since the default stripe errors do not have a stacktrace.
-        }
-        const products = {};
-        data.iterate((subscription) => {
-            if ((subscription.status === "active" || subscription.status === "trialing")) {
-                const items = this._stripe_parse_as_list(subscription.items.data);
-                items.iterate((item) => {
-                    products[item.price.product] = item.subscription;
-                })
-            }
-        })
-        return products;
-    }
-    */
-
-    /* Check the user's subscription statuses, check for any unpaid or cancelled subscriptions and remove them from the active subscriptions.
-    async _verify_subscriptions() {
-
-        // Iterate all users.
-        await this._iter_db_dir(".sys/users", async (path) => {
-            const uid = path.name();
-            const cid_path = this.database.join(`.sys/stripe_uids/${uid}`, false);
-            if (cid_path.exists()) {
-
-                // Vars.
-                const cid = cid_path.load_sync();
-                const subs = await this._stripe_get_subscriptions(null, cid);
-                const active_sub_dir = this.database.join(`.sys/stripe_subs/${uid}`, false);
-                if (active_sub_dir.exists() === false) {
-                    active_sub_dir.mkdir_sync();
-                }
-
-                // Check if all the saved active subscriptions are still valid subscriptions.
-                active_sub_dir.paths_sync().iterate((path) => {
-                    const prod_id = path.name();
-                    if (subs[prod_id] == null) {
-                        path.del_sync();
-                    }
-                });
-
-                // Check if all the stripe subscriptions are added as an active subscription.
-                Object.keys(subs).iterate((prod_id) => this._sys_add_subscription(uid, prod_id, subs[prod_id]));
-            }
-        });
-    } */
 
     // Initialize the payment products.
     async _initialize_products() {
@@ -3058,7 +3215,7 @@ class Server {
             // @todo.
 
             // Always perform authentication so the request.uid will also be assigned even when the endpoint is not authenticated.
-            const auth_result = this._authenticate(request);
+            const auth_result = await this._authenticate(request);
 
             // Reset cookies when authentication has failed, so the UserID cookies etc will be reset.
             if (auth_result !== null) {
@@ -3243,6 +3400,7 @@ class Server {
     // Users.
     
     // Check if a username exists.
+    // Use async to keep it persistent with other functions.
     /*  @docs {
      *  @title: Username Exists
      *  @description: Check if a username exists.
@@ -3255,13 +3413,14 @@ class Server {
      *  }
      *  @usage:
      *      ...
-     *      const exists = server.username_exists("someusername");
+     *      const exists = await server.username_exists("someusername");
      } */
-    username_exists(username) {
+    async username_exists(username) {
         return this.database.join(`.sys/usernames/${username}`, false).exists();
     }
     
     // Check if an email exists.
+    // Use async to keep it persistent with other functions.
     /*  @docs {
      *  @title: Email Exists
      *  @description: Check if a email exists.
@@ -3274,13 +3433,14 @@ class Server {
      *  }
      *  @usage:
      *      ...
-     *      const exists = server.email_exists("some\@email.com");
+     *      const exists = await server.email_exists("some\@email.com");
      } */
-    email_exists(email) {
+    async email_exists(email) {
         return this.database.join(`.sys/emails/${email}`, false).exists();
     }
     
     // Check if a user account is activated.
+    // Use async to keep it persistent with other functions.
     /*  @docs {
      *  @title: Is Activated
      *  @description: Check if a user account is activated.
@@ -3292,13 +3452,14 @@ class Server {
      *  }
      *  @usage:
      *      ...
-     *      const activated = server.is_activated(0);
+     *      const activated = await server.is_activated(0);
      } */
-    is_activated(uid) {
+    async is_activated(uid) {
         return !this.database.join(`.sys/unactivated/${uid}`, false).exists();
     }
     
     // Set the activated status of a user account is activated.
+    // Use async to keep it persistent with other functions.
     /*  @docs {
      *  @title: Set Activated
      *  @description: Set the activated status of a user account is activated.
@@ -3314,9 +3475,9 @@ class Server {
      *  }
      *  @usage:
      *      ...
-     *      server.set_activated(0, true);
+     *      await server.set_activated(0, true);
      } */
-    set_activated(uid, activated) {
+    async set_activated(uid, activated) {
         const path = this.database.join(`.sys/unactivated/${uid}`, false);
         if (activated == true) {
             path.del_sync();
@@ -3357,7 +3518,7 @@ class Server {
      *  }
      *  @usage:
      *      ...
-     *      const uid = server.create_user({
+     *      const uid = await server.create_user({
      *          first_name: "John", 
      *          last_name: "Doe", 
      *          username: "johndoe", 
@@ -3374,10 +3535,10 @@ class Server {
     }) {
         
         // Check if username & email already exist.
-        if (this.username_exists(username)) {
+        if (await this.username_exists(username)) {
             throw Error(`Username "${username}" already exists.`);
         }
-        if (this.email_exists(email)) {
+        if (await this.email_exists(email)) {
             throw Error(`Email "${email}" already exists.`);
         }
         
@@ -3400,7 +3561,7 @@ class Server {
         this._sys_save_uid_by_username(uid, username);
         this._sys_save_uid_by_email(uid, email);
         if (this.enable_account_activation) {
-            this.set_activated(uid, false);
+            await this.set_activated(uid, false);
         }
         
         // Create user dir.
@@ -3425,7 +3586,7 @@ class Server {
      *  }
      *  @usage:
      *      ...
-     *      server.delete_user(0);
+     *      await server.delete_user(0);
      } */
     async delete_user(uid) {
         this._check_uid_within_range(uid);
@@ -3453,10 +3614,10 @@ class Server {
      *  }
      *  @usage:
      *      ...
-     *      server.set_first_name(0, "Name");
+     *      await server.set_first_name(0, "John");
      } */
     async set_first_name(uid, first_name) {
-        const user = this.get_user(uid);
+        const user = await this.get_user(uid);
         user.first_name = first_name;
         this._sys_save_user(uid, user);
         await this._stripe_update_customer(uid, user);
@@ -3481,10 +3642,10 @@ class Server {
      *  }
      *  @usage:
      *      ...
-     *      server.set_first_name(0, "Name");
+     *      await server.set_last_name(0, "Doe");
      } */
     async set_last_name(uid, last_name) {
-        const user = this.get_user(uid);
+        const user = await this.get_user(uid);
         user.last_name = last_name;
         this._sys_save_user(uid, user);
         await this._stripe_update_customer(uid, user);
@@ -3509,13 +3670,13 @@ class Server {
      *  }
      *  @usage:
      *      ...
-     *      server.set_username(0, "newusername");
+     *      await server.set_username(0, "newusername");
      } */
     async set_username(uid, username) {
-        if (this.username_exists(username)) {
+        if (await this.username_exists(username)) {
             throw Error(`Username "${username}" already exists.`);
         }
-        const user = this.get_user(uid);
+        const user = await this.get_user(uid);
         user.username = username;
         this._sys_save_user(uid, user);
         this._sys_save_uid_by_username(uid, username);
@@ -3540,13 +3701,13 @@ class Server {
      *  }
      *  @usage:
      *      ...
-     *      server.set_email(0, "new\@email.com");
+     *      await server.set_email(0, "new\@email.com");
      } */
     async set_email(uid, email) {
-        if (this.email_exists(email)) {
+        if (await this.email_exists(email)) {
             throw Error(`Email "${email}" already exists.`);
         }
-        const user = this.get_user(uid);
+        const user = await this.get_user(uid);
         user.email = email;
         this._sys_save_user(uid, user);
         this._sys_save_uid_by_email(uid, email);
@@ -3572,10 +3733,10 @@ class Server {
      *  }
      *  @usage:
      *      ...
-     *      server.set_password(0, "XXXXXX");
+     *      await server.set_password(0, "XXXXXX");
      } */
     async set_password(uid, password) {
-        const user = this.get_user(uid);
+        const user = await this.get_user(uid);
         user.password = this._hmac(password);
         this._sys_save_user(uid, user);
     }
@@ -3602,10 +3763,10 @@ class Server {
      *  }
      *  @usage:
      *      ...
-     *      server.set_user(0, {first_name: "John", last_name: "Doe"});
+     *      await server.set_user(0, {first_name: "John", last_name: "Doe"});
      } */
     async set_user(uid, user) {
-        const current_user = this.get_user(uid);
+        const current_user = await this.get_user(uid);
         let old_username = null, old_email = null;
         let stripe_update_required = false;
         
@@ -3623,7 +3784,7 @@ class Server {
         
         // Username.
         if (user.username != null && user.username != current_user.username) {
-            if (this.username_exists(user.username)) {
+            if (await this.username_exists(user.username)) {
                 throw Error(`Username "${user.username}" already exists.`);
             }
             old_username = current_user.username;
@@ -3632,7 +3793,7 @@ class Server {
         
         // Email.
         if (user.email != null && user.email != current_user.email) {
-            if (this.email_exists(user.email)) {
+            if (await this.email_exists(user.email)) {
                 throw Error(`Email "${user.email}" already exists.`);
             }
             old_email = current_user.email;
@@ -3659,6 +3820,7 @@ class Server {
     }
     
     // Get uid by username.
+    // Use async to keep it persistent with other functions.
     /*  @docs {
      *  @title: Get UID
      *  @description: Get a uid by username.
@@ -3674,9 +3836,9 @@ class Server {
      *  @usage:
      *      ...
      *      let uid;
-     *      if ((uid = server.get_uid("myusername")) !== null) { ... }
+     *      if ((uid = await server.get_uid("myusername")) !== null) { ... }
      } */
-    get_uid(username) {
+    async get_uid(username) {
         if (username == null || username === "") {
             return null;
         }
@@ -3692,6 +3854,7 @@ class Server {
     }
     
     // Get uid by email.
+    // Use async to keep it persistent with other functions.
     /*  @docs {
      *  @title: Get UID By Email
      *  @description: Get a uid by email.
@@ -3707,9 +3870,9 @@ class Server {
      *  @usage:
      *      ...
      *      let uid;
-     *      if ((uid = server.get_uid_by_email("my\@email.com")) !== null) { ... }
+     *      if ((uid = await server.get_uid_by_email("my\@email.com")) !== null) { ... }
      } */
-    get_uid_by_email(email) {
+    async get_uid_by_email(email) {
         if (email == null || email === "") {
             return null;
         }
@@ -3725,6 +3888,7 @@ class Server {
     }
     
     // Get uid by api key.
+    // Use async to keep it persistent with other functions.
     /*  @docs {
      *  @title: Get UID By API Key
      *  @description: Get a uid by API key.
@@ -3740,9 +3904,9 @@ class Server {
      *  @usage:
      *      ...
      *      let uid;
-     *      if ((uid = server.get_uid_by_api_key("XXXXXXXXXX")) !== null) { ... }
+     *      if ((uid = await server.get_uid_by_api_key("XXXXXXXXXX")) !== null) { ... }
      } */
-    get_uid_by_api_key(api_key) {
+    async get_uid_by_api_key(api_key) {
         let pos;
         if ((pos = api_key.indexOf(':')) != -1) {
             const uid = parseInt(api_key.substr(1, pos - 1));
@@ -3755,6 +3919,7 @@ class Server {
     }
     
     // Get uid by token.
+    // Use async to keep it persistent with other functions.
     /*  @docs {
      *  @title: Get UID By Token
      *  @description: Get a uid by token.
@@ -3770,13 +3935,14 @@ class Server {
      *  @usage:
      *      ...
      *      let uid;
-     *      if ((uid = server.get_uid_by_token("XXXXXXXXXX")) !== null) { ... }
+     *      if ((uid = await server.get_uid_by_token("XXXXXXXXXX")) !== null) { ... }
      } */
-    get_uid_by_token(token) {
-        return this.get_uid_by_api_key(token);
+    async get_uid_by_token(token) {
+        return await this.get_uid_by_api_key(token);
     }
     
     // Get user info by uid.
+    // Use async to keep it persistent with other functions.
     /*  @docs {
      *  @title: Get User
      *  @description:
@@ -3792,14 +3958,15 @@ class Server {
      *  }
      *  @usage:
      *      ...
-     *      const user = server.get_user(0);
+     *      const user = await server.get_user(0);
      } */
-    get_user(uid) {
+    async get_user(uid) {
         this._check_uid_within_range(uid);
         return this._sys_load_user(uid);
     }
     
     // Get user info by username.
+    // Use async to keep it persistent with other functions.
     /*  @docs {
      *  @title: Get User By Username
      *  @description:
@@ -3815,17 +3982,18 @@ class Server {
      *  }
      *  @usage:
      *      ...
-     *      const user = server.get_user_by_username("myusername");
+     *      const user = await server.get_user_by_username("myusername");
      } */
-    get_user_by_username(username) {
-        const uid = this.get_uid(username);
+    async get_user_by_username(username) {
+        const uid = await this.get_uid(username);
         if (uid === null) {
             throw Error(`No user with username "${username}" exists.`);
         }
-        return this.get_user(uid);
+        return await this.get_user(uid);
     }
     
     // Get user info by email.
+    // Use async to keep it persistent with other functions.
     /*  @docs {
      *  @title: Get User By Email
      *  @description:
@@ -3841,17 +4009,18 @@ class Server {
      *  }
      *  @usage:
      *      ...
-     *      const user = server.get_user_by_email("my\@email.com");
+     *      const user = await server.get_user_by_email("my\@email.com");
      } */
-    get_user_by_email(email) {
-        const uid = this.get_uid_by_email(email);
+    async get_user_by_email(email) {
+        const uid = await this.get_uid_by_email(email);
         if (uid === null) {
             throw Error(`No user with email "${email}" exists.`);
         }
-        return this.get_user(uid);
+        return await this.get_user(uid);
     }
     
     // Get user info by api key.
+    // Use async to keep it persistent with other functions.
     /*  @docs {
      *  @title: Get User By API Key
      *  @description:
@@ -3867,17 +4036,18 @@ class Server {
      *  }
      *  @usage:
      *      ...
-     *      const user = server.get_user_by_api_key("XXXXXX");
+     *      const user = await server.get_user_by_api_key("XXXXXX");
      } */
-    get_user_by_api_key(api_key) {
-        const uid = this.get_uid_by_api_key(api_key);
+    async get_user_by_api_key(api_key) {
+        const uid = await this.get_uid_by_api_key(api_key);
         if (uid === null) {
             throw Error(`No user with api key "${api_key}" exists.`);
         }
-        return this.get_user(uid);
+        return await this.get_user(uid);
     }
     
     // Get user info by token.
+    // Use async to keep it persistent with other functions.
     /*  @docs {
      *  @title: Get User By Token
      *  @description:
@@ -3893,80 +4063,18 @@ class Server {
      *  }
      *  @usage:
      *      ...
-     *      const user = server.get_user_by_token("XXXXXX");
+     *      const user = await server.get_user_by_token("XXXXXX");
      } */
-    get_user_by_token(token) {
-        const uid = this.get_uid_by_token(token);
+    async get_user_by_token(token) {
+        const uid = await this.get_uid_by_token(token);
         if (uid === null) {
             throw Error(`No user with token "${token}" exists.`);
         }
-        return this.get_user(uid);
-    }
-
-    // Load user data helper.
-    _load_user_data(uid, subpath, def, privacy) {
-        // Check uid.
-        this._check_uid_within_range(uid);
-
-        // Check path.
-        if (subpath.indexOf("..") !== -1) {
-            throw Error(`Permission denied (path-injection).`);
-        }
-        const path = this.database.join(`users/${uid}/${privacy}/${subpath}`, false).abs();
-        if (path.str().eq_first(`${this.database}/users/${uid}/${privacy}/`) === false) {
-            throw Error(`Permission denied (path-injection).`);
-        }
-
-        // Does not exist.
-        if (!path.exists()) {
-            if (def !== null) {
-                return def;
-            }
-        }
-
-        // Load data.
-        let data = path.load_sync();
-
-        // Cast data.
-        if (def == null || typeof def === "string") {
-            return data;
-        } else if (typeof def === "boolean") {
-            return data === "true" || data === "1" || data === "True" || data === "TRUE";
-        } else if (typeof def === "number") {
-            return parseFloat(data);
-        } else if (Array.isArray(def)) {
-            return JSON.parse(data);
-        } else if (typeof def === "object") {
-            data = JSON.parse(data);
-            Object.keys(def).iterate((key) => {
-                if (data[key] === undefined) {
-                    data[key] = def[key];
-                }
-            })
-            return data;
-        } else {
-            throw Error(`Invalid data type "${type}", the valid options are ["string", "array", "object"].`);
-        }
-    }
-
-    // Save user data helper.
-    _save_user_data(uid, subpath, privacy) {
-
-        // Check uid.
-        this._check_uid_within_range(uid);
-
-        // Check path.
-        if (subpath.indexOf("..") !== -1) {
-            throw Error(`Permission denied (path-injection).`);
-        }
-        const path = this.database.join(`users/${uid}/${privacy}/${subpath}`, false).abs();
-        if (path.str().eq_first(`${this.database}/users/${uid}/${privacy}/`) === false) {
-            throw Error(`Permission denied (path-injection).`);
-        }
-        return path;
+        return await this.get_user(uid);
     }
     
     // Load user data.
+    // Use async to keep it persistent with other functions.
     /*  @docs {
      *  @title: Load Public User Data
      *  @description:
@@ -3995,13 +4103,14 @@ class Server {
      *  }
      *  @usage:
      *      ...
-     *      const data = server.load_user_data(0, "mydata", "object");
+     *      const data = await server.load_user_data(0, "mydata", "object");
      } */
-    load_user_data(uid, subpath, def = null) {
-        return this._load_user_data(uid, subpath, def, "public");
+    async load_user_data(uid, subpath, def = null) {
+        return this._sys_load_user_data(uid, subpath, def, "public");
     }
     
     // Save user data.
+    // Use async to keep it persistent with other functions.
     /*  @docs {
      *  @title: Load Public User Data
      *  @description:
@@ -4026,13 +4135,13 @@ class Server {
      *  }
      *  @usage:
      *      ...
-     *      server.save_user_data(0, "mydata", {"Hello": "World!"});
-     *      server.save_user_data(0, "mystring", "Hello World!");
+     *      await server.save_user_data(0, "mydata", {"Hello": "World!"});
+     *      await server.save_user_data(0, "mystring", "Hello World!");
      } */
-    save_user_data(uid, subpath, data) {
+    async save_user_data(uid, subpath, data) {
 
         // Initialize path.
-        const path = this._save_user_data(uid, subpath, "public");
+        const path = this._sys_save_user_data(uid, subpath, "public");
 
         // Save casted data.
         if (data == null || typeof data === "string") {
@@ -4047,6 +4156,7 @@ class Server {
     }
 
     // Load user data.
+    // Use async to keep it persistent with other functions.
     /*  @docs {
      *  @title: Load Protected User
      *  @description:
@@ -4075,13 +4185,14 @@ class Server {
      *  }
      *  @usage:
      *      ...
-     *      const data = server.load_protected_user_data(0, "mydata", "object");
+     *      const data = await server.load_protected_user_data(0, "mydata", "object");
      } */
-    load_protected_user_data(uid, subpath, def = null) {
-        return this._load_user_data(uid, subpath, def, "protected");
+    async load_protected_user_data(uid, subpath, def = null) {
+        return this._sys_load_user_data(uid, subpath, def, "protected");
     }
     
     // Save user data.
+    // Use async to keep it persistent with other functions.
     /*  @docs {
      *  @title: Save Proteced User Data
      *  @description:
@@ -4106,13 +4217,13 @@ class Server {
      *  }
      *  @usage:
      *      ...
-     *      server.save_protected_user_data(0, "mydata", {"Hello": "World!"});
-     *      server.save_protected_user_data(0, "mystring", "Hello World!");
+     *      await server.save_protected_user_data(0, "mydata", {"Hello": "World!"});
+     *      await server.save_protected_user_data(0, "mystring", "Hello World!");
      } */
-    save_protected_user_data(uid, subpath, data) {
+    async save_protected_user_data(uid, subpath, data) {
 
         // Initialize path.
-        const path = this._save_user_data(uid, subpath, "protected");
+        const path = this._sys_save_user_data(uid, subpath, "protected");
 
         // Save casted data.
         if (data == null || typeof data === "string") {
@@ -4127,6 +4238,7 @@ class Server {
     }
 
     // Load user data.
+    // Use async to keep it persistent with other functions.
     /*  @docs {
      *  @title: Load Private User Data
      *  @description:
@@ -4156,13 +4268,14 @@ class Server {
      *  }
      *  @usage:
      *      ...
-     *      const data = server.load_private_user_data(0, "mydata", "object");
+     *      const data = await server.load_private_user_data(0, "mydata", "object");
      } */
-    load_private_user_data(uid, subpath, def = null) {
-        return this._load_user_data(uid, subpath, def, "private");
+    async load_private_user_data(uid, subpath, def = null) {
+        return this._sys_load_user_data(uid, subpath, def, "private");
     }
     
     // Save user data.
+    // Use async to keep it persistent with other functions.
     /*  @docs {
      *  @title: Save Private User Data
      *  @description:
@@ -4188,13 +4301,13 @@ class Server {
      *  }
      *  @usage:
      *      ...
-     *      server.save_private_user_data(0, "mydata", {"Hello": "World!"});
-     *      server.save_private_user_data(0, "mystring", "Hello World!");
+     *      await server.save_private_user_data(0, "mydata", {"Hello": "World!"});
+     *      await server.save_private_user_data(0, "mystring", "Hello World!");
      } */
-    save_private_user_data(uid, subpath, data) {
+    async save_private_user_data(uid, subpath, data) {
 
         // Initialize path.
-        const path = this._save_user_data(uid, subpath, "private");
+        const path = this._sys_save_user_data(uid, subpath, "private");
 
         // Save casted data.
         if (data == null || typeof data === "string") {
@@ -4209,6 +4322,7 @@ class Server {
     }
     
     // Generate an api key by uid.
+    // Use async to keep it persistent with other functions.
     /*  @docs {
      *  @title: Generate API Key
      *  @description:
@@ -4226,9 +4340,9 @@ class Server {
      *  }
      *  @usage:
      *      ...
-     *      const api_key = server.generate_api_key(0);
+     *      const api_key = await server.generate_api_key(0);
      } */
-    generate_api_key(uid) {
+    async generate_api_key(uid) {
         this._check_uid_within_range(uid);
         const api_key = `0${uid}:${this._sys_generate_key()}`;
         const user = this._sys_load_user(uid);
@@ -4238,6 +4352,7 @@ class Server {
     }
     
     // Revoke the API key of a user.
+    // Use async to keep it persistent with other functions.
     /*  @docs {
      *  @title: Revoke API Key
      *  @description:
@@ -4251,9 +4366,9 @@ class Server {
      *  }
      *  @usage:
      *      ...
-     *      server.revoke_api_key(0);
+     *      await server.revoke_api_key(0);
      } */
-    revoke_api_key(uid) {
+    async revoke_api_key(uid) {
         this._check_uid_within_range(uid);
         const user = this._sys_load_user(uid);
         user.api_key = "";
@@ -4261,6 +4376,7 @@ class Server {
     }
     
     // Verify a plaintext password.
+    // Use async to keep it persistent with other functions.
     /*  @docs {
      *  @title: Verify Password
      *  @description:
@@ -4281,9 +4397,9 @@ class Server {
      *  }
      *  @usage:
      *      ...
-     *      const success = server.verify_password(0, "XXXXXX");
+     *      const success = await server.verify_password(0, "XXXXXX");
      } */
-    verify_password(uid, password) {
+    async verify_password(uid, password) {
         if (uid === null) {
             return false;
         }
@@ -4297,6 +4413,7 @@ class Server {
     }
     
     // Verify a plaintext api key.
+    // Use async to keep it persistent with other functions.
     /*  @docs {
      *  @title: Verify API Key
      *  @description:
@@ -4312,11 +4429,14 @@ class Server {
      *  }
      *  @usage:
      *      ...
-     *      const success = server.verify_api_key("XXXXXX");
+     *      const success = await server.verify_api_key("XXXXXX");
      } */
-    verify_api_key(api_key) {
-        return this.verify_api_key_by_uid(this.get_uid_by_api_key(api_key), api_key);
+    async verify_api_key(api_key) {
+        return await this.verify_api_key_by_uid(await this.get_uid_by_api_key(api_key), api_key);
     }
+
+    // Verify a plaintext api key by uid.
+    // Use async to keep it persistent with other functions.
     /*  @docs {
      *  @title: Verify API Key By UID
      *  @description:
@@ -4337,9 +4457,9 @@ class Server {
      *  }
      *  @usage:
      *      ...
-     *      const success = server.verify_api_key_by_uid(0, "XXXXXX");
+     *      const success = await server.verify_api_key_by_uid(0, "XXXXXX");
      } */
-    verify_api_key_by_uid(uid, api_key) {
+    async verify_api_key_by_uid(uid, api_key) {
         if (uid == null) {
             return false;
         }
@@ -4353,6 +4473,7 @@ class Server {
     }
     
     // Verify a token.
+    // Use async to keep it persistent with other functions.
     /*  @docs {
      *  @title: Verify Token
      *  @description:
@@ -4368,11 +4489,14 @@ class Server {
      *  }
      *  @usage:
      *      ...
-     *      const success = server.verify_token("XXXXXX");
+     *      const success = await server.verify_token("XXXXXX");
      } */
-    verify_token(token) {
-        return this.verify_token_by_uid(this.get_uid_by_api_key(token), token);
+    async verify_token(token) {
+        return await this.verify_token_by_uid(await this.get_uid_by_api_key(token), token);
     }
+
+    // Verify a token by uid.
+    // Use async to keep it persistent with other functions.
     /*  @docs {
      *  @title: Verify Token By UID.
      *  @description:
@@ -4393,9 +4517,9 @@ class Server {
      *  }
      *  @usage:
      *      ...
-     *      const success = server.verify_token_by_uid(0, "XXXXXX");
+     *      const success = await server.verify_token_by_uid(0, "XXXXXX");
      } */
-    verify_token_by_uid(uid, token) {
+    async verify_token_by_uid(uid, token) {
         if (uid == null) {
             return false;
         }
@@ -4406,6 +4530,42 @@ class Server {
         }
         const correct_token = this._sys_load_user_token(uid);
         return correct_token.token != null && Date.now() < correct_token.expiration && correct_token.token == this._hmac(token);
+    }
+
+    // Verify a 2fa code.
+    // Use async to keep it persistent with other functions.
+    /*  @docs {
+     *  @title: Verify 2FA Code
+     *  @description:
+     *      Verify a 2FA code by user id.
+     *  @parameter: {
+     *      @name: uid
+     *      @description: The user id.
+     *      @type: number
+     *  }
+     *  @parameter: {
+     *      @name: code
+     *      @description: The 2FA code.
+     *      @type: string
+     *  }
+     *  @return: Returns a boolean indicating whether the verification was successful or not.
+     *  @usage:
+     *      ...
+     *      await server.verify_2fa(0, "123456");
+     } */
+    async verify_2fa(uid, code) {
+        try {
+            this._check_uid_within_range(uid);
+        } catch (err) {
+            return false;
+        }
+        const auth = this._sys_load_user_2fa(uid);
+        const now = Date.now();
+        const status = auth.code != null && now < auth.expiration && auth.code == code;
+        if (status || now > auth.expiration) {
+            this._sys_delete_user_2fa(uid);
+        }
+        return status;
     }
     
     // Send a mail.
@@ -4452,7 +4612,7 @@ class Server {
      *  }
      *  @usage:
      *      ...
-     *      server.send_mail({
+     *      await server.send_mail({
      *          sender: ["Sender Name", "sender\@email.com"],
      *          recipients: [
      *              ["Recipient Name", "recipient1\@email.com"],
@@ -4570,7 +4730,7 @@ class Server {
      *  }
      *  @usage:
      *      ...
-     *      server.send_2fa({uid: 0, request: request});
+     *      await server.send_2fa({uid: 0, request: request});
      } */
     async send_2fa({
         uid, 
@@ -4589,7 +4749,7 @@ class Server {
         this._sys_save_user_2fa(uid, auth);
         
         // Get user email.
-        const user = this.get_user(uid);
+        const user = await this.get_user(uid);
         
         // Get device.
         let device;
@@ -4616,7 +4776,7 @@ class Server {
         }
         
         // Send mail.
-        return this.send_mail({
+        return await this.send_mail({
             sender: this.smtp_sender,
             recipients: [user.email],
             subject: "Two Factor Authentication Code",
@@ -4624,43 +4784,9 @@ class Server {
         });
         
     }
-    
-    // Verify a 2fa code.
-    /*  @docs {
-     *  @title: Verify 2FA Code
-     *  @description:
-     *      Verify a 2FA code by user id.
-     *  @parameter: {
-     *      @name: uid
-     *      @description: The user id.
-     *      @type: number
-     *  }
-     *  @parameter: {
-     *      @name: code
-     *      @description: The 2FA code.
-     *      @type: string
-     *  }
-     *  @return: Returns a boolean indicating whether the verification was successful or not.
-     *  @usage:
-     *      ...
-     *      server.verify_2fa(0, "123456");
-     } */
-    verify_2fa(uid, code) {
-        try {
-            this._check_uid_within_range(uid);
-        } catch (err) {
-            return false;
-        }
-        const auth = this._sys_load_user_2fa(uid);
-        const now = Date.now();
-        const status = auth.code != null && now < auth.expiration && auth.code == code;
-        if (status || now > auth.expiration) {
-            this._sys_delete_user_2fa(uid);
-        }
-        return status;
-    }
 
     // Get a product by id.
+    // Use async to keep it persistent with other functions.
     /*  @docs
      *  @title: Get Product
      *  @description:
@@ -4679,7 +4805,7 @@ class Server {
      *      ...
      *      const product = server.get_product("prod_basic");
      */
-    get_product(id, throw_err = false) {
+    async get_product(id, throw_err = false) {
         const product = this.payment_products.iterate((p) => {
             if (p.is_subscription) {
                 if (p.id === id) {
@@ -4702,12 +4828,11 @@ class Server {
     }
 
     // Create a payment
+    // @todo when the user has a saved payment method and purchases eg an subscription then the invoice will automatically be charged without requiring the confirmPaymentIntent in the frontend, which is a problem.
     /*  @docs
      *  @title: Create Payment.
      *  @description:
      *      Create a payment for multiple products.
-     *
-     *      This function allows a maximum of `100` items.
      *  @parameter:
      *      @name: uid
      *      @description: The user id.
@@ -4740,7 +4865,7 @@ class Server {
      *  @return: Returns an object with the client secret that should be passed to the frontend.
      *  @usage:
      *      ...
-     *      server.create_payment({uid: 0, cart: [{id: "prod_basic", quantity: 1}]});
+     *      await server.create_payment({uid: 0, cart: [{id: "prod_basic", quantity: 1}]});
      */
     async create_payment({uid, cart = [], address = null, cid = null, email = null}) {
 
@@ -4755,8 +4880,6 @@ class Server {
             throw Error(`Parameter "cart" has an invalid value type "${typeof cart}", the valid value type is "array".`);
         } else if (cart.length === 0) {
             throw Error(`No product cart was specified.`);
-        } else if (cart.length > 100) { // if this limit is discared then function `create_refund` should be updated.
-            throw Error(`A maximum of 100 product items are allowed.`);
         }
         if (this.automatic_tax && typeof address !== "object") {
             throw Error(`Parameter "address" has an invalid value type "${typeof address}", the valid value type is "object".`);
@@ -4764,12 +4887,12 @@ class Server {
 
         // Check products.
         const plan_count_per_product = {};
-        cart.iterate((i) => {
+        await cart.iterate_async_await(async (i) => {
 
             // Get product.
             let product = i.product;
             if (product == null) {
-                product = this.get_product(i.id);
+                product = await this.get_product(i.id);
                 if (product == null) {
                     throw Error(`Unknown product id "${i.id}".`);
                 }
@@ -4816,7 +4939,7 @@ class Server {
             }
 
             // Load the user's email.
-            email = this.get_user(uid).email
+            email = await this.get_user(uid).email
 
             // Get the customer id.
             cid = await this._stripe_get_cid(uid);
@@ -4825,7 +4948,7 @@ class Server {
 
         // Retrieve the email when both the cid and uid are defined.
         else if (uid != null && email == null) {
-            email = this.get_user(uid).email
+            email = await this.get_user(uid).email
         }
 
         // Check the email.
@@ -4904,32 +5027,50 @@ class Server {
      *      @type: number
      *  @parameter:
      *      @name: status
-     *      @description: Filter the list by status, possible values are `[null, "draft", "open", "accepted", "canceled"]`.
+     *      @description: Filter the list by status, possible values are `[null, "draft", "open", "void", "paid", "uncollectible"]`.
      *      @type: null, string
      *  @parameter:
-     *      @name: limit
-     *      @description: A limit on the number of objects to be returned. Limit can range between 1 and 100, and the default is 100.
-     *      @type: number
+     *      @name: days
+     *      @description: Since the amount of last days back, so `days: 30` will retrieve the payments of the last 30 days.
+     *      @type: null, number
      *  @parameter:
      *      @name: ending_before
      *      @description: A cursor for use in pagination. `ending_before` is an object ID that defines your place in the list. For instance, if you make a list request and receive 100 objects, starting with `obj_bar`, your subsequent call can include `ending_before=obj_bar` in order to fetch the previous page of the list.
-     *      @type: number
+     *      @type: null, string
      *  @parameter:
      *      @name: starting_after
      *      @description: A cursor for use in pagination. `starting_after` is an object ID that defines your place in the list. For instance, if you make a list request and receive 100 objects, ending with `obj_foo`, your subsequent call can include `starting_after=obj_foo` in order to fetch the next page of the list.
-     *      @type: number
+     *      @type: null, string
+     *  @parameter:
+     *      @name: limit
+     *      @description: A limit on the number of objects to be returned. Leave the limit `null` to disable the limit.
+     *      @type: null, number
      *  @type: Promise
-     *  @return: Returns a promise to the following object `{payments: <array>, has_more: <boolean>}` or a rejection with an error.
+     *  @return:
+     *      Returns a promise to a list of payments or a rejection with an error.
+     *
+     *      A payment product has the following attributes:
+     *      ```js
+     *      {
+     *          product: <object>,           // the user defined product that was purchased.
+     *          quantity: <number>,          // the quantity of the purchased product.
+     *          timestamp: <number>,         // the unix timestamp in seconds of the purchase.
+     *          pdf: <string>,               // the url string to the pdf download link.
+     *          invoice: <string>,           // the invoice's id of the purchase.
+     *          payment_intent: <string>,    // the payment intent's id of the purchase.
+     *      }
+     *      ```
      *  @usage:
      *      ...
-     *      const {payments, has_more} = await server.get_payments("...");
+     *      const payments = await server.get_payments("...");
      } */
     async get_payments({
         uid,  
         status = null,
-        limit = 100,
+        days = null,
         ending_before = null,
         starting_after = null,
+        limit = null,
     }) {
 
         // Check uid.
@@ -4939,142 +5080,97 @@ class Server {
         const cid = this._stripe_get_cid(uid);
 
         // Create subscription.
+        let payments = [];
+        let first = true;
         let result;
-        try {
-            result = await this.stripe.quotes.list({
-                customer: cid,
-                limit: limit,
-                ending_before: ending_before,
-                starting_after: starting_after,
-                status: status,
-            });
-        } catch (error) {
-            throw new StripeError(error.message); // since the default stripe errors do not have a stacktrace.
-        }
-
-        // Return the list.
-        return {payments: this._stripe_parse_as_list(result.data), has_more: result.has_more};
-    }
-
-    // Create a refund for a payment intent.
-    // @todo TEST
-    /*  @docs {
-     *  @title: Create Refund
-     *  @description:
-     *      Create a refund for a payment intent.
-     *
-     *      When the payment intent is part of a subscription, the active subscription will automatically be cancelled.
-     *  @parameter:
-     *      @name: quote
-     *      @description: The id of the charged quote.
-     *      @type: string
-     *  @parameter:
-     *      @name: invoice
-     *      @description: The id of the charged invoice, conditionally required.
-     *      @type: string
-     *  @parameter:
-     *      @name: uid
-     *      @description: Optionally provide the user id of the charged quote.
-     *      @type: number
-     *  @parameter:
-     *      @name: amount
-     *      @description: The amount to refund as a floating number. When left undefined the entire amount will be refunded.
-     *      @type: number
-     *  @usage:
-     *      ...
-     *      server.create_refund("...");
-     } */
-    async create_refund({quote = null, invoice = null, uid = null, amount = null}) {
-
-        // Check params.
-        if (quote == null && invoice == null) {
-            throw Error("Define parameter \"invoice\" or \"quote\".");
-        }
-
-        // Get invoice from quote.
-        if (invoice == null) {
+        while (true) {
             try {
-                const quote_obj = await this.stripe.quotes.retrieve(quote);
-                invoice = quote_obj.invoice;
-            } catch (error) {
-                throw new StripeError(error.message); // since the default stripe errors do not have a stacktrace.
-            }    
-        }
 
-        // Retrieve the invoice.
-        let invoice_obj;
-        try {
-            invoice_obj = await this.stripe.invoices.retrieve(id, {
-                "expand": ["payment_intent"],
-            });
-        } catch (error) {
-            throw new StripeError(error.message); // since the default stripe errors do not have a stacktrace.
-        }
+                // First request.
+                if (first) {
 
-        // Get the uid of the invoice.
-        if (uid == null) {
-            try {
-                uid = this._sys_load_uid_by_stripe_cid(quote.customer);
-            } catch (err) {
-                uid = null;
-            }
-        } else {
-            this._check_uid_within_range(uid);
-        }
-
-        // Cancel the subscription line items.
-        if (uid != null) {
-
-            // Retrieve the quote's line items.
-            let line_items;
-            try {
-                line_items = await this.stripe.invoices.listLineItems(id, {
-                    limit: 100,
-                });
-                line_items = this._stripe_parse_as_list(line_items.data);
-            } catch (error) {
-                throw new StripeError(error.message); // since the default stripe errors do not have a stacktrace.
-            }
-
-            // Cancel all subscription line items.
-            if (Array.isArray(line_items)) {
-                await line_items.iterate_async_await(async (item) => {
-                    if (item.price.type === "recurring") {
-                        const {exists, sub_id} = this._sys_check_subscription(uid, item.price.product);
-                        if (exists) {
-                            await this._stripe_cancel_subscription(sub_id);
-                            this._sys_remove_subscription(uid, item.price.product);
-                        }
+                    // By since days.
+                    if (days != null) {
+                        let created = new Date();
+                        created.setHours(0, 0, 0, 0)
+                        created.setDate(created.getDate() - days);
+                        created = Math.floor(created.getTime() / 1000);
+                        result = await this.stripe.invoices.list({
+                            customer: cid,
+                            limit: 100,
+                            status: status,
+                            created: {
+                                gte: created,
+                            },
+                        });
                     }
+
+                    // By starting after, ending before or no filters.
+                    else {
+                        result = await this.stripe.invoices.list({
+                            customer: cid,
+                            limit: 100,
+                            status: status,
+                            ending_before: ending_before,
+                            starting_after: starting_after,
+                        });
+                    }
+                    first = false;
+                }
+
+                // Later requests.
+                else {
+                    result = await this.stripe.invoices.list({
+                        customer: cid,
+                        limit: 100,
+                        status: status,
+                        starting_after: payments.length > 0 ? payments.last().invoice : undefined,
+                        created: {
+                            gte: created,
+                        },
+                    });
+                }
+            }
+
+            // Handle error.
+            catch (error) {
+                throw new StripeError(error.message); // since the default stripe errors do not have a stacktrace.
+            }
+
+            // Parse invoices.
+            await this._stripe_parse_as_list(result.data).iterate_async_await(async (item) => {
+                const items = this._stripe_parse_as_list(item.lines.data);
+                await items.iterate_async_await(async (line_item) => {
+                    payments.push({
+                        product: await this.get_product(line_item.price.product),
+                        quantity: line_item.quantity,
+                        amount: parseFloat(line_item.amount) / 100,
+                        timestamp: line_item.price.created,
+                        pdf: item.invoice_pdf,
+                        invoice: item.id,
+                        payment_intent: item.payment_intent,
+                    });
                 })
+            })
+
+            // Stop.
+            if (result.has_more !== true || ending_before != null) {
+                break;
             }
         }
 
-        // Create refund.
-        let refund;
-        try {
-            refund = await this.stripe.refunds.create({
-                payment_intent: invoice_obj.payment_intent,
-                amount: amount == null ? undefined : parseInt(amount * 100),
-                metadata: {
-                    quote: quote,
-                    invoice: invoice,
-                },
-            });
-        } catch (error) {
-            throw new StripeError(error.message); // since the default stripe errors do not have a stacktrace.
+        // Sort from newest till oldest.
+        payments.sort((a, b) => b.timestamp - a.timestamp)
+        if (limit != null && limit !== -1 && payments.length > limit) {
+            payments.length = limit;
         }
 
-        // Parse the failed status.
-        if (refund.status === "failed") {
-            
-        }
-
-        // Return the refund info.
-        return refund;
+        // Handler.
+        return payments;
     }
 
     // Check if a user is subscribed to a specific product.
+    // Use async to keep it persistent with other functions.
     // @todo TEST
     /*  @docs {
      *  @title: Is Subscribed
@@ -5092,15 +5188,38 @@ class Server {
      *  @return: Returns a boolean indicating if the user is subscribed to that product or not.
      *  @usage:
      *      ...
-     *      const subscriptions = server.is_subscribed(0, "sub_basic");
+     *      const subscriptions = await server.is_subscribed(0, "sub_basic");
      } */
-    is_subscribed(uid, id) {
+    async is_subscribed(uid, id) {
         this._check_uid_within_range(uid);
         const {exists} = this._sys_check_subscription(uid, id, false);
-        return exsits;
+        return exists;
     }
 
     // Get the subscriptions of a user.
+    // Use async to keep it persistent with other functions.
+    // @todo TEST
+    /*  @docs {
+     *  @title: Get Subscriptions
+     *  @description:
+     *      Get the subscriptions of a user.
+     *  @parameter:
+     *      @name: uid
+     *      @description: The id of the user you want to retrieve the subscriptions from.
+     *      @type: number
+     *  @type: array[string]
+     *  @return: Returns a list with the product id's the user is subscribed to.
+     *  @usage:
+     *      ...
+     *      const subscriptions = server.get_subscriptions(1);
+     } */
+    async get_subscriptions(uid) {
+        this._check_uid_within_range(uid);
+        return _sys_get_subscriptions(uid);
+    }
+
+    // Get the subscriptions of a user.
+    // Use async to keep it persistent with other functions.
     // @todo TEST
     /*  @docs {
      *  @title: Get Subscription Id
@@ -5118,9 +5237,9 @@ class Server {
      *  @return: When the user is not subscribed to the product `null` will be returned. When the user is subscribed to the product the subscription id will be returned.
      *  @usage:
      *      ...
-     *      const id = server.get_subscription(0, "sub_basic");
+     *      const id = await server.get_subscription(1, "sub_basic");
      } */
-    get_subscription(uid, id) {
+    async get_subscription(uid, id) {
         this._check_uid_within_range(uid);
         const {exists, sub_id} = this._sys_check_subscription(uid, id);
         if (exists) {
@@ -5143,7 +5262,7 @@ class Server {
      *  @return: The stripe subscription object will be returned. more info about the object can be found at https://stripe.com/docs/api/subscriptions/object.
      *  @usage:
      *      ...
-     *      const subscription = server.get_subscription_obj("sub_xxxxxxxx");
+     *      const subscription = await server.get_subscription_obj("sub_xxxxxxxx");
      } */
     async get_subscription_obj(id) {
         try {
@@ -5151,27 +5270,6 @@ class Server {
         } catch (error) {
             throw new StripeError(error.message); // since the default stripe errors do not have a stacktrace.
         }
-    }
-
-    // Get the subscriptions of a user.
-    // @todo TEST
-    /*  @docs {
-     *  @title: Get Subscriptions
-     *  @description:
-     *      Get the subscriptions of a user.
-     *  @parameter:
-     *      @name: uid
-     *      @description: The id of the user you want to retrieve the subscriptions from.
-     *      @type: number
-     *  @type: array[string]
-     *  @return: Returns a list with the product id's the user is subscribed to.
-     *  @usage:
-     *      ...
-     *      const subscriptions = server.get_subscriptions(0);
-     } */
-    get_subscriptions(uid) {
-        this._check_uid_within_range(uid);
-        return _sys_get_subscriptions(uid);
     }
 
     // Cancel a subscription
@@ -5201,7 +5299,7 @@ class Server {
      *      ...
      *      server.cancel_subscription({uid: 0, id: "sub_basic"});
      } */
-    async cancel_subscription({uid, id, sub_id = null}) {
+    async cancel_subscription(uid, id, sub_id = null) {
 
         // Check params.
         if (typeof uid !== "number") {
@@ -5230,6 +5328,231 @@ class Server {
         this._sys_remove_subscription(uid, id);
     }
 
+    // Create a refund for a payment intent.
+    // @todo TEST
+    /*  @docs {
+     *  @title: Get Refunable Payments
+     *  @description:
+     *      Get a list of the user's payments that are refundable.
+     *  @type: Promise
+     *  @return:
+     *      Returns a promise to a list of refundable payments or a rejection with an error.
+     *
+     *      A payment product has the following attributes:
+     *      ```js
+     *      {
+     *          product: <object>,           // the user defined product that was purchased.
+     *          quantity: <number>,          // the quantity of the purchased product.
+     *          timestamp: <number>,         // the unix timestamp in seconds of the purchase.
+     *          pdf: <string>,               // the url string to the pdf download link.
+     *          invoice: <string>,           // the invoice's id of the purchase.
+     *          payment_intent: <string>,    // the payment intent's id of the purchase.
+     *      }
+     *      ```
+     *  @parameter:
+     *      @name: uid
+     *      @description: The id of the user.
+     *      @type: number
+     *  @parameter:
+     *      @name: days
+     *      @description: The number of days for which the payment is still refundable.
+     *      @type: null, number
+     *  @parameter:
+     *      @name: limit
+     *      @description: A limit on the number of objects to be returned. The limit can range between 1 and 100, the default is 100.
+     *      @type: number
+     *  @usage:
+     *      ...
+     *      const payments = await server.get_refundable_payments({uid: 1, days: 14});
+     } */
+    async get_refundable_payments({uid, days = 14, limit = null}) {
+        return await this.get_payments({uid: uid, days: days, limit: limit, status: "paid"})
+    }
+
+    // Create a refund for a payment intent.
+    // @todo TEST
+    /*  @docs {
+     *  @title: Create Refund
+     *  @description:
+     *      Create a refund for a payment intent.
+     *
+     *      When the payment intent is part of a subscription, the active subscription will automatically be cancelled.
+     *
+     *      One of the following parameters is always required: `payment`, `quote`, `invoice` or `payment_intent`.
+     *  @warning: 
+     *      When parameter `amount` is undefined the entire order linked to the payment's payment intent will be refunded. So when multiple products were purchased in this order, they will be refunded too.
+     *      
+     *      Therefore it is advised specify the `payment` parameter or the `amount` parameter.
+     *
+     *      The `payment` parameter automatically assigns the correct value to parameter `amount`.
+     *  @type: object
+     *  @usage: Returns the stripe refund object.
+     *  @parameter:
+     *      @name: payment
+     *      @description: The retrieved payment object from `Server.get_payments()` or `Server.get_refundable_payments()`. Parameter `payment` will make sure only the charged amount for that purchased product will be refunded and not the entire order.
+     *      @type: object
+     *  @parameter:
+     *      @name: quote
+     *      @description: The id of the charged quote.
+     *      @type: string
+     *  @parameter:
+     *      @name: invoice
+     *      @description: The id of the charged invoice, conditionally required.
+     *      @type: string
+     *  @parameter:
+     *      @name: payment_intent
+     *      @description: The id of the charged payment intent invoice, conditionally required.
+     *      @type: string
+     *  @parameter:
+     *      @name: uid
+     *      @description: Optionally provide the user id of the charged quote. When the uid is left undefined it will automatically be retrieved from the charged payment.
+     *      @type: number
+     *  @parameter:
+     *      @name: amount
+     *      @description: The amount to refund as a floating number. When left undefined the entire amount of the order will be refunded.
+     *      @type: number
+     *  @usage:
+     *      ...
+     *      await server.create_refund("...");
+     } */
+    async create_refund({
+        payment = null,
+        quote = null, 
+        invoice = null, 
+        payment_intent = null, 
+        uid = null,
+        amount = null,
+    }) {
+
+        // Assign attributes by payment object.
+        if (payment != null) {
+            
+            // Check attributes.
+            if (typeof payment.amount !== "number") {
+                throw Error(`Parameter "payment.amount" has an incorrect type, the valid type is "number".`);
+            }
+            else if (typeof payment.invoice !== "string") {
+                throw Error(`Parameter "payment.invoice" has an incorrect type, the valid type is "string".`);
+            }
+            else if (typeof payment.payment_intent !== "string") {
+                throw Error(`Parameter "payment.payment_intent" has an incorrect type, the valid type is "string".`);
+            }
+
+            // Assign.
+            quote = payment.quote;
+            invoice = payment.invoice;
+            payment_intent = payment.payment_intent;
+            amount = payment.amount;
+        }
+
+        // Check params.
+        if (quote == null && invoice == null && payment_intent == null) {
+            throw Error("Define parameter \"invoice\" or \"quote\".");
+        }
+
+        // Vars.
+        let invoice_obj;
+        let payment_intent_id;
+
+        // By qoute.
+        if (quote != null) {
+            try {
+                const obj = await this.stripe.quotes.retrieve(quote, {
+                    expand: ["invoice"],
+                });
+                invoice_obj = obj.invoice;
+                payment_intent_id = invoice_obj.payment_intent;
+            } catch (error) {
+                throw new StripeError(error.message); // since the default stripe errors do not have a stacktrace.
+            }    
+        }
+
+        // By invoice.
+        else if (invoice != null) {
+            try {
+                invoice_obj = await this.stripe.invoices.retrieve(invoice);
+                payment_intent_id = invoice_obj.payment_intent;
+            } catch (error) {
+                throw new StripeError(error.message); // since the default stripe errors do not have a stacktrace.
+            }    
+        }
+
+        // By payment intent.
+        else if (payment_intent != null) {
+            try {
+                const obj = await this.stripe.paymentIntents.retrieve(payment_intent, {
+                    expand: ["invoice"],
+                });
+                invoice_obj = obj.invoice;
+                payment_intent_id = obj.id;
+            } catch (error) {
+                throw new StripeError(error.message); // since the default stripe errors do not have a stacktrace.
+            }    
+        }
+
+        // Get the uid of the invoice.
+        if (uid == null) {
+            try {
+                uid = this._sys_load_uid_by_stripe_cid(invoice.customer);
+            } catch (err) {
+                uid = null;
+            }
+        } else {
+            this._check_uid_within_range(uid);
+        }
+
+        // Cancel the subscription line items.
+        if (uid != null) {
+
+            // Retrieve the quote's line items.
+            let line_items;
+            try {
+                line_items = await this.stripe.invoices.listLineItems(invoice_obj.id, {
+                    limit: 100,
+                });
+                line_items = this._stripe_parse_as_list(line_items.data);
+            } catch (error) {
+                throw new StripeError(error.message); // since the default stripe errors do not have a stacktrace.
+            }
+
+            // Cancel all subscription line items.
+            if (Array.isArray(line_items)) {
+                await line_items.iterate_async_await(async (item) => {
+                    if (item.price.type === "recurring") {
+                        const {exists, sub_id} = this._sys_check_subscription(uid, item.price.product);
+                        if (exists) {
+                            await this._stripe_cancel_subscription(sub_id);
+                            this._sys_remove_subscription(uid, item.price.product);
+                        }
+                    }
+                })
+            }
+        }
+
+        // Create refund.
+        let refund;
+        try {
+            refund = await this.stripe.refunds.create({
+                payment_intent: payment_intent_id,
+                amount: amount == null ? undefined : parseInt(amount * 100),
+                metadata: {
+                    invoice: invoice_obj.id,
+                    payment_intent: payment_intent_id,
+                },
+            });
+        } catch (error) {
+            throw new StripeError(error.message); // since the default stripe errors do not have a stacktrace.
+        }
+
+        // Parse the failed status.
+        if (refund.status === "failed") {
+            refund.failure_description = this._stripe_parse_refund_failure_reason(refund.failure_reason);
+        }
+
+        // Return the refund info.
+        return refund;
+    }
+
     // Create a subscription.
     /*  DEPRECATED docs {
      *  @title: Create Subscription.
@@ -5255,7 +5578,7 @@ class Server {
 
         // Get the products.
         if (product == null) {
-            product = this.get_product(product_id);
+            product = await this.get_product(product_id);
             if (product == null) {
                 throw Error(`Unknown product id "${product_id}".`);
             }
@@ -5307,7 +5630,7 @@ class Server {
         }
 
         // Cancel the other active plans from this subscription.
-        const subscription_product = this.get_product(product.parent_id);
+        const subscription_product = await this.get_product(product.parent_id);
         if (subscription_product == null) {
             throw Error(`Unable to find payment product "${product.parent_id}".`);
         }
@@ -5443,7 +5766,7 @@ class Server {
             }
 
             // Load the user's email.
-            email = this.get_user(uid).email
+            email = await this.get_user(uid).email
 
             // Get the customer id.
             cid = await this._stripe_get_cid(uid);
@@ -5452,7 +5775,7 @@ class Server {
 
         // Retrieve the email when both the cid and uid are defined.
         else if (uid != null && email == null) {
-            email = this.get_user(uid).email
+            email = await this.get_user(uid).email
         }
 
         // Check the email.
@@ -5583,7 +5906,7 @@ class Server {
         //     }
 
         //     // Load the user's email.
-        //     email = this.get_user(uid).email
+        //     email = await this.get_user(uid).email
 
         //     // Get the customer id.
         //     cid = await this._stripe_get_cid(uid);
@@ -5592,7 +5915,7 @@ class Server {
 
         // // Retrieve the email when both the cid and uid are defined.
         // else if (uid != null && email == null) {
-        //     email = this.get_user(uid).email
+        //     email = await this.get_user(uid).email
         // }
 
         // // Check the email.

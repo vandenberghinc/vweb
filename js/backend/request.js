@@ -365,11 +365,21 @@ class Request {
 	 *  	@name: type
 	 *  	@desc: The type cast of the parameters, valid types are `[null, "boolean", "number", "string", "array", "object"]`.
 	 *  	@type: string
+     *  @param:
+     *      @name: def
+     *      @desc: 
+     *          The default value to return when the parameter does not exist. 
+     *
+     *          If the parameter is not defined and `def` is `undefined` then this function will throw an error. 
+     *          Only when `def` is `undefined` errors will be thrown, when `def` is `null` and the parameter is undefined then `null` will be returned as the default value.
+     *
+     *          However errors may still be thrown when the incorrect type has been sent by the user.
+     *      @type: any
      *  @usage:
      *      ...
-     *      const param = request.param("myparameter", "number");
+     *      const param = request.param("myparameter", "number", 10);
      */
-    param(name, type = null) {
+    param(name, type = null, def = undefined) {
 
         // Parse params.
         this._parse_params();
@@ -413,6 +423,9 @@ class Request {
 
             // Check undefined.
             if (value == null || value === "") {
+                if (def !== undefined) {
+                    return def;
+                }
                 throw Error(`Define parameter "${name}"${type_str()}.`)
             }
 
@@ -507,6 +520,9 @@ class Request {
 
         // Check undefined.
         else if (value == null || value === "") {
+            if (def !== undefined) {
+                return def;
+            }
             throw Error(`Define parameter "${name}".`)
         }
 
