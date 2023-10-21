@@ -152,6 +152,9 @@ class View {
         this.css_includes.iterate((url) => {
             this.html += `<link rel="stylesheet" href="${url}">`;
         })
+        if (this.payments) {
+            this.html += `<link rel="stylesheet" href="https://checkoutshopper-live.adyen.com/checkoutshopper/sdk/5.51.0/adyen.css" integrity="sha384-k6qYnmoHaucEm97eQQAs3MK5e44JQ2sksrue2tfdDOnnedKzc0VYQwxzdYWZu8Mj" crossorigin="anonymous">`;
+        }
         
         // End headers.
         this.html += "</head>";
@@ -168,7 +171,8 @@ class View {
             this.html += "<script src='https://ajax.googleapis.com/ajax/libs/jquery/3.6.4/jquery.min.js'></script>";
         }
         if (this.payments) {
-            this.html += "<script src='https://js.stripe.com/v3/'></script>";
+            // this.html += "<script async src='https://js.stripe.com/v3/'></script>";
+            this.html += `<script async src="https://checkoutshopper-live.adyen.com/checkoutshopper/sdk/5.51.0/adyen.js" integrity="sha384-FJWX32BY0zx3KKed9gdiWxoEAEsA3uh1ixchmdkflgtcDo+SoYg5ZD6uqvDmnafO" crossorigin="anonymous"></script>`
         }
         this.includes.iterate((url) => {
             this.html += `<script src='${url}'></script>`;

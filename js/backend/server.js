@@ -21,6 +21,7 @@ const Endpoint = require("./endpoint.js");
 const Response = require("./response.js");
 const Request = require("./request.js");
 const FileWatcher = require("./file_watcher.js");
+const Adyen = require("./adyen.js");
 
 // ---------------------------------------------------------
 // The server object.
@@ -230,9 +231,32 @@ class StripeError extends Error {
  *          ({
  *              uid: <number>,          // the user id that requested the refund.
  *              cid: <string>,          // the stripe customer id of the user that requested the refund.
- *              quote_id: <string>,     // the quote id of the requested refund.
- *              invoice_id: <string>,   // the invoice id of the requested refund.
- *              refund: <object>,       // the stripe refund object.
+ *              invoice: <string>,      // the id of the invoice of the requested refund.
+ *              invoice_item: <string>, // the id of the invoice item of the requested refund.
+ *              refund: <object>,       // the refund object.
+ *          });
+ *          ```
+ *  @parameter:
+ *      @name: on_refund_request
+ *      @type: function
+ *      @description: 
+ *          The event that will be triggerred when a refund request has been made with `auto_advance` disabled.
+ *
+ *          The callback can also be assigned later to the server object under the same attribute name as the parameter's name.
+ *
+ *          In this callback you can send an email to your customer with refund instructions.
+ *          When the user has fulfilled all refund requirements, the refund request can be retrieved with `Server.get_open_refund(refund.id)` using the `id` attribute of the refund object.
+ *          Then the refund can be confirmed with `Server.create_refund({payment: refund.payment, auto_advance: true})` using the `payment` attribute of the refund object.
+ *
+ *          The callback may accept the following paramters:
+ *          ```js
+ *          ({
+ *              uid: <number>,          // the user id that requested the refund.
+ *              cid: <string>,          // the stripe customer id of the user that requested the refund.
+ *              payment: <object>,      // the payment object from `Server.get_payments()`.
+ *              invoice: <string>,      // the id of the invoice of the requested refund.
+ *              invoice_item: <string>, // the id of the invoice item of the requested refund.
+ *              refund: <object>,       // the refund object.
  *          });
  *          ```
  *  @parameter:
@@ -253,8 +277,8 @@ class StripeError extends Error {
  *              reason: <string>,           // the failure reason string.
  *              description: <string>,      // the failure reason description.
  *              requires_action: <boolean>, // a boolean indicating whether the refund failed because it required user action.
- *              quote_id: <string>,         // the quote id of the requested refund.
- *              invoice_id: <string>,       // the invoice id of the requested refund.
+ *              invoice: <string>,          // the id of the invoice of the requested refund.
+ *              invoice_item: <string>, // the id of the invoice item of the requested refund.
  *              refund: <object>,           // the stripe refund object.  
  *          });
  *          ```
@@ -495,6 +519,7 @@ class Server {
         automatic_tax = true,
         file_watcher = null,
         on_refund = null,
+        on_refund_request = null,
         on_refund_failed = null,
         on_payment_requires_action = null,
         on_payment_failed = null,
@@ -565,12 +590,20 @@ class Server {
         this.payment_return_url = payment_return_url;
         this.automatic_tax = automatic_tax;
         this.on_refund = on_refund;
+        this.on_refund_request = on_refund_request;
         this.on_refund_failed = on_refund_failed;
         this.on_payment_requires_action = on_payment_requires_action;
         this.on_payment_failed = on_payment_failed;
         this.on_payment = on_payment;
         this.on_susbcription = on_susbcription;
         this.on_susbcription_cancelled = on_susbcription_cancelled;
+
+        this.adyen = new Adyen({
+            api_key: "",
+            account_name: "VDocs",
+            return_url: this.payment_return_url,
+            payment_products: payment_products,
+        });
 
         // Default headers.
         if (default_headers === null) {
@@ -585,8 +618,8 @@ class Server {
                 "Content-Security-Policy": 
                     "default-src 'self' js.stripe.com *.google-analytics.com https://my.spline.design; " +
                     `img-src 'self' http://${this.domain} https://${this.domain} *.google-analytics.com; ` +
-                    "script-src 'self' 'unsafe-inline' js.stripe.com ajax.googleapis.com www.googletagmanager.com googletagmanager.com *.google-analytics.com code.jquery.com; " +
-                    "style-src 'self' 'unsafe-inline'; " +
+                    "script-src 'self' 'unsafe-inline' js.stripe.com https://checkoutshopper-live.adyen.com https://checkoutshopper-test.adyen.com ajax.googleapis.com www.googletagmanager.com googletagmanager.com *.google-analytics.com code.jquery.com; " +
+                    "style-src 'self' 'unsafe-inline' https://checkoutshopper-live.adyen.com https://checkoutshopper-test.adyen.com; " +
                     "upgrade-insecure-requests; " +
                     "block-all-mixed-content;",
             }
@@ -1731,9 +1764,29 @@ class Server {
                 }
             },
         )
-
+        
         // ---------------------------------------------------------
         // Payments endpoints.
+
+        this.endpoint(
+
+            // Checkout session.
+            {
+                method: "POST",
+                endpoint: "/vweb/backend/payments/session",
+                content_type: "application/json",
+                rate_limit: 100,
+                rate_limit_duration: 60,
+                callback: async (request, response) => {
+                    const session = await this.adyen.create_session({
+                        id: request.uid,
+                        ip: request.ip,
+                    });
+                    return response.success({data: session});
+                }
+            },
+        );
+
         if (this.stripe_enabled) {
             this.endpoint(
             
@@ -2092,8 +2145,8 @@ class Server {
                                         const result = this.on_refund({
                                             uid: uid,
                                             cid: cid,
-                                            quote_id: obj.metadata.quote,
-                                            invoice_id: obj.metadata.invoice,
+                                            invoice: obj.metadata.invoice,
+                                            invoice_item: obj.metadata.invoice_item,
                                             refund: obj,
                                         });
                                         if (result instanceof Promise) {
@@ -2130,8 +2183,8 @@ class Server {
                                             reason: obj.failure_reason,
                                             description: obj.failure_description,
                                             requires_action: obj.status === "requires_action",
-                                            quote_id: obj.metadata.quote,
-                                            invoice_id: obj.metadata.invoice,
+                                            invoice: obj.metadata.invoice,
+                                            invoice_item: obj.metadata.invoice_item,
                                             refund: obj,
                                         });
                                         if (result instanceof Promise) {
@@ -2459,7 +2512,7 @@ class Server {
         // Status description.
         switch (refund.status) {
             case "pending": 
-                refund.status_description = "The refund request is still processing.";
+                refund.status_description = "The refund request is being processed.";
                 break;
             case "succeeded": 
                 refund.status_description = "The payment has successfully been refunded.";
@@ -4886,8 +4939,7 @@ class Server {
             recipients: [user.email],
             subject: "Two Factor Authentication Code",
             body: body,
-        });
-        
+        });   
     }
 
     // Get a product by id.
@@ -5580,7 +5632,7 @@ class Server {
         // Update the line item's metadata to set the refund id.
         // This status will be updated by the webhook.
         // Therefore the `Server.get_products()` can indicate if the payment was already refunded and add the status.
-        const set_metadata = async (refund) => {
+        const update_invoice_metadata = async (refund) => {
             try {
                 const metadata = {};
                 metadata[invoice_item] = `${refund.id} ${refund.status} ${refund.status_description}`;
@@ -5594,9 +5646,32 @@ class Server {
 
         // Do not advance.
         if (auto_advance !== true) {
-            await set_metadata({id: invoice_item, status: "processing", status_description: "The refund request is still processing."});
+
+            // Create a refund object for the frontend.
+            const refund = {
+                id: invoice_item,
+                status: "processing",
+                status_description: "The refund request is being processed.",
+            };
+
+            // Uppdate metadata on the invoice.
+            await update_invoice_metadata(refund);
+
+            // Add to database.
             this._sys_add_open_refund(uid, invoice_item, payment);
-            return null;
+
+            // On refund requrest callback.
+            if (this.on_refund_request != null) {
+                this.on_refund_request({
+                    uid: uid,
+                    cid: cid,
+                    payment: payment,
+                    invoice: invoice,
+                    invoice_item: invoice_item,
+                    refund: refund,
+                });
+            }
+            return refund;
         }
 
         // By invoice.
@@ -5644,6 +5719,7 @@ class Server {
         let refund;
         try {
             refund = await this.stripe.refunds.create({
+                id: refund_id,
                 payment_intent: payment_intent,
                 amount: amount == null ? undefined : parseInt(amount * 100),
                 metadata: {
@@ -5662,7 +5738,7 @@ class Server {
         // Update the line item's metadata to set the refund id.
         // This status will be updated by the webhook.
         // Therefore the `Server.get_products()` can indicate if the payment was already refunded and add the status.
-        await set_metadata(refund);
+        await update_invoice_metadata(refund);
 
         // Remove the open refund from the database.
         this._sys_remove_open_refund(uid, invoice_item);

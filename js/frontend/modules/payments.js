@@ -479,6 +479,9 @@ vweb.payments.get_refundable_payments = function({days = 30, refunded = null, li
  * 	@chapter: Client
  * 	@title: Create Refund
  *	@description: Create a refund payment request for a certain payment from `vweb.payments.get_refundable_payments`.
+ *	@type: Promise
+ *  @return:
+ *      Returns a promise to the stripe refund object.
  *  @parameter:
  *      @name: payment
  *      @description: The retrieved payment object from `vweb.payments.get_payments()` or `vweb.payments.get_refundable_payments()`.
