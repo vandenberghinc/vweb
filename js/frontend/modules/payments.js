@@ -344,14 +344,14 @@ vweb.payments.get_product = async function(id) {
  *      @type: null, number
  *  @parameter:
  *      @name: refunded
- *      @description: Include the payments for which a refund has been requested.
- *      @type: boolean
+ *      @description: Filter the payments by a refund request, `refunded: null` will both non refunded and refunded payments, `refunded: true` will retrieve all refunded payments and `refunded: false` will retrieve all non refunded payments.
+ *      @type: null, boolean
  *  @parameter:
  *      @name: limit
  *      @description: A limit on the number of objects to be returned. Leave the limit `null` to disable the limit.
  *      @type: null, number
  */
-vweb.payments.get_payments = function({status = "paid", days = 30, refunded = true, limit = null} = {}) {
+vweb.payments.get_payments = function({status = "paid", days = 30, refunded = null, limit = null} = {}) {
 	return vweb.utils.request({
 		method: "GET",
 		url: "/vweb/backend/payments/payments",
@@ -455,14 +455,14 @@ vweb.payments.cancel_subscription = function(id) {
  *      @type: null, number
  *  @parameter:
  *      @name: refunded
- *      @description: Include the payments for which a refund has been requested.
- *      @type: boolean
+ *      @description: Filter the payments by a refund request, `refunded: null` will both non refunded and refunded payments, `refunded: true` will retrieve all refunded payments and `refunded: false` will retrieve all non refunded payments.
+ *      @type: null, boolean
  *  @parameter:
  *      @name: limit
  *      @description: A limit on the number of objects to be returned. The limit can range between 1 and 100, the default is 100.
  *      @type: number
  */
-vweb.payments.get_refundable_payments = function({days = 30, refunded = true, limit = null} = {}) {
+vweb.payments.get_refundable_payments = function({days = 30, refunded = null, limit = null} = {}) {
 	return vweb.utils.request({
 		method: "GET",
 		url: "/vweb/backend/payments/refundable",
@@ -479,15 +479,24 @@ vweb.payments.get_refundable_payments = function({days = 30, refunded = true, li
  * 	@chapter: Client
  * 	@title: Create Refund
  *	@description: Create a refund payment request for a certain payment from `vweb.payments.get_refundable_payments`.
- *	@type: Promise
- *	@return: Returns a promise to the list of refundable payments. The payment objects are the same as `Server.get_refundable_payments()`.
+ *  @parameter:
+ *      @name: payment
+ *      @description: The retrieved payment object from `vweb.payments.get_payments()` or `vweb.payments.get_refundable_payments()`.
+ *      @type: object
+ *  @parameter:
+ *      @name: auto_advance
+ *      @description:
+ *          When auto advance is enabled the refund will be initiated, when auto advance is disabled the refund is added to the database and must still be confirmed with `Server.create_refund({payment: ..., auto_advance: true})`.
+ *          This may be required when a user should return a product before confirming the refund.
+ *      @type: boolean
  */
-vweb.payments.create_refund = function(payment) {
+vweb.payments.create_refund = function({payment, auto_advance = true}) {
 	return vweb.utils.request({
 		method: "POST",
 		url: "/vweb/backend/payments/refund",
 		data: {
 			payment: payment,
+			auto_advance: auto_advance,
 		},
 	});
 }

@@ -274,7 +274,6 @@ vweb.utils.request = function({
 				resolve(data, xhr.status, xhr);
 			},
 			error: function(xhr, status, e) {
-				console.log(xhr)
 				let response;
 				try {
 					response = JSON.parse(xhr.responseText);
@@ -346,6 +345,29 @@ vweb.utils.on_load = function(func) {
 			document.body.appendChild(e);
 		}
 	});
+}
+
+// Convert a unix timestamp in seconds or ms to the user's date format.
+vweb.utils.unix_to_date = function(unix, mseconds = false) {
+	const date = new Date(mseconds ? unix : unix * 1000);
+	const lang = navigator.language || navigator.userLanguage;
+	const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+	let options = {
+		year: "numeric",
+		month: "2-digit",
+		day: "2-digit",
+		timeZone: tz,
+	};
+	const date_format = new Intl.DateTimeFormat(lang, options).format(date);
+	options = {
+		hour: "2-digit",
+		minute: "2-digit",
+		second: "2-digit",
+		hour12: lang.toLowerCase().includes("en"),
+		timeZone: tz,
+	}
+	const time_format = new Intl.DateTimeFormat(lang, options).format(date);
+	return `${date_format} ${time_format}`;
 }
 
 // Compress.

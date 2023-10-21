@@ -1763,6 +1763,7 @@ class Server {
                             status = request.param("status", null, "paid");
                             days = request.param("days", "number", 30);
                             limit = request.param("limit", "number", null);
+                            refunded = request.param("refunded", "boolean", null);
                         } catch (error) {
                             return response.error({status: Status.bad_request, data: {error: error.message}});
                         }
@@ -1773,6 +1774,7 @@ class Server {
                                 status: status,
                                 days: days,
                                 limit: limit,
+                                refunded: refunded,
                             });
                         } catch (error) {
                             return response.error({data: {error: error.message}});
@@ -1862,7 +1864,7 @@ class Server {
                         try {
                             days = request.param("days", "number", 14);
                             limit = request.param("limit", "number", null);
-                            refunded = request.param("refunded", "boolean", true);
+                            refunded = request.param("refunded", "boolean", null);
                         } catch (err) {
                             return response.error({status: Status.bad_request, data: {error: err.message}});
                         }
@@ -1887,15 +1889,16 @@ class Server {
                     rate_limit: 100,
                     rate_limit_duration: 60,
                     callback: async (request, response) => {
-                        let payment;
+                        let payment, auto_advance;
                         try {
                             payment = request.param("payment", "object");
+                            auto_advance = request.param("auto_advance", "boolean");
                         } catch (err) {
                             return response.error({status: Status.bad_request, data: {error: err.message}});
                         }
                         let refund;
                         try {
-                            refund = await this.create_refund({payment: payment, uid: request.uid});
+                            refund = await this.create_refund({payment: payment, auto_advance: auto_advance});
                         } catch (error) {
                             return response.error({data: {error: error.message}});
                         }
@@ -2067,23 +2070,15 @@ class Server {
                             // data.object is a refund
                             case "refund.updated": {
 
-                                // Set failure description.
-                                if (obj.status === "failed") {
-                                    obj.failure_description = ;
-                                    break;
-                                }
-
                                 // Set the status description.
                                 this._stripe_parse_refund(obj)
 
                                 // Update the invoice's line item to set the refund status for `get_products()`.
-                                await this.stripe.invoiceItems.update(obj.metadata.invoice_item, {
-                                    metadata: {
-                                        refund: obj.id,
-                                        refund_status: obj.status,
-                                        refund_status_description: obj.status_description,
-                                    }
-                                })
+                                const metadata = {};
+                                metadata[obj.metadata.invoice_item] = `${obj.id} ${obj.status} ${obj.status_description}`;
+                                await this.stripe.invoices.update(obj.metadata.invoice, {
+                                    metadata: metadata,
+                                });
 
                                 // Successful refund.
                                 if (obj.status === "succeeded") {
@@ -2554,12 +2549,64 @@ class Server {
         return products;
     }
 
+    // Add an open refund request to the database.
+    _sys_add_open_refund(uid, id, payment) {
+        const dir = this.database.join(`.sys/stripe_refunds/${uid}`, false);
+        if (dir.exists() === false) {
+            dir.mkdir_sync();
+        }
+        dir.join(id, false).save_sync(JSON.stringify(payment));
+    }
+    _sys_remove_open_refund(uid, id) {
+        const dir = this.database.join(`.sys/stripe_refunds/${uid}`, false);
+        if (dir.exists() === false) {
+            return ;
+        }
+        const path = dir.join(id, false);
+        if (path.exists()) {
+            path.del_sync();
+        }
+    }
+    _sys_get_open_refund(uid, id) {
+        const dir = this.database.join(`.sys/stripe_refunds/${uid}`, false);
+        if (dir.exists() === false) {
+            throw Error(`User "${uid}" does not have an open refund "${id}".`)
+        }
+        const path = dir.join(id, false);
+        if (path.exists() === false) {
+            throw Error(`User "${uid}" does not have an open refund "${id}".`)
+        }
+        return path.load_sync({type: "object"});
+    }
+    _sys_get_open_refunds(uid = null) {
+        const refunds = [];
+        const base = this.database.join(`.sys/stripe_refunds/`, false);
+        if (base.exists() === false) {
+            return refunds;
+        }
+        if (uid == null) {
+            base.paths_sync().iterate((uid_refunds) => {
+                uid_refunds.paths_sync().iterate((refund) => {
+                    refunds.push(refund.load_sync({type: "object"}));
+                })    
+            })
+        } else {
+            const uid_refunds = base.join(uid, false);
+            if (base.exists() === false) {
+                return refunds;
+            }
+            uid_refunds.paths_sync().iterate((refund) => {
+                refunds.push(refund.load_sync({type: "object"}));
+            })    
+        }
+        return refunds;
+    }
+
     // Get the stripe customer id of a uid, or a create a stripe customer when the uid does not yet have a stripe customer id.
     async _stripe_get_cid(uid) {
         if (this._sys_has_stripe_cid(uid)) {
             return this._sys_load_stripe_cid(uid);
         }
-        console.log("CREATE STRIPE CUSTOMER")
         const user = await this.get_user(uid);
         const customer = await this._stripe_create_customer(user.email, `${user.first_name} ${user.last_name}`);
         this._sys_save_stripe_cid(uid, customer.id);
@@ -2856,6 +2903,7 @@ class Server {
         try {
             await this.stripe.subscriptions.cancel(sub_id);
         } catch (error) {
+            console.error(new StripeError(error.message))
             throw new StripeError(error.message); // since the default stripe errors do not have a stacktrace.
         }
     }
@@ -2901,6 +2949,11 @@ class Server {
             }
             else if (product_ids.includes(product.id)) {
                 throw Error(`Product ${product_index} has a non unique id "${product.id}".`);
+            }
+            for (let i = 0; i < product.id.length; i++) {
+                if ("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_".indexOf(product.id.charAt(i)) === -1) {
+                    throw Error(`Invalid product id "${product.id}", product id's may only contain lowercase characters, uppercase characters, digits and an underscore character ("_").`);
+                }
             }
             product_ids.push(product.id);
 
@@ -3106,6 +3159,7 @@ class Server {
             ".sys/stripe_uids",
             ".sys/stripe_cids",
             ".sys/stripe_subs",
+            ".sys/stripe_refunds",
             "users",
         ].iterate((subpath) => {
             this.database.join(subpath).mkdir_sync();
@@ -4990,7 +5044,7 @@ class Server {
             }
 
             // Load the user's email.
-            email = await this.get_user(uid).email
+            email = (await this.get_user(uid)).email
 
             // Get the customer id.
             cid = await this._stripe_get_cid(uid);
@@ -4999,7 +5053,7 @@ class Server {
 
         // Retrieve the email when both the cid and uid are defined.
         else if (uid != null && email == null) {
-            email = await this.get_user(uid).email
+            email = (await this.get_user(uid)).email
         }
 
         // Check the email.
@@ -5094,8 +5148,8 @@ class Server {
      *      @type: null, string
      *  @parameter:
      *      @name: refunded
-     *      @description: Include the payments for which a refund has been requested.
-     *      @type: boolean
+     *      @description: Filter the payments by a refund request, `refunded: null` will both non refunded and refunded payments, `refunded: true` will retrieve all refunded payments and `refunded: false` will retrieve all non refunded payments.
+     *      @type: null, boolean
      *  @parameter:
      *      @name: limit
      *      @description: A limit on the number of objects to be returned. Leave the limit `null` to disable the limit.
@@ -5132,7 +5186,7 @@ class Server {
         days = null,
         ending_before = null,
         starting_after = null,
-        refunded = true,
+        refunded = null,
         limit = null,
     }) {
 
@@ -5205,27 +5259,32 @@ class Server {
                 const items = this._stripe_parse_as_list(item.lines.data);
                 await items.iterate_async_await(async (line_item) => {
                     let refund = null;
-                    if (line_item.metadata.refund) {
+                    if (item.metadata[line_item.id]) {
+                        const split = item.metadata[line_item.id].split(" ");
                         refund = {
-                            id: line_item.metadata.refund,
-                            status: line_item.metadata.refund_status,
-                            description: line_item.metadata.refund_status_description,
+                            id: split[0],
+                            status: split[1],
+                            description: split.slice(2).join(" "),
                         };
                     }
-                    if (refunded === false && refund != null) {
-                        return null;
+                    if (
+                        refunded == null ||
+                        (refunded === false && refund == null) ||
+                        (refunded === true && refund != null)
+                    ) {
+                        payments.push({
+                            timestamp: item.created,
+                            product: await this.get_product(line_item.price.product),
+                            quantity: line_item.quantity,
+                            amount: parseFloat(line_item.amount) / 100,
+                            refund: refund,
+                            pdf: item.invoice_pdf,
+                            invoice: item.id,
+                            invoice_item: line_item.id,
+                            payment_intent: item.payment_intent,
+                            uid: uid, // required for `_sys_add_open_refund()`.
+                        });
                     }
-                    payments.push({
-                        timestamp: line_item.price.created,
-                        product: await this.get_product(line_item.price.product),
-                        quantity: line_item.quantity,
-                        amount: parseFloat(line_item.amount) / 100,
-                        refund: refund,
-                        pdf: item.invoice_pdf,
-                        invoice: item.id,
-                        invoice_item: line_item.id,
-                        payment_intent: item.payment_intent,
-                    });
                 })
             })
 
@@ -5439,8 +5498,8 @@ class Server {
      *      @type: null, number
      *  @parameter:
      *      @name: refunded
-     *      @description: Include the payments for which a refund has been requested.
-     *      @type: boolean
+     *      @description: Filter the payments by a refund request, `refunded: null` will both non refunded and refunded payments, `refunded: true` will retrieve all refunded payments and `refunded: false` will retrieve all non refunded payments.
+     *      @type: null, boolean
      *  @parameter:
      *      @name: limit
      *      @description: A limit on the number of objects to be returned. The limit can range between 1 and 100, the default is 100.
@@ -5449,12 +5508,11 @@ class Server {
      *      ...
      *      const payments = await server.get_refundable_payments({uid: 1, days: 14});
      } */
-    async get_refundable_payments({uid, days = 14, refunded = true, limit = null}) {
-        return await this.get_payments({uid: uid, days: days, refunded: refunded, limit: limit, status: "paid"})
+    async get_refundable_payments({uid, days = 14, refunded = null, limit = null}) {
+        return await this.get_payments({uid: uid, days: days, refunded: null, limit: limit, status: "paid"})
     }
 
     // Create a refund for a payment intent.
-    // @todo TEST
     /*  @docs {
      *  @title: Create Refund
      *  @description:
@@ -5467,31 +5525,41 @@ class Server {
      *      @name: payment
      *      @description: The retrieved payment object from `Server.get_payments()` or `Server.get_refundable_payments()`.
      *      @type: object
+     *  @parameter:
+     *      @name: auto_advance
+     *      @description:
+     *          When auto advance is enabled the refund will be initiated, when auto_advance is disabled the refund is added to the database and must still be confirmed with `Server.create_refund({payment: ..., auto_advance: true})`.
+     *          This may be required when a user should return a product before confirming the refund.
+     *          The open refund requests can be retrieved with `Server.get_open_refunds()`.
+     *      @type: boolean
      *  @usage:
      *      ...
      *      const payment = ...;
      *      await server.create_refund(payment);
      } */
-    async create_refund(payment) {
+    async create_refund({payment = null, auto_advance = true}) {
 
         // Vars.
         let invoice, invoice_obj, invoice_item, invoice_item_obj, payment_intent, amount, uid;
 
         // Check args.
         if (typeof payment !== "object") {
-            throw Error(`Parameter "payment" has an incorrect type, the valid type is "object".`);
+            throw Error(`Parameter "payment" has an incorrect type "${typeof payment}", the valid type is "object".`);
         }
         if (typeof payment.amount !== "number") {
-            throw Error(`Parameter "payment.amount" has an incorrect type, the valid type is "number".`);
+            throw Error(`Parameter "payment.amount" has an incorrect type "${typeof payment.amount}", the valid type is "number".`);
         }
         if (typeof payment.invoice !== "string") {
-            throw Error(`Parameter "payment.invoice" has an incorrect type, the valid type is "string".`);
+            throw Error(`Parameter "payment.invoice" has an incorrect type "${typeof payment.invoice}", the valid type is "string".`);
         }
         if (typeof payment.invoice_item !== "string") {
-            throw Error(`Parameter "payment.invoice_item" has an incorrect type, the valid type is "string".`);
+            throw Error(`Parameter "payment.invoice_item" has an incorrect type "${typeof payment.invoice_item}", the valid type is "string".`);
         }
         if (typeof payment.payment_intent !== "string") {
-            throw Error(`Parameter "payment.payment_intent" has an incorrect type, the valid type is "string".`);
+            throw Error(`Parameter "payment.payment_intent" has an incorrect type "${typeof payment.payment_intent}", the valid type is "string".`);
+        }
+        if (typeof payment.uid !== "number") {
+            throw Error(`Parameter "payment.uid" has an incorrect type "${typeof payment.uid}", the valid type is "number".`);
         }
 
         // Already refunded.
@@ -5506,6 +5574,30 @@ class Server {
         invoice_item = payment.invoice_item;
         payment_intent = payment.payment_intent;
         amount = payment.amount;
+        uid = payment.uid;
+
+        // Set the refund metadata on the invoice.
+        // Update the line item's metadata to set the refund id.
+        // This status will be updated by the webhook.
+        // Therefore the `Server.get_products()` can indicate if the payment was already refunded and add the status.
+        const set_metadata = async (refund) => {
+            try {
+                const metadata = {};
+                metadata[invoice_item] = `${refund.id} ${refund.status} ${refund.status_description}`;
+                await this.stripe.invoices.update(invoice, {
+                    metadata: metadata,
+                });
+            } catch (error) {
+                throw new StripeError(error.message); // since the default stripe errors do not have a stacktrace.
+            }
+        }
+
+        // Do not advance.
+        if (auto_advance !== true) {
+            await set_metadata({id: invoice_item, status: "processing", status_description: "The refund request is still processing."});
+            this._sys_add_open_refund(uid, invoice_item, payment);
+            return null;
+        }
 
         // By invoice.
         try {
@@ -5542,7 +5634,9 @@ class Server {
                     await this._stripe_cancel_subscription(invoice_item_obj.subscription);    
                 }
             } else if (typeof invoice_item_obj.subscription === "string") {
-                await this._stripe_cancel_subscription(invoice_item_obj.subscription);
+                try {
+                    await this._stripe_cancel_subscription(invoice_item_obj.subscription);
+                } catch (err) {}
             }
         }
 
@@ -5568,23 +5662,70 @@ class Server {
         // Update the line item's metadata to set the refund id.
         // This status will be updated by the webhook.
         // Therefore the `Server.get_products()` can indicate if the payment was already refunded and add the status.
-        else {
-            try {
-                await this.stripe.invoiceItems.update(invoice_item, {
-                    metadata: {
-                        refund: refund.id,
-                        refund_status: refund.status,
-                        refund_status_description: refund.status_description,
-                    }
-                });
-            } catch (error) {
-                throw new StripeError(error.message); // since the default stripe errors do not have a stacktrace.
-            }
-        }
+        await set_metadata(refund);
+
+        // Remove the open refund from the database.
+        this._sys_remove_open_refund(uid, invoice_item);
 
         // Return the refund info.
         return refund;
     }
+
+    // Get all open and unconfirmed refund requests.
+    /*  @docs {
+     *  @title: Get Open Refunds
+     *  @description:
+     *      Get all requested but unconfirmed refund payments.
+     *
+     *      An requested but unconfirmed refund payment must still be confirmed with `Server.create_refund({payment: ..., auto_advance: true})`.
+     *  @type: array[object]
+     *  @usage: Returns a list of requested refund payments.
+     *  @parameter:
+     *      @name: uid
+     *      @description: Filter the open refund requests by uid (optional).
+     *      @type: number
+     *  @usage:
+     *      ...
+     *      const refund_payments = await server.get_open_refunds();
+     } */
+    async get_open_refunds(uid = null) {
+        if (uid != null && typeof uid !== "number") {
+            throw Error(`Parameter "uid" has an incorrect type "${typeof uid}", the valid type is "number".`);
+        }
+        return this._sys_get_open_refunds(uid);
+    }
+
+    // Get an open and unconfirmed refund request.
+    /*  @docs {
+     *  @title: Get Open Refunds
+     *  @description:
+     *      Get a requested but unconfirmed refund payment by id.
+     *
+     *      An requested but unconfirmed refund payment must still be confirmed with `Server.create_refund({payment: ..., auto_advance: true})`.
+     *  @type: object
+     *  @usage: Returns the requested refund payment.
+     *  @parameter:
+     *      @name: uid
+     *      @description: The uid of the user that requested the refund.
+     *      @type: number
+     *  @parameter:
+     *      @name: id
+     *      @description: The id of payment's unconfirmed refund request.
+     *      @type: string
+     *  @usage:
+     *      ...
+     *      const refund_payment = await server.get_open_refund("...");
+     } */
+    async get_open_refund(uid, id) {
+        if (typeof uid !== "number") {
+            throw Error(`Parameter "uid" has an incorrect type "${typeof uid}", the valid type is "number".`);
+        }
+        if (typeof id !== "string") {
+            throw Error(`Parameter "id" has an incorrect type "${typeof id}", the valid type is "string".`);
+        }
+        return this._sys_get_open_refund(uid, id);
+    }
+
 
     // Create a subscription.
     /*  DEPRECATED docs {
@@ -5799,7 +5940,7 @@ class Server {
             }
 
             // Load the user's email.
-            email = await this.get_user(uid).email
+            email = (await this.get_user(uid)).email
 
             // Get the customer id.
             cid = await this._stripe_get_cid(uid);
@@ -5808,7 +5949,7 @@ class Server {
 
         // Retrieve the email when both the cid and uid are defined.
         else if (uid != null && email == null) {
-            email = await this.get_user(uid).email
+            email = (await this.get_user(uid)).email
         }
 
         // Check the email.
@@ -5939,7 +6080,7 @@ class Server {
         //     }
 
         //     // Load the user's email.
-        //     email = await this.get_user(uid).email
+        //     email = (await this.get_user(uid)).email
 
         //     // Get the customer id.
         //     cid = await this._stripe_get_cid(uid);
@@ -5948,7 +6089,7 @@ class Server {
 
         // // Retrieve the email when both the cid and uid are defined.
         // else if (uid != null && email == null) {
-        //     email = await this.get_user(uid).email
+        //     email = (await this.get_user(uid)).email
         // }
 
         // // Check the email.
