@@ -11,8 +11,8 @@
         "access": "public"
     },
     "dependencies": {
-        "@adyen/api-library": "^14.4.0",
         "@vandenberghinc/vlib": "^1.2.7",
+        "api": "^6.1.1",
         "nodemailer": "^6.9.5",
         "stripe": "^13.10.0"
     }

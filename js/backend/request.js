@@ -277,7 +277,7 @@ class Request {
 	/*  @docs:
      *  @title: IP
      *  @description: Get the request's ip.
-	 *  @attribute: true
+	 *  @property: true
      *  @usage:
      *      ...
      *      const ip = request.ip;
@@ -290,7 +290,7 @@ class Request {
 	/*  @docs:
      *  @title: Port
      *  @description: Get the request's port.
-	 *  @attribute: true
+	 *  @property: true
      *  @usage:
      *      ...
      *      const port = request.port;
@@ -303,7 +303,7 @@ class Request {
     /*  @docs:
      *  @title: UID
      *  @description: Get the authenticated uid, is `null` when the request was not authenticated.
-     *  @attribute: true
+     *  @property: true
      *  @type: number
      *  @usage:
      *      ...
@@ -320,7 +320,7 @@ class Request {
 	/*  @docs:
      *  @title: Endpoint
      *  @description: Get the request's endpoint. This will not include the query string.
-	 *  @attribute: true
+	 *  @property: true
 	 *  @type: string
      *  @usage:
      *      ...
@@ -338,7 +338,7 @@ class Request {
 	/*  @docs:
      *  @title: Parameters
      *  @description: Get the request's query or body params.
-	 *  @attribute: true
+	 *  property: true
 	 *  @type: object
      *  @usage:
      *      ...
@@ -534,7 +534,7 @@ class Request {
     /*  @docs:
      *  @title: Cookies
      *  @description: Get the request's cookies
-     *  @attribute: true
+     *  property: true
      *  @type: object
      *  @usage:
      *      ...

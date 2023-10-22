@@ -3001,7 +3001,6 @@ public:
     /*  @docs {
      *  @title: Endpoints
      *  @description: Get the underlying endpoints attribute.
-     *  @attribute: true
      } */
     constexpr auto& endpoints() { return m_endpoints; }
     constexpr auto& endpoints() const { return m_endpoints; }
@@ -3010,7 +3009,6 @@ public:
     /*  @docs {
      *  @title: SMTP Client Config
      *  @description: Get the underlying smtp client config attribute.
-     *  @attribute: true
      } */
     constexpr auto& smtp() const { return m_smtp; }
 	
@@ -3018,7 +3016,6 @@ public:
     /*  @docs {
      *  @title: Response 400
      *  @description: Get the underlying 400 response attribute.
-     *  @attribute: true
      } */
     constexpr auto& response_400() { return m_400; }
     constexpr auto& response_400() const { return m_400; }
@@ -3027,7 +3024,6 @@ public:
     /*  @docs {
      *  @title: Response 401
      *  @description: Get the underlying 401 response attribute.
-     *  @attribute: true
      } */
     constexpr auto& response_401() { return m_401; }
     constexpr auto& response_401() const { return m_401; }
@@ -3036,7 +3032,6 @@ public:
     /*  @docs {
      *  @title: Response 401 Invalid Format
      *  @description: Get the underlying 401 invalid format response attribute.
-     *  @attribute: true
      } */
     constexpr auto& response_401_invalid_format() { return m_401_invalid_format; }
     constexpr auto& response_401_invalid_format() const { return m_401_invalid_format; }
@@ -3045,7 +3040,6 @@ public:
     /*  @docs {
      *  @title: Response 401 Invalid Scheme
      *  @description: Get the underlying 401 invalid scheme response attribute.
-     *  @attribute: true
      } */
     constexpr auto& response_401_invalid_scheme() { return m_401_invalid_scheme; }
     constexpr auto& response_401_invalid_scheme() const { return m_401_invalid_scheme; }
@@ -3054,7 +3048,6 @@ public:
     /*  @docs {
      *  @title: Response 404
      *  @description: Get the underlying 404 response attribute.
-     *  @attribute: true
      } */
     constexpr auto& response_404() { return m_404; }
     constexpr auto& response_404() const { return m_404; }
@@ -3063,7 +3056,6 @@ public:
     /*  @docs {
      *  @title: Response 429
      *  @description: Get the underlying 429 response attribute.
-     *  @attribute: true
      } */
     constexpr auto& response_429() { return m_429; }
     constexpr auto& response_429() const { return m_429; }
@@ -3072,7 +3064,6 @@ public:
     /*  @docs {
      *  @title: Response 500
      *  @description: Get the underlying 500 response attribute.
-     *  @attribute: true
      } */
     constexpr auto& response_500() { return m_500; }
     constexpr auto& response_500() const { return m_500; }
@@ -3081,7 +3072,6 @@ public:
     /*  @docs {
      *  @title: 2FA mail
      *  @description: Get the underlying 2fa mail view attribute.
-     *  @attribute: true
      } */
     constexpr auto& two_factor_auth_mail() { return m_2fa_mail; }
     constexpr auto& two_factor_auth_mail() const { return m_2fa_mail; }
