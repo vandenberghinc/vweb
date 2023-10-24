@@ -1510,6 +1510,39 @@ function CreateVElementClass({
 			return this;
 		}
 
+		// Button behaviour.
+		// Check if button behaviour is enabled with `const enabled = x.button_behavior();`.
+		// Enable button behaviour like `x.button_behaviour(true)` and disable it like `x.button_behaviour(false)`.
+		// You can also specify the brightness values of the mouse down and mouse over like `x.button_behaviour(0.8, 0.9)`, the first parameter is for mouse down.
+		button_behaviour(mouse_down_brightness = null, mouse_over_brightness = 0.9) {
+
+			// Disable.
+			if (mouse_down_brightness === false) {
+				this.onmousedown = null;
+				this.onmouseover = null;
+				this.onmouseup = null;
+				this.onmouseout = null;
+				return this;
+			}
+
+			// Enable.
+			else if (mouse_down_brightness === true || typeof mouse_down_brightness === "number") {
+				if (mouse_down_brightness === true) {
+					mouse_down_brightness = 0.8;
+				}
+				this.onmousedown = function() { this.style.filter = `brightness(${mouse_down_brightness*100}%)`; }
+				this.onmouseover = function() { this.style.filter = `brightness(${mouse_over_brightness*100}%)`; }
+				this.onmouseup = function() { this.style.filter = "brightness(100%)"; }
+				this.onmouseout = function() { this.style.filter = "brightness(100%)"; }
+				return this;
+			}
+
+			// Retrieve enabled.
+			else {
+				return this.onmousedown != null;
+			}
+		}
+
 		// ---------------------------------------------------------
 		// Media query functions.
 

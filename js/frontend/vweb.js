@@ -138,6 +138,17 @@ encodedParams.push(`${encodedKey}=${encodedValue}`);
 });
 return encodedParams.join('&');
 }
+vweb.utils.copy_to_clipboard=async function(text){
+return new Promise((resolve,reject)=>{
+navigator.clipboard.writeText(text)
+.then((args)=>{
+resolve(args)
+})
+.catch((err)=>{
+reject(err)
+});
+});
+}
 vweb.utils.request=function({
 method="GET",url=null,data=null,json=true,credentials="true",
 }){
@@ -1662,6 +1673,28 @@ vweb.themes.theme_elements.push(themes[i]);
 }
 }
 return this;
+}
+button_behaviour(mouse_down_brightness=null,mouse_over_brightness=0.9){
+if(mouse_down_brightness===false){
+this.onmousedown=null;
+this.onmouseover=null;
+this.onmouseup=null;
+this.onmouseout=null;
+return this;
+}
+else if(mouse_down_brightness===true||typeof mouse_down_brightness==="number"){
+if(mouse_down_brightness===true){
+mouse_down_brightness=0.8;
+}
+this.onmousedown=function(){this.style.filter=`brightness(${mouse_down_brightness*100}%)`;}
+this.onmouseover=function(){this.style.filter=`brightness(${mouse_over_brightness*100}%)`;}
+this.onmouseup=function(){this.style.filter="brightness(100%)";}
+this.onmouseout=function(){this.style.filter="brightness(100%)";}
+return this;
+}
+else{
+return this.onmousedown!=null;
+}
 }
 media(media_query,true_handler,false_handler){
 const e=this;
@@ -5013,7 +5046,7 @@ this.thumb=VStack()
 .overflow("visible").background_color("#CCCCCC")
 .opacity(0)
 .transition("opacity 0.3s linear")
-.box_shadow("0px 0px 5px #00000020")
+.box_shadow("0px 0px 5px #00000005")
 this.track=VStack(this.thumb)
 .parent(this)
 .class("hide_scrollbar")
@@ -6085,7 +6118,7 @@ type:"CodeLine",
 tag:"span",
 default_style:{
 "font-family":"\"Menlo\", \"Consolas\", monospace",
-"font-size":"inherit",
+"font-size":"0.95em",
 "font-style":"italic",
 "background":"#000000",
 "color":"#FFFFFF",

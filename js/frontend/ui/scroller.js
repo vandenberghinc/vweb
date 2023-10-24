@@ -69,7 +69,7 @@ class ScrollerElement extends CreateVElementClass({
             .background_color("#CCCCCC")
             .opacity(0)
             .transition("opacity 0.3s linear")
-            .box_shadow("0px 0px 5px #00000020")
+            .box_shadow("0px 0px 5px #00000005")
         this.track = VStack(this.thumb)
             .parent(this)
             .class("hide_scrollbar")

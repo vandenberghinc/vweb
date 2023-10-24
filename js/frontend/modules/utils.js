@@ -249,6 +249,19 @@ vweb.utils.url_encode = function(params) {
 	return encodedParams.join('&');
 }
 
+// Copy text to the clipboard.
+vweb.utils.copy_to_clipboard = async function(text) {
+	return new Promise((resolve, reject) => {
+		navigator.clipboard.writeText(text)
+		.then((args) => {
+			resolve(args)
+		})
+		.catch((err) => {
+			reject(err)
+		});
+	});
+}
+
 // Request.
 vweb.utils.request = function({
 	method = "GET",			// method.
