@@ -28,6 +28,8 @@ const FastSpring = require("./payments/fastspring.js");
 
 // ---------------------------------------------------------
 // The server object.
+// @todo figure out with what settings nodejs should be started for heavy servers, for example larger memory size `--max-old-space-size`
+// @todo implement usage of multiple cpu's using lib `cluster`.
 
 /*  @docs: {
  *  @chapter: Backend
@@ -94,7 +96,6 @@ const FastSpring = require("./payments/fastspring.js");
  *      @name: favicon
  *      @description: The path to the favicon.
  *      @type: string
- *      @required: true
  *  }
  *  @parameter: {
  *      @name: token_expiration
@@ -562,9 +563,9 @@ class Server {
         if (typeof database !== "string") {
             throw Error(`Parameter "database" should be a defined value of type "string".`);
         }
-        if (typeof favicon !== "string") {
-            throw Error(`Parameter "favicon" should be a defined value of type "string".`);
-        }
+        // if (typeof favicon !== "string") {
+        //     throw Error(`Parameter "favicon" should be a defined value of type "string".`);
+        // }
         // if (typeof smtp_sender !== "string" && !Array.isArray(smtp_sender)) {
         //     throw Error(`Parameter "smtp_sender" should database a defined value of type "string" or "array".`);
         // }
@@ -602,20 +603,20 @@ class Server {
         this.payment_products = payment_products;
 
         // Initialize fastspring.
-        if (fastspring != null && fastspring.username != null) {
-            this.fp = new FastSpring({
-                server: this,
-                ...fastspring,
-            })
-        }
+        // if (fastspring != null && fastspring.username != null) {
+        //     this.fp = new FastSpring({
+        //         server: this,
+        //         ...fastspring,
+        //     })
+        // }
 
-        // Initialize stripe.
-        else if (stripe != null && stripe.api_key != null) {
-            this.stripe = new Stripe({
-                server: this,
-                ...stripe,
-            })
-        }
+        // // Initialize stripe.
+        // else if (stripe != null && stripe.api_key != null) {
+        //     this.stripe = new Stripe({
+        //         server: this,
+        //         ...stripe,
+        //     })
+        // }
 
         // Default headers.
         if (default_headers === null) {
@@ -925,7 +926,6 @@ class Server {
     }
 
     // Load user data helper.
-    // Use async to keep it persistent with other functions.
     _sys_load_user_data(uid, subpath, def, privacy) {
         // Check uid.
         this._check_uid_within_range(uid);
@@ -941,9 +941,7 @@ class Server {
 
         // Does not exist.
         if (!path.exists()) {
-            if (def !== null) {
-                return def;
-            }
+            return def;
         }
 
         // Load data.
@@ -972,7 +970,6 @@ class Server {
     }
 
     // Save user data helper.
-    // Use async to keep it persistent with other functions.
     _sys_save_user_data(uid, subpath, privacy) {
 
         // Check uid.
@@ -986,7 +983,49 @@ class Server {
         if (path.str().eq_first(`${this.database}/users/${uid}/${privacy}/`) === false) {
             throw Error(`Permission denied (path-injection).`);
         }
+
+        // Create base.
+        const base = path.base();
+        if (base.exists() === false) {
+            base.mkdir_sync();
+        }
         return path;
+    }
+
+    // Load system data for the user, so not from the vweb ".sys" directory but from the "sys" directory.
+    _sys_load_sys_data(subpath, def) {
+        
+        // Check path.
+        const path = this.database.join(`sys/${subpath}`, false)
+
+        // Does not exist.
+        if (!path.exists()) {
+            return def;
+        }
+
+        // Load data.
+        let data = path.load_sync();
+
+        // Cast data.
+        if (def == null || typeof def === "string") {
+            return data;
+        } else if (typeof def === "boolean") {
+            return data === "true" || data === "1" || data === "True" || data === "TRUE";
+        } else if (typeof def === "number") {
+            return parseFloat(data);
+        } else if (Array.isArray(def)) {
+            return JSON.parse(data);
+        } else if (typeof def === "object") {
+            data = JSON.parse(data);
+            Object.keys(def).iterate((key) => {
+                if (data[key] === undefined) {
+                    data[key] = def[key];
+                }
+            })
+            return data;
+        } else {
+            throw Error(`Invalid data type "${type}", the valid options are ["string", "array", "object"].`);
+        }
     }
 
     // Create a sha hmac with the master key.
@@ -1228,14 +1267,19 @@ class Server {
         const additional_file_watcher_paths = [];
 
         // Add favicon.
-        const favicon = new vlib.Path(this.favicon);
-        this.endpoint(new Endpoint({
-            method: "GET",
-            endpoint: "/favicon.ico",
-            data: favicon.load_sync({type: null}),
-            content_type: this._sys_get_content_type(favicon.extension()),
-        }))
-        additional_file_watcher_paths.push(favicon.str());
+        if (this.favicon != null) {
+            const favicon = new vlib.Path(this.favicon);
+            if (favicon.exists() === false) {
+                throw Error(`Specified favicon path "${favicon}" does not exist.`);
+            }
+            this.endpoint(new Endpoint({
+                method: "GET",
+                endpoint: "/favicon.ico",
+                data: favicon.load_sync({type: null}),
+                content_type: this._sys_get_content_type(favicon.extension()),
+            }))
+            additional_file_watcher_paths.push(favicon.str());
+        }
 
         // Default static endpoints.
         const defaults = [
@@ -3114,7 +3158,7 @@ class Server {
      *  @return:
      *      Returns the loaded data.
      *
-     *      Returns an empty type object when the data does not exist.
+     *      Returns the `def` parameter when the data does not exist, keep in mind that when parameter `def` is an object it could be a reference to a defined variable.
      *  @parameter: {
      *      @name: uid
      *      @description: The uid of the user.
@@ -3125,14 +3169,16 @@ class Server {
      *      @description: The subpath to the file.
      *      @type: string
      *  }
-     *  @parameter: {
+     *  @parameter:
      *      @name: def
-     *      @description: The default data to be returned when the data does not exist. When the data does exist the data will parsed into the type of the `def` parameter.
+     *      @description:
+     *          The default data to be returned when the data does not exist. When the data does exist the data will parsed into the type of the `def` parameter.
+     *
+     *          When the type of parameter `def` is `object` then the keys that do not exist in the loaded object, but do exist in the default object will be inserted into the loaded object.
      *      @type: boolean, number, string, array, object.
-     *  }
      *  @usage:
      *      ...
-     *      const data = await server.load_user_data(0, "mydata", "object");
+     *      const data = await server.load_user_data(0, "mydata", {});
      } */
     async load_user_data(uid, subpath, def = null) {
         return this._sys_load_user_data(uid, subpath, def, "public");
@@ -3196,7 +3242,7 @@ class Server {
      *  @return:
      *      Returns the loaded data.
      *
-     *      Returns an empty type object when the data does not exist.
+     *      Returns the `def` parameter when the data does not exist, keep in mind that when parameter `def` is an object it could be a reference to a defined variable.
      *  @parameter: {
      *      @name: uid
      *      @description: The uid of the user.
@@ -3207,14 +3253,16 @@ class Server {
      *      @description: The subpath to the file.
      *      @type: string
      *  }
-     *  @parameter: {
+     *  @parameter:
      *      @name: def
-     *      @description: The default data to be returned when the data does not exist. When the data does exist the data will parsed into the type of the `def` parameter.
+     *      @description:
+     *          The default data to be returned when the data does not exist. When the data does exist the data will parsed into the type of the `def` parameter.
+     *
+     *          When the type of parameter `def` is `object` then the keys that do not exist in the loaded object, but do exist in the default object will be inserted into the loaded object.
      *      @type: boolean, number, string, array, object.
-     *  }
      *  @usage:
      *      ...
-     *      const data = await server.load_protected_user_data(0, "mydata", "object");
+     *      const data = await server.load_protected_user_data(0, "mydata", {});
      } */
     async load_protected_user_data(uid, subpath, def = null) {
         return this._sys_load_user_data(uid, subpath, def, "protected");
@@ -3279,7 +3327,7 @@ class Server {
      *  @return:
      *      Returns the loaded data.
      *
-     *      Returns an empty type object when the data does not exist.
+     *      Returns the `def` parameter when the data does not exist, keep in mind that when parameter `def` is an object it could be a reference to a defined variable.
      *  @parameter: {
      *      @name: uid
      *      @description: The uid of the user.
@@ -3290,14 +3338,16 @@ class Server {
      *      @description: The subpath to the file.
      *      @type: string
      *  }
-     *  @parameter: {
+     *  @parameter:
      *      @name: def
-     *      @description: The default data to be returned when the data does not exist. When the data does exist the data will parsed into the type of the `def` parameter.
+     *      @description:
+     *          The default data to be returned when the data does not exist. When the data does exist the data will parsed into the type of the `def` parameter.
+     *
+     *          When the type of parameter `def` is `object` then the keys that do not exist in the loaded object, but do exist in the default object will be inserted into the loaded object.
      *      @type: boolean, number, string, array, object.
-     *  }
      *  @usage:
      *      ...
-     *      const data = await server.load_private_user_data(0, "mydata", "object");
+     *      const data = await server.load_private_user_data(0, "mydata", {});
      } */
     async load_private_user_data(uid, subpath, def = null) {
         return this._sys_load_user_data(uid, subpath, def, "private");
@@ -3337,6 +3387,83 @@ class Server {
 
         // Initialize path.
         const path = this._sys_save_user_data(uid, subpath, "private");
+
+        // Save casted data.
+        if (data == null || typeof data === "string") {
+            path.save_sync(data);
+        } else if (typeof data === "boolean" || typeof data === "number") {
+            path.save_sync(data.toString());
+        } else if (Array.isArray(data) || typeof data === "object") {
+            path.save_sync(JSON.stringify(data));
+        } else {
+            throw Error(`Invalid data type "${type}", the valid options are ["boolean", "number", "string", "array", "object"].`);
+        }
+    }
+
+    // Load system data.
+    // Use async to keep it persistent with other functions.
+    /*  @docs {
+     *  @title: Load System Data
+     *  @description:
+     *      Load system data by subpath.
+     *
+     *      The subpath resides in the `{{database}}/sys/` directory.
+     *  @warning: The authenticated user always has read and write access to all data inside the user's protected directory through the backend rest api. Any other users or unauthenticated users do not have access to this data.
+     *  @return:
+     *      Returns the loaded data.
+     *
+     *      Returns the `def` parameter when the data does not exist, keep in mind that when parameter `def` is an object it could be a reference to a defined variable.
+     *  @parameter: {
+     *      @name: subpath
+     *      @description: The subpath to the file.
+     *      @type: string
+     *  }
+     *  @parameter:
+     *      @name: def
+     *      @description:
+     *          The default data to be returned when the data does not exist. When the data does exist the data will parsed into the type of the `def` parameter.
+     *
+     *          When the type of parameter `def` is `object` then the keys that do not exist in the loaded object, but do exist in the default object will be inserted into the loaded object.
+     *      @type: boolean, number, string, array, object.
+     *  @usage:
+     *      ...
+     *      const data = await server.load_sys_data("mydata", {});
+     } */
+    async load_sys_data(subpath, def = null) {
+        return this._sys_load_sys_data(subpath, def);
+    }
+    
+    // Save system data.
+    // Use async to keep it persistent with other functions.
+    /*  @docs {
+     *  @title: Load System Data
+     *  @description:
+     *      Save system data by subpath.
+     *
+     *      The subpath resides in the `{{database}}/sys/` directory.
+     *  @parameter: {
+     *      @name: subpath
+     *      @description: The subpath to the file.
+     *      @type: string
+     *  }
+     *  @parameter: {
+     *      @name: data
+     *      @description: The data to save.
+     *      @type: string, array, object
+     *  }
+     *  @usage:
+     *      ...
+     *      await server.save_sys_data("mydata", {"Hello": "World!"});
+     *      await server.save_sys_data("mystring", "Hello World!");
+     } */
+    async save_sys_data(subpath, data) {
+
+        // Initialize path.
+        const path = this.database.join(`sys/${subpath}`, false);
+        const base = path.base();
+        if (base.exists() === false) {
+            base.mkdir_sync();
+        }
 
         // Save casted data.
         if (data == null || typeof data === "string") {
