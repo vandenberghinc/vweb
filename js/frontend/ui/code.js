@@ -118,7 +118,7 @@ class CodeLineElement extends CreateVElementClass({
 	tag: "span",
 	default_style: {
 		"font-family": "\"Menlo\", \"Consolas\", monospace",
-		"font-size": "0.95em",
+		"font-size": "0.90em",
 		"font-style": "italic",
 		"background": "#000000",
 		"color": "#FFFFFF",

@@ -398,7 +398,7 @@ function CreateVElementClass({
 			return value;
 		}
 
-		// Edit a x() from a filter string.
+		// Edit a x() from a filter or transform string.
 		// Can also be used for similair string that use "x() y()".
 		// When to is null the type will be removed.
 		edit_filter_wrapper(filter, type, to = null) {
@@ -418,7 +418,7 @@ function CreateVElementClass({
 			return value;
 		}
 
-		// Toggle a x() from a filter string.
+		// Toggle a x() from a filter or transform string.
 		// Can also be used for similair string that use "x() y()".
 		// When the type is present the item will be removed, otherwise the to will be added.
 		toggle_filter_wrapper(filter, type, to = null) {
@@ -847,24 +847,24 @@ function CreateVElementClass({
 			}
 			switch (this.tagName) {
 				case "DIV":
-				if (value == true) {
-					this.style.flexFlow = "wrap";
-				} else if (value == false) {
-					this.style.flexFlow = "nowrap";
-				} else {
-					this.style.flexFlow = value;
-				}
-				break;
+					if (value == true) {
+						this.style.flexFlow = "wrap";
+					} else if (value == false) {
+						this.style.flexFlow = "nowrap";
+					} else {
+						this.style.flexFlow = value;
+					}
+					break;
 				default:
-				if (value == true) {
-					this.style.textWrap = "wrap";
-					this.style.overflowWrap = "break-word";
-				} else if (value == false) {
-					this.style.textWrap = "nowrap";
-					this.style.overflowWrap = "normal";
-				} else {
-					this.style.textWrap = value;
-				}
+					if (value == true) {
+						this.style.textWrap = "wrap";
+						this.style.overflowWrap = "break-word";
+					} else if (value == false) {
+						this.style.textWrap = "nowrap";
+						this.style.overflowWrap = "normal";
+					} else {
+						this.style.textWrap = value;
+					}
 				break;
 			}
 			return this;
@@ -1026,6 +1026,26 @@ function CreateVElementClass({
 		// Must be set in floating percentages so 0.0 till 1.0.
 		side_by_side_basis(basis) {
 			this._side_by_side_basis = basis;
+			return this;
+		}
+
+		// Set text ellipsis overflow.
+		ellipsis_overflow(to = null) {
+			if (to === null) {
+				return this.style.textOverflow === "ellipsis";
+			} else if (to === true) {
+				this.style.textOverflow = "ellipsis";
+				this.style.whiteSpace = "nowrap";
+				this.style.overflow = "hidden";
+				this.style.textWrap = "wrap";
+				this.style.overflowWrap = "break-word";
+			} else if (to === false) {
+				this.style.textOverflow = "default";
+				this.style.whiteSpace = "default";
+				this.style.overflow = "default";
+				this.style.textWrap = "default";
+				this.style.overflowWrap = "default";
+			}
 			return this;
 		}
 
@@ -1300,6 +1320,23 @@ function CreateVElementClass({
 		// Toggle brightness.
 		toggle_background_brightness(value = 10) {
 			return this.backdrop_filter(this.toggle_filter_wrapper(this.style.backdropFilter, "brightness", "brightness(" + this.pad_percentage(value, "%") + ") "));
+		}
+
+		// Rotate.
+		rotate(value) {
+			if (value == null) {
+				return this.transform(this.edit_filter_wrapper(this.style.transform, "rotate", value));
+			} else {
+				let degree;
+				if (value.charAt(value.length - 1) === "%") {
+					degree = Math.round(360 * parseFloat(value.substr(0, value.length - 1) / 100));
+				} else if (vweb.utils.is_float(value)) {
+					degree = Math.round(360 * value);
+				} else {
+					degree = value;
+				}
+				return this.transform(this.edit_filter_wrapper(this.style.transform, "rotate", `rotate(${degree}deg) `));
+			}
 		}
 
 		// Delay and duration used for keyframes for class StyleElement.
@@ -2072,7 +2109,20 @@ function CreateVElementClass({
 	    on_enter(callback) {
 	    	const e = this;
 	    	super.onkeypress = function(event) {
-	    		if (event.keyCode === 13) {
+	    		if (event.key === "Enter") {
+	    			callback(e, event);
+	    		}
+	    	}
+	    	return this;
+	    }
+
+	    // On escape event.
+	    // Mainly used for input and textarea elements.
+	    // Can not be combined with "on_key_press()".
+	    on_escape(callback) {
+	    	const e = this;
+	    	super.onkeypress = function(event) {
+	    		if (event.key === "Escape") {
 	    			callback(e, event);
 	    		}
 	    	}
@@ -8456,28 +8506,6 @@ function CreateVElementClass({
         right(value) {
             if (value == null) { return this.style.right; }
             this.style.right = this.pad_numeric(value);
-            return this;
-        }
-
-        // Specifies the rotation of an element.
-        /*	@docs: {
-         *	@title: Rotate
-         *	@description: 
-         *		Specifies the rotation of an element.
-         *		The equivalent of CSS attribute `rotate`.
-         *		
-         *		Returns the attribute value when parameter `value` is `null`.
-         *	@return: 
-         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
-         *		@name: value
-         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-         *	}: 
-         *	@inherit: false
-         } */ 
-        rotate(value) {
-            if (value == null) { return this.style.rotate; }
-            this.style.rotate = value;
             return this;
         }
 

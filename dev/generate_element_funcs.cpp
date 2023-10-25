@@ -814,6 +814,7 @@ int main() {
 		"opacity", // custom opacity func.
 		"on_context_menu", // custom func.
 		"alt", // requires manual func.
+		"rotate", // custom function.
 	};
 	
 	// Pad numeric funcs.

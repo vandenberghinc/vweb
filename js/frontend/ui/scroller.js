@@ -190,7 +190,7 @@ class ScrollerElement extends CreateVElementClass({
             }
 
             // Set start y.
-            start_y = this.content.getBoundingClientRect().top;
+            start_y = this.content.getBoundingClientRect().top + parseFloat(window.getComputedStyle(this.track).marginTop);
 
             // Set user select.
             // Should be set on "this" on "this.content" does not work correctly.
@@ -241,7 +241,7 @@ class ScrollerElement extends CreateVElementClass({
 
             // Vars.
             const height = this.content.clientHeight;
-            const start_y = this.content.getBoundingClientRect().top;
+            const start_y = this.content.getBoundingClientRect().top + parseFloat(window.getComputedStyle(this.track).marginTop);
             const y = Math.max(0, event.clientY - start_y);
             let y_percentage = vweb.utils.round(y / height, 2); // needs to be rounder otherwise it always remains at 0.9999 and never reaches the end. 
             const computed = window.getComputedStyle(this.content);
@@ -266,7 +266,7 @@ class ScrollerElement extends CreateVElementClass({
 
     // Set remove children to content.
     remove_children() {
-        this.content.remove_children();
+        this.content.inner_html("");
         return this;
     }
 
@@ -433,8 +433,9 @@ class ScrollerElement extends CreateVElementClass({
 }
 
 // Scroller.
-/*  @docs: {
+/*  @docs:
     @title: Virtual Scroller
+    @experimental: true
     @description: 
         The virtual scroller element.
 
@@ -445,16 +446,14 @@ class ScrollerElement extends CreateVElementClass({
         The virtual scroller can work in two ways. 
          1) You must set a fixed height for every direct child.
          2) You call the member function `update_heights()` after any height involving edits are made and before you call member function `render()` for the first time.
-    @warning: 
-        1) Using content-visibility on the direct or nested children may cause undefined behaviour, it may cause elements to become hidden.
-        2) Every element must have a fixed height, Unless you use `update_heights()`. Otherwise the rendering will throw an error. Any incorrect heights may cause undefined behaviour.
-        3) Setting padding on element attribute "content" may cause undefined behaviour.
-    @parameter: {
+    @warning: Using content-visibility on the direct or nested children may cause undefined behaviour, it may cause elements to become hidden.
+    @warning: Every element must have a fixed height, Unless you use `update_heights()`. Otherwise the rendering will throw an error. Any incorrect heights may cause undefined behaviour.
+    @warning: Setting padding on element attribute "content" may cause undefined behaviour.
+    @parameter:
         @name: children
         @description: The elements children.
         @type: array[Node]
-    }
- } */
+ */
 @vweb_constructor_wrapper
 @vweb_register_element
 class VirtualScrollerElement extends ScrollerElement {
