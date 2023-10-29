@@ -276,6 +276,11 @@ class ScrollerElement extends CreateVElementClass({
         return this;
     }
 
+    // By default get child of the content.
+    child(index) {
+        return this.content.child(index);
+    }
+
     // Replace overflow.
     overflow(value) {
         if (value == null) {

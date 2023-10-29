@@ -10,6 +10,7 @@
 
 // ---------------------------------------------------------
 // Square class.
+// @todo check with the provider for how long refunds can be made, otherwise when a user's api key gets hacked all of the payments in history could be refunded, resulting in catastrophe.
 
 class Square {
     constructor({
@@ -33,4 +34,4 @@ class Square {
 // ---------------------------------------------------------
 // Exports.
 
-module.exports = Stripe;
+module.exports = Square;

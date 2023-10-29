@@ -14,6 +14,45 @@ vweb.elements.elements_with_width_attribute = [
 	'VIDEO',
 ];
 
+// Create the intersection obvserver.
+vweb.utils.on_appear_observer = new IntersectionObserver(
+	(entries, observer) => {
+		entries.forEach(entry => {
+
+			// Intersecting.
+			if (
+				entry.isIntersecting && 
+				(entry.target._on_appear_threshold == null || entry.intersectionRatio >= entry.target._on_appear_threshold) &&
+				(entry.target._on_appear_repeat === true || entry.target._on_appear_called !== true)
+			) {
+
+				// When a parent has the on appear and the child as well, than the child's on appear somehow does not get executed, the isIntersecting is always false, so iterate children recursively.
+				const traverse = (element) => {
+					if (element._on_appear_callback != null) {
+						element._on_appear_callback(element);
+						if (element._on_appear_repeat !== true) {
+							entry.target._on_appear_called = true;
+							observer.unobserve(element);
+						}
+					}
+					if (element.children != null && element.children.length > 0) {
+						for (let i = 0; i < element.children.length; i++) {
+							traverse(element.children[i]);
+						}
+					}
+				}
+				traverse(entry.target);
+			}
+
+			// Only add again when it was intersecting but no threshold success, otherwise it creates an infinite loop.
+			else if (entry.isIntersecting) {
+				observer.unobserve(entry.target);
+				observer.observe(entry.target);
+			}
+		});
+	},
+);
+
 // Element.
 function CreateVElementClass({
 	type = "VElement", 
@@ -275,21 +314,6 @@ function CreateVElementClass({
 			this.base_element_type = type; // this must remain the element type of the base class, element type may be overwritten when an element extends a base element.
 			this.element_display = "block";
 
-			// Default style.
-			if (E.default_style != null) {
-				this.styles(E.default_style);
-			}
-
-			// Default attributes.
-			if (E.default_attributes != null) {
-				this.attrs(E.default_attributes);
-			}
-
-			// Default events.
-			if (E.default_events != null) {
-				this.events(E.default_events);
-			}
-
 			// Rename some funcs.
 			this.remove_focus = super.blur;
 
@@ -297,6 +321,30 @@ function CreateVElementClass({
 			this._rendered = false;
 			this._on_render_handler = null;
 
+			// Constructed by html code.
+			if (this.hasAttribute("created_by_html")) {
+				this._rendered = false;
+			}
+
+			// Constructed by js code.
+			else {
+			
+
+				// Default style.
+				if (E.default_style != null) {
+					this.styles(E.default_style);
+				}
+
+				// Default attributes.
+				if (E.default_attributes != null) {
+					this.attrs(E.default_attributes);
+				}
+
+				// Default events.
+				if (E.default_events != null) {
+					this.events(E.default_events);
+				}
+			}
 		}
 		
 		// ---------------------------------------------------------
@@ -994,6 +1042,7 @@ function CreateVElementClass({
 
 					// When the childs basis + the row width would overflow 1 then add it to the next line.
 					if (row_width + basis > 1) {
+						console.log(child, "overflow");
 						set_flex();
 						++row;
 						row_width = 0;
@@ -1013,10 +1062,8 @@ function CreateVElementClass({
 					// Otherwise add to the colums.
 					else {
 						col_children.push([child, child_custom_basis]);
+						row_width += basis;
 					}
-
-					// Increment row width.
-					row_width += basis;
 				}
 			})
 			return this;
@@ -1030,7 +1077,7 @@ function CreateVElementClass({
 		}
 
 		// Set text ellipsis overflow.
-		ellipsis_overflow(to = null) {
+		ellipsis_overflow(to = true) {
 			if (to === null) {
 				return this.style.textOverflow === "ellipsis";
 			} else if (to === true) {
@@ -1547,11 +1594,11 @@ function CreateVElementClass({
 			return this;
 		}
 
-		// Button behaviour.
+		// On hover brightness.
 		// Check if button behaviour is enabled with `const enabled = x.button_behavior();`.
-		// Enable button behaviour like `x.button_behaviour(true)` and disable it like `x.button_behaviour(false)`.
-		// You can also specify the brightness values of the mouse down and mouse over like `x.button_behaviour(0.8, 0.9)`, the first parameter is for mouse down.
-		button_behaviour(mouse_down_brightness = null, mouse_over_brightness = 0.9) {
+		// Enable button behaviour like `x.hover_brightness(true)` and disable it like `x.hover_brightness(false)`.
+		// You can also specify the brightness values of the mouse down and mouse over like `x.hover_brightness(0.8, 0.9)`, the first parameter is for mouse down.
+		hover_brightness(mouse_down_brightness = null, mouse_over_brightness = 0.9) {
 
 			// Disable.
 			if (mouse_down_brightness === false) {
@@ -1583,19 +1630,56 @@ function CreateVElementClass({
 		// ---------------------------------------------------------
 		// Media query functions.
 
-		// Media query.
+		// Create media query.
 		media(media_query, true_handler, false_handler) {
+
+			// Create query.
 			const e = this;
-			function query_handler(query) {
-				if (query.matches) {
-					true_handler(e);
-				} else if (false_handler != null) {
-					false_handler(e);
+			const query = {
+				list: null,
+				callback: (query) => {
+					if (query.matches) {
+						true_handler(e);
+					} else if (false_handler != null) {
+						false_handler(e);
+					}
 				}
 			}
-			const query_list = window.matchMedia(media_query);
-			query_handler(query_list); // Initialize the style based on the initial media query state
-			query_list.addListener(query_handler); // Update the style when the media query state changes
+
+			// Remove duplicates.
+			if (this.media_queries === undefined) {
+				this.media_queries = {};
+			} else if (this.media_queries[media_query] !== undefined) {
+				this.media_queries[media_query].list.removeListener(this.media_queries[media_query].callback);
+			}
+
+			// Watch media.
+			query.list = window.matchMedia(media_query);
+			query.callback(query.list); // Initialize the style based on the initial media query state
+			query.list.addListener(query.callback); // Update the style when the media query state changes
+
+			// Cache query.
+			this.media_queries[media_query] = query;
+
+			// Response.
+			return this;
+		}
+
+		// Remove a media query.
+		remove_media(media_query) {
+			if (this.media_queries !== undefined && this.media_queries[media_query] !== undefined) {
+				this.media_queries[media_query].list.removeListener(this.media_queries[media_query].callback);
+			}
+			return this;
+		}
+
+		// Remove all media queries.
+		remove_all_media() {
+			if (this.media_queries !== undefined) {
+				Object(this.media_queries).values((query) => {
+					query.list.removeListener(query.callback);
+				})
+			}
 			return this;
 		}
 
@@ -2081,25 +2165,22 @@ function CreateVElementClass({
 	    }
 
 	    // Event when a element appears to the user.
-	    on_appear({callback, repeat = false}) {
+	    on_appear(callback_or_opts = {callback: null, repeat: false, threshold: null}) {
 	    	let is_called = false;
-	    	const observer = new IntersectionObserver((entries, observer) => {
-	    		entries.forEach(entry => {
-	    			if (entry.isIntersecting && !is_called) {
-	    				if (callback != null) {
-	    					const e = this;
-	    					callback(e);
-	    				}
-	    				if (!repeat) {
-	    					observer.unobserve(entry.target);
-	    				}
-	    				is_called = true;
-	    			} else if (!entry.isIntersecting) {
-	    				is_called = false;
-	    			}
-	    		});
-	    	});
-	    	observer.observe(this);
+	    	let callback = callback_or_opts, repeat = false, threshold = null;
+	    	if (typeof callback_or_opts === "object") {
+	    		callback = callback_or_opts.callback;
+	    		if (callback_or_opts.repeat !== undefined) {
+	    			repeat = callback_or_opts.repeat;
+	    		}
+	    		if (callback_or_opts.threshold !== undefined) {
+	    			threshold = callback_or_opts.threshold;
+	    		}
+	    	}
+	    	this._on_appear_callback = callback;
+	    	this._on_appear_repeat = repeat;
+	    	this._on_appear_threshold = threshold;
+	    	vweb.utils.on_appear_observer.observe(this);
 	    	return this;
 	    }
 
@@ -2664,6 +2745,7 @@ function CreateVElementClass({
 		
 		// Cast to string.
 		toString() {
+			this.setAttribute("created_by_html", "true");
 			return this.outerHTML;
 		}
 

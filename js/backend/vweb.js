@@ -13,7 +13,7 @@ const vweb = {
     Endpoint: require("./endpoint.js"),
     Server: require("./server.js"),
     Status: require("./status.js"),
-    version: "1.0.9",
+    version: require("../.version.js"),
 }
 
 // Export.

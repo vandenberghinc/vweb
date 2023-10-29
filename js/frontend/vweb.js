@@ -28,6 +28,27 @@ return Array.isArray(value);
 vweb.utils.is_obj=function(value){
 return typeof value==='object';
 }
+vweb.utils.is_even=function(number){
+return number%2===0;
+}
+vweb.utils.make_immutable=(object)=>{
+if(Array.isArray(object)){
+Object.freeze(object);
+for(let i=0;i<object.length;i++){
+if(object[i]!==null&&typeof object[i]==="object"){
+object[i]=vweb.utils.make_immutable(object[i])
+}
+}
+}
+else if(object!==null&&typeof object==="object"){
+Object.freeze(object);
+Object.keys(object).iterate((key)=>{
+if(object[key]!==null&&typeof object[key]==="object"){
+object[key]=vweb.utils.make_immutable(object[key])
+}
+})
+}
+}
 vweb.utils.round=function(value,decimals){
 const factor=10**decimals;
 return Math.round(value*factor)/factor;
@@ -541,6 +562,37 @@ vweb.elements.elements_with_width_attribute=[
 'PROGRESS',
 'VIDEO',
 ];
+vweb.utils.on_appear_observer=new IntersectionObserver(
+(entries,observer)=>{
+entries.forEach(entry=>{
+if(
+entry.isIntersecting&&
+(entry.target._on_appear_threshold==null||entry.intersectionRatio>=entry.target._on_appear_threshold)&&
+(entry.target._on_appear_repeat===true||entry.target._on_appear_called!==true)
+){
+const traverse=(element)=>{
+if(element._on_appear_callback!=null){
+element._on_appear_callback(element);
+if(element._on_appear_repeat!==true){
+entry.target._on_appear_called=true;
+observer.unobserve(element);
+}
+}
+if(element.children!=null&&element.children.length>0){
+for(let i=0;i<element.children.length;i++){
+traverse(element.children[i]);
+}
+}
+}
+traverse(entry.target);
+}
+else if(entry.isIntersecting){
+observer.unobserve(entry.target);
+observer.observe(entry.target);
+}
+});
+},
+);
 function CreateVElementClass({
 type="VElement",
 tag="div",
@@ -770,6 +822,13 @@ static default_events=default_events;
 constructor(){
 super();
 this.element_type=type;this.base_element_type=type;this.element_display="block";
+this.remove_focus=super.blur;
+this._rendered=false;
+this._on_render_handler=null;
+if(this.hasAttribute("created_by_html")){
+this._rendered=false;
+}
+else{
 if(E.default_style!=null){
 this.styles(E.default_style);
 }
@@ -779,9 +838,7 @@ this.attrs(E.default_attributes);
 if(E.default_events!=null){
 this.events(E.default_events);
 }
-this.remove_focus=super.blur;
-this._rendered=false;
-this._on_render_handler=null;
+}
 }
 clone(clone_children=true){
 const clone=new this.constructor();
@@ -1300,6 +1357,7 @@ child.margin_top(vspacing);
 }else{
 child.margin_top(0);}
 if(row_width+basis>1){
+console.log(child,"overflow");
 set_flex();
 ++row;
 row_width=0;
@@ -1315,8 +1373,8 @@ col_children=[];
 }
 else{
 col_children.push([child,child_custom_basis]);
-}
 row_width+=basis;
+}
 }
 })
 return this;
@@ -1325,7 +1383,7 @@ side_by_side_basis(basis){
 this._side_by_side_basis=basis;
 return this;
 }
-ellipsis_overflow(to=null){
+ellipsis_overflow(to=true){
 if(to===null){
 return this.style.textOverflow==="ellipsis";
 }else if(to===true){
@@ -1707,7 +1765,7 @@ vweb.themes.theme_elements.push(themes[i]);
 }
 return this;
 }
-button_behaviour(mouse_down_brightness=null,mouse_over_brightness=0.9){
+hover_brightness(mouse_down_brightness=null,mouse_over_brightness=0.9){
 if(mouse_down_brightness===false){
 this.onmousedown=null;
 this.onmouseover=null;
@@ -1731,15 +1789,39 @@ return this.onmousedown!=null;
 }
 media(media_query,true_handler,false_handler){
 const e=this;
-function query_handler(query){
+const query={
+list:null,
+callback:(query)=>{
 if(query.matches){
 true_handler(e);
 }else if(false_handler!=null){
 false_handler(e);
 }
 }
-const query_list=window.matchMedia(media_query);
-query_handler(query_list);query_list.addListener(query_handler);return this;
+}
+if(this.media_queries===undefined){
+this.media_queries={};
+}else if(this.media_queries[media_query]!==undefined){
+this.media_queries[media_query].list.removeListener(this.media_queries[media_query].callback);
+}
+query.list=window.matchMedia(media_query);
+query.callback(query.list);query.list.addListener(query.callback);
+this.media_queries[media_query]=query;
+return this;
+}
+remove_media(media_query){
+if(this.media_queries!==undefined&&this.media_queries[media_query]!==undefined){
+this.media_queries[media_query].list.removeListener(this.media_queries[media_query].callback);
+}
+return this;
+}
+remove_all_media(){
+if(this.media_queries!==undefined){
+Object(this.media_queries).values((query)=>{
+query.list.removeListener(query.callback);
+})
+}
+return this;
 }
 default_animate(...args){
 super.animate(...args);
@@ -1949,25 +2031,22 @@ callback(args);
 }
 return this;
 }
-on_appear({callback,repeat=false}){
+on_appear(callback_or_opts={callback:null,repeat:false,threshold:null}){
 let is_called=false;
-const observer=new IntersectionObserver((entries,observer)=>{
-entries.forEach(entry=>{
-if(entry.isIntersecting&&!is_called){
-if(callback!=null){
-const e=this;
-callback(e);
+let callback=callback_or_opts,repeat=false,threshold=null;
+if(typeof callback_or_opts==="object"){
+callback=callback_or_opts.callback;
+if(callback_or_opts.repeat!==undefined){
+repeat=callback_or_opts.repeat;
 }
-if(!repeat){
-observer.unobserve(entry.target);
+if(callback_or_opts.threshold!==undefined){
+threshold=callback_or_opts.threshold;
 }
-is_called=true;
-}else if(!entry.isIntersecting){
-is_called=false;
 }
-});
-});
-observer.observe(this);
+this._on_appear_callback=callback;
+this._on_appear_repeat=repeat;
+this._on_appear_threshold=threshold;
+vweb.utils.on_appear_observer.observe(this);
 return this;
 }
 on_enter(callback){
@@ -2273,6 +2352,7 @@ callback(this);
 return this;
 }
 toString(){
+this.setAttribute("created_by_html","true");
 return this.outerHTML;
 }
 accent_color(value){
@@ -5214,6 +5294,9 @@ return this;
 append(...children){
 this.content.append(...children);
 return this;
+}
+child(index){
+return this.content.child(index);
 }
 overflow(value){
 if(value==null){
@@ -8850,9 +8933,11 @@ vweb.payments.cart.clear=async function(id,quantity=1){
 this.items=[];
 this.save();
 }
+Array.prototype.append=Array.prototype.push;
 Array.prototype.first=function(){
 return this[0];
-};Array.prototype.last=function(){
+};
+Array.prototype.last=function(){
 return this[this.length-1];
 };
 Array.prototype.iterate=function(start,end,handler){
@@ -9150,6 +9235,12 @@ let edited=this.substr(0,start);
 edited+=this.substr(end);
 return edited;
 };
+String.prototype.replace_indices=function(substr,start,end){
+let edited=this.substr(0,start);
+edited+=substr;
+edited+=this.substr(end);
+return edited;
+};
 String.prototype.eq_first=function(substr,start_index=0){
 if(start_index+substr.length>this.length){
 return false;
@@ -9177,11 +9268,45 @@ return false;
 }
 return true;
 }
+String.prototype.ensure_last=function(ensure_last){
+if(ensure_last.indexOf(this.charAt(this.length-1))===-1){
+return this+ensure_last.charAt(0);
+}
+return this;
+}
+String.prototype.is_uppercase=function(allow_digits=false){
+let uppercase="ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+if(allow_digits){
+uppercase+="0123456789";
+}
+for(let i=0;i<this.length;i++){
+if(uppercase.indexOf(this.charAt(i))===-1){
+return false;
+}
+}
+return true;
+}
 String.prototype.capitalize_word=function(){
 if("abcdefghijklmopqrstuvwxyz".includes(this.charAt(0))){
 return this.charAt(0).toUpperCase()+this.substr(1);
 }
 return this;
+}
+String.prototype.capitalize_words=function(){
+let batch="";
+let capitalized="";
+for(let i=0;i<this.length;i++){
+const c=this.charAt(i);
+if(c===" "||c==="\t"||c==="\n"){
+capitalized+=batch.capitalize_word();
+batch="";
+capitalized+=c;
+}else{
+batch+=c;
+}
+}
+capitalized+=batch.capitalize_word();
+return capitalized;
 }
 String.prototype.drop=function(char){
 const is_array=Array.isArray(char);

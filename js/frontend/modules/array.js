@@ -3,10 +3,15 @@
  * Copyright: © 2022 - 2023 Daan van den Bergh.
  */
 
+// Append alias for push.
+Array.prototype.append = Array.prototype.push; 
+
 // Get the first and last item.
 Array.prototype.first = function() {
     return this[0];
-}; // Get the first and last item.
+};
+
+// Get the first and last item.
 Array.prototype.last = function() {
     return this[this.length - 1];
 };

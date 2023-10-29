@@ -1,6 +1,6 @@
 {
     "name": "@vandenberghinc/vweb",
-    "version": "1.1.1",
+    "version": "1.1.7",
     "description": "",
     "main": "backend/vweb.js",
     "scripts": {
@@ -11,8 +11,8 @@
         "access": "public"
     },
     "dependencies": {
-        "@vandenberghinc/vlib": "^1.2.7",
-        "api": "^6.1.1",
+        "@vandenberghinc/vhighlight": "^1.2.1",
+        "@vandenberghinc/vlib": "^1.2.9",
         "nodemailer": "^6.9.5",
         "stripe": "^13.10.0"
     }

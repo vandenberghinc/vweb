@@ -90,6 +90,14 @@ String.prototype.remove_indices = function(start, end) {
     return edited;
 };
 
+// Remove substr at index.
+String.prototype.replace_indices = function(substr, start, end) {
+    let edited = this.substr(0, start);
+    edited += substr;
+    edited += this.substr(end);
+    return edited;
+};
+
 // Check if the first chars of the main string equals a substring, optionally with start index.
 String.prototype.eq_first = function(substr, start_index = 0) {
     if (start_index + substr.length > this.length) {
@@ -121,12 +129,53 @@ String.prototype.eq_last = function(substr) {
     return true;
 }
 
+// Ensure last, checks if one of the characters of the `ensure_last` parameter is the last character, if not then it adds the first character of the `ensure_last` parameter to the end of the string.
+// The newly created string will be returned.
+String.prototype.ensure_last = function(ensure_last) {
+    if (ensure_last.indexOf(this.charAt(this.length - 1)) === -1) {
+        return this + ensure_last.charAt(0);
+    }
+    return this;
+}
+
+// Check if a word is uppercase only.
+String.prototype.is_uppercase = function(allow_digits = false) {
+    let uppercase = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    if (allow_digits) {
+        uppercase += "0123456789";
+    }
+    for (let i = 0; i < this.length; i++) {
+        if (uppercase.indexOf(this.charAt(i)) === -1) {
+            return false;
+        }
+    }
+    return true;
+}
+
 // Capitalize as a word (only the first letter).
 String.prototype.capitalize_word = function() {
     if ("abcdefghijklmopqrstuvwxyz".includes(this.charAt(0))) {
         return this.charAt(0).toUpperCase() + this.substr(1);
     }
     return this;
+}
+
+// Capitalize the first letter of each word seperated by whitespace in a string.
+String.prototype.capitalize_words = function() {
+    let batch = "";
+    let capitalized = "";
+    for (let i = 0; i < this.length; i++) {
+        const c = this.charAt(i);
+        if (c === " " || c === "\t" || c === "\n") {
+            capitalized += batch.capitalize_word();
+            batch = "";
+            capitalized += c;
+        } else {
+            batch += c;
+        }
+    }
+    capitalized += batch.capitalize_word();
+    return capitalized;
 }
 
 // Drop a single char or an array of characters.

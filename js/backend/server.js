@@ -30,6 +30,7 @@ const FastSpring = require("./payments/fastspring.js");
 // The server object.
 // @todo figure out with what settings nodejs should be started for heavy servers, for example larger memory size `--max-old-space-size`
 // @todo implement usage of multiple cpu's using lib `cluster`.
+// @todo when rendering pages the user could use a special OptimizeText() function which will be optimized for copy writing and seo when adding loading static files. Quite hard but would be sublime (writesonic is a good platform).
 
 /*  @docs: {
  *  @chapter: Backend
@@ -620,6 +621,12 @@ class Server {
 
         // Default headers.
         if (default_headers === null) {
+            this.csp = {
+                "default-src": "'self' js.stripe.com *.google-analytics.com",
+                "img-src": `'self' http://${this.domain} https://${this.domain} *.google-analytics.com https://raw.githubusercontent.com/vandenberghinc/`,
+                "script-src": "'self' 'unsafe-inline' js.stripe.com ajax.googleapis.com www.googletagmanager.com googletagmanager.com *.google-analytics.com code.jquery.com https://cdn.jsdelivr.net/npm/@vandenberghinc/",
+                "style-src": "'self' 'unsafe-inline' https://cdn.jsdelivr.net/npm/@vandenberghinc/ "
+            }
             this.default_headers = {
                 "Vary": "Origin",
                 "Referrer-Policy": "same-origin",
@@ -628,15 +635,17 @@ class Server {
                 "X-Content-Type-Options": "frame-ancestors 'none'; nosniff;",
                 "X-Frame-Options": "DENY",
                 "Strict-Transport-Security": "max-age=31536000",
-                "Content-Security-Policy": 
-                    "default-src 'self' js.stripe.com *.google-analytics.com https://my.spline.design; " +
-                    `img-src 'self' http://${this.domain} https://${this.domain} *.google-analytics.com; ` +
-                    "script-src 'self' 'unsafe-inline' js.stripe.com https://checkoutshopper-live.adyen.com https://checkoutshopper-test.adyen.com ajax.googleapis.com www.googletagmanager.com googletagmanager.com *.google-analytics.com code.jquery.com; " +
-                    "style-src 'self' 'unsafe-inline' https://checkoutshopper-live.adyen.com https://checkoutshopper-test.adyen.com; " +
-                    "upgrade-insecure-requests; " +
-                    "block-all-mixed-content;",
             }
         } else {
+            if (default_headers["Content-Security-Policy"] != null && typeof default_headers["Content-Security-Policy"] !== "object") {
+                throw Error("The Content-Security-Policy of the default headers must be an object with values for each csp key, e.g. \"{'script-src': '...'}\".");
+            }
+            this.csp = default_headers["Content-Security-Policy"] != null ? default_headers["Content-Security-Policy"] : {
+                "default-src": "'self' js.stripe.com *.google-analytics.com",
+                "img-src": `'self' http://${this.domain} https://${this.domain} *.google-analytics.com`,
+                "script-src": "'self' 'unsafe-inline' js.stripe.com ajax.googleapis.com www.googletagmanager.com googletagmanager.com *.google-analytics.com code.jquery.com",
+                "style-src": "'self' 'unsafe-inline'"
+            }
             this.default_headers = default_headers;
         }
 
@@ -699,6 +708,22 @@ class Server {
 
     // ---------------------------------------------------------
     // Utils (private).
+
+    // Initialize the default headers.
+    _initialize_default_headers() {
+        let csp = "";
+        Object.keys(this.csp).iterate((key) => {
+            csp += key;
+            const value = this.csp[key];
+            if (typeof value === "string" && value.length > 0) {
+                csp += " ";
+                csp += value;
+            }
+            csp += ";";
+        });
+        this.default_headers["Content-Security-Policy"] = csp;
+    }   
+
 
     // Iterate a subpath directory in the database.
     async _iter_db_dir(subpath, callback) {
@@ -2223,6 +2248,9 @@ class Server {
         if (this.stripe !== undefined) {
             await this._initialize();
         }
+
+        // Initialize default headers.
+        this._initialize_default_headers();
     }
 
     // Serve a client.
@@ -2232,7 +2260,7 @@ class Server {
 
             // Log endpoint result.
             const log_endpoint_result = (message = null, status = null) => {
-                // console.log(`${Date.now()} ${method} ${endpoint_url}: ${message === null ? response.status_message : message} [${status === null ? response.status_code : status}].`);
+                console.log(`${Date.now()} ${method} ${endpoint_url}: ${message === null ? response.status_message : message} [${status === null ? response.status_code : status}].`);
             }
 
             // Initialize the request and wait till all the data has come in.
@@ -2431,6 +2459,80 @@ class Server {
             	process.exit(0);
 			}
         });
+    }
+
+    // Add a csp.
+    /*  @docs {
+     *  @title: Add CSP
+     *  @description: Add an url to the Content-Security-Policy. This function does not overwrite the existing key's value.
+     *  @warning: This function no longer has any effect when `Server.start()` has been called.
+     *  @parameter:
+     *      @name: key
+     *      @description: The Content-Security-Policy key, e.g. `script-src`.
+     *      @type: string
+     *  @parameter:
+     *      @name: value
+     *      @description: The value to add to the Content-Security-Policy key.
+     *      @type: null, string
+     *  @usage:
+     *      ...
+     *      server.add_csp("script-src", "somewebsite.com");
+     *      server.add_csp("upgrade-insecure-requests");
+     } */
+    add_csp(key, value = null) {
+        if (this.csp[key] === undefined) {
+            this.csp[key] = "";
+        }
+        if (typeof value === "string" && value.length > 0) {
+            this.csp[key] += " " + value.trim();
+        }
+    }
+
+    // Remove a csp.
+    /*  @docs {
+     *  @title: Remove CSP
+     *  @description: Remove an url from the Content-Security-Policy. This function does not overwrite the existing key's value.
+     *  @warning: This function no longer has any effect when `Server.start()` has been called.
+     *  @parameter:
+     *      @name: key
+     *      @description: The Content-Security-Policy key, e.g. `script-src`.
+     *      @type: string
+     *  @parameter:
+     *      @name: value
+     *      @description: The value to remove from the Content-Security-Policy key.
+     *      @type: null, string
+     *  @usage:
+     *      ...
+     *      server.remove_csp("script-src", "somewebsite.com");
+     *      server.remove_csp("upgrade-insecure-requests");
+     } */
+    remove_csp(key, value = null) {
+        if (this.csp[option] === undefined) {
+            return;
+        }
+        if (typeof value === "string" && value.length > 0) {
+            this.csp[key] = this.csp[key].replaceAll(value, "");
+        } else {
+            delete this.csp[key];
+        }
+    }
+
+    // Delete a csp key.
+    /*  @docs {
+     *  @title: Delete CSP
+     *  @description: Delete an key from the Content-Security-Policy.
+     *  @warning: This function no longer has any effect when `Server.start()` has been called.
+     *  @parameter:
+     *      @name: key
+     *      @description: The Content-Security-Policy key, e.g. `script-src`.
+     *      @type: string
+     *  @usage:
+     *      ...
+     *      server.del_csp("script-src");
+     *      server.del_csp("upgrade-insecure-requests");
+     } */
+    del_csp(key) {
+        delete this.csp[key];
     }
 
     // ---------------------------------------------------------

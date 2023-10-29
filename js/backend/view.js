@@ -19,54 +19,66 @@ const Meta = require(`${__dirname}/meta.js`);
 // @todo add optional background to default html body.
 /*  @docs: {
  *  @chapter: Backend
-    @title: View
-    @description: The js view class.
-    @parameter: {
-        @name: source
-        @description: The static url to the client side javascript source code.
-        @type: string
-    }
-    @parameter: {
-        @name: callback
-        @description: The client side callback function, this function will be executed at the client side.
-        @type: function
-    }
-    @parameter: {
-        @name: includes
-        @description: The included static js files.
-        @type: array[string]
-    }
-    @parameter: {
-        @name: css_includes
-        @description: The included static css files.
-        @type: array[string]
-    }
-    @parameter: {
-        @name: meta
-        @description: The meta information object.
-        @type: Meta
-    }
-    @parameter: {
-        @name: jquery
-        @description: Include jqeury by default.
-        @type: boolean
-    }
-    @parameter: {
-        @name: vhighlight
-        @description: Include vhighlight by default.
-        @type: boolean
-    }
-    @parameter: {
-        @name: payments
-        @description: Include the vweb.payments library in the view.
-        @type: boolean
-    }
-    @parameter: {
-        @name: background
-        @description: The background color of the body.
-        @type: string
-    }
- } */
+ *  @title: View
+ *  @description: The js view class.
+ *  @parameter: {
+ *      @name: source
+ *      @description: The static url to the client side javascript source code.
+ *      @type: string
+ *  }
+ *  @parameter: {
+ *      @name: callback
+ *      @description: The client side callback function, this function will be executed at the client side.
+ *      @type: function
+ *  }
+ *  @parameter: {
+ *      @name: includes
+ *      @description: The included static js files.
+ *      @type: array[string]
+ *  }
+ *  @parameter: {
+ *      @name: css_includes
+ *      @description: The included static css files.
+ *      @type: array[string], array[LinkObject]
+ *      @attributes_type: LinkObject
+ *      @attribute:
+ *          @name: href
+ *          @description: The source url of the link to include.
+ *          @type: string
+ *          @required: true
+ *      @attribute:
+ *          @name: rel
+ *          @description: The source url of the link to include.
+ *          @type: string
+ *          @required: false
+ *          @def: stylesheet
+ *  }
+ *  @parameter: {
+ *      @name: meta
+ *      @description: The meta information object.
+ *      @type: Meta
+ *  }
+ *  @parameter: {
+ *      @name: jquery
+ *      @description: Include jqeury by default.
+ *      @type: boolean
+ *  }
+ *  @parameter: {
+ *      @name: vhighlight
+ *      @description: Include vhighlight by default.
+ *      @type: boolean
+ *  }
+ *  @parameter: {
+ *      @name: payments
+ *      @description: Include the vweb.payments library in the view.
+ *      @type: boolean
+ *  }
+ *  @parameter: {
+ *      @name: background
+ *      @description: The background color of the body.
+ *      @type: string
+ *  }
+ */
 class View {
     constructor({
         source = null,
@@ -150,7 +162,20 @@ class View {
             this.html += '<link rel="stylesheet" href="/vhighlight/vhighlight.css">';
         }
         this.css_includes.iterate((url) => {
-            this.html += `<link rel="stylesheet" href="${url}">`;
+            if (typeof url === "string") {
+                this.html += `<link rel="stylesheet" href="${url}">`;
+            } else if (typeof url === "object") {
+                if (url.rel == null) {
+                    url.rel = "stylesheet";
+                }
+                this.html += "<link";
+                Object.keys(url).iterate((key) => {
+                    this.html += ` ${key}="${url[key]}"`;
+                })
+                this.html += ">";
+            } else {
+                throw Error("Invalid type for a css include, the valid value types are \"string\" and \"object\".");
+            }
         })
         if (this.payments) {
             this.html += `<link rel="stylesheet" href="https://checkoutshopper-live.adyen.com/checkoutshopper/sdk/5.51.0/adyen.css" integrity="sha384-k6qYnmoHaucEm97eQQAs3MK5e44JQ2sksrue2tfdDOnnedKzc0VYQwxzdYWZu8Mj" crossorigin="anonymous">`;
@@ -175,7 +200,17 @@ class View {
             this.html += `<script async src="https://checkoutshopper-live.adyen.com/checkoutshopper/sdk/5.51.0/adyen.js" integrity="sha384-FJWX32BY0zx3KKed9gdiWxoEAEsA3uh1ixchmdkflgtcDo+SoYg5ZD6uqvDmnafO" crossorigin="anonymous"></script>`
         }
         this.includes.iterate((url) => {
-            this.html += `<script src='${url}'></script>`;
+            if (typeof url === "string") {
+                this.html += `<script src='${url}'></script>`;
+            } else if (typeof url === "object") {
+                this.html += "<script";
+                Object.keys(url).iterate((key) => {
+                    this.html += ` ${key}="${url[key]}"`;
+                })
+                this.html += "></script>";
+            } else {
+                throw Error("Invalid type for a js include, the valid value types are \"string\" and \"object\".");
+            }
         })
 
         // Load the srouce.

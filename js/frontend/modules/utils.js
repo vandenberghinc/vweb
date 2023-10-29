@@ -41,6 +41,41 @@ vweb.utils.is_obj = function(value) {
 	return typeof value === 'object';
 }
 
+// Is an even number.
+vweb.utils.is_even = function(number) {
+	return number % 2 === 0;
+}
+
+// Make immutable.
+/* 	@docs:
+ *	chapter: Client
+ *	@title: Make Immutable
+ *	@desc: 
+ * 		Make all objects of an array or object immutable. All the nested objects of nested arrays or object will also be made immutable recursively.
+ *	@param:
+ *		@name: object
+ *		@desc: The array or object to freeze.
+ *		@type: array, object 
+ */
+vweb.utils.make_immutable = (object) => {
+	if (Array.isArray(object)) {
+		Object.freeze(object);
+		for (let i = 0; i < object.length; i++) {
+			if (object[i] !== null && typeof object[i] === "object") {
+				object[i] = vweb.utils.make_immutable(object[i])
+			}
+		}
+	}
+	else if (object !== null && typeof object === "object") {
+		Object.freeze(object);
+		Object.keys(object).iterate((key) => {
+			if (object[key] !== null && typeof object[key] === "object") {
+				object[key] = vweb.utils.make_immutable(object[key])
+			}
+		})
+	}
+}
+
 // Equals.
 // vweb.utils.eq = function(x, y) {
 // 	return x == y;
