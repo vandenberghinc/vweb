@@ -29,8 +29,8 @@ vweb.themes.set = function(theme_id) {
 			if (e.element_type === "RingLoader") {
 				e.update(e);
 			}
-			if (typeof e._on_theme_update === "function") {
-				e._on_theme_update(e);
+			if (Array.isArray(e._on_theme_updates)) {
+				e._on_theme_updates.iterate((func) => func(e));
 			}
 		}
 	})
@@ -40,8 +40,8 @@ vweb.themes.set = function(theme_id) {
 vweb.themes.apply_theme_update = function() {
 	vweb.themes.theme_elements.iterate((theme) => {
 		const e = theme.element;
-		if (e !== undefined && typeof e._on_theme_update === "function") {
-			e._on_theme_update(e);
+		if (e !== undefined && Array.isArray(e._on_theme_updates)) {
+			e._on_theme_updates.iterate((func) => func(e));
 		}
 	})
 }

@@ -15,40 +15,57 @@ vweb.elements.elements_with_width_attribute = [
 ];
 
 // Create the intersection obvserver.
-vweb.utils.on_appear_observer = new IntersectionObserver(
+// vweb.utils.on_appear_observer = new IntersectionObserver(
+// 	(entries, observer) => {
+// 		entries.forEach(entry => {
+// 			if (entry.target.test === true) {
+// 				console.log("APPEAR:", entry)
+// 			}
+// 			// Intersecting.
+// 			if (
+// 				entry.isIntersecting && 
+// 				(entry.target._on_appear_threshold == null || entry.intersectionRatio >= entry.target._on_appear_threshold) &&
+// 				(entry.target._on_appear_repeat === true || entry.target._on_appear_called !== true)
+// 			) {
+// 				console.log("APPEAR:", entry.target)
+// 				// When a parent has the on appear and the child as well, than the child's on appear somehow does not get executed, the isIntersecting is always false, so iterate children recursively.
+// 				const traverse = (element) => {
+// 					if (element._on_appear_callback != null) {
+// 						element._on_appear_callback(element);
+// 						if (element._on_appear_repeat !== true) {
+// 							element._on_appear_called = true;
+// 							observer.unobserve(element);
+// 						}
+// 					}
+// 					if (element.children != null && element.children.length > 0) {
+// 						for (let i = 0; i < element.children.length; i++) {
+// 							traverse(element.children[i]);
+// 						}
+// 					}
+// 				}
+// 				traverse(entry.target);
+// 			}
+
+// 			// Only add again when it was intersecting but no threshold success, otherwise it creates an infinite loop.
+// 			else if (entry.isIntersecting && entry.target._on_appear_called !== true) {
+// 				console.log(entry.target)
+// 				observer.unobserve(entry.target);
+// 				observer.observe(entry.target);
+// 			}
+// 		});
+// 	},
+// 	{
+// 		thresholds: [0], // Trigger when any part of the element is in the viewport
+// 		rootMargin: '0px' // No margin applied
+// 	}
+// );
+
+// Create the on render observer.
+vweb.utils.on_render_observer = new IntersectionObserver(
 	(entries, observer) => {
 		entries.forEach(entry => {
-
-			// Intersecting.
-			if (
-				entry.isIntersecting && 
-				(entry.target._on_appear_threshold == null || entry.intersectionRatio >= entry.target._on_appear_threshold) &&
-				(entry.target._on_appear_repeat === true || entry.target._on_appear_called !== true)
-			) {
-
-				// When a parent has the on appear and the child as well, than the child's on appear somehow does not get executed, the isIntersecting is always false, so iterate children recursively.
-				const traverse = (element) => {
-					if (element._on_appear_callback != null) {
-						element._on_appear_callback(element);
-						if (element._on_appear_repeat !== true) {
-							entry.target._on_appear_called = true;
-							observer.unobserve(element);
-						}
-					}
-					if (element.children != null && element.children.length > 0) {
-						for (let i = 0; i < element.children.length; i++) {
-							traverse(element.children[i]);
-						}
-					}
-				}
-				traverse(entry.target);
-			}
-
-			// Only add again when it was intersecting but no threshold success, otherwise it creates an infinite loop.
-			else if (entry.isIntersecting) {
-				observer.unobserve(entry.target);
-				observer.observe(entry.target);
-			}
+			entry.target._on_render_callbacks.iterate((func) => func(entry.target));
+			entry.target._rendered = true;
 		});
 	},
 );
@@ -319,11 +336,9 @@ function CreateVElementClass({
 
 			// On render event handler.
 			this._rendered = false;
-			this._on_render_handler = null;
 
 			// Constructed by html code.
 			if (this.hasAttribute("created_by_html")) {
-				this._rendered = false;
 			}
 
 			// Constructed by js code.
@@ -886,13 +901,6 @@ function CreateVElementClass({
 
 		// Wrap.
 		wrap(value) {
-			if (value == true) {
-				this.style.whiteSpace = "wrap";
-			} else if (value == false) {
-				this.style.whiteSpace = "nowrap";
-			} else {
-				this.style.whiteSpace = value;
-			}
 			switch (this.tagName) {
 				case "DIV":
 					if (value == true) {
@@ -915,6 +923,13 @@ function CreateVElementClass({
 					}
 				break;
 			}
+			// if (value == true) {
+			// 	this.style.whiteSpace = "wrap";
+			// } else if (value == false) {
+			// 	this.style.whiteSpace = "nowrap";
+			// } else {
+			// 	this.style.whiteSpace = value;
+			// }
 			return this;
 		}
 
@@ -1401,6 +1416,9 @@ function CreateVElementClass({
 
 		// Specifies how a certain HTML element should be displayed
 		display(value) {
+			if (value == null) {
+				return this.style.display;
+			}
 			if (value != null && value != "none") {
 				this.element_display = value;
 			}
@@ -1633,6 +1651,18 @@ function CreateVElementClass({
 		// Create media query.
 		media(media_query, true_handler, false_handler) {
 
+			// Edit query.
+			if (media_query.first() !== "(") {
+				media_query = "(" + media_query;
+			}
+			let c;
+			while ((c = media_query.last()) === " " || c === "\t" || c === "\n") {
+				media_query = media_query.substr(0, media_query.length - 1)
+			}
+			if (media_query.last() !== ")") {
+				media_query = media_query + ")";
+			}
+
 			// Create query.
 			const e = this;
 			const query = {
@@ -1684,7 +1714,7 @@ function CreateVElementClass({
 		}
 
 		// ---------------------------------------------------------
-		// Default html element functions.
+		// Animations.
 
 		// Default html animate function.
 		default_animate(...args) {
@@ -1990,6 +2020,122 @@ function CreateVElementClass({
 			return this;
 		}
 
+		// Slide out.
+		async slide_out({
+			direction = "top",		// the slide direction.
+			distance = 100,			// the slide distance.
+			duration = 500,			// the duration of the slide animation.
+			opacity = true,			// animate opacity.
+			easing = "ease",		// easing.
+			hide = true,			// hide the element when animation complete.
+			display = null,			// the optional display to use for when showing the view again.
+			_slide_in = false,
+		}) {
+			const element = this;
+			return new Promise((resolve, reject) => {
+
+				// Vars.
+				const old_transition = element.transition();
+				let transform, initial_transform;
+				if (_slide_in) {
+					if (direction === "top") {
+						transform = `translateY(0)`;
+						initial_transform = `translateY(${-distance}px)`
+					} else if (direction === "bottom") {
+						transform = `translateY(0)`;
+						initial_transform = `translateY(${distance}px)`
+					} else if (direction === "right") {
+						transform = `translateX(0)`;
+						initial_transform = `translateX(${distance}px)`
+					} else if (direction === "left") {
+						transform = `translateX(0)`;
+						initial_transform = `translateX(${-distance}px)`
+					} else {
+						return reject(`Invalid direction "${direction}", the valid directions are "top", "bottom", "right", "left".`);
+					}
+				} else {
+					if (direction === "top") {
+						transform = `translateY(${-distance}px)`;
+						initial_transform = "translateY(0)";
+					} else if (direction === "bottom") {
+						transform = `translateY(${distance}px)`;
+						initial_transform = "translateY(0)";
+					} else if (direction === "right") {
+						transform = `translateX(${distance}px)`;
+						initial_transform = "translateX(0)";
+					} else if (direction === "left") {
+						transform = `translateX(${-distance}px)`;
+						initial_transform = "translateX(0)";
+					} else {
+						return reject(`Invalid direction "${direction}", the valid directions are "top", "bottom", "right", "left".`);
+					}
+				}
+
+				// Set initial state.
+				if (_slide_in) {
+					if (display != null) {
+						element.display(display);
+					} else {
+						element.show();
+					}
+				}
+				element.transition("none");
+				element.getBoundingClientRect(); // reflow.
+				element.transform(initial_transform);
+				element.opacity(_slide_in ? 0 : 1);
+				element.getBoundingClientRect(); // reflow.
+				element.transition(`transform ${duration}ms ${easing}, opacity ${duration}ms ease-in`);
+				element.getBoundingClientRect(); // reflow.
+
+				// Transition.
+				if (opacity === false) {
+					element.transform(transform);
+				} else {
+					element.opacity(_slide_in ? 1 : 0)
+					element.transform(transform);
+				}
+				
+				// Resolve animation.
+				setTimeout(() => {
+
+					// Hide element.
+					if (hide && _slide_in !== true) {
+						element.hide()
+					}
+
+					// Restore old transition.
+					element.transition(old_transition);
+
+					// Resolve.
+					resolve()
+				}, duration);
+
+
+			});
+		}
+
+		// Slide in.
+		async slide_in({
+			direction = "top",		// the slide direction.
+			distance = 100,			// the slide distance.
+			duration = 500,			// the duration of the slide animation.
+			opacity = true,			// animate opacity.
+			easing = "ease",		// easing.
+			display = null,			// the optional display to use for when showing the view again.
+		}) {
+			return this.slide_out({
+				direction: direction,
+				distance: distance,
+				duration: duration,
+				opacity: opacity,
+				easing: easing,
+				display: display,
+				hide: false,
+				_slide_in: true,
+			});
+		}
+
+
 		// ---------------------------------------------------------
 		// Events.
 
@@ -2166,21 +2312,81 @@ function CreateVElementClass({
 
 	    // Event when a element appears to the user.
 	    on_appear(callback_or_opts = {callback: null, repeat: false, threshold: null}) {
-	    	let is_called = false;
+
+	    	const observer = new IntersectionObserver((entries) => {
+				entries.forEach(async (entry) => {
+					const element = entry.target;
+
+					// Intersecting.
+					if (entry.isIntersecting && Array.isArray(element._on_appear_callbacks)) {
+
+						// Iterate callbacks.
+						let matched = false, repeat = false;
+						for (let i = 0; i < element._on_appear_callbacks.length; i++) {
+							const callback = element._on_appear_callbacks[i];
+	                        if (
+	                        	callback.called !== true &&
+	                    		(callback.threshold == null || entry.intersectionRatio >= callback.threshold)    	
+	                        ) {
+	                        	matched = true;
+	                        	const res = callback.callback(element);
+	                            if (res instanceof Promise) {
+	                                await promise;
+	                            }
+	                            if (callback.repeat !== true) {
+									callback.called = true;
+								} else {
+									repeat = true;
+								}
+	                        }
+	                    }
+
+	                    // Not matched, add again since it was intersecting but no threshold success.
+	                    if (matched === false) {
+	                    	observer.unobserve(element);
+							observer.observe(element);
+	                    }
+
+	                    // Stop observing.
+	                    else if (repeat === false) {
+	                    	observer.unobserve(element);
+	                    }
+					}
+				});
+			});
+
+	    	// Observe.
 	    	let callback = callback_or_opts, repeat = false, threshold = null;
 	    	if (typeof callback_or_opts === "object") {
 	    		callback = callback_or_opts.callback;
-	    		if (callback_or_opts.repeat !== undefined) {
-	    			repeat = callback_or_opts.repeat;
-	    		}
-	    		if (callback_or_opts.threshold !== undefined) {
-	    			threshold = callback_or_opts.threshold;
-	    		}
+	    		if (callback_or_opts.repeat !== undefined) { repeat = callback_or_opts.repeat; }
+	    		if (callback_or_opts.threshold !== undefined) { threshold = callback_or_opts.threshold; }
 	    	}
-	    	this._on_appear_callback = callback;
-	    	this._on_appear_repeat = repeat;
-	    	this._on_appear_threshold = threshold;
-	    	vweb.utils.on_appear_observer.observe(this);
+
+	    	// Add callback.
+	    	// Always add to callback so the user can also manually iterate and perhaps call the callbacks, like @doxly/WindowScroller
+	    	if (Array.isArray(this._on_appear_callbacks)) {
+	    		this._on_appear_callbacks.push({callback, threshold, repeat, exec: () => callback(this)});
+	    	} else {
+	    		this._on_appear_callbacks = [{callback, threshold, repeat, exec: () => callback(this)}];
+	    	}
+
+			// Check if the element is already visible, since the observer will not execute on already visible elements.
+			const rect = this.getBoundingClientRect();
+			if (
+			  rect.top >= 0 &&
+			  rect.left >= 0 &&
+			  rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) &&
+			  rect.right <= (window.innerWidth || document.documentElement.clientWidth)
+			) {
+				callback(this);
+				if (repeat !== true) {
+					observer.observe(this);
+				}
+			}
+			else {
+		    	observer.observe(this);
+			}
 	    	return this;
 	    }
 
@@ -2213,7 +2419,7 @@ function CreateVElementClass({
 	    // On theme update.
 	    on_theme_update(callback) {
 	    	if (callback == null) {
-	    		return this._on_theme_update;
+	    		return this._on_theme_updates;
 	    	}	
 
 	    	// Add the item to the theme object when not yet added.
@@ -2231,7 +2437,17 @@ function CreateVElementClass({
 		    }
 
 	    	// Set callback.
-	    	this._on_theme_update = callback;
+	    	if (Array.isArray(this._on_theme_updates)) {
+	    		this._on_theme_updates.push(callback)
+	    	} else {
+	    		this._on_theme_updates = [callback];
+	    	}
+	    	return this;
+	    }
+	    remove_on_theme_update(callback) {
+	    	if (Array.isArray(this._on_theme_updates)) {
+	    		this._on_theme_updates = this._on_theme_updates.drop(callback);
+	    	}
 	    	return this;
 	    }
 
@@ -2239,13 +2455,25 @@ function CreateVElementClass({
 	    // Is called when the element is added to the body.
 	    on_render(callback) {
 	    	if (callback == null) {
-	    		return this._on_render_handler;
+	    		return this._on_render_callbacks;
 	    	}
-	    	if (this._on_render_handler === null) {
-	    		vweb_on_render_observer.observe(this);
+	    	if (Array.isArray(this._on_render_callbacks)) {
+	    		this._on_render_callbacks.push(callback);
+	    	} else {
+	    		this._rendered = false;
+	    		this._on_render_callbacks = [callback];
+	    		vweb.utils.on_render_observer.observe(this);
 	    	}
-	    	this._on_render_handler = callback;
 	    	return this;
+	    }
+	    remove_on_render(callback) {
+	    	if (Array.isArray(this._on_render_callbacks)) {
+	    		this._on_render_callbacks = this._on_render_callbacks.drop(callback);
+	    	}
+	    	return this;
+	    }
+	    is_rendered(callback) {
+	    	return this._rendered;
 	    }
 
 	    /* 	@docs: {
@@ -2701,6 +2929,11 @@ function CreateVElementClass({
             if (value == null) { return this.getAttribute("alt"); }
         	this.setAttribute("alt", value)
         	return this;
+        }
+
+        // Is scrollable.
+        is_scrollable() {
+        	return this.scrollHeight > this.clientHeight;
         }
 
 		// ---------------------------------------------------------
@@ -3202,6 +3435,9 @@ function CreateVElementClass({
         background(value) {
             if (value == null) { return this.style.background; }
             this.style.background = value;
+            // if (value.eq_first("linear-gradient")) {
+            // 	this.style.backgroundImage = value;	
+            // }
             return this;
         }
 

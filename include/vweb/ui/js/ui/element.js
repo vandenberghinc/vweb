@@ -295,7 +295,7 @@ function CreateVElementClass({
 
 			// On render event handler.
 			this._rendered = false;
-			this._on_render_handler = null;
+			this._on_render_callback = null;
 
 		}
 		
@@ -1837,12 +1837,12 @@ function CreateVElementClass({
 	    // Is called when the element is added to the body.
 	    on_render(callback) {
 	    	if (callback == null) {
-	    		return this._on_render_handler;
+	    		return this._on_render_callback;
 	    	}
-	    	if (this._on_render_handler === null) {
+	    	if (this._on_render_callback === null) {
 	    		vweb_on_render_observer.observe(this);
 	    	}
-	    	this._on_render_handler = callback;
+	    	this._on_render_callback = callback;
 	    	return this;
 	    }
 

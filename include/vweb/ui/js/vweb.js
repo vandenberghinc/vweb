@@ -187,8 +187,8 @@ const rect=element.getBoundingClientRect();
 if(rect.top&&rect.left&&rect.width&&rect.height){
 if(element.element_type!==undefined){
 element._rendered=true;
-if(element._on_render_handler!=null){
-element._on_render_handler(element);
+if(element._on_render_callback!=null){
+element._on_render_callback(element);
 }
 }
 vweb_on_render_observer.unobserve(element);
@@ -470,7 +470,7 @@ this.events(E.default_events);
 }
 this.remove_focus=super.blur;
 this._rendered=false;
-this._on_render_handler=null;
+this._on_render_callback=null;
 }
 clone(clone_children=true){
 const clone=new this.constructor();
@@ -1462,12 +1462,12 @@ return this;
 }
 on_render(callback){
 if(callback==null){
-return this._on_render_handler;
+return this._on_render_callback;
 }
-if(this._on_render_handler===null){
+if(this._on_render_callback===null){
 vweb_on_render_observer.observe(this);
 }
-this._on_render_handler=callback;
+this._on_render_callback=callback;
 return this;
 }
 on_shortcut(shortcuts=[]){

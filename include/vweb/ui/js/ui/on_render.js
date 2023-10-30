@@ -11,8 +11,8 @@ const vweb_on_render_observer = new ResizeObserver((entries) => {
 	    if (rect.top && rect.left && rect.width && rect.height) {
 	        if (element.element_type !== undefined) {
 				element._rendered = true;
-				if (element._on_render_handler != null) {
-					element._on_render_handler(element);
+				if (element._on_render_callback != null) {
+					element._on_render_callback(element);
 				}
 			}
 			vweb_on_render_observer.unobserve(element);
