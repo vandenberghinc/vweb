@@ -204,13 +204,15 @@ class ExtendedInputElement extends VStackElement {
 			.width("100%")
 			.stretch(true)
 			.transition("outline 0.2s ease-in-out, box-shadow 0.2s ease-in-out")
+			.outline("0px solid transparent")
+			.box_shadow(`0 0 0 4px transparent`)
 			.on_focus((element) => {
 				element.outline(`1px solid ${this._focus_color}`)
 				element.box_shadow(`0 0 0 4px ${this._focus_color}80`)
 			})
 			.on_blur((element) => {
-				element.outline("none")
-				element.box_shadow(`none`)
+				element.outline("0px solid transparent")
+				element.box_shadow(`0 0 0 4px transparent`)
 			})
 
 		// Append.
@@ -314,13 +316,15 @@ class LabeledInputElement extends VStackElement {
 			.width("100%")
 			.stretch(true)
 			.transition("outline 0.2s ease-in-out, box-shadow 0.2s ease-in-out")
+			.outline("0px solid transparent")
+			.box_shadow(`0 0 0 4px transparent`)
 			.on_focus((element) => {
 				element.outline(`1px solid ${this._focus_color}`)
 				element.box_shadow(`0 0 0 4px ${this._focus_color}80`)
 			})
 			.on_blur((element) => {
-				element.outline("none")
-				element.box_shadow(`none`)
+				element.outline("0px solid transparent")
+				element.box_shadow(`0 0 0 4px transparent`)
 			})
 
 		// Append.
@@ -410,6 +414,8 @@ class ImageInputElement extends HStackElement {
 
 		// Set default styling.
 		this.styles(ImageInputElement.default_style);
+		this.outline("0px solid transparent")
+		this.box_shadow(`0 0 0 4px transparent`)
 
 		// Title element.
 		this.image = ImageMask (image)
@@ -427,13 +433,15 @@ class ImageInputElement extends HStackElement {
 			.font_size("inherit")
 			.margin(0)
             .stretch(true)
+            .border("none")
+            .outline("none")
 			.on_focus((element) => {
 				this.outline(`1px solid ${this._focus_color}`)
 				this.box_shadow(`0 0 0 4px ${this._focus_color}80`)
 			})
 			.on_blur((element) => {
-				this.outline("none")
-				this.box_shadow(`none`)
+				this.outline("0px solid transparent")
+				this.box_shadow(`0 0 0 4px transparent`)
 			})
 
 		// Transition.

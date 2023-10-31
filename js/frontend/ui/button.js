@@ -194,7 +194,7 @@ class BorderButtonElement extends CreateVElementClass({
 // Warning: This class is still experimental and may be subject to future change.
 @vweb_constructor_wrapper
 @vweb_register_element
-class LoaderButtonElement extends HStackElement {
+class LoaderButtonElement extends VStackElement {
 
 	// Default styling.
 	// static default_style = Object.assign({}, HStackElement.default_style, {
@@ -208,10 +208,8 @@ class LoaderButtonElement extends HStackElement {
 		"color": "inherit",
 		"font-size": "16px",
 		// Custom.
-		"--loader-width": "25px",
-		"--loader-height": "25px",
-		"--loader-margin-right": "15px",
-		"--loader-margin-top": "-2px",
+		"--loader-width": "20px",
+		"--loader-height": "20px",
 	};
 
 	// Constructor.
@@ -234,32 +232,24 @@ class LoaderButtonElement extends HStackElement {
 		// Children.
 		this.loader = loader()
 			.frame(LoaderButtonElement.default_style["--loader-width"], LoaderButtonElement.default_style["--loader-height"])
-			.margin_right(LoaderButtonElement.default_style["--loader-margin-right"])
-			.margin_top(LoaderButtonElement.default_style["--loader-margin-top"])
 			.background("white")
 			.update()
-			.hide();
-		this.loader.parent(this);
-		this.text_e = VElement() // use div to inherit text styles.
+			.hide()
+			.parent(this)
+		this.text = VElement() // use div to inherit text styles.
 			.text(text)
 			.margin(0)
-			.padding(0);
-		this.text_e.parent(this);
-		this.padding_e = new VStack()
 			.padding(0)
-			.margin(0)
-			.frame(25, 1);
-		this.padding_e.parent(this);
-
+			.parent(this);
+		
 		// Add children.
-		this.append(this.loader, this.text_e);
+		this.append(this.loader, this.text);
 
 	}
 
 	// Show the loader.
 	show_loader() {
-		this.padding_e.frame(this.loader.style.width);
-		this.append(this.padding_e);
+		this.text.hide();
 		this.loader.update();
 		this.loader.show();
 		return this;
@@ -268,7 +258,7 @@ class LoaderButtonElement extends HStackElement {
 	// Hide the loader.
 	hide_loader() {
 		this.loader.hide();
-		this.remove_child(this.padding_e);
+		this.text.show();
 		return this;
 	}
 
@@ -277,10 +267,8 @@ class LoaderButtonElement extends HStackElement {
 	styles(style_dict) {
 		if (style_dict == null) {
 			let styles = super.styles();
-			styles["--loader-width"] = this.loader.style.width || "25px";
-			styles["--loader-height"] = this.loader.style.height || "25px";
-			styles["--loader-margin-right"] = this.loader.margin_right() || "15px";
-			styles["--loader-margin-top"] = this.loader.margin_top() || "-2px";
+			styles["--loader-width"] = this.loader.style.width || "20px";
+			styles["--loader-height"] = this.loader.style.height || "20px";
 			return styles;
 		} else {
 			return super.styles(style_dict);

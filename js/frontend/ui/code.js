@@ -23,8 +23,10 @@ class CodeBlockElement extends CreateVElementClass({
 		"border-radius": "15px",
 		"color": "#FFFFFF",
 		"background": "#262F3D",
-		"overflow-x": "auto",
+		"overflow": "auto visible",
 		"align-items": "stretch", // required for lines divider.
+		"width": "100%",
+		"min-width": "100%",
 	},
 }) {
 	
@@ -49,37 +51,54 @@ class CodeBlockElement extends CreateVElementClass({
 			if (code_or_opts.line_numbers !== undefined) { this.line_numbers = code_or_opts.line_numbers; }
 		}
 
-		// Line numbers.
-		this.lines = VElement()
+		// Code pre.
+		this.pre = CodePre(code)
 			.color("inherit")
 			.font("inherit")
+			.min_width("100%")
+			.background("none")
+			.border_radius(0)
+			.padding(0)
+			.margin(0)
+			.overflow("visible")
+			.line_height("inherit")
+
+		// Line numbers.
+		this.lines = VElement()
+			.color("var(--vhighlight-token-comment)")
+			.font("inherit")
 			.white_space("pre")
-			.min_width(0.5)
-			.max_width(0.5);
-			.margin(0, 10)
-		if (this.line_numbers === false) {
-			this.lines.hide();
-		}
+			.line_height("inherit")
+			.flex_shrink(0)
+			.hide()
 
 		// Line numbers divider.
 		this.lines_divider = VElement()
-			.background("currentColor");
-		if (this.line_divider === false) {
-			this.lines_divider.hide();
-		}
-
-		// Code pre.
-		this.pre = CodePre(code)
+			.background("var(--vhighlight-token-comment)")
+			.min_width(0.5)
+			.max_width(0.5)
+			.flex_shrink(0)
+			.height("100%")
+			.margin(0, 10)
+			.hide()
 
 		// Append code pre.
 		this.append(this.lines, this.lines_divider, this.pre);
+		this.flex_wrap("nowrap")
 
 	}
+
+	// Show.
+    show() {
+    	this.style.display = "flex";
+    	return this;
+    }
 
 	// Highlight code.
 	highlight({
 		code = null,			// only required if the code was not provided by the constructor.
 		language = null,		// code language, precedes element attribute "language".
+		line_numbers = false,	// show line numbers.
 		animate = false,		// animate code writing.
 		delay = 25,				// animation delay in milliseconds, only used when animatinos are enabled.
 		duration = null,		// animation duration in milliseconds, only used when animatinos are enabled.
@@ -91,18 +110,23 @@ class CodeBlockElement extends CreateVElementClass({
 		if (language != null) {
 			this.language = language;
 		}
+		if (line_numbers != null) {
+			this.line_numbers = line_numbers;
+		}
 
 		// Highlight.
-		this.pre.highlighted({
+		this.pre.highlight({
 			code: code,
 			language: this.language,
 			animate: animate,
 			delay: delay,
 			duration: duration,
-			tokenizer_args: tokenizer_args,
-			_post_tokenized_callback: (tokens) => {
+			opts: opts,
+			_post_tokenized_callback: !line_numbers ? null : (tokens) => {
 
 				// Set line numbers.
+				this.lines.show();
+				this.lines_divider.show();
 				let html = "";
 				for (var i = 0; i < tokens.length; i++) {
 					html += `${(i + 1)}\n`;
@@ -154,7 +178,7 @@ class CodePreElement extends CreateVElementClass({
 
 		// Set code.
 		if (this.code != null) {
-			while (code.length > 0 && this.code[this.code.length - 1] == "\n") {
+			while (this.code.length > 0 && this.code[this.code.length - 1] == "\n") {
 				this.code = this.code.slice(-this.code.length, -1);
 			}
 			this.text(this.code);
@@ -163,105 +187,134 @@ class CodePreElement extends CreateVElementClass({
 	}
 
 	// Animate writing.
-	animate_writing({delay = 25, duration = null}) {
+	// @note cant use attribute for highlighted code since that may be edited inside `highlight()` while the animation is still busy and otherwise highlight would need to be an sync func, but it has to return this, not a promise.
+	async animate_writing({code = null, delay = 25, duration = null} = {}) {
 
 		// Check highlighted code.
-		if (this.highlighted_code == null) {
+		if (code == null) {
 			throw Error(`The code must be highlighted first using "highlight()".`)
 		}
 
-		// Set delay based on duration.
-		if (duration != null) {
-			delay = duration / this.highlighted_code.length;
+		// Await animation.
+		if (this.animate_promise != null) {
+			this.innerHTML = "";
+			this.allow_animation = false;
+			await this.animate_promise.catch(() => {});
+			this.animate_promise = null;
 		}
 
-		// Set the min height otherwise the height expands while scrolling while the writing is animated then this can created unwanted behviour when scrolling up.
-		const computed = window.getComputedStyle(this);
-		this.style.minHeight = `${parseFloat(computed.paddingTop) + parseFloat(computed.paddingBottom) + parseFloat(computed.lineHeight) * tokens.length}px`;
-		
-		// Reset content.
-		this.innerHTML = "";
+		// Start animation.
+		this.allow_animation = true;
+		this.animate_promise = new Promise((resolve, reject) => {
 
-		// Add char.
-		function add_char(index) {
-			if (index < this.highlighted_code.length) {
-				
-				// Span opening.
-				if (this.highlighted_code[index] == '<') {
+			// Set delay based on duration.
+			if (duration != null) {
+				delay = duration / code.length;
+			}
+
+			// Set the min height otherwise the height expands while scrolling while the writing is animated then this can created unwanted behviour when scrolling up.
+			const computed = window.getComputedStyle(this);
+			this.style.minHeight = `${parseFloat(computed.paddingTop) + parseFloat(computed.paddingBottom) + parseFloat(computed.lineHeight) * this.tokens.length}px`;
+			
+			// Reset content.
+			this.innerHTML = "";
+
+			// Add char.
+			const add_char = (index) => {
+
+				// Stop.
+				if (this.allow_animation !== true) {
+					return reject()
+				}
+
+				// Animation finished.
+				else if (index >= code.length) {
+					return resolve()
+				}
+
+				// Animate.
+				else {
 					
-					// Fins span open, close and code.
-					let span_index;
-					let span_open = "";
-					let span_close = "";
-					let span_code = "";
-					let open = true;
-					let first = true;
-					for (span_index = index; span_index < this.highlighted_code.length; span_index++) {
-						const char = this.highlighted_code[span_index];
-						if (char == '<' || open) {
-							open = true;
-							if (first) {
-								span_open += char;
-							} else {
-								span_close += char;
+					// Span opening.
+					if (code[index] == '<') {
+						
+						// Fins span open, close and code.
+						let span_index;
+						let span_open = "";
+						let span_close = "";
+						let span_code = "";
+						let open = true;
+						let first = true;
+						let recusrive = false;
+						for (span_index = index; span_index < code.length; span_index++) {
+							if (this.allow_animation !== true) {
+								return ;
 							}
-							if (char == '>') {
-								open = false;
+							const char = code[span_index];
+							if (char == '<' || open) {
+								open = true;
 								if (first) {
-									first = false;
-									continue;
+									span_open += char;
+								} else {
+									span_close += char;
 								}
-									
-								// Animate span code writing.
-								let before = this.innerHTML;
-								let added_span_code = "";
-								function add_span_code(index) {
-									if (index < span_code.length) {
-										added_span_code += span_code[index]
-										let add = before;
-										add += span_open;
-										add += added_span_code;
-										add += span_close;
-										this.innerHTML = add;
-										setTimeout(() => add_span_code(index + 1), delay);
-									} else {
-										setTimeout(() => add_char(span_index + 1), delay);
+								if (char == '>') {
+									open = false;
+									if (first) {
+										first = false;
+										continue;
 									}
+										
+									// Animate span code writing.
+									let before = this.innerHTML;
+									let added_span_code = "";
+									const add_span_code = (index) => {
+										if (index < span_code.length) {
+											added_span_code += span_code[index]
+											let add = before;
+											add += span_open;
+											add += added_span_code;
+											add += span_close;
+											this.innerHTML = add;
+											setTimeout(() => add_span_code(index + 1), delay);
+										} else {
+											recusrive = true;
+											setTimeout(() => add_char(span_index + 1), delay);
+										}
+									}
+									add_span_code(0)
+									
+									// Stop.
+									break;
 								}
-								add_span_code(0)
-								
-								// Stop.
-								break;
 							}
+							
+							// Add non span code.
+							else {
+								span_code += char;
+							}
+							
 						}
-						
-						// Add non span code.
-						else {
-							span_code += char;
+						if (recusrive === false && span_index === code.length) {
+							resolve()
 						}
-						
+					}
+					
+					// Non span code.
+					else {
+						this.innerHTML += code.charAt(index);
+						setTimeout(() => add_char(index + 1), delay);
 					}
 				}
-				
-				// Non span code.
-				else {
-					this.innerHTML += this.highlighted_code.charAt(index);
-					setTimeout(() => add_char(index + 1), delay);
-				}
 			}
 			
-			// Non span code.
-			else {
-				this.innerHTML = this.highlighted_code;
-			}
-			
-		}
-		
-		// Start animation.
-		add_char(0);
+			// Start animation.
+			add_char(0);
+
+		})
 
 		// Response.
-		return this;
+		return this.promise;
 	}
 
 	// Highlight.
@@ -278,6 +331,9 @@ class CodePreElement extends CreateVElementClass({
 		// Vars.
 		if (code != null) {
 			this.code = code;
+			while (this.code.length > 0 && this.code[this.code.length - 1] == "\n") {
+				this.code = this.code.slice(-this.code.length, -1);
+			}
 			this.text(code);
 		}
 		if (language != null) {
@@ -290,16 +346,17 @@ class CodePreElement extends CreateVElementClass({
 		}
 		
 		// Get tokenizer.
-		const tokenizer = vhighlight.init_tokenizer(this.language, opts);
-		if (tokenizer == null) {
+		this.tokenizer = vhighlight.init_tokenizer(this.language, opts);
+		if (this.tokenizer == null) {
 			return this;
 		}
 
 		// Get the tokens.
-		this.tokens = tokenizer.tokenize({code: code});
+		this.tokenizer.code = this.code;
+		this.tokens = this.tokenizer.tokenize();
 
 		// Build the html.
-		this.highlighted_code = tokenizer.build_html(tokens);
+		const highlighted_code = this.tokenizer.build_html(this.tokens);
 
 		// Post tokenize callback.
 		if (_post_tokenized_callback != null) {
@@ -309,7 +366,7 @@ class CodePreElement extends CreateVElementClass({
 		// Set code.
 		// hide_loader();
 		if (animate == true) {
-			this.animate_writing();
+			this.animate_writing({code: highlighted_code, delay, duration});
 		} else {
 			this.innerHTML = highlighted_code;
 		}

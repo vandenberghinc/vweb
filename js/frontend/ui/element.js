@@ -70,6 +70,15 @@ vweb.utils.on_render_observer = new IntersectionObserver(
 	},
 );
 
+// Create the on resize observer.
+vweb.utils.on_resize_observer = new ResizeObserver(
+	(entries, observer) => {
+		entries.forEach(entry => {
+			entry.target._on_resize_callbacks.iterate((func) => func(entry.target));
+		});
+	},
+);
+
 // Element.
 function CreateVElementClass({
 	type = "VElement", 
@@ -338,7 +347,7 @@ function CreateVElementClass({
 			this._rendered = false;
 
 			// Constructed by html code.
-			if (this.hasAttribute("created_by_html")) {
+			if (this.hasAttribute !== undefined && this.hasAttribute("created_by_html")) {
 			}
 
 			// Constructed by js code.
@@ -708,6 +717,12 @@ function CreateVElementClass({
 			}
 			return this;
 		}
+		fixed_width(value) {
+            if (value == null) { return this.style.minWidth; }
+            this.style.minWidth = this.pad_numeric(value);
+            this.style.maxWidth = this.pad_numeric(value);
+            return this;
+        }
 		height(value) {
 			if (vweb.elements.elements_with_width_attribute.includes(this.tagName)) {
 				if (value == null) {
@@ -722,6 +737,12 @@ function CreateVElementClass({
 			}
 			return this;
 		}
+        fixed_height(value) {
+            if (value == null) { return this.style.minWidth; }
+            this.style.minHeight = this.pad_numeric(value);
+            this.style.maxHeight = this.pad_numeric(value);
+            return this;
+        }
 
 		// Set width by columns for HStack children.
 		width_by_columns(columns) {
@@ -788,6 +809,17 @@ function CreateVElementClass({
 				this.max_width(width);
 			}
 			if (height != null) {
+				this.max_height(height);
+			}
+			return this;
+		}
+		fixed_frame(width, height) {
+			if (width != null) {
+				this.min_width(width);
+				this.max_width(width);
+			}
+			if (height != null) {
+				this.min_height(height);
 				this.max_height(height);
 			}
 			return this;
@@ -1390,10 +1422,12 @@ function CreateVElementClass({
 				return this.transform(this.edit_filter_wrapper(this.style.transform, "rotate", value));
 			} else {
 				let degree;
-				if (value.charAt(value.length - 1) === "%") {
-					degree = Math.round(360 * parseFloat(value.substr(0, value.length - 1) / 100));
-				} else if (vweb.utils.is_float(value)) {
+				if (vweb.utils.is_float(value)) {
 					degree = Math.round(360 * value);
+				} else if (vweb.utils.is_numeric(value)) {
+					degree = value.toString();
+				} else if (value.charAt(value.length - 1) === "%") {
+					degree = Math.round(360 * parseFloat(value.substr(0, value.length - 1) / 100));
 				} else {
 					degree = value;
 				}
@@ -1410,6 +1444,35 @@ function CreateVElementClass({
 			this.style.duration = value;
 			return this;
 		}
+
+		// A shorthand property for all the background-* properties.
+        /*	@docs: {
+         *	@title: Background
+         *	@description: 
+         *		A shorthand property for all the background-* properties.
+         *		The equivalent of CSS attribute `background`.
+         *		
+         *		Returns the attribute value when parameter `value` is `null`.
+         *	@return: 
+         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+         *	@parameter: {
+         *		@name: value
+         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+         *	}: 
+         *	@inherit: false
+         } */ 
+        background(value) {
+            if (value == null) { return this.style.background; }
+            if (typeof value === "string" && (value.eq_first("linear-gradient") || value.eq_first("radial-gradient"))) {
+            	this.style.background = value;
+            	this.style.backgroundImage = value
+            	this.style.backgroundRepeat = "no-repeat"
+            	this.style.backgroundSize = "cover"
+            } else {
+            	this.style.background = value;
+            }
+            return this;
+        }
 
 		// ---------------------------------------------------------
 		// Visibility functions.
@@ -1697,7 +1760,7 @@ function CreateVElementClass({
 
 		// Remove a media query.
 		remove_media(media_query) {
-			if (this.media_queries !== undefined && this.media_queries[media_query] !== undefined) {
+			if (typeof this.media_queries === "object" && this.media_queries[media_query] !== undefined) {
 				this.media_queries[media_query].list.removeListener(this.media_queries[media_query].callback);
 			}
 			return this;
@@ -1705,8 +1768,8 @@ function CreateVElementClass({
 
 		// Remove all media queries.
 		remove_all_media() {
-			if (this.media_queries !== undefined) {
-				Object(this.media_queries).values((query) => {
+			if (typeof this.media_queries === "object") {
+				Object.values(this.media_queries).iterate((query) => {
 					query.list.removeListener(query.callback);
 				})
 			}
@@ -2474,6 +2537,27 @@ function CreateVElementClass({
 	    }
 	    is_rendered(callback) {
 	    	return this._rendered;
+	    }
+
+	    // On resize event.
+	    on_resize(callback) {
+	    	if (callback == null) {
+	    		return this._on_resize_callbacks;
+	    	}
+	    	if (Array.isArray(this._on_resize_callbacks)) {
+	    		this._on_resize_callbacks.push(callback);
+	    	} else {
+	    		this._rendered = false;
+	    		this._on_resize_callbacks = [callback];
+	    		vweb.utils.on_resize_observer.observe(this);
+	    	}
+	    	return this;
+	    }
+	    remove_on_resize(callback) {
+	    	if (Array.isArray(this._on_resize_callbacks)) {
+	    		this._on_resize_callbacks = this._on_resize_callbacks.drop(callback);
+	    	}
+	    	return this;
 	    }
 
 	    /* 	@docs: {
@@ -3413,31 +3497,6 @@ function CreateVElementClass({
             this.style.webkitBackfaceVisibility = value;
             this.style.MozBackfaceVisibility = value;
             this.style.OBackfaceVisibility = value;
-            return this;
-        }
-
-        // A shorthand property for all the background-* properties.
-        /*	@docs: {
-         *	@title: Background
-         *	@description: 
-         *		A shorthand property for all the background-* properties.
-         *		The equivalent of CSS attribute `background`.
-         *		
-         *		Returns the attribute value when parameter `value` is `null`.
-         *	@return: 
-         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
-         *		@name: value
-         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-         *	}: 
-         *	@inherit: false
-         } */ 
-        background(value) {
-            if (value == null) { return this.style.background; }
-            this.style.background = value;
-            // if (value.eq_first("linear-gradient")) {
-            // 	this.style.backgroundImage = value;	
-            // }
             return this;
         }
 
@@ -12494,31 +12553,6 @@ function CreateVElementClass({
             if (callback == null) { return this.onpopstate; }
         	const e = this;
         	this.onpopstate = (t) => callback(e, t);
-        	return this;
-        }
-
-        // Fires when the browser window is resized.
-        /*	@docs: {
-         *	@title: On resize
-         *	@description: 
-         *		Fires when the browser window is resized.
-         *		The equivalent of HTML attribute `onresize`.
-         *		
-         *		The first parameter of the callback is the `Element` object.
-         *		
-         *		Returns the attribute value when parameter `value` is `null`.
-         *	@return: 
-         *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
-         *		@name: value
-         *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-         *	}: 
-         *	@inherit: false
-         } */ 
-        on_resize(callback) {
-            if (callback == null) { return this.onresize; }
-        	const e = this;
-        	this.onresize = (t) => callback(e, t);
         	return this;
         }
 

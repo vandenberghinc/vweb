@@ -11,6 +11,7 @@ class LinkElement extends CreateVElementClass({
 	tag: "a",
 	default_style: {
 		"font-family": "inherit",
+		"font-size": "1em",
 		"color": "rgb(85, 108, 214)",
 		"text-decoration": "underline",
 		"text-underline-position": "auto",

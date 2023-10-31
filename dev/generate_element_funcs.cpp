@@ -815,6 +815,8 @@ int main() {
 		"on_context_menu", // custom func.
 		"alt", // requires manual func.
 		"rotate", // custom function.
+		"on_resize", // custom function.
+		"background", // custom function.
 	};
 	
 	// Pad numeric funcs.

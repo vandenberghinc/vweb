@@ -727,3 +727,291 @@ class VirtualScrollerElement extends ScrollerElement {
         return this;
     }
 }
+
+// Window Scroller.
+/*  @docs:
+    @title: Window Scroller
+    @experimental: true
+    @description: 
+        Scrolls the windows per window.
+
+        This class is still experimental.
+ */
+@vweb_constructor_wrapper
+@vweb_register_element
+class WindowScrollerElement extends CreateVElementClass({
+    type: "WindowScroller",
+    tag: "div",
+    default_style: {
+        "margin": "0px",
+        "padding": "0px",
+        "display": "flex", // to support vertical spacers.
+        "overflow": "visible",
+        "align-content": "flex-start", // align items at start, do not stretch / space when inside HStack.
+        "flex-direction": "column",
+    },
+}) {
+    constructor({
+        duration = 500,     // duration of the animation.
+        _topbar = null,     // can be passed to assign a shadow to an item when the content is scrolling and a shadow should present.
+    } = {}) {
+
+
+        // Super.
+        super();
+
+        // Attributes.
+        this.duration = duration;
+        this.index = 0;
+        this.windows = [];
+        this.last_scroll_top = 0;
+        this.window_scroll_height = 50; // the minimum scroll required to go to the next window.
+
+        // Styling.
+        this.min_width("100%");
+        this.stretch(true);
+        this.position("relative");
+        this.overflow("hidden scroll");
+        this.class("hide_scrollbar");
+
+        // The event that will be called when the window scrolls.
+        this.on_animation_scroll = () => {};
+
+        // @todo update scroll position on resize.
+        const _this_ = this;
+        this._child_on_scroll = function (e) {
+            if (this.scrollTop === 0) {
+                _this_.scrollTop = (_this_.index - 1) * _this_.window_scroll_height;
+            } else if (this.scrollTop + this.clientHeight >= this.scrollHeight) {
+                _this_.scrollTop = (_this_.index + 1) * _this_.window_scroll_height;
+            }
+        }
+
+        // On wheel event.
+        const _on_scroll_callback = (e) => {
+
+            // Prevent default on already animating.
+            if (this.animating === true) {
+                e.preventDefault();
+                return ;
+            }
+
+            // Vars.
+            const win = this.windows[this.index];
+            const scroll_top = this.scrollTop;
+            const height = this.clientHeight;
+            const scroll_up = this.scrollTop > this.last_scroll_top;
+            this.last_scroll_top = scroll_top;
+
+            // Set top bar shadow.
+            if (_topbar != null) {
+                if (win.scrollTop > 0 && _topbar.has_shadow !== true) {
+                    _topbar.has_shadow = true;
+                    _topbar.shadow("0px 0px 10px #000000")
+                } else if (win.scrollTop === 0 && _topbar.has_shadow === true) {
+                    setTimeout(() => {
+                        _topbar.has_shadow = false;
+                        _topbar.shadow("none")
+                    }, this.duration) // must be the at least the duration of window transition.
+                }
+            }
+
+            // Prevent default on max scroll height.
+            if (scroll_top > this.windows.length * this.window_scroll_height) {
+                this.scrollTop = this.windows.length * this.window_scroll_height;
+                e.stopPropagation();
+                e.preventDefault();
+                return null;
+            }
+
+            // Next or previous.
+            // Skip when the child is not fully scroller.
+            if (
+                (win.scrollTop + win.clientHeight >= win.scrollHeight) ||
+                (win.scrollTop === 0)
+            ) {
+            
+                // Check views.
+                const scroll_index = parseInt(scroll_top / this.window_scroll_height);
+                const stop_animating = () => {
+                    this.animating = false;
+                    this.scrollTop = this.index * this.window_scroll_height;
+                }
+                if (scroll_index > this.index) {
+                    this.animating = true;
+                    e.preventDefault();
+                    this.next(scroll_index, false)
+                        .then(stop_animating)
+                        .catch(stop_animating)
+                    this.scrollTop = this.index * this.window_scroll_height;
+                } else if (scroll_index < this.index) {
+                    this.animating = true;
+                    e.preventDefault();
+                    this.prev(scroll_index, false)
+                        .then(stop_animating)
+                        .catch(stop_animating)
+                    this.scrollTop = this.index * this.window_scroll_height;
+                }
+
+            }
+
+        }
+
+        // Add event listener.
+        this.addEventListener("scroll", _on_scroll_callback, { passive: false });
+    }
+    
+
+    // Add a window.
+    append(win) {
+
+        // Update window.
+        win.transition(`opacity ${this.duration*2}ms, transform ${this.duration}ms ease`)
+        win.fixed_frame("100%", "100%");
+        win.position(0, 0, 0, 0);
+        win.position("sticky");
+        win.overflow_y("scroll");
+        win.overscroll_behavior("bounce"); // must be bounce so the on scroll event is also called when the user scrolls up and the page is already scrolled all the way up.
+        win.addEventListener("scroll", this._child_on_scroll);
+
+        // Add scroll forwarder.
+
+        // Initial window.
+        if (this.windows.length > 0) {
+            win.transform("translateY(100%)")
+            win.opacity(0)
+        }
+
+        // Other windows.
+        else {
+            win.transform("translateY(0)")
+            win.opacity(1)
+            if (win.getBoundingClientRect().width !== 0) {
+                if (win.is_scrollable()) {
+                    win.leading_vertical();
+                } else {
+                    win.center_vertical()
+                }
+            } else {
+                win.on_render((e) => {
+                    if (e.is_scrollable()) {
+                        e.leading_vertical();
+                    } else {
+                        e.center_vertical();
+                    }
+                })
+            }
+        }
+
+        // Append.
+        this.windows.push(win);
+        super.append(win);
+
+        // response.
+        return this;
+    }
+
+    // Next window.
+    async next(index, update_scroll_top = true) {
+        return new Promise(async (resolve) => {
+            if (index < this.windows.length) {
+
+                // Update scroll top.
+                if (update_scroll_top) {
+                    this.scrollTop = this.window_scroll_height * index;
+                }
+                
+                // Slide out.
+                const current = this.windows[this.index];
+                current.style.opacity = 0;
+                current.style.transform = 'translateY(-100%)';
+                
+                // Update index.
+                this.index = index;
+                    
+                // Slide in.
+                const next = this.windows[this.index];
+                if (next.is_scrollable()) {
+                    next.leading_vertical()
+                } else {
+                    next.center_vertical()
+                }
+                next.scrollTop = 0;
+                next.style.opacity = 1;
+                next.style.transform = 'translateY(0)';
+                next.scrollTop = 0; // required since sometimes it does not start at the start or end, which requires the user to scroll up and down before it can scroll to the next window.
+                
+                // Call on appear on children.
+                if (Array.isArray(next._on_appear_callbacks)) {
+                    let promises = [];
+                    for (let i = 0; i < next._on_appear_callbacks.length; i++) {
+                        const res = next._on_appear_callbacks[i].exec()
+                        if (res instanceof Promise) {
+                            promises.push(res);
+                        }
+                    }
+                    await Promise.all(promises);
+                }
+
+                // Resolve.
+                setTimeout(resolve, this.duration);
+            }
+            else {
+                resolve();
+            }
+        });
+    }
+
+    // Previous window.
+    async prev(index) {
+        return new Promise(async (resolve, update_scroll_top = true) => {
+            const old_index = this.index;
+            if (index >= 0) {
+
+                // Update scroll top.
+                if (update_scroll_top) {
+                    this.scrollTop = this.window_scroll_height * index;
+                }
+                
+                // Slide out.
+                const current = this.windows[this.index];
+                current.style.opacity = 0;
+                current.style.transform = 'translateY(100%)';
+                
+                // Update index.
+                this.index = index;
+                
+                // Slide in.
+                const next = this.windows[this.index];
+                if (next.is_scrollable()) {
+                    next.leading_vertical()
+                } else {
+                    next.center_vertical()
+                }
+                next.scrollTop = next.scrollHeight;
+                next.style.opacity = 1;
+                next.style.transform = 'translateY(0)';
+                next.scrollTop = next.scrollHeight; // required since sometimes it does not start at the start or end, which requires the user to scroll up and down before it can scroll to the next window.
+                
+                // Call on appear on children.
+                if (Array.isArray(next._on_appear_callbacks)) {
+                    let promises = [];
+                    for (let i = 0; i < next._on_appear_callbacks.length; i++) {
+                        const res = next._on_appear_callbacks[i].exec()
+                        if (res instanceof Promise) {
+                            promises.push(res);
+                        }
+                    }
+                    await Promise.all(promises);
+                }
+
+                // Resolve.
+                setTimeout(resolve, this.duration);
+            }
+            else {
+                resolve();
+            }
+        });
+    }
+
+}
