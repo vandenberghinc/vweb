@@ -719,8 +719,10 @@ function CreateVElementClass({
 		}
 		fixed_width(value) {
             if (value == null) { return this.style.minWidth; }
-            this.style.minWidth = this.pad_numeric(value);
-            this.style.maxWidth = this.pad_numeric(value);
+            value = this.pad_numeric(value);
+            this.style.width = value; // also required for for example image masks.
+            this.style.minWidth = value;
+            this.style.maxWidth = value;
             return this;
         }
 		height(value) {
@@ -739,8 +741,10 @@ function CreateVElementClass({
 		}
         fixed_height(value) {
             if (value == null) { return this.style.minWidth; }
-            this.style.minHeight = this.pad_numeric(value);
-            this.style.maxHeight = this.pad_numeric(value);
+            value = this.pad_numeric(value);
+            this.style.height = height; // also required for for example image masks.
+            this.style.minHeight = height;
+            this.style.maxHeight = height;
             return this;
         }
 
@@ -815,12 +819,16 @@ function CreateVElementClass({
 		}
 		fixed_frame(width, height) {
 			if (width != null) {
-				this.min_width(width);
-				this.max_width(width);
+				width = this.pad_numeric(width);
+				this.style.width = width; // also required for for example image masks.
+				this.style.minWidth = width;
+				this.style.maxWidth = width;
 			}
 			if (height != null) {
-				this.min_height(height);
-				this.max_height(height);
+				height = this.pad_numeric(height);
+				this.style.height = height; // also required for for example image masks.
+				this.style.minHeight = height;
+				this.style.maxHeight = height;
 			}
 			return this;
 		}
@@ -2103,6 +2111,7 @@ function CreateVElementClass({
 			opacity = true,			// animate opacity.
 			easing = "ease",		// easing.
 			hide = true,			// hide the element when animation complete.
+			remove = false,			// remove the element when animation complete.
 			display = null,			// the optional display to use for when showing the view again.
 			_slide_in = false,
 		}) {
@@ -2176,6 +2185,8 @@ function CreateVElementClass({
 					// Hide element.
 					if (hide && _slide_in !== true) {
 						element.hide()
+					} else if (remove && _slide_in !== true) {
+						element.remove();
 					}
 
 					// Restore old transition.

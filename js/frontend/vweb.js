@@ -1045,8 +1045,9 @@ return this;
 }
 fixed_width(value){
 if(value==null){return this.style.minWidth;}
-this.style.minWidth=this.pad_numeric(value);
-this.style.maxWidth=this.pad_numeric(value);
+value=this.pad_numeric(value);
+this.style.width=value;this.style.minWidth=value;
+this.style.maxWidth=value;
 return this;
 }
 height(value){
@@ -1065,8 +1066,9 @@ return this;
 }
 fixed_height(value){
 if(value==null){return this.style.minWidth;}
-this.style.minHeight=this.pad_numeric(value);
-this.style.maxHeight=this.pad_numeric(value);
+value=this.pad_numeric(value);
+this.style.height=height;this.style.minHeight=height;
+this.style.maxHeight=height;
 return this;
 }
 width_by_columns(columns){
@@ -1131,12 +1133,14 @@ return this;
 }
 fixed_frame(width,height){
 if(width!=null){
-this.min_width(width);
-this.max_width(width);
+width=this.pad_numeric(width);
+this.style.width=width;this.style.minWidth=width;
+this.style.maxWidth=width;
 }
 if(height!=null){
-this.min_height(height);
-this.max_height(height);
+height=this.pad_numeric(height);
+this.style.height=height;this.style.minHeight=height;
+this.style.maxHeight=height;
 }
 return this;
 }
@@ -1962,7 +1966,7 @@ clearTimeout(this.animate_timeout);
 return this;
 }
 async slide_out({
-direction="top",distance=100,duration=500,opacity=true,easing="ease",hide=true,display=null,_slide_in=false,
+direction="top",distance=100,duration=500,opacity=true,easing="ease",hide=true,remove=false,display=null,_slide_in=false,
 }){
 const element=this;
 return new Promise((resolve,reject)=>{
@@ -2022,6 +2026,8 @@ element.transform(transform);
 setTimeout(()=>{
 if(hide&&_slide_in!==true){
 element.hide()
+}else if(remove&&_slide_in!==true){
+element.remove();
 }
 element.transition(old_transition);
 resolve()
