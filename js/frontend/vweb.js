@@ -982,7 +982,7 @@ parent.appendChild(this);
 return this;
 }
 append_children_to(parent){
-if(this.base_element_type=="VirtualScoller"){
+if(this.base_element_type=="VirtualScroller"){
 for(let i=0;i<parent.children.length;i++){
 parent.v_children.push(parent.children[i]);
 }
@@ -1385,14 +1385,20 @@ align(value){
 switch(this.base_element_type){
 case "HStack":
 case "ZStack":
+if(value==null){return this.style.justifyContent;}
+if(value==="default"){value="";}
 this.style.justifyContent=value;
 return this;
 case "VStack":
 case "Scroller":
 case "View":
+if(value==null){return this.style.alignItems;}
+if(value==="default"){value="normal";}
 this.style.alignItems=value;
 return this;
 default:
+if(value==null){return this.style.textAlign;}
+if(value==="default"){value="normal";}
 this.style.textAlign=value;
 return this;
 }
@@ -1410,20 +1416,26 @@ align_vertical(value){
 switch(this.base_element_type){
 case "HStack":
 case "ZStack":
+if(value==null){return this.style.alignItems;}
+if(value==="default"){value="normal";}
 this.style.alignItems=value;
 return this;
 case "VStack":
 case "Scroller":
 case "View":
+if(value==null){return this.style.justifyContent;}
+if(value==="default"){value="";}
 this.style.justifyContent=value;
 return this;
 case "Text":
+if(value==null){return this.style.alignItems;}
 if(this.style.display==null||!this.style.display.includes("flex")){
 this.display("flex");
 }
 this.style.alignItems=value;
 return this;
 default:
+if(value==null){return this.style.justifyContent;}
 this.style.justifyContent=value;
 return this;
 }
@@ -5292,7 +5304,7 @@ function Divider(...args){return new DividerElement(...args);}
 
 
 class ScrollerElement extends CreateVElementClass({
-type:"Scoller",
+type:"Scroller",
 tag:"div",
 default_style:{
 "position":"relative","margin":"0px",
@@ -5300,7 +5312,7 @@ default_style:{
 "display":"flex","overflow":"hidden",
 "align-content":"flex-start","flex-direction":"column",
 "scroll-behavior":"smooth",
-"overscroll-behavior":"none","height":"fit-content","content-visibility":"auto","align-content":"flex-start","align-items":"flex-start",},
+"overscroll-behavior":"none","height":"fit-content","content-visibility":"auto",},
 }){
 constructor(...children){
 super();
@@ -5447,6 +5459,39 @@ parseFloat(computed.paddingBottom)
 );
 const scroll_top=Math.round(max_scroll_top*y_percentage);
 this.content.scrollTop=scroll_top;};
+this._h_alignment=undefined;
+this._current_h_alignment=undefined;
+this._v_alignment=undefined;
+this._current_v_alignment=undefined;
+this._alignment_callback_activated=false;
+this._alignment_callback=()=>{
+if(this._h_alignment!==undefined){
+if(this.content.clientWidth>=this.clientWidth){
+if(this._current_h_alignment!=="normal"){
+super.align_items("normal");
+this._current_h_alignment="normal";
+}
+}else{
+if(this._current_h_alignment!==this._h_alignment){
+super.align(this._h_alignment);
+this._current_h_alignment=this._h_alignment;
+}
+}
+}
+if(this._v_alignment!==undefined){
+if(this.content.clientHeight>this.clientHeight){
+if(this._current_v_alignment!=="normal"){
+super.align_vertical("normal");
+this._current_v_alignment="normal";
+}
+}else{
+if(this._current_v_alignment!==this._v_alignment){
+super.align_vertical(this._v_alignment);
+this._current_v_alignment=this._v_alignment;
+}
+}
+}
+};
 }
 is_scrollable(){
 return this.content.scrollHeight>this.content.clientHeight||this.content.scrollWidth>this.content.clientWidth;
@@ -5590,6 +5635,52 @@ this.content.addEventListener("scroll",item.callback);
 });
 return this;
 }
+align(value){
+if(value===null){return this._h_alignment;}
+super.align(value);
+this._h_alignment=value;
+if(this._alignment_callback_activated!==true){
+this._alignment_callback_activated=true;
+this.on_resize(this._alignment_callback);
+this.on_render(this._alignment_callback);
+}
+return this;
+}
+center(){
+this.align("center");
+return this;
+}
+leading(){
+this.align("start");
+return this;
+}
+trailing(){
+this.align("end");
+return this;
+}
+align_vertical(value){
+if(value===null){return this._v_alignment;}
+super.align_vertical(value);
+this._v_alignment=value;
+if(this._alignment_callback_activated!==true){
+this._alignment_callback_activated=true;
+this.on_resize(this._alignment_callback);
+this.on_render(this._alignment_callback);
+}
+return this;
+}
+center_vertical(){
+this.align_vertical("center");
+return this;
+}
+leading_vertical(){
+this.align_vertical("start");
+return this;
+}
+trailing_vertical(){
+this.align_vertical("end");
+return this;
+}
 }
 vweb.elements.register(ScrollerElement);
 function Scroller(...args){return new ScrollerElement(...args);}
@@ -5598,7 +5689,7 @@ function Scroller(...args){return new ScrollerElement(...args);}
 class VirtualScrollerElement extends ScrollerElement{
 constructor(...children){
 super();
-this.element_type="VirtualScoller";
+this.element_type="VirtualScroller";
 this.v_children=[];
 this.top_diff=0;
 this.scroll_top_value=0;
@@ -5804,6 +5895,15 @@ this.class("hide_scrollbar");
 this.on_animation_scroll=()=>{};
 const _this_=this;
 this._child_on_scroll=function(e){
+if(_topbar!=null){
+if(this.scrollTop>0&&_topbar.has_shadow!==true){
+_topbar.has_shadow=true;
+_topbar.shadow("0px 0px 10px #000000")
+}else if(this.scrollTop===0&&_topbar.has_shadow===true){
+_topbar.has_shadow=false;
+_topbar.shadow("none")
+}
+}
 if(this.scrollTop===0){
 _this_.scrollTop=(_this_.index-1)*_this_.window_scroll_height;
 }else if(this.scrollTop+this.clientHeight>=this.scrollHeight){
@@ -5870,7 +5970,7 @@ win.fixed_frame("100%","100%");
 win.position(0,0,0,0);
 win.position("sticky");
 win.overflow_y("scroll");
-win.overscroll_behavior("bounce");win.addEventListener("scroll",this._child_on_scroll);
+win.overscroll_behavior("bounce");win.align("default");win.align_vertical("default");win.addEventListener("scroll",this._child_on_scroll);
 if(this.windows.length>0){
 win.transform("translateY(100%)")
 win.opacity(0)
@@ -5878,22 +5978,32 @@ win.opacity(0)
 else{
 win.transform("translateY(0)")
 win.opacity(1)
-if(win.getBoundingClientRect().width!==0){
-if(win.is_scrollable()){
-win.leading_vertical();
-}else{
-win.center_vertical()
 }
-}else{
 win.on_render((e)=>{
-if(e.is_scrollable()){
-e.leading_vertical();
+if(win.scrollWidth>this.clientWidth){
+e.align("default");
+}else{
+e.center();
+}
+if(win.scrollHeight>this.clientHeight){
+e.align_vertical("default");
 }else{
 e.center_vertical();
 }
 })
+win.on_resize((e)=>{
+if(win.scrollWidth>this.clientWidth){
+e.align("default");
+}else{
+e.center();
 }
+if(win.scrollHeight>this.clientHeight){
+e.align_vertical("default");
+}else{
+e.center_vertical();
 }
+})
+win.index=this.windows.length;
 this.windows.push(win);
 super.append(win);
 return this;

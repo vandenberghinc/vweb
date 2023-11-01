@@ -8,7 +8,7 @@
 @vweb_constructor_wrapper
 @vweb_register_element
 class ScrollerElement extends CreateVElementClass({
-    type: "Scoller",
+    type: "Scroller",
     tag: "div",
     default_style: {
         "position": "relative", // is required for attribute "track" 
@@ -25,8 +25,8 @@ class ScrollerElement extends CreateVElementClass({
         "overscroll-behavior": "none", // disable bounces.
         "height": "fit-content", // set height to max compared to parents non overflow, so scrolling can take effect.
         "content-visibility": "auto", // improve rendering.
-        "align-content": "flex-start", // align items at start, do not stretch / space when inside HStack.
-        "align-items": "flex-start", // align items at start, do not stretch / space when inside HStack.
+        // "align-content": "flex-start", // align items at start, do not stretch / space when inside HStack.
+        // "align-items": "flex-start", // align items at start, do not stretch / space when inside HStack.
     },
 }) {
     
@@ -257,6 +257,42 @@ class ScrollerElement extends CreateVElementClass({
             this.content.scrollTop = scroll_top; // triggers on scroll which updates the thumb top.
         };
 
+        // On alignment check callback.
+        // When the alignment is set to not leading, and the content can scroll, then it is temporarily set to leading till the content is no longer scrollable.
+        this._h_alignment = undefined;
+        this._current_h_alignment = undefined;
+        this._v_alignment = undefined;
+        this._current_v_alignment = undefined;
+        this._alignment_callback_activated = false;
+        this._alignment_callback = () => {
+            if (this._h_alignment !== undefined) {
+                if (this.content.clientWidth >= this.clientWidth) {
+                    if (this._current_h_alignment !== "normal") {
+                        super.align_items("normal");
+                        this._current_h_alignment = "normal";
+                    }
+                } else {
+                    if (this._current_h_alignment !== this._h_alignment) {
+                        super.align(this._h_alignment);
+                        this._current_h_alignment = this._h_alignment;
+                    }
+                }
+            }
+            if (this._v_alignment !== undefined) {
+                if (this.content.clientHeight > this.clientHeight) {
+                    if (this._current_v_alignment !== "normal") {
+                        super.align_vertical("normal");
+                        this._current_v_alignment = "normal";
+                    }
+                } else {
+                    if (this._current_v_alignment !== this._v_alignment) {
+                        super.align_vertical(this._v_alignment);
+                        this._current_v_alignment = this._v_alignment;
+                    }
+                }
+            }
+        };
+
     }
 
     // Is scrollable.
@@ -434,6 +470,56 @@ class ScrollerElement extends CreateVElementClass({
         });
         return this;
     }
+
+    // Alignments.
+    // When the alignment is set to not leading, and the content can scroll, then it is temporarily set to leading till the content is no longer scrollable.
+    // @warning: This only works when a max width has been set on the content attribute.
+    align(value) {
+        if (value === null) { return this._h_alignment; }
+        super.align(value);
+        this._h_alignment = value;
+        if (this._alignment_callback_activated !== true) {
+            this._alignment_callback_activated = true;
+            this.on_resize(this._alignment_callback);
+            this.on_render(this._alignment_callback);
+        }
+        return this;
+    }
+    center() {
+        this.align("center");
+        return this;
+    }
+    leading() {
+        this.align("start");
+        return this;
+    }
+    trailing() {
+        this.align("end");
+        return this;
+    }
+    align_vertical(value) {
+        if (value === null) { return this._v_alignment; }
+        super.align_vertical(value);
+        this._v_alignment = value;
+        if (this._alignment_callback_activated !== true) {
+            this._alignment_callback_activated = true;
+            this.on_resize(this._alignment_callback);
+            this.on_render(this._alignment_callback);
+        }
+        return this;
+    }
+    center_vertical() {
+        this.align_vertical("center");
+        return this;
+    }
+    leading_vertical() {
+        this.align_vertical("start");
+        return this;
+    }
+    trailing_vertical() {
+        this.align_vertical("end");
+        return this;
+    }
     
 }
 
@@ -470,7 +556,7 @@ class VirtualScrollerElement extends ScrollerElement {
         super();
 
         // Set element type.
-        this.element_type = "VirtualScoller";
+        this.element_type = "VirtualScroller";
 
         // Virtual children.
         this.v_children = [];
@@ -780,6 +866,19 @@ class WindowScrollerElement extends CreateVElementClass({
         // @todo update scroll position on resize.
         const _this_ = this;
         this._child_on_scroll = function (e) {
+
+            // Set top bar shadow.
+            if (_topbar != null) {
+                if (this.scrollTop > 0 && _topbar.has_shadow !== true) {
+                    _topbar.has_shadow = true;
+                    _topbar.shadow("0px 0px 10px #000000")
+                } else if (this.scrollTop === 0 && _topbar.has_shadow === true) {
+                    _topbar.has_shadow = false;
+                    _topbar.shadow("none")
+                }
+            }
+
+            // Relay scroll when the child can no longer scroll.
             if (this.scrollTop === 0) {
                 _this_.scrollTop = (_this_.index - 1) * _this_.window_scroll_height;
             } else if (this.scrollTop + this.clientHeight >= this.scrollHeight) {
@@ -859,6 +958,22 @@ class WindowScrollerElement extends CreateVElementClass({
 
         // Add event listener.
         this.addEventListener("scroll", _on_scroll_callback, { passive: false });
+
+        // Add the on hash change listener for any direct children id's.
+        // window.addEventListener("hashchange", (e) => {
+        //     const hash = window.location.hash.substr(1);
+        //     if (hash !== null) {
+        //         this.windows.iterate((win) => {
+        //             if (hash === win.id()) {
+        //                 this.next(win.index, true);
+        //                 return false;
+        //             }
+        //         })
+        //         this.on_render(() => {
+                    
+        //         })
+        //     }
+        // })
     }
     
 
@@ -872,6 +987,8 @@ class WindowScrollerElement extends CreateVElementClass({
         win.position("sticky");
         win.overflow_y("scroll");
         win.overscroll_behavior("bounce"); // must be bounce so the on scroll event is also called when the user scrolls up and the page is already scrolled all the way up.
+        win.align("default"); // must start with leading for checks will be centered later
+        win.align_vertical("default"); // must start with leading for checks will be centered later
         win.addEventListener("scroll", this._child_on_scroll);
 
         // Add scroll forwarder.
@@ -886,26 +1003,47 @@ class WindowScrollerElement extends CreateVElementClass({
         else {
             win.transform("translateY(0)")
             win.opacity(1)
-            if (win.getBoundingClientRect().width !== 0) {
-                if (win.is_scrollable()) {
-                    win.leading_vertical();
-                } else {
-                    win.center_vertical()
-                }
-            } else {
-                win.on_render((e) => {
-                    if (e.is_scrollable()) {
-                        e.leading_vertical();
-                    } else {
-                        e.center_vertical();
-                    }
-                })
-            }
         }
 
+        // Set alignment.
+        win.on_render((e) => {
+            if (win.scrollWidth > this.clientWidth) {
+                e.align("default");
+            } else {
+                e.center();
+            }
+            if (win.scrollHeight > this.clientHeight) {
+                e.align_vertical("default");
+            } else {
+                e.center_vertical();
+            }
+        })
+        win.on_resize((e) => {
+            if (win.scrollWidth > this.clientWidth) {
+                e.align("default");
+            } else {
+                e.center();
+            }
+            if (win.scrollHeight > this.clientHeight) {
+                e.align_vertical("default");
+            } else {
+                e.center_vertical();
+            }
+        })
+
         // Append.
+        win.index = this.windows.length;
         this.windows.push(win);
         super.append(win);
+
+        // Check if the href hash is set on this windows id.
+        // const hash = window.location.hash.substr(1);
+        // if (hash !== null && hash === win.id()) {
+        //     this.on_render(() => {
+        //         this.next(win.index, true);
+        //     })
+        // }
+
 
         // response.
         return this;

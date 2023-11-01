@@ -634,7 +634,7 @@ function CreateVElementClass({
 
 		// Append the children to parent element.
 		append_children_to(parent) {
-			if (this.base_element_type == "VirtualScoller") {
+			if (this.base_element_type == "VirtualScroller") {
 				for (let i = 0; i < parent.children.length; i++) {
 					parent.v_children.push(parent.children[i]);
 				}
@@ -1151,14 +1151,20 @@ function CreateVElementClass({
 			switch (this.base_element_type) {
 				case "HStack":
 				case "ZStack":
+					if (value == null) { return this.style.justifyContent; }
+					if (value === "default") { value = ""; }
 					this.style.justifyContent = value;
 					return this;
 				case "VStack":
 				case "Scroller":
 				case "View":
+					if (value == null) { return this.style.alignItems; }
+					if (value === "default") { value = "normal"; }
 					this.style.alignItems = value;
 					return this;
 				default:
+					if (value == null) { return this.style.textAlign; }
+					if (value === "default") { value = "normal"; }
 					this.style.textAlign = value;
 				return this;
 			}
@@ -1178,20 +1184,26 @@ function CreateVElementClass({
 			switch (this.base_element_type) {
 				case "HStack":
 				case "ZStack":
+					if (value == null) { return this.style.alignItems; }
+					if (value === "default") { value = "normal"; }
 					this.style.alignItems = value;
 					return this;
 				case "VStack":
 				case "Scroller":
 				case "View":
+					if (value == null) { return this.style.justifyContent; }
+					if (value === "default") { value = ""; }
 					this.style.justifyContent = value;
 					return this;
 				case "Text":
+					if (value == null) { return this.style.alignItems; }
 					if (this.style.display == null || !this.style.display.includes("flex")) {
 						this.display("flex");
 					}
 					this.style.alignItems = value;
 					return this;
 				default:
+					if (value == null) { return this.style.justifyContent; }
 					this.style.justifyContent = value;
 					return this;
 			}

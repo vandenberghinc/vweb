@@ -21,6 +21,8 @@ class VStackElement extends CreateVElementClass({
 		// "align-items": "flex-start", // otherwise the children automatically expand width to match the vstacks width.
 		"flex-direction": "column",
 		// "text-align": "start",
+		// "outline": "none", // otherwise the focus border might show up inside an animation when the href # hashtag id is loaded.
+		// "border": "none", // otherwise the focus border might show up inside an animation when the href # hashtag id is loaded.
 	},
 }) {
 	
