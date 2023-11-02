@@ -15,8 +15,8 @@ class ZStackElement extends CreateVElementClass({
 		"padding": "0px",
 		"display": "grid",
 		// "text-align": "start",
-		// "outline": "none", // otherwise the focus border might show up inside an animation when the href # hashtag id is loaded.
-		// "border": "none", // otherwise the focus border might show up inside an animation when the href # hashtag id is loaded.
+		"outline": "none", // otherwise the focus border might show up inside an animation when the href # hashtag id is loaded.
+		"border": "none", // otherwise the focus border might show up inside an animation when the href # hashtag id is loaded.
 	},
 }) {
 	

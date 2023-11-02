@@ -5,13 +5,13 @@
 
 // Elements that use the "width" etc attribute instead of the "style.width".
 vweb.elements.elements_with_width_attribute = [
-	'CANVAS',
-	'EMBED',
-	'IFRAME',
-	'IMG',
-	'OBJECT',
-	'PROGRESS',
-	'VIDEO',
+	'canvas',
+	'embed',
+	'iframe',
+	'img',
+	'object',
+	'progress',
+	'video',
 ];
 
 // Create the intersection obvserver.
@@ -90,233 +90,235 @@ function CreateVElementClass({
 
 	// Get base.
 	let Base;
-	switch (tag) {
-		case "a": 
-			Base = HTMLAnchorElement;
-			break;
-		case "area": 
-			Base = HTMLAreaElement;
-			break;
-		case "audio": 
-			Base = HTMLAudioElement;
-			break;
-		case "base": 
-			Base = HTMLBaseElement;
-			break;
-		case "blockquote": 
-			Base = HTMLQuoteElement;
-			break;
-		case "body": 
-			Base = HTMLBodyElement;
-			break;
-		case "br": 
-			Base = HTMLBRElement;
-			break;
-		case "button": 
-			Base = HTMLButtonElement;
-			break;
-		case "canvas": 
-			Base = HTMLCanvasElement;
-			break;
-		case "caption": 
-			Base = HTMLTableCaptionElement;
-			break;
-		case "col": 
-			Base = HTMLTableColElement;
-			break;
-		case "data": 
-			Base = HTMLDataElement;
-			break;
-		case "datalist": 
-			Base = HTMLDataListElement;
-			break;
-		case "dl": 
-			Base = HTMLDListElement;
-			break;
-		case "dir": 
-			Base = HTMLDirectoryElement;
-			break;
-		case "div": 
-			Base = HTMLDivElement;
-			break;
-		case "html": 
-			Base = HTMLHtmlElement;
-			break;
-		case "embed": 
-			Base = HTMLEmbedElement;
-			break;
-		case "fieldset": 
-			Base = HTMLFieldSetElement;
-			break;
-		case "form": 
-			Base = HTMLFormElement;
-			break;
-		case "h1": 
-			Base = HTMLHeadingElement;
-			break;
-		case "h2": 
-			Base = HTMLHeadingElement;
-			break;
-		case "h3": 
-			Base = HTMLHeadingElement;
-			break;
-		case "h4": 
-			Base = HTMLHeadingElement;
-			break;
-		case "h5": 
-			Base = HTMLHeadingElement;
-			break;
-		case "h6": 
-			Base = HTMLHeadingElement;
-			break;
-		case "head": 
-			Base = HTMLHeadElement;
-			break;
-		case "hr": 
-			Base = HTMLHRElement;
-			break;
-		case "img": 
-			Base = HTMLImageElement;
-			break;
-		case "input": 
-			Base = HTMLInputElement;
-			break;
-		case "ins": 
-			Base = HTMLModElement;
-			break;
-		case "label": 
-			Base = HTMLLabelElement;
-			break;
-		case "legend": 
-			Base = HTMLLegendElement;
-			break;
-		case "li": 
-			Base = HTMLLIElement;
-			break;
-		case "link": 
-			Base = HTMLLinkElement;
-			break;
-		case "map": 
-			Base = HTMLMapElement;
-			break;
-		case "meta": 
-			Base = HTMLMetaElement;
-			break;
-		case "meter": 
-			Base = HTMLMeterElement;
-			break;
-		case "object": 
-			Base = HTMLObjectElement;
-			break;
-		case "ol": 
-			Base = HTMLOListElement;
-			break;
-		case "optgroup": 
-			Base = HTMLOptGroupElement;
-			break;
-		case "option": 
-			Base = HTMLOptionElement;
-			break;
-		case "output": 
-			Base = HTMLOutputElement;
-			break;
-		case "p": 
-			Base = HTMLParagraphElement;
-			break;
-		case "param": 
-			Base = HTMLParamElement;
-			break;
-		case "picture": 
-			Base = HTMLPictureElement;
-			break;
-		case "pre": 
-			Base = HTMLPreElement;
-			break;
-		case "progress": 
-			Base = HTMLProgressElement;
-			break;
-		case "q": 
-			Base = HTMLQuoteElement;
-			break;
-		case "script": 
-			Base = HTMLScriptElement;
-			break;
-		case "select": 
-			Base = HTMLSelectElement;
-			break;
-		case "slot": 
-			Base = HTMLSlotElement;
-			break;
-		case "source": 
-			Base = HTMLSourceElement;
-			break;
-		case "span": 
-			Base = HTMLSpanElement;
-			break;
-		// case "style": 
-		// 	Base = HTMLStyleElement;
-		// 	break;
-		case "table": 
-			Base = HTMLTableElement;
-			break;
-		case "thead": 
-			Base = HTMLTableSectionElement;
-			break;
-		case "tbody": 
-			Base = HTMLTableSectionElement;
-			break;
-		case "tfoot": 
-			Base = HTMLTableSectionElement;
-			break;
-		case "th": 
-			Base = HTMLTableCellElement;
-			break;
-		case "td": 
-			Base = HTMLTableCellElement;
-			break;
-		case "template": 
-			Base = HTMLTemplateElement;
-			break;
-		case "textarea": 
-			Base = HTMLTextAreaElement;
-			break;
-		case "time": 
-			Base = HTMLTimeElement;
-			break;
-		case "title": 
-			Base = HTMLTitleElement;
-			break;
-		case "tr": 
-			Base = HTMLTableRowElement;
-			break;
-		case "track": 
-			Base = HTMLTrackElement;
-			break;
-		case "ul": 
-			Base = HTMLUListElement;
-			break;
 
-		// Custom.
-
-		// Style.
-		// Can be used for animation keyframes or other funcs to set a style without accessing the target element's style.
-		case "style":
-			class B {
-				constructor() {
-					this.style = {};
-				}
+	// Style.
+	// Can be used for animation keyframes or other funcs to set a style without accessing the target element's style.
+	if (tag === "style") {
+		class B {
+			constructor() {
+				this.style = {};
 			}
-			Base = B;
-			break;
+		}
+		Base = B;
+	}
 
-		// Unknown so use HTMLElement.
-		default:
-			Base = HTMLElement;
-			break;
+	// Safari can only inherit HTMLElement.
+	else if (navigator.vendor.includes('Apple')) {
+		Base = HTMLElement;
+	}
 
-	};
+	// Other browsers.
+	else {
+		switch (tag) {
+			case "a": 
+				Base = HTMLAnchorElement;
+				break;
+			case "area": 
+				Base = HTMLAreaElement;
+				break;
+			case "audio": 
+				Base = HTMLAudioElement;
+				break;
+			case "base": 
+				Base = HTMLBaseElement;
+				break;
+			case "blockquote": 
+				Base = HTMLQuoteElement;
+				break;
+			case "body": 
+				Base = HTMLBodyElement;
+				break;
+			case "br": 
+				Base = HTMLBRElement;
+				break;
+			case "button": 
+				Base = HTMLButtonElement;
+				break;
+			case "canvas": 
+				Base = HTMLCanvasElement;
+				break;
+			case "caption": 
+				Base = HTMLTableCaptionElement;
+				break;
+			case "col": 
+				Base = HTMLTableColElement;
+				break;
+			case "data": 
+				Base = HTMLDataElement;
+				break;
+			case "datalist": 
+				Base = HTMLDataListElement;
+				break;
+			case "dl": 
+				Base = HTMLDListElement;
+				break;
+			case "dir": 
+				Base = HTMLDirectoryElement;
+				break;
+			case "div": 
+				Base = HTMLDivElement;
+				break;
+			case "html": 
+				Base = HTMLHtmlElement;
+				break;
+			case "embed": 
+				Base = HTMLEmbedElement;
+				break;
+			case "fieldset": 
+				Base = HTMLFieldSetElement;
+				break;
+			case "form": 
+				Base = HTMLFormElement;
+				break;
+			case "h1": 
+				Base = HTMLHeadingElement;
+				break;
+			case "h2": 
+				Base = HTMLHeadingElement;
+				break;
+			case "h3": 
+				Base = HTMLHeadingElement;
+				break;
+			case "h4": 
+				Base = HTMLHeadingElement;
+				break;
+			case "h5": 
+				Base = HTMLHeadingElement;
+				break;
+			case "h6": 
+				Base = HTMLHeadingElement;
+				break;
+			case "head": 
+				Base = HTMLHeadElement;
+				break;
+			case "hr": 
+				Base = HTMLHRElement;
+				break;
+			case "img": 
+				Base = HTMLImageElement;
+				break;
+			case "input": 
+				Base = HTMLInputElement;
+				break;
+			case "ins": 
+				Base = HTMLModElement;
+				break;
+			case "label": 
+				Base = HTMLLabelElement;
+				break;
+			case "legend": 
+				Base = HTMLLegendElement;
+				break;
+			case "li": 
+				Base = HTMLLIElement;
+				break;
+			case "link": 
+				Base = HTMLLinkElement;
+				break;
+			case "map": 
+				Base = HTMLMapElement;
+				break;
+			case "meta": 
+				Base = HTMLMetaElement;
+				break;
+			case "meter": 
+				Base = HTMLMeterElement;
+				break;
+			case "object": 
+				Base = HTMLObjectElement;
+				break;
+			case "ol": 
+				Base = HTMLOListElement;
+				break;
+			case "optgroup": 
+				Base = HTMLOptGroupElement;
+				break;
+			case "option": 
+				Base = HTMLOptionElement;
+				break;
+			case "output": 
+				Base = HTMLOutputElement;
+				break;
+			case "p": 
+				Base = HTMLParagraphElement;
+				break;
+			case "param": 
+				Base = HTMLParamElement;
+				break;
+			case "picture": 
+				Base = HTMLPictureElement;
+				break;
+			case "pre": 
+				Base = HTMLPreElement;
+				break;
+			case "progress": 
+				Base = HTMLProgressElement;
+				break;
+			case "q": 
+				Base = HTMLQuoteElement;
+				break;
+			case "script": 
+				Base = HTMLScriptElement;
+				break;
+			case "select": 
+				Base = HTMLSelectElement;
+				break;
+			case "slot": 
+				Base = HTMLSlotElement;
+				break;
+			case "source": 
+				Base = HTMLSourceElement;
+				break;
+			case "span": 
+				Base = HTMLSpanElement;
+				break;
+			case "table": 
+				Base = HTMLTableElement;
+				break;
+			case "thead": 
+				Base = HTMLTableSectionElement;
+				break;
+			case "tbody": 
+				Base = HTMLTableSectionElement;
+				break;
+			case "tfoot": 
+				Base = HTMLTableSectionElement;
+				break;
+			case "th": 
+				Base = HTMLTableCellElement;
+				break;
+			case "td": 
+				Base = HTMLTableCellElement;
+				break;
+			case "template": 
+				Base = HTMLTemplateElement;
+				break;
+			case "textarea": 
+				Base = HTMLTextAreaElement;
+				break;
+			case "time": 
+				Base = HTMLTimeElement;
+				break;
+			case "title": 
+				Base = HTMLTitleElement;
+				break;
+			case "tr": 
+				Base = HTMLTableRowElement;
+				break;
+			case "track": 
+				Base = HTMLTrackElement;
+				break;
+			case "ul": 
+				Base = HTMLUListElement;
+				break;
+			default:
+				Base = HTMLElement;
+				break;
+		};
+	}
 
 	// Build class.
+	// @note: this.tagName can not be used since they have different values on safari and other browsers.
 	class E extends Base {
 
 		// ---------------------------------------------------------
@@ -704,7 +706,7 @@ function CreateVElementClass({
 		// Specify the width or height of the element
 		// Returns the offset width or height when the param value is null.
 		width(value, check_attribute = true) {
-			if (check_attribute && vweb.elements.elements_with_width_attribute.includes(this.tagName)) {
+			if (check_attribute && vweb.elements.elements_with_width_attribute.includes(E.element_tag)) {
 				if (value == null) {
 					return this.getAttribute("width");
 				}
@@ -726,7 +728,7 @@ function CreateVElementClass({
             return this;
         }
 		height(value) {
-			if (vweb.elements.elements_with_width_attribute.includes(this.tagName)) {
+			if (vweb.elements.elements_with_width_attribute.includes(E.element_tag)) {
 				if (value == null) {
 					return this.getAttribute("height");
 				}
@@ -742,9 +744,9 @@ function CreateVElementClass({
         fixed_height(value) {
             if (value == null) { return this.style.minWidth; }
             value = this.pad_numeric(value);
-            this.style.height = height; // also required for for example image masks.
-            this.style.minHeight = height;
-            this.style.maxHeight = height;
+            this.style.height = value; // also required for for example image masks.
+            this.style.minHeight = value;
+            this.style.maxHeight = value;
             return this;
         }
 
@@ -941,14 +943,17 @@ function CreateVElementClass({
 
 		// Wrap.
 		wrap(value) {
-			switch (this.tagName) {
-				case "DIV":
+			switch (E.element_tag) {
+				case "div":
 					if (value == true) {
-						this.style.flexFlow = "wrap";
+						// this.style.flexFlow = "wrap";
+						this.flex_wrap("wrap")
 					} else if (value == false) {
-						this.style.flexFlow = "nowrap";
+						// this.style.flexFlow = "nowrap";
+						this.flex_wrap("nowrap")
 					} else {
-						this.style.flexFlow = value;
+						// this.style.flexFlow = value;
+						this.flex_wrap(value)
 					}
 					break;
 				default:
@@ -963,13 +968,6 @@ function CreateVElementClass({
 					}
 				break;
 			}
-			// if (value == true) {
-			// 	this.style.whiteSpace = "wrap";
-			// } else if (value == false) {
-			// 	this.style.whiteSpace = "nowrap";
-			// } else {
-			// 	this.style.whiteSpace = value;
-			// }
 			return this;
 		}
 
@@ -981,6 +979,7 @@ function CreateVElementClass({
 
 		// Set the elements side by side till a specified width.
 		/* 	@docs:
+		 * 	@experimental: true
 		 * 	@title: Side by Side
 		 * 	@description: Set the elements side by side till a specified width.
 		 * 	@param: 
@@ -996,6 +995,10 @@ function CreateVElementClass({
 		 * 		@type: number 
 		 *		@desc: The vertical spacing between the rows in pixels.
 		 * 	@param: 
+		 * 		@name: stretch
+		 * 		@type: boolean
+		 *		@desc: Stretch the leftover columns to max width.
+		 * 	@param: 
 		 * 		@name: hide_dividers 
 		 * 		@type: boolean 
 		 *		@desc: Hide dividers when they would appear on a row.
@@ -1004,6 +1007,7 @@ function CreateVElementClass({
 			columns = 2,			
 			hspacing = 10,			
 			vspacing = 10,			
+			stretch = true,
 			hide_dividers = false,	
 		}) {
 			if (this.element_type !== "HStack") {
@@ -1041,11 +1045,19 @@ function CreateVElementClass({
 				col_children.iterate((i) => {
 					const child = i[0];
 					child.overflow("hidden")
-					flex_basis(
-						child, 
-						i[1] == null ? 1 / col_children.length : i[1], 
-						margin / col_children.length,
-					);
+					if (stretch || col_children.length === columns) {
+						flex_basis(
+							child, 
+							i[1] == null ? 1 / col_children.length : i[1], 
+							margin / col_children.length,
+						);
+					} else {
+						flex_basis(
+							child, 
+							i[1] == null ? 1 / columns : i[1], 
+							hspacing * (columns - 2),
+						);
+					}
 				})
 			}
 

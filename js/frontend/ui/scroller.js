@@ -960,20 +960,20 @@ class WindowScrollerElement extends CreateVElementClass({
         this.addEventListener("scroll", _on_scroll_callback, { passive: false });
 
         // Add the on hash change listener for any direct children id's.
-        // window.addEventListener("hashchange", (e) => {
-        //     const hash = window.location.hash.substr(1);
-        //     if (hash !== null) {
-        //         this.windows.iterate((win) => {
-        //             if (hash === win.id()) {
-        //                 this.next(win.index, true);
-        //                 return false;
-        //             }
-        //         })
-        //         this.on_render(() => {
+        window.addEventListener("hashchange", (e) => {
+            const hash = window.location.hash.substr(1);
+            if (hash !== null) {
+                this.windows.iterate((win) => {
+                    if (hash === win.id()) {
+                        this.next(win.index, true);
+                        return false;
+                    }
+                })
+                this.on_render(() => {
                     
-        //         })
-        //     }
-        // })
+                })
+            }
+        })
     }
     
 
@@ -1037,12 +1037,13 @@ class WindowScrollerElement extends CreateVElementClass({
         super.append(win);
 
         // Check if the href hash is set on this windows id.
-        // const hash = window.location.hash.substr(1);
-        // if (hash !== null && hash === win.id()) {
-        //     this.on_render(() => {
-        //         this.next(win.index, true);
-        //     })
-        // }
+        const hash = window.location.hash.substr(1);
+        if (hash !== null && hash === win.id()) {
+            this.on_render(() => {
+                console.log("Render", hash)
+                this.next(win.index, true);
+            })
+        }
 
 
         // response.
