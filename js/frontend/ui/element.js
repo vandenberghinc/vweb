@@ -14,6 +14,9 @@ vweb.elements.elements_with_width_attribute = [
 	'video',
 ];
 
+// Is apple.
+vweb.is_safari = navigator.vendor.includes('Apple');
+
 // Create the intersection obvserver.
 // vweb.utils.on_appear_observer = new IntersectionObserver(
 // 	(entries, observer) => {
@@ -103,7 +106,7 @@ function CreateVElementClass({
 	}
 
 	// Safari can only inherit HTMLElement.
-	else if (navigator.vendor.includes('Apple')) {
+	else if (vweb.is_safari) {
 		Base = HTMLElement;
 	}
 

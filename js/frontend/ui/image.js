@@ -21,11 +21,154 @@ class ImageElement extends CreateVElementClass({
 		
 		// Initialize base class.
 		super();
+
+		// Safari does not render images correctly for custom elements.
+		if (vweb.is_safari) {
+			this.attachShadow({ mode: 'open' });
+			this._img = document.createElement("img");
+			this._img.style.objectFit = "cover";
+			this._img.style.width = "100%";
+			this._img.style.height = "100%";
+			this.shadowRoot.appendChild(this._img);
+			this.position("relative"); // for img width height 100%
+			this.overflow("hidden"); // for border radius.
+		}
 	
 		// Set src.
 		this.src(src);
 	}
-		
+
+	// Source, purely for safari.
+	src(value) {
+		if (this._img === undefined) {
+			return super.src(value);
+		}
+		if (value == null) {
+			return this._img.src;
+		}
+		this._img.src = src;
+		return this;
+	}
+
+	// Alt, purely for safari.
+	alt(value) {
+		if (this._img === undefined) {
+			return super.alt(value);
+		}
+		if (value == null) {
+			return this._img.alt;
+		}
+		this._img.alt = value;
+		return this;
+	}
+
+	// Completed, purely for safari.
+	completed(value) {
+		if (this._img === undefined) {
+			return super.completed;
+		}
+		return this._img.completed;
+	}
+
+	// Source, purely for safari.
+	src(value) {
+		if (this._img === undefined) {
+			return super.src(value);
+		}
+		if (value == null) {
+			return this._img.src;
+		}
+		this._img.src = value;
+		return this;
+	}
+
+	// Height, purely for safari.
+	// height(value) {
+	// 	if (this._img === undefined) {
+	// 		return super.height(value);
+	// 	}
+	// 	if (value == null) {
+	// 		return this._img.height;
+	// 	}
+	// 	if (typeof value !== "number") {
+	// 		this._img.style.height = value;
+	// 	} else {
+	// 		this._img.height = value;
+	// 	}
+	// 	return this;
+	// }
+	// min_height(value) {
+	// 	if (this._img === undefined) {
+	// 		return super.min_height(value);
+	// 	}
+	// 	if (value == null) {
+	// 		return this._img.style.minHeight;
+	// 	}
+	// 	this._img.style.minHeight = this.pad_numeric(value, "px");
+	// 	return this;
+	// }
+	// max_height(value) {
+	// 	if (this._img === undefined) {
+	// 		return super.max_height(value);
+	// 	}
+	// 	if (value == null) {
+	// 		return this._img.style.maxHeight;
+	// 	}
+	// 	this._img.style.maxHeight = this.pad_numeric(value, "px");
+	// 	return this;
+	// }
+
+	// Width, purely for safari.
+	// width(value) {
+	// 	if (this._img === undefined || typeof value !== "number") {
+	// 		return super.width(value);
+	// 	}
+	// 	if (value == null) {
+	// 		return this._img.width;
+	// 	}
+	// 	if (typeof value !== "number") {
+	// 		this._img.style.width = value;
+	// 	} else {
+	// 		this._img.width = value;
+	// 	}
+	// 	return this;
+	// }
+	// min_width(value) {
+	// 	if (this._img === undefined) {
+	// 		return super.min_width(value);
+	// 	}
+	// 	if (value == null) {
+	// 		return this._img.style.minWidth;
+	// 	}
+	// 	this._img.style.minWidth = this.pad_numeric(value, "px");
+	// 	return this;
+	// }
+	// max_width(value) {
+	// 	if (this._img === undefined) {
+	// 		return super.max_width(value);
+	// 	}
+	// 	if (value == null) {
+	// 		return this._img.style.maxWidth;
+	// 	}
+	// 	this._img.style.maxWidth = this.pad_numeric(value, "px");
+	// 	return this;
+	// }
+
+	// Loading "eager" or "lazy", purely for safari.
+	loading(value) {
+		if (this._img === undefined) {
+			if (value == null) {
+				return this.loading;
+			}
+			this.loading = value;
+			return this;
+		}
+		if (value == null) {
+			return this._img.loading;
+		}
+		this._img.loading = value;
+		return this;
+	}		
 }
 
 // ImageMask.

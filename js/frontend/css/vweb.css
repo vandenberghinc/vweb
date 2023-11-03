@@ -30,6 +30,11 @@ Copyright: © 2022 Daan van den Bergh.
 	background: transparent;
 	width: 0 !important
 }
+.hide_scrollbar::-webkit-scrollbar:horizontal {
+	height: 0;
+  width: 0;
+  display: none;
+}
 /* */
 .hide_scrollbar::-webkit-scrollbar-thumb { 
   display: none;

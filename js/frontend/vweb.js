@@ -544,6 +544,7 @@ vweb.elements.elements_with_width_attribute=[
 'progress',
 'video',
 ];
+vweb.is_safari=navigator.vendor.includes('Apple');
 vweb.utils.on_render_observer=new IntersectionObserver(
 (entries,observer)=>{
 entries.forEach(entry=>{
@@ -575,7 +576,7 @@ this.style={};
 }
 Base=B;
 }
-else if(navigator.vendor.includes('Apple')){
+else if(vweb.is_safari){
 Base=HTMLElement;
 }
 else{
@@ -6684,8 +6685,7 @@ default_style:{
 "border-radius":"15px",
 "color":"#FFFFFF",
 "background":"#262F3D",
-"overflow":"auto visible",
-"width":"100%",
+"overflow":"hidden","width":"100%",
 "min-width":"100%",
 "--header-color":"inherit",
 "--header-border":"#00000010",
@@ -6933,16 +6933,18 @@ this.language=this.languages[0];
 }
 }
 this.pre=CodePre(code)
+.parent(this)
 .color("inherit")
 .font("inherit")
-.min_width("100%")
 .background("none")
 .border_radius(0)
 .padding(0)
 .margin(0)
+.stretch(true)
 .overflow("visible")
 .line_height("inherit")
 this.lines=VElement()
+.parent(this)
 .color("var(--vhighlight-token-comment)")
 .font("inherit")
 .white_space("pre")
@@ -6950,6 +6952,7 @@ this.lines=VElement()
 .flex_shrink(0)
 .hide()
 this.lines_divider=VElement()
+.parent(this)
 .background("var(--vhighlight-token-comment)")
 .min_width(0.5)
 .max_width(0.5)
@@ -6958,19 +6961,31 @@ this.lines_divider=VElement()
 .margin(0,10)
 .hide()
 this.content=HStack(this.lines,this.lines_divider,this.pre)
+.parent(this)
 .padding(CodeBlockElement.default_style.padding)
-.padding_bottom(0)
 .flex_wrap("nowrap")
+.overflow("auto visible")
 .align_items("stretch");
 this.append(
 this.header,
 this.content,
 );
-this.padding(CodeBlockElement.default_style.padding)
-this.padding(null,0,null,0)
+if(this.languages!==undefined){
+this.content.padding_bottom(0);
+this.padding(CodeBlockElement.default_style.padding);
+this.padding(null,0,null,0);
+}
 if(this.languages!==undefined){
 this.header.select(this.language,false);
 }
+}
+hide_scrollbar(){
+this.content.classList.add("hide_scrollbar");
+return this;
+}
+show_scrollbar(){
+this.content.classList.remove("hide_scrollbar");
+return this;
 }
 styles(style_dict){
 if(style_dict==null){
@@ -7010,9 +7025,11 @@ if(value===null){
 return this._header_color;
 }
 this._header_color=value;
+if(this.header!==undefined){
 this.clipboard.mask_color(this._header_color)
 this.arrow.mask_color(this._header_color)
 this.header.color(this._header_color)
+}
 return this;
 }
 header_border_color(value){
@@ -7020,8 +7037,10 @@ if(value===null){
 return this._header_border;
 }
 this._header_border=value;
+if(this.header!==undefined){
 this.header.content.border(1,this._header_border)
 this.header.border_bottom(`1px solid ${this._header_border}`)
+}
 return this;
 }
 header_background(value){
@@ -7029,8 +7048,10 @@ if(value===null){
 return this._header_background;
 }
 this._header_background=value;
+if(this.header!==undefined){
 this.header.background(this._header_background)
 this.header.content.background(this._header_background)
+}
 return this;
 }
 highlight({
@@ -8048,7 +8069,65 @@ default_style:{
 }){
 constructor(src){
 super();
+if(vweb.is_safari){
+this.attachShadow({mode:'open'});
+this._img=document.createElement("img");
+this._img.style.objectFit="cover";
+this._img.style.width="100%";
+this._img.style.height="100%";
+this.shadowRoot.appendChild(this._img);
+this.position("relative");this.overflow("hidden");}
 this.src(src);
+}
+src(value){
+if(this._img===undefined){
+return super.src(value);
+}
+if(value==null){
+return this._img.src;
+}
+this._img.src=src;
+return this;
+}
+alt(value){
+if(this._img===undefined){
+return super.alt(value);
+}
+if(value==null){
+return this._img.alt;
+}
+this._img.alt=value;
+return this;
+}
+completed(value){
+if(this._img===undefined){
+return super.completed;
+}
+return this._img.completed;
+}
+src(value){
+if(this._img===undefined){
+return super.src(value);
+}
+if(value==null){
+return this._img.src;
+}
+this._img.src=value;
+return this;
+}
+loading(value){
+if(this._img===undefined){
+if(value==null){
+return this.loading;
+}
+this.loading=value;
+return this;
+}
+if(value==null){
+return this._img.loading;
+}
+this._img.loading=value;
+return this;
 }
 }
 vweb.elements.register(ImageElement);

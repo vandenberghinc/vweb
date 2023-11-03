@@ -27,7 +27,7 @@ class CodeBlockElement extends CreateVElementClass({
 		"border-radius": "15px",
 		"color": "#FFFFFF",
 		"background": "#262F3D",
-		"overflow": "auto visible",
+		"overflow": "hidden", // only the content should scroll so the header remains fixed.
 		"width": "100%",
 		"min-width": "100%",
 		"--header-color": "inherit",
@@ -350,18 +350,20 @@ class CodeBlockElement extends CreateVElementClass({
 
 		// Code pre.
 		this.pre = CodePre(code)
+			.parent(this)
 			.color("inherit")
 			.font("inherit")
-			.min_width("100%")
 			.background("none")
 			.border_radius(0)
 			.padding(0)
 			.margin(0)
+			.stretch(true)
 			.overflow("visible")
 			.line_height("inherit")
 
 		// Line numbers.
 		this.lines = VElement()
+			.parent(this)
 			.color("var(--vhighlight-token-comment)")
 			.font("inherit")
 			.white_space("pre")
@@ -371,6 +373,7 @@ class CodeBlockElement extends CreateVElementClass({
 
 		// Line numbers divider.
 		this.lines_divider = VElement()
+			.parent(this)
 			.background("var(--vhighlight-token-comment)")
 			.min_width(0.5)
 			.max_width(0.5)
@@ -381,9 +384,10 @@ class CodeBlockElement extends CreateVElementClass({
 
 		// The content.
 		this.content = HStack(this.lines, this.lines_divider, this.pre)
+			.parent(this)
 			.padding(CodeBlockElement.default_style.padding)
-			.padding_bottom(0)
 			.flex_wrap("nowrap")
+			.overflow("auto visible")
 			.align_items("stretch"); // required for lines divider.
 
 		// Append code pre.
@@ -393,14 +397,27 @@ class CodeBlockElement extends CreateVElementClass({
 		);
 
 		// Set padding.
-		this.padding(CodeBlockElement.default_style.padding)
-		this.padding(null, 0, null, 0)
+		if (this.languages !== undefined) {
+			this.content.padding_bottom(0);
+			this.padding(CodeBlockElement.default_style.padding);
+			this.padding(null, 0, null, 0);
+		}
 
 		// Select the default code language or the first code language.
 		if (this.languages !== undefined) {
 			this.header.select(this.language, false);
 		}
 
+	}
+
+	// Hide/show the scrollbar.
+	hide_scrollbar() {
+		this.content.classList.add("hide_scrollbar");
+		return this;
+	}
+	show_scrollbar() {
+		this.content.classList.remove("hide_scrollbar");
+		return this;
 	}
 
 	// Get the styling attributes.
@@ -453,9 +470,11 @@ class CodeBlockElement extends CreateVElementClass({
 			return this._header_color;
 		}
 		this._header_color = value;
-		this.clipboard.mask_color(this._header_color)
-		this.arrow.mask_color(this._header_color)
-		this.header.color(this._header_color)
+		if (this.header !== undefined) {
+			this.clipboard.mask_color(this._header_color)
+			this.arrow.mask_color(this._header_color)
+			this.header.color(this._header_color)
+		}
 		return this;
 	}
 
@@ -465,8 +484,10 @@ class CodeBlockElement extends CreateVElementClass({
 			return this._header_border;
 		}
 		this._header_border = value;
-		this.header.content.border(1, this._header_border)
-		this.header.border_bottom(`1px solid ${this._header_border}`)
+		if (this.header !== undefined) {
+			this.header.content.border(1, this._header_border)
+			this.header.border_bottom(`1px solid ${this._header_border}`)
+		}
 		return this;
 	}
 
@@ -476,8 +497,10 @@ class CodeBlockElement extends CreateVElementClass({
 			return this._header_background;
 		}
 		this._header_background = value;
-		this.header.background(this._header_background)
-		this.header.content.background(this._header_background)
+		if (this.header !== undefined) {
+			this.header.background(this._header_background)
+			this.header.content.background(this._header_background)
+		}
 		return this;
 	}
 
