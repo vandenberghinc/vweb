@@ -723,7 +723,7 @@ function CreateVElementClass({
 			return this;
 		}
 		fixed_width(value) {
-            if (value == null) { return this.style.minWidth; }
+            if (value == null) { return this.style.width; }
             value = this.pad_numeric(value);
             this.style.width = value; // also required for for example image masks.
             this.style.minWidth = value;
@@ -745,7 +745,7 @@ function CreateVElementClass({
 			return this;
 		}
         fixed_height(value) {
-            if (value == null) { return this.style.minWidth; }
+            if (value == null) { return this.style.height; }
             value = this.pad_numeric(value);
             this.style.height = value; // also required for for example image masks.
             this.style.minHeight = value;
@@ -2244,6 +2244,18 @@ function CreateVElementClass({
 		// ---------------------------------------------------------
 		// Events.
 
+		// Disable a button.
+		disable() {
+			this._disabled = true;
+			return this;
+		}
+
+		// Enable a button.
+		enable() {
+			this._disabled = false;
+			return this;
+		}
+
 		// Script to be run when the element is being clicked
 		on_click(callback) {
 			if (callback == null) {
@@ -2251,7 +2263,11 @@ function CreateVElementClass({
 			}
 			this.style.cursor = "pointer";
 			const e = this;
-        	this.onclick = (t) => callback(e, t);
+        	this.onclick = (t) => {
+        		if (this._disabled !== true) {
+        			callback(e, t);
+        		}
+        	};
 			return this;
 		}
 

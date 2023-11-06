@@ -5990,16 +5990,15 @@ this.scrollTop=this.index*this.window_scroll_height;
 this.addEventListener("scroll",_on_scroll_callback,{passive:false});
 window.addEventListener("hashchange",(e)=>{
 const hash=window.location.hash.substr(1);
-if(hash!==null){
+if(hash!==null&&hash!==""){
+console.log("HASH",hash)
 this.windows.iterate((win)=>{
 if(hash===win.id()){
 this.next(win.index,true);
 return false;
 }
 })
-this.on_render(()=>{
-})
-}
+window.location.hash="";}
 })
 }
 append(win){
@@ -6047,7 +6046,6 @@ super.append(win);
 const hash=window.location.hash.substr(1);
 if(hash!==null&&hash===win.id()){
 this.on_render(()=>{
-console.log("Render",hash)
 this.next(win.index,true);
 })
 }
@@ -6723,6 +6721,11 @@ if(code_or_opts.opts!==undefined){this.opts=code_or_opts.opts;}
 if(typeof code==="object"){
 this.languages=Object.keys(code);
 this.languages_code=code;
+this.languages.iterate((lang)=>{
+this.languages_code[lang]=this.languages_code[lang].trim();
+})
+}else{
+code=code.trim();
 }
 if(this.languages!==undefined){
 const code_pres={};
@@ -6904,6 +6907,9 @@ if(recursive){
 localStorage.setItem("vweb_code_lang",id);
 vweb.elements.language_codeblocks.iterate((item)=>item.header.select(id,false))
 }else{
+if(_this.languages.includes(id)===false){
+return;
+}
 this.set_selected(id);
 _this.languages.iterate((lang)=>{
 if(lang===id){
@@ -6919,6 +6925,7 @@ duration:_this.duration,
 opts:_this.opts,
 })
 }
+return true;
 }
 })
 }
@@ -6958,26 +6965,25 @@ this.lines=VElement()
 this.lines_divider=VElement()
 .parent(this)
 .background("var(--vhighlight-token-comment)")
-.min_width(0.5)
-.max_width(0.5)
+.fixed_width(0.5)
 .flex_shrink(0)
-.height("100%")
-.margin(0,10)
+.fixed_height("calc(100% - 6px)")
+.margin(3,10,0,10)
 .hide()
 this.content=HStack(this.lines,this.lines_divider,this.pre)
 .parent(this)
 .padding(CodeBlockElement.default_style.padding)
 .flex_wrap("nowrap")
+.height("100%")
 .overflow("auto visible")
 .align_items("stretch");
 this.append(
 this.header,
 this.content,
 );
+this.padding(0)
 if(this.languages!==undefined){
-this.content.padding_bottom(0);
-this.padding(CodeBlockElement.default_style.padding);
-this.padding(null,0,null,0);
+this.content.padding(CodeBlockElement.default_style.padding);
 }
 if(this.languages!==undefined){
 this.header.select(this.language,false);

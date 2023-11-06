@@ -962,16 +962,15 @@ class WindowScrollerElement extends CreateVElementClass({
         // Add the on hash change listener for any direct children id's.
         window.addEventListener("hashchange", (e) => {
             const hash = window.location.hash.substr(1);
-            if (hash !== null) {
+            if (hash !== null && hash !== "") {
+                console.log("HASH", hash)
                 this.windows.iterate((win) => {
                     if (hash === win.id()) {
                         this.next(win.index, true);
                         return false;
                     }
                 })
-                this.on_render(() => {
-                    
-                })
+                window.location.hash = ""; // reset the hash so that when the user clicks the hash button again it is rerendered.
             }
         })
     }
@@ -1040,7 +1039,6 @@ class WindowScrollerElement extends CreateVElementClass({
         const hash = window.location.hash.substr(1);
         if (hash !== null && hash === win.id()) {
             this.on_render(() => {
-                console.log("Render", hash)
                 this.next(win.index, true);
             })
         }

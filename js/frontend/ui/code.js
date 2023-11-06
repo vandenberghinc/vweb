@@ -79,6 +79,11 @@ class CodeBlockElement extends CreateVElementClass({
 		if (typeof code === "object") {
 			this.languages = Object.keys(code);
 			this.languages_code = code;
+			this.languages.iterate((lang) => {
+				this.languages_code[lang] = this.languages_code[lang].trim();
+			})
+		} else {
+			code = code.trim();
 		}
 
 		// Create the header for when multiple languages are passed.
@@ -312,6 +317,9 @@ class CodeBlockElement extends CreateVElementClass({
 						localStorage.setItem("vweb_code_lang", id);
 						vweb.elements.language_codeblocks.iterate((item) => item.header.select(id, false))
 					} else {
+						if (_this.languages.includes(id) === false) {
+							return ;
+						}
 						this.set_selected(id);
 						_this.languages.iterate((lang) => {
 							if (lang === id) {
@@ -327,6 +335,7 @@ class CodeBlockElement extends CreateVElementClass({
 										opts: _this.opts,
 									})
 								}
+								return true;
 							}
 						})
 					}
@@ -375,11 +384,10 @@ class CodeBlockElement extends CreateVElementClass({
 		this.lines_divider = VElement()
 			.parent(this)
 			.background("var(--vhighlight-token-comment)")
-			.min_width(0.5)
-			.max_width(0.5)
+			.fixed_width(0.5)
 			.flex_shrink(0)
-			.height("100%")
-			.margin(0, 10)
+			.fixed_height("calc(100% - 6px)")
+			.margin(3, 10, 0, 10)
 			.hide()
 
 		// The content.
@@ -387,6 +395,7 @@ class CodeBlockElement extends CreateVElementClass({
 			.parent(this)
 			.padding(CodeBlockElement.default_style.padding)
 			.flex_wrap("nowrap")
+			.height("100%")
 			.overflow("auto visible")
 			.align_items("stretch"); // required for lines divider.
 
@@ -397,10 +406,13 @@ class CodeBlockElement extends CreateVElementClass({
 		);
 
 		// Set padding.
+		this.padding(0)
 		if (this.languages !== undefined) {
-			this.content.padding_bottom(0);
-			this.padding(CodeBlockElement.default_style.padding);
-			this.padding(null, 0, null, 0);
+			// this.pre.padding(CodeBlockElement.default_style.padding);
+			// this.pre.padding(0, null, 0, null);
+			// this.content.padding_bottom(0);
+			this.content.padding(CodeBlockElement.default_style.padding);
+			// this.content.padding(null, 0, null, 0);
 		}
 
 		// Select the default code language or the first code language.

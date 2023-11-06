@@ -15,6 +15,7 @@ const libnodemailer = require('nodemailer');
 // Imports.
 
 const {vlib, vhighlight} = require("./vinc.js");
+const Mail = require('./mail.js');
 const Status = require("./status.js");
 const Mutex = require("./mutex.js");
 const Endpoint = require("./endpoint.js");
@@ -3887,6 +3888,7 @@ class Server {
         subject = null,
         body = "",
         attachments = [],
+        content_type = null,
     }) {
         return new Promise((resolve, reject) => {
 
@@ -3894,6 +3896,13 @@ class Server {
             if (this.smtp_enabled === false) {
                 return reject("SMTP is not enabled, define the required server argument on initialization to enable smtp.");
             }
+
+            // Convert MailElement to html.
+            if (body instanceof Mail.MailElement) {
+                body = body.html();
+                // console.log(body);
+            }
+            // process.exit(1)
 
             // Check args.
             if (sender === null) {

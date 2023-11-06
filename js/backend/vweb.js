@@ -13,6 +13,7 @@ const vweb = {
     Endpoint: require("./endpoint.js"),
     Server: require("./server.js"),
     Status: require("./status.js"),
+    Mail: require("./mail.js"),
     version: require("../.version.js"),
 }
 

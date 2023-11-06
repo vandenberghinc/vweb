@@ -247,16 +247,18 @@ class LoaderButtonElement extends VStackElement {
 
 	}
 
-	// Show the loader.
+	// Show the loader and disable the button on click event.
 	show_loader() {
+		this.disable();
 		this.text.hide();
 		this.loader.update();
 		this.loader.show();
 		return this;
 	}
 
-	// Hide the loader.
+	// Hide the loader and enable the button on click event.
 	hide_loader() {
+		this.enable();
 		this.loader.hide();
 		this.text.show();
 		return this;

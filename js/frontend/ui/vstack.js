@@ -3,7 +3,7 @@
  * Copyright: © 2022 - 2023 Daan van den Bergh.
  */
 
-// Scroller.
+// VStack.
 @vweb_constructor_wrapper
 @vweb_register_element
 class VStackElement extends CreateVElementClass({
