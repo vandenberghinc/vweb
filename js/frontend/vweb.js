@@ -1261,13 +1261,17 @@ this.flex_wrap(value)
 break;
 default:
 if(value==true){
+this.style.whiteSpace="wrap";
 this.style.textWrap="wrap";
 this.style.overflowWrap="break-word";
 }else if(value==false){
+this.style.whiteSpace="nowrap";
 this.style.textWrap="nowrap";
 this.style.overflowWrap="normal";
 }else{
 this.style.textWrap=value;
+this.style.textWrap=value;
+this.style.overflowWrap=value;
 }
 break;
 }
