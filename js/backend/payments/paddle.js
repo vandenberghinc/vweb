@@ -788,19 +788,24 @@ class Paddle {
 
     // Initialize the payments.
     async _initialize() {
+        const file_watcher_restart = process.argv.includes("--file-watcher-restart");
 
         // Create dirs.
-        [
-            ".sys/pym_p", // payments.
-            ".sys/pym_i", // payment invoices.
-            ".sys/pym_s", // subscriptions.
-            ".sys/pym",   // payment settings.
-        ].iterate((subpath) => {
-            this.server.database.join(subpath).mkdir_sync();
-        })
+        if (file_watcher_restart === false) {
+            [
+                ".sys/pym_p", // payments.
+                ".sys/pym_i", // payment invoices.
+                ".sys/pym_s", // subscriptions.
+                ".sys/pym",   // payment settings.
+            ].iterate((subpath) => {
+                this.server.database.join(subpath).mkdir_sync();
+            })
+        }
 
         // Initialize products.
-        await this._initialize_products();
+        if (file_watcher_restart === false) {
+            await this._initialize_products();
+        }
 
         // Add endpoints.
         this.server.endpoint(
@@ -1470,6 +1475,7 @@ class Paddle {
 
     // Create and register the webhook endpoint.
     async _create_webhook() {
+        const file_watcher_restart = process.argv.includes("--file-watcher-restart");
 
         // Register the webhook.
         const webhook_key_path = this.server.database.join(".sys/pym/webhook_key", false);
@@ -1501,33 +1507,35 @@ class Paddle {
             ],
         };
         if (webhook_key_path.exists()) {
-            const webhook_id = webhook_id_path.load_sync();
-            const registered = await this._req("GET", `/notification-settings/${webhook_id}`);
-            const item = registered.data;
-            const patch = (() => {
-                if (
-                    item.active !== true ||
-                    item.destination !== webhook_settings.destination ||
-                    item.type !== webhook_settings.type ||
-                    item.description !== webhook_settings.description ||
-                    item.subscribed_events.length != webhook_settings.subscribed_events.length
-                ) {
-                    return true;
-                }
-                return webhook_settings.subscribed_events.iterate((x) => {
-                    const found = item.subscribed_events.iterate((y) => {
-                        if (x === y.name) {
+            if (file_watcher_restart === false) {
+                const webhook_id = webhook_id_path.load_sync();
+                const registered = await this._req("GET", `/notification-settings/${webhook_id}`);
+                const item = registered.data;
+                const patch = (() => {
+                    if (
+                        item.active !== true ||
+                        item.destination !== webhook_settings.destination ||
+                        item.type !== webhook_settings.type ||
+                        item.description !== webhook_settings.description ||
+                        item.subscribed_events.length != webhook_settings.subscribed_events.length
+                    ) {
+                        return true;
+                    }
+                    return webhook_settings.subscribed_events.iterate((x) => {
+                        const found = item.subscribed_events.iterate((y) => {
+                            if (x === y.name) {
+                                return true;
+                            }
+                        })
+                        if (found === false) {
                             return true;
                         }
                     })
-                    if (found === false) {
-                        return true;
-                    }
-                })
-            })();
-            if (patch === true) {
-                utils.log("Updating payments webhook.");
-                await this._req("PATCH", `/notification-settings/${webhook_id}`, {...webhook_settings, active: true});
+                })();
+                if (patch === true) {
+                    utils.log("Updating payments webhook.");
+                    await this._req("PATCH", `/notification-settings/${webhook_id}`, {...webhook_settings, active: true});
+                }
             }
             this.webhook_key = webhook_key_path.load_sync();
         } else {

@@ -121,26 +121,58 @@ class Endpoint {
             this.view = new View(view);
         }
 
+        // The endpoint parent for params verification.
+        this._verify_params_parent = this.endpoint + ":";
+    }
+
+    // Initialize.
+    _initialize() {
+
+        // Build html code of view.
+        if (this.view !== null) {
+            this.view._build_html(this);
+        }
+
         // Compression enabled.
-        // if (this.compress) {
-        //     if (this.data !== null) {
-        //         this.data = zlib.gzipSync(this.data, {level: zlib.constants.Z_BEST_COMPRESSION});;
-        //     } else if (this.view !== null) {
-        //         this.view.html = zlib.gzipSync(this.view.html, {level: zlib.constants.Z_BEST_COMPRESSION});
-        //     }
-        // }
+        if (this.callback == null && this.compress) {
+            this._is_compressed = true;
+            if (this.data !== null) {
+                this.data = zlib.gzipSync(this.data, {level: zlib.constants.Z_BEST_COMPRESSION});;
+            } else if (this.view !== null) {
+                this.view.html = zlib.gzipSync(this.view.html, {level: zlib.constants.Z_BEST_COMPRESSION});
+            }
+            // const is_compressed = (data) => {
+            //     // Check if the first two bytes match the zlib compression header
+            //     if (data[0] === 0x78 && (data[1] === 0x01 || data[1] === 0x9C || data[1] === 0xDA)) {
+            //         return true;
+            //     }
+
+            //     // Check png.
+            //     let is_png = true;
+            //     const pngSignature = [137, 80, 78, 71, 13, 10, 26, 10];
+            //     for (let i = 0; i < pngSignature.length; i++) {
+            //         if (data[i] !== pngSignature[i]) {
+            //             is_png = false;
+            //             break;
+            //         }
+            //     }
+            //     if (is_png) { return true; }
+                
+            //     // Check for the JPEG SOI (Start of Image) marker
+            //     return data[0] === 0xFF && data[1] === 0xD8;
+            // }
+            /* is_compressed(this.data) === false */
+        }
 
         // Set content length.
         // Somehow it is off when using data??
         this.content_length = null;
-        // if (this.data !== null) {
-        //     this.content_length = this.data.length;
-        // } else if (this.view !== null) {
-        //     this.content_length = this.view.html.length;
-        // }
-
-        // The endpoint parent for params verification.
-        this._verify_params_parent = this.endpoint + ":";
+        if (this.data !== null) {
+            this.content_length = this.data.length;
+        }
+        else if (this.view !== null) {
+            this.content_length = this.view.html.length;
+        }
     }
 
     // Serve a client.
@@ -157,10 +189,10 @@ class Endpoint {
             }
 
             // Set compression headers.
-            // if (this.callback === null && this.compress) {
-            //     response.set_header("Content-Encoding", "gzip");
-            //     response.set_header("Vary", "Accept-Encoding");
-            // }
+            if (this._is_compressed) {
+                response.set_header("Content-Encoding", "gzip");
+                response.set_header("Vary", "Accept-Encoding");
+            }
 
             // Set content length.
             if (this.content_length !== null) {

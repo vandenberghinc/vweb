@@ -133,7 +133,6 @@ success:function (data,_,xhr){
 resolve(data,xhr.status,xhr);
 },
 error:function(xhr,status,e){
-console.log(xhr)
 if (json&&xhr.status===200){
 return resolve({},200,xhr);
 }
@@ -9925,11 +9924,15 @@ const hash=window.location.hash.substr(1);
 if (hash!==null&&hash!==""){
 this.windows.iterate((win)=>{
 if (hash===win.id()){
+console.log("Select",win.id())
+if (win.index>this.index){
 this.next(win.index, true);
+} else {
+this.prev(win.index, true);
+}
 return false;
 }
 })
-window.location.hash="";
 }
 })
 }
@@ -10015,8 +10018,8 @@ resolve();
 }
 });
 }
-async prev(index){
-return new Promise(async (resolve,update_scroll_top=true)=>{
+async prev(index,update_scroll_top=true){
+return new Promise(async (resolve)=>{
 const old_index=this.index;
 if (index>=0){
 if (update_scroll_top){

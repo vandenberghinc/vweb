@@ -965,11 +965,16 @@ class WindowScrollerElement extends CreateVElementClass({
             if (hash !== null && hash !== "") {
                 this.windows.iterate((win) => {
                     if (hash === win.id()) {
-                        this.next(win.index, true);
+                        console.log("Select", win.id())
+                        if (win.index > this.index) {
+                            this.next(win.index, true);
+                        } else {
+                            this.prev(win.index, true);
+                        }
                         return false;
                     }
                 })
-                window.location.hash = ""; // reset the hash so that when the user clicks the hash button again it is rerendered.
+                // window.location.hash = ""; // reset the hash so that when the user clicks the hash button again it is rerendered.
             }
         })
     }
@@ -1103,8 +1108,8 @@ class WindowScrollerElement extends CreateVElementClass({
     }
 
     // Previous window.
-    async prev(index) {
-        return new Promise(async (resolve, update_scroll_top = true) => {
+    async prev(index, update_scroll_top = true) {
+        return new Promise(async (resolve) => {
             const old_index = this.index;
             if (index >= 0) {
 

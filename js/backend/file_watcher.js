@@ -94,6 +94,7 @@ class FileWatcher {
         this.scan_files();
         this.has_changed = false;
         this.spawn_process();
+        this.args.push("--file-watcher-restart")
 
         // Start scan loop.
         this.scan();

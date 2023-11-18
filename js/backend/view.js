@@ -95,6 +95,7 @@ class View {
         vhighlight = false,
         background = null,
         body_style = null,
+        splash_screen = null,
         _src = __filename,
     }) {
 
@@ -110,6 +111,7 @@ class View {
         this.vhighlight = vhighlight;
         this.background = background || View.background;
         this.body_style = body_style || View.body_style;
+        this.splash_screen = splash_screen;
 
         // System arguments.
         this._src = _src;
@@ -192,10 +194,67 @@ class View {
         this.html += "</head>";
 
         // Body.
-        this.html +=  "<body id='body' style='min-width:100%;min-height:100%;";
+        this.html +=  "<body id='body' style='width:100%;height:100%;margin:0;padding:0;";
         if (this.background != null) { this.html += `background:${this.background};` }
         if (this.body_style != null) { this.html += this.body_style}
-        this.html += "'></body>";
+        this.html += "'>";
+
+        // Create splash screen.
+        if (true || this.splash_screen != null) {
+
+            // HTML code.
+            if (typeof this.splash_screen === "string") {
+                this.html += splash_screen;
+            }
+
+            // Object configuration.
+            else {
+                this.html += "<style>" +
+                ".lds-ring {" +
+                "  display: inline-block;" +
+                "  position: relative;" +
+                "  width: calc(80px / 2);" +
+                "  height: calc(80px / 2);" +
+                "}" +
+                ".lds-ring div {" +
+                "  box-sizing: border-box;" +
+                "  display: block;" +
+                "  position: absolute;" +
+                "  width: calc(64px / 2);" +
+                "  height: calc(64px / 2);" +
+                "  margin: calc(8px / 2);" +
+                "  border: calc(8px / 2) solid #fff;" +
+                "  border-radius: 50%;" +
+                "  animation: lds-ring 1.2s cubic-bezier(0.5, 0, 0.5, 1) infinite;" +
+                "  border-color: #fff transparent transparent transparent;" +
+                "}" +
+                ".lds-ring div:nth-child(1) {" +
+                "  animation-delay: -0.45s;" +
+                "}" +
+                ".lds-ring div:nth-child(2) {" +
+                "  animation-delay: -0.3s;" +
+                "}" +
+                ".lds-ring div:nth-child(3) {" +
+                "  animation-delay: -0.15s;" +
+                "}" +
+                "@keyframes lds-ring {" +
+                "  0% {" +
+                "    transform: rotate(0deg);" +
+                "  }" +
+                "  100% {" +
+                "    transform: rotate(360deg);" +
+                "  }" +
+                "}</style>" +
+                "<div id='splash_screen' style='width: 100vw; height: 100vh; display: flex; align-items: center; justify-content: center;'>" +
+                "<div style='display: block;'>" +
+                "<div class='lds-ring'><div></div><div></div><div></div><div></div></div>" +
+                "</div>" +
+                "</div>"
+            }
+        }
+
+        // Close body.
+        this.html += "</body>";
 
         // JS includes.
         this.html += "<script src='/vweb/vweb.js'></script>";

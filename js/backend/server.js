@@ -10,6 +10,8 @@ const https = require("https");
 const http = require("http");
 const libcrypto = require("crypto");
 const libnodemailer = require('nodemailer');
+const libcluster = require('cluster');
+const libos = require('os');
 
 // ---------------------------------------------------------
 // Imports.
@@ -384,6 +386,45 @@ class Server {
         [".wmv", "video/x-ms-wmv"],
         [".avi", "video/x-msvideo"],
     ]
+    static compressed_extensions = [
+        ".png",
+        ".jpg",
+        ".jpeg",
+        ".gif",
+        ".webp",
+        ".bmp",
+        ".tiff",
+        ".ico",
+        ".svg",
+        ".svgz",
+        ".mng",
+        ".apng",
+        ".jfif",
+        ".jp2",
+        ".jpx",
+        ".j2k",
+        ".jpm",
+        ".jpf",
+        ".heif",
+        ".mp3",
+        ".ogg",
+        ".wav",
+        ".flac",
+        ".m4a",
+        ".aac",
+        ".wma",
+        ".ra",
+        ".mid",
+        ".mp4",
+        ".webm",
+        ".mkv",
+        ".mov",
+        ".avi",
+        ".wmv",
+        ".mpg",
+        ".mpeg",
+        ".flv",
+    ];
 
     // Constructor.
     constructor({
@@ -1278,6 +1319,7 @@ class Server {
                     endpoint: subpath,
                     data: data,
                     content_type: this._sys_get_content_type(path.extension()),
+                    compress: !Server.compressed_extensions.includes(path.extension()),
                     _path: path.str(),
                 }))
             }
@@ -2056,25 +2098,28 @@ class Server {
 
     // Initialize.
     async _initialize() {
+        const file_watcher_restart = process.argv.includes("--file-watcher-restart");
 
         // Check & create database.
-        if (this.database.exists()) {
-            this.database.mkdir_sync();
+        if (file_watcher_restart === false) {
+            if (this.database.exists()) {
+                this.database.mkdir_sync();
+            }
+            [
+                ".sys",
+                ".sys/users",
+                ".sys/tokens",
+                ".sys/usernames",
+                ".sys/emails",
+                ".sys/keys",
+                ".sys/unactivated",
+                ".sys/2fa",
+                ".sys/support_pin",
+                "users",
+            ].iterate((subpath) => {
+                this.database.join(subpath).mkdir_sync();
+            })
         }
-        [
-            ".sys",
-            ".sys/users",
-            ".sys/tokens",
-            ".sys/usernames",
-            ".sys/emails",
-            ".sys/keys",
-            ".sys/unactivated",
-            ".sys/2fa",
-            ".sys/support_pin",
-            "users",
-        ].iterate((subpath) => {
-            this.database.join(subpath).mkdir_sync();
-        })
         
         // Load keys.
         const path = this.database.join(".sys/keys/keys");
@@ -2167,7 +2212,7 @@ class Server {
 
             // Log endpoint result.
             const log_endpoint_result = (message = null, status = null) => {
-                utils.log(`${method}:${endpoint_url}: ${message === null ? response.status_message : message} [${status === null ? response.status_code : status}] (${request.ip}).`);
+                utils.log(`${method}:${endpoint_url}: ${message === null ? response.status_message : message} [${status === null ? response.status_code : status}] (${request.ip})${libcluster.worker ? `(worker: ${libcluster.worker.id})` : ""}.`);
             }
 
             // Initialize the request and wait till all the data has come in.
@@ -2280,60 +2325,80 @@ class Server {
             return null;
         }
 
-        // Initialize.
-        await this._initialize();
+        // Master.
+        if (this.production && libcluster.isMaster) {
+            // Fork workers
+            const numCPUs = libos.cpus().length;
 
-        // Set default port.
-        let http_port, https_port
-        if (this.port == null) {
-            http_port = 80;
-            https_port = 443;
-        } else {
-            http_port = this.port;
-            https_port = this.port + 1;
+            for (let i = 0; i < numCPUs; i++) {
+                libcluster.fork();
+            }
+
+            libcluster.on('exit', (worker, code, signal) => {
+                console.log(`Worker ${worker.process.pid} died`);
+            });
+
         }
 
-        // Callbacks.
-        let is_running = false;
-        const on_running = () => {
-            if (!is_running) {
-                is_running = true;
-                if (this.https !== undefined) {
-                    utils.log(`Running on http://${this.ip}:${http_port} and https://${this.ip}:${https_port}.`); // @warning if you change this running on text you should update vide::BuildSystem since that depends on this log line.
-                } else {
-                    utils.log(`Running on http://${this.ip}:${http_port}.`); // @warning if you change this running on text you should update vide::BuildSystem since that depends on this log line.
+        // Forked.
+        else {
+
+            // Initialize.
+            await this._initialize();
+
+            // Set default port.
+            let http_port, https_port
+            if (this.port == null) {
+                http_port = 80;
+                https_port = 443;
+            } else {
+                http_port = this.port;
+                https_port = this.port + 1;
+            }
+
+            // Callbacks.
+            let is_running = false;
+            const on_running = () => {
+                if (!is_running) {
+                    is_running = true;
+                    if (this.https !== undefined) {
+                        utils.log(`Running on http://${this.ip}:${http_port} and https://${this.ip}:${https_port}.`); // @warning if you change this running on text you should update vide::BuildSystem since that depends on this log line.
+                    } else {
+                        utils.log(`Running on http://${this.ip}:${http_port}.`); // @warning if you change this running on text you should update vide::BuildSystem since that depends on this log line.
+                    }
                 }
             }
-        }
-        const on_error = (error) => {
-            if (error.syscall !== 'listen') {
-                throw error; // This is a system error, not related to server listening
+            const on_error = (error) => {
+                if (error.syscall !== 'listen') {
+                    throw error; // This is a system error, not related to server listening
+                }
+                switch (error.code) {
+                    case 'EACCES':
+                        console.error(`Error: Address ${this.ip}:${this.port} requires elevated privileges.`);
+                        process.exit(1);
+                        break;
+                    case 'EADDRINUSE':
+                        console.error(`Error: Address ${this.ip}:${this.port} is already in use.`);
+                        process.exit(1);
+                        break;
+                    default:
+                        throw error;
+                }
             }
-            switch (error.code) {
-                case 'EACCES':
-                    console.error(`Error: Address ${this.ip}:${this.port} requires elevated privileges.`);
-                    process.exit(1);
-                    break;
-                case 'EADDRINUSE':
-                    console.error(`Error: Address ${this.ip}:${this.port} is already in use.`);
-                    process.exit(1);
-                    break;
-                default:
-                    throw error;
+
+            // Listen.
+            this.http.listen(http_port, this.ip, on_running);
+            this.http.on("error", on_error);
+            if (this.https !== undefined) {
+                this.https.listen(https_port, this.ip, on_running);
+                this.https.on("error", on_error);
             }
-        }
 
-        // Listen.
-        this.http.listen(http_port, this.ip, on_running);
-        this.http.on("error", on_error);
-        if (this.https !== undefined) {
-            this.https.listen(https_port, this.ip, on_running);
-            this.https.on("error", on_error);
-        }
+            // Set signals.
+            process.on('SIGTERM', () => process.exit(0)); // the "this.https.close()" handler does not always get executed when run from vide build system, so use "process.exit()" instead.
+            process.on('SIGINT', () => process.exit(0));
 
-        // Set signals.
-        process.on('SIGTERM', () => process.exit(0)); // the "this.https.close()" handler does not always get executed when run from vide build system, so use "process.exit()" instead.
-        process.on('SIGINT', () => process.exit(0));
+        }
     }
 
     // Stop the server and exit the program.
@@ -2473,8 +2538,10 @@ class Server {
                 } else if (typeof endpoint.view.meta === "object" && endpoint.view.meta instanceof Meta === false) {
                     endpoint.view.meta = new Meta(endpoint.view.meta);
                 }
-                endpoint.view._build_html(this);
             }
+
+            // Initialize the endpoint.
+            endpoint._initialize();
 
             // Add endpoint.
             this.endpoints.push(endpoint);
