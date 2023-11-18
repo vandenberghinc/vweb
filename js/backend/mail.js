@@ -93,6 +93,7 @@ function CreateVElementClass({
                 ["text_wrap", "text-wrap"],
                 ["white_space", "white-space"],
                 ["overflow_wrap", "overflow-wrap"],
+                ["word_wrap", "word-wrap"],
             ].iterate((item) => {
                 const name = item[0], style = item[1];
                 this[name] = function(value) {
@@ -190,15 +191,16 @@ function CreateVElementClass({
 
                 // Build header.
                 html += "<!DOCTYPE html>";
-                html += `<html lang="${this._lang || "en"}">`;
+                html += `<html lang="${this._lang || "en"}" style="height: 100%;">`;
                 html += `<head>`;
                 html += `<meta charset="${this._charset || "UTF-8"}">`;
                 html += `<meta name="viewport" charset="${this._viewport || "width=device-width, initial-scale=1.0"}">`;
                 html += `<meta name="color-scheme" content="light">`
                 html += `<meta name="supported-color-schemes" content="light">`
                 html += `<title>${this._title || ""}"</title>`;
-                html += "<style type=\"text/css\">* { box-sizing: border-box; }</style>"
+                html += "<style type=\"text/css\">* {box-sizing:border-box;}</style>"
 
+                /*
                 // Create classes for static colors that remain the same in dark mode and light mode.
                 // Fetch colors.
                 const _static_fg = [], _static_bg = [], _static_bgc = [];
@@ -248,6 +250,7 @@ function CreateVElementClass({
                 _static_bgc.iterate((color) => { html += `._bgc_${color.replaceAll("#", "")} { background-color: ${color} !important; }\n` })
                 html += "}\n";
                 html += "</style>"
+                */
 
                 // Close header.
                 html += `</head>`;
@@ -279,7 +282,7 @@ function CreateVElementClass({
             if (Object.keys(this._style).length > 0) {
                 html += "style=\"";
                 Object.keys(this._style).iterate((key) => {
-                    html += `${key}:${this._style[key]};`
+                    html += `${key}:${this._style[key].replaceAll('"', '\'')};`
                 })
                 html += "\"";
             }
@@ -311,8 +314,6 @@ function CreateVElementClass({
             // The parent mail element.
             if (this.tag === "mail") {
                 html += "</html>";
-                console.log(html);
-                // process.exit(1)
             }
 
 
@@ -364,7 +365,27 @@ function CreateVElementClass({
         // Append a child.
         append(...children) {
             for (let i = 0; i < children.length; i++) {
-                this.children.append(children[i]);
+                const child = children[i];
+
+                // Skip undefined.
+                if (child == null) {
+                    continue;
+                }
+
+                // Array.
+                else if (Array.isArray(child)) {
+                    this.append(...child);
+                }
+
+                // Execute function.
+                else if (typeof child === "function") {
+                    this.append(child(this));
+                }
+
+                // Default.
+                else {
+                    this.children.append(child);
+                }
             }
             return this;
         }
@@ -802,9 +823,9 @@ class ImageMaskElement extends CreateVElementClass({
     // Image color.
     mask_color(value) {
         if (value == null) {
-            return this.mask_child.style.background;
+            return this.mask_child._style.background;
         }
-        this.mask_child.style.background = value;
+        this.mask_child._style.background = value;
         return this;
     }
 
@@ -914,6 +935,14 @@ class TableDataElement extends CreateVElementClass({
         this._style["vertical-align"] = "middle";
         return this;
     }
+    leading_vertical() {
+        this._style["vertical-align"] = "top";
+        return this;
+    }
+    trailing_vertical() {
+        this._style["vertical-align"] = "bottom";
+        return this;
+    }
 }
 
 function TableData(...args) { return new TableDataElement(...args); }
@@ -948,10 +977,30 @@ class TableRowElement extends CreateVElementClass({
     append(...children) {
         for (let i = 0; i < children.length; i++) {
             const child = children[i];
-            if (child instanceof TableDataElement) {
+
+            // Skip undefined.
+            if (child == null) {
+                continue;
+            }
+
+            // Array.
+            else if (Array.isArray(child)) {
+                this.append(...child);
+            }
+
+            // Execute function.
+            else if (typeof child === "function") {
+                this.append(child(this));
+            }
+
+            // Table data.
+            else if (child instanceof TableDataElement) {
                 this.current_cell = child;
                 this.children.append(child);
-            } else {
+            }
+
+            // Default.
+            else {
                 if (this.current_cell == null) {
                     this.current_cell = TableData();
                     this.children.append(this.current_cell);
@@ -1000,7 +1049,7 @@ class TableRowElement extends CreateVElementClass({
     }
 
     // Center.
-    center_vertical() {
+    center() {
         this._attrs["align"] = "center";
         this.children.iterate((child) => {
             if (child instanceof TableDataElement) {
@@ -1018,6 +1067,30 @@ class TableRowElement extends CreateVElementClass({
             if (child instanceof TableDataElement) {
                 child.children.iterate((nested) => {
                     nested._style["vertical-align"] = "middle";
+                });
+            }
+        });
+        return this;
+    }
+    leading_vertical() {
+        this._style["vertical-align"] = "top";
+        this.children.iterate((child) => {
+            child._style["vertical-align"] = "top";
+            if (child instanceof TableDataElement) {
+                child.children.iterate((nested) => {
+                    nested._style["vertical-align"] = "top";
+                });
+            }
+        });
+        return this;
+    }
+    trailing_vertical() {
+        this._style["vertical-align"] = "bottom";
+        this.children.iterate((child) => {
+            child._style["vertical-align"] = "bottom";
+            if (child instanceof TableDataElement) {
+                child.children.iterate((nested) => {
+                    nested._style["vertical-align"] = "bottom";
                 });
             }
         });
@@ -1071,10 +1144,30 @@ class TableElement extends CreateVElementClass({
     append(...children) {
         for (let i = 0; i < children.length; i++) {
             const child = children[i];
-            if (child instanceof TableRowElement) {
+
+            // Skip undefined.
+            if (child == null) {
+                continue;
+            }
+            
+            // Array.
+            else if (Array.isArray(child)) {
+                this.append(...child);
+            }
+
+            // Execute function.
+            else if (typeof child === "function") {
+                this.append(child(this));
+            }
+
+            // Table row.
+            else if (child instanceof TableRowElement) {
                 this.current_row = child;
                 this.children.append(child);
-            } else {
+            }
+
+            // Default.
+            else {
                 if (this.current_row == null) {
                     this.current_row = TableRow();
                     this.children.append(this.current_row);
@@ -1100,6 +1193,9 @@ class MailElement extends CreateVElementClass({
     default_style: {
         "width": "100% !important",
         "min-height": "100% !important",
+        "box-sizing": "border-box",
+        "padding": "0px", // this is required, sometimes it glitches and makes it scrolling without zero padding.
+        "margin": "0px",
     },
 }) {
 

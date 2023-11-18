@@ -4,15 +4,14 @@
  */
 
 // Text.
-@vweb_constructor_wrapper
-@vweb_register_element
+@constructor_wrapper
+@register_element
 class TextElement extends CreateVElementClass({
 	type: "Text",
 	tag: "p",
 	default_style: {
 		"margin": "0px 0px 0px 0px",
-		"padding": "2.5px",
-		"padding": "2.5px",
+		"padding": "0", // 2.5px
 		"font-size": "20px",
 		"color": "inherit",
 		"text-align": "inherit",

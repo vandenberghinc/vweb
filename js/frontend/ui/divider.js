@@ -3,8 +3,10 @@
  * Copyright: © 2022 - 2023 Daan van den Bergh.
  */
 
-@vweb_constructor_wrapper
-const DividerElement = CreateVElementClass({
+// Divider.
+@constructor_wrapper
+@register_element
+class DividerElement extends CreateVElementClass({
 	type: "Divider",
 	tag: "div",
 	default_style: {
@@ -15,4 +17,6 @@ const DividerElement = CreateVElementClass({
 		"min-height": "1px",
 		// "background": "black",
 	},
-});
+}) {
+	constructor() { super(); }	
+}

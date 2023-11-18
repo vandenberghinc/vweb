@@ -112,6 +112,7 @@ class Response {
         // Set data.
         if (data !== null) {
             if (typeof data === 'object' && Buffer.isBuffer(data) === false && (data instanceof Uint8Array) === false) {
+                this.res.setHeader("Content-Type", "application/json");
                 this.res.write(JSON.stringify(data));
             } else {
                 this.res.write(data); // do not use toString() here or it will cause issues with writing binary data.

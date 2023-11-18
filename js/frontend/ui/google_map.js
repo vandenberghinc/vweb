@@ -4,8 +4,8 @@
  */
 
 // GoogleMap.
-@vweb_constructor_wrapper
-@vweb_register_element
+@constructor_wrapper
+@register_element
 class GoogleMapElement extends CreateVElementClass({
 	type: "GoogleMap",
 	tag: "iframe",

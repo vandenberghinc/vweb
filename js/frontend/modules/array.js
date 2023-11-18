@@ -79,6 +79,25 @@ Array.prototype.iterate_async_await = async function(start, end, handler) {
     return null;
 };
 
+// Iteration function for arrays to build an array by another array, it appends all the returned callback values into an array and returns that array. Quite useful for vweb.
+Array.prototype.iterate_append = function(start, end, handler) {
+    if (typeof start === "function") {
+        handler = start;
+        start = null;
+    }
+    if (start == null) {
+        start = 0;
+    }
+    if (end == null) {
+        end = this.length;
+    }
+    const items = [];
+    for (let i = start; i < end; i++) {    
+        items.append(handler(this[i]));
+    }
+    return items;
+};
+
 // Iterate an array reversed.
 Array.prototype.iterate_reversed = function(start, end, handler) {
     if (handler == null && start != null) {

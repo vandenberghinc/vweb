@@ -150,85 +150,6 @@ vweb.utils.endpoint = function(url) {
 	}
 }
 
-// Check if the cookies need to be parsed again.
-vweb.utils.cookies_parse_required = function() {
-	return document.cookie !== this._last_cookies;
-}
-
-// Get the cookies.
-vweb.utils.cookies = function() {
-	if (this.cookies_parse_required() === false) {
-		return this._cookies;
-	}
-
-	// Attributes.
-	this._cookies = {};
-	this._last_cookies = document.cookie;
-
-	// Vars.
-	let is_key = true, is_str = null;
-	let key = "", value = "";
-
-	// Wrapper.
-	const append = () => {
-		if (key.length > 0) {
-			this._cookies[key] = value;
-		}
-		value = "";
-		key = "";
-		is_key = true;
-		is_str = null;
-	}
-
-	// Parse.
-	for (let i = 0; i < document.cookie.length; i++) {
-		const c = document.cookie.charAt(i);
-
-		// Is key.
-		if (is_key) {
-			if (c === " " || c === "\t") {
-				continue;
-			}
-			else if (c === "=") {
-				is_key = false;
-			} else {
-				key += c;
-			}
-		}
-
-		// Is value.
-		else {
-
-			// End of string.
-			if (is_str != null && is_str === c) {
-				value = value.substr(1, value.length - 1);
-				append();
-			}
-
-			// End of cookie.
-			else if (c === ";") {
-				append();
-			}
-
-			// Append to value.
-			else {
-				// Start of string.
-				if (value.length === 0 && (c === "\"" || c=== "'")) {
-					is_str = c;
-				}
-				value += c;
-			}
-		}
-	}
-	append();
-	return this._cookies;
-}
-
-// Get a cookie value by name.
-vweb.utils.cookie = function(name) {
-	return vweb.utils.cookies()[name];
-}
-
 // Get style name for vendor prefix.
 // vweb.utils.get_vendor_prefix_property = function(property, style) {
 // 	if (vweb.utils.vendor_prefix_cache[property]) {
@@ -322,6 +243,9 @@ vweb.utils.request = function({
 				resolve(data, xhr.status, xhr);
 			},
 			error: function(xhr, status, e) {
+				if (json && xhr.status === 200) { // an error occurs on a successfull response when no json body is returned.
+					return resolve({}, 200, xhr);		
+				}
 				let response;
 				try {
 					response = JSON.parse(xhr.responseText);
@@ -417,24 +341,6 @@ vweb.utils.unix_to_date = function(unix, mseconds = false) {
 	const time_format = new Intl.DateTimeFormat(lang, options).format(date);
 	return `${date_format} ${time_format}`;
 }
-
-// Compress.
-vweb.utils.compress = function(data, options = {level: 9}) {
-	if (vweb.utils.is_array(data) || vweb.utils.is_obj(data)) {
-		data = JSON.stringify(data);
-	}
-	return pako.gzip(data, options);
-};
-
-// Decompress.
-// Valid types are: [string, array, object].
-vweb.utils.decompress = function(data, type = "string") {
-	let decompressed = pako.gzip(data, opts);
-	if (type == "array" || type == "object") {
-		return JSON.parse(decompressed);
-	}
-	return decompressed;
-};
 
 // Fuzzy search.
 /* 	@docs:

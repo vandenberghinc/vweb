@@ -15,7 +15,7 @@ vweb.auth.sign_in = function({
 }) {
 	return vweb.utils.request({
 		method: "POST",
-		url: "/vweb/backend/auth/signin",
+		url: "/vweb/auth/signin",
 		data: {
 			email: email,
 			username: username,
@@ -33,10 +33,11 @@ vweb.auth.sign_up = function({
 	last_name = "",
 	password = "",
 	verify_password = "",
+	phone_number = "",
 }) {
 	return vweb.utils.request({
 		method: "POST",
-		url: "/vweb/backend/auth/signup",
+		url: "/vweb/auth/signup",
 		data: {
 			username: username,
 			email: email,
@@ -44,6 +45,7 @@ vweb.auth.sign_up = function({
 			last_name: last_name,
 			password: password,
 			verify_password: verify_password,
+			phone_number: phone_number,
 		},
 	});
 }
@@ -52,7 +54,7 @@ vweb.auth.sign_up = function({
 vweb.auth.sign_out = function() {
 	return vweb.utils.request({
 		method: "POST",
-		url: "/vweb/backend/auth/signout",
+		url: "/vweb/auth/signout",
 	});
 }
 
@@ -60,7 +62,7 @@ vweb.auth.sign_out = function() {
 vweb.auth.send_2fa = function(email = "") {
 	return vweb.utils.request({
 		method: "GET",
-		url: "/vweb/backend/auth/2fa",
+		url: "/vweb/auth/2fa",
 		data: {
 			email:email,
 		},
@@ -76,7 +78,7 @@ vweb.auth.forgot_password = function({
 }) {
 	return vweb.utils.request({
 		method: "POST",
-		url: "/vweb/backend/auth/forgot_password",
+		url: "/vweb/auth/forgot_password",
 		data: {
 			email: email,
 			"2fa": code,

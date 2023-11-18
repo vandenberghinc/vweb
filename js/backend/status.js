@@ -13,7 +13,7 @@
  * 		#include <vlib/sockets/http.h>
  * 		short success = vlib::http::status::success;
  * 	@show_code: true
- } */
+ */
 const Status = {
 	undefined: 							0,
 	continue: 							100,

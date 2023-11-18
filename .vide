@@ -18,7 +18,7 @@
         "demojs/package-lock.json"
     ],
     "excluded_code_scanning_path_patterns": [
-        "js/frontend/vweb.js",
+        "js/frontend/min/*.js",
         "js/frontend/libs/pako.min.js",
         "js/frontend/*"
     ],

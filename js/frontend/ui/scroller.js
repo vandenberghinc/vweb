@@ -5,8 +5,8 @@
 
 // Scroller.
 // - Warning: Setting padding on element attribute "content" may cause undefined behaviour.
-@vweb_constructor_wrapper
-@vweb_register_element
+@constructor_wrapper
+@register_element
 class ScrollerElement extends CreateVElementClass({
     type: "Scroller",
     tag: "div",
@@ -545,8 +545,8 @@ class ScrollerElement extends CreateVElementClass({
         @description: The elements children.
         @type: array[Node]
  */
-@vweb_constructor_wrapper
-@vweb_register_element
+@constructor_wrapper
+@register_element
 class VirtualScrollerElement extends ScrollerElement {
     
     // Constructor.
@@ -823,8 +823,8 @@ class VirtualScrollerElement extends ScrollerElement {
 
         This class is still experimental.
  */
-@vweb_constructor_wrapper
-@vweb_register_element
+@constructor_wrapper
+@register_element
 class WindowScrollerElement extends CreateVElementClass({
     type: "WindowScroller",
     tag: "div",
@@ -963,7 +963,6 @@ class WindowScrollerElement extends CreateVElementClass({
         window.addEventListener("hashchange", (e) => {
             const hash = window.location.hash.substr(1);
             if (hash !== null && hash !== "") {
-                console.log("HASH", hash)
                 this.windows.iterate((win) => {
                     if (hash === win.id()) {
                         this.next(win.index, true);
@@ -984,11 +983,14 @@ class WindowScrollerElement extends CreateVElementClass({
         win.fixed_frame("100%", "100%");
         win.position(0, 0, 0, 0);
         win.position("sticky");
-        win.overflow_y("scroll");
+        win.overflow("scroll");
         win.overscroll_behavior("bounce"); // must be bounce so the on scroll event is also called when the user scrolls up and the page is already scrolled all the way up.
-        win.align("default"); // must start with leading for checks will be centered later
+        // win.align("default"); // must start with leading for checks will be centered later
         win.align_vertical("default"); // must start with leading for checks will be centered later
         win.addEventListener("scroll", this._child_on_scroll);
+        win.outline("none"); // otherwise an outline border may appear while scrolling windows.
+        win.border("none"); // otherwise an outline border may appear while scrolling windows.
+        win.center();
 
         // Add scroll forwarder.
 
@@ -1006,11 +1008,17 @@ class WindowScrollerElement extends CreateVElementClass({
 
         // Set alignment.
         win.on_render((e) => {
-            if (win.scrollWidth > this.clientWidth) {
-                e.align("default");
-            } else {
-                e.center();
-            }
+            // Setting horizontal align causes issues with slide in animations.
+            // setTimeout(() => {
+            // const width = this.clientWidth;
+            // const width = e.clientWidth;
+            // if (e.scrollWidth > width) {
+            //     console.log(e.scrollWidth, width, "default", win.child(0).text().substr(0, 10))
+            //     e.align("default");
+            // } else {
+            //     console.log(e.scrollWidth, width, "center", win.child(0).text().substr(0, 10))
+            //     e.center();
+            // }
             if (win.scrollHeight > this.clientHeight) {
                 e.align_vertical("default");
             } else {
@@ -1018,11 +1026,6 @@ class WindowScrollerElement extends CreateVElementClass({
             }
         })
         win.on_resize((e) => {
-            if (win.scrollWidth > this.clientWidth) {
-                e.align("default");
-            } else {
-                e.center();
-            }
             if (win.scrollHeight > this.clientHeight) {
                 e.align_vertical("default");
             } else {
@@ -1037,7 +1040,7 @@ class WindowScrollerElement extends CreateVElementClass({
 
         // Check if the href hash is set on this windows id.
         const hash = window.location.hash.substr(1);
-        if (hash !== null && hash === win.id()) {
+        if (hash !== null && hash !== "" && hash === win.id()) {
             this.on_render(() => {
                 this.next(win.index, true);
             })

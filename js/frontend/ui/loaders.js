@@ -5,8 +5,8 @@
 
 // RingLoader.
 // - The width and height must be in pixels.
-@vweb_constructor_wrapper
-@vweb_register_element
+@constructor_wrapper
+@register_element
 class RingLoaderElement extends CreateVElementClass({
 	type: "RingLoader",
 	tag: "div",

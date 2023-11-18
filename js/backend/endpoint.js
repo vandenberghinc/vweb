@@ -8,77 +8,70 @@
 
 const View = require(`${__dirname}/view.js`);
 const zlib = require('zlib');
+const {vlib} = require("./vinc.js");
+const utils = require("./utils.js");
+const Status = require("./status.js");
+const {FrontendError} = utils;
 
 // ---------------------------------------------------------
 // Endpoint.
 
-/*  @docs: {
+/*  @docs:
  *  @chapter: Backend
     @title: Endpoint
     @description: The endpoint class.
-    @parameter: {
+    @parameter:
         @name: method
         @description: The method type.
         @type: string
-    }
-    @parameter: {
+    @parameter:
         @name: endpoint
         @description: The endpoint sub url.
         @type: string
-    }
-    @parameter: {
+    @parameter:
         @name: authenticated
         @description: Only allow authenticated requests.
         @type: string
-    }
-    @parameter: {
+    @parameter:
         @name: rate_limit
         @description: The maximum requests per rate limit interval. Leave `null` to disable rate limiting.
         @type: number
-    }
-    @parameter: {
+    @parameter:
         @name: rate_limit_interval
         @description: The rate limit interval in milliseconds.
         @type: number
-    }
-    @parameter: {
+    @parameter:
         @name: callback
         @description:
             The callback that will be executed when a client requests this endpoint.
             Parameter `callback` precedes over parameter `data` and parameter `view`.
             The callback can take parameters `request` and `response`.
         @type: function
-    }
-    @parameter: {
+    @parameter:
         @name: view
         @description:
             The javascript view that will be executed on the client side.
             Parameter `view` precedes over parameter `data`.
         @type: View, object
-    }
-    @parameter: {
+    @parameter:
         @name: data
         @description:
             The data that will be returned as the response body.
         @type: number, string, array, object
-    }
-    @parameter: {
+    @parameter:
         @name: content_type
         @description: The content type for parameter `data` or `callback`.
         @type: string
-    }
-    @parameter: {
+    @parameter:
         @name: compress
         @description: Compress data, only available when initialized with one of the following parameters `view` or `data`.
         @type: boolean
-    }
-    @parameter: {
+    @parameter:
         @name: cache
         @description: 
             Parameter cache can define the max age of the cached response in seconds or as a boolean `true`. Anything higher than zero enables caching. When server production mode is enabled caching is done automatically unless `cache` is `false`. When production mode is disabled responses are never cached, even though the parameter is assigned. The response of an endpoint that uses parameter `callback` is never cached.
         @type: boolean, number
-    }
- } */
+ */
 class Endpoint {
     constructor({
         method = "GET",
@@ -86,12 +79,14 @@ class Endpoint {
         authenticated = false,
         rate_limit = null,
         rate_limit_interval = 60000,
+        params = null,
         callback = null,
         view = null,
         data = null,
         content_type = "text/plain",
         compress = true,
         cache = null,
+        _path = null,
     }) {
 
         // Attributes.
@@ -100,11 +95,13 @@ class Endpoint {
         this.authenticated = authenticated;
         this.rate_limit = rate_limit;
         this.rate_limit_interval = rate_limit_interval;
+        this.params = params;
         this.callback = callback;
         this.data = data;
         this.content_type = content_type;
         this.compress = compress !== false;
         this.cache = cache !== false;
+        this._path = _path; // is automatically assigned for static files.
 
         // Clean endpoint url.
         if (this.endpoint.charAt(0) != "/") {
@@ -141,6 +138,9 @@ class Endpoint {
         // } else if (this.view !== null) {
         //     this.content_length = this.view.html.length;
         // }
+
+        // The endpoint parent for params verification.
+        this._verify_params_parent = this.endpoint + ":";
     }
 
     // Serve a client.
@@ -174,19 +174,43 @@ class Endpoint {
 
             // Callback.
             if (this.callback !== null) {
+                if (this.params != null) {
+                    try {
+                        vlib.utils.verify_params(request.params, this.params, false, this._verify_params_parent);
+                    } catch (err) {
+                        response.send({
+                            status: Status.bad_request, 
+                            headers: {"Content-Type": "application/json"},
+                            data: {error: err.message}
+                        });
+                        return resolve();
+                    }
+                }
                 try {
-                    const promise = this.callback(request, response);
+                    let promise;
+                    if (this.params != null) {
+                        promise = this.callback(request, response, request.params);
+                    } else {
+                        promise = this.callback(request, response);
+                    }
                     if (promise instanceof Promise) {
                         await promise;
                     }
                 } catch (err) {
-                    return reject(err);
+                    response.send({
+                        status: Status.internal_server_error, 
+                        headers: {"Content-Type": "application/json"},
+                        data: {error: err instanceof FrontendError ? err.message : "Internal Server Error"},
+                    });
+                    utils.error(`${this.method}:${this.endpoint}: `, err); // after sending the response since this edits the error.
                 }
+                return resolve();
             }
 
             // View.
             else if (this.view !== null) {
                 this.view._serve(request, response);
+                return resolve();
             }
 
             // Data.
@@ -195,15 +219,13 @@ class Endpoint {
                     status: 200, 
                     data: this.data,
                 });
+                return resolve();
             }
 
             // Undefined.
             else {
                 return reject(`${this.method} ${this.endpoint}: Undefined behaviour, define one of the following endpoint attributes [callback, view, data].`);
             }
-
-            // Resolve.
-            resolve();
         })
     }
 }

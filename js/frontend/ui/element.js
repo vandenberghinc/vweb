@@ -535,10 +535,13 @@ function CreateVElementClass({
 							child.element_type == "If" ||
 							child.element_type == "IfDeviceWith"
 						) {
-							child.append_children_to(this);
+							child.append_children_to(this, this._on_append_callback);
 						} else {
 							if (child._assign_to_parent_as !== undefined) {
 								this[child._assign_to_parent_as] = child;
+							}
+							if (this._on_append_callback !== undefined) {
+								this._on_append_callback(child)
 							}
 							this.appendChild(child);
 						}
@@ -546,11 +549,7 @@ function CreateVElementClass({
 
 					// Execute function.
 					else if (vweb.utils.is_func(child)) {
-						child = child();
-						if (child._assign_to_parent_as !== undefined) {
-							this[child._assign_to_parent_as] = child;
-						}
-						this.append(child);
+						this.append(child(this));
 					}
 
 					// Node element.
@@ -558,12 +557,19 @@ function CreateVElementClass({
 						if (child._assign_to_parent_as !== undefined) {
 							this[child._assign_to_parent_as] = child;
 						}
+						if (this._on_append_callback !== undefined) {
+							this._on_append_callback(child)
+						}
 						this.appendChild(child);
 					}
 
 					// Append text.
 					else if (vweb.utils.is_string(child)) {
-						this.appendChild(document.createTextNode(child));	
+						const node = document.createTextNode(child);
+						if (this._on_append_callback !== undefined) {
+							this._on_append_callback(node)
+						}
+						this.appendChild(node);
 					}
 
 					// else {
@@ -592,10 +598,13 @@ function CreateVElementClass({
 							child.element_type == "If" ||
 							child.element_type == "IfDeviceWith"
 						) {
-							child.append_children_to(this);
+							child.append_children_to(this, this._on_append_callback);
 						} else {
 							if (child._assign_to_parent_as !== undefined) {
 								this[child._assign_to_parent_as] = child;
+							}
+							if (this._on_append_callback !== undefined) {
+								this._on_append_callback(child)
 							}
 							this.appendChild(child);
 						}
@@ -603,11 +612,7 @@ function CreateVElementClass({
 
 					// Execute function.
 					else if (vweb.utils.is_func(child)) {
-						child = child();
-						if (child._assign_to_parent_as !== undefined) {
-							this[child._assign_to_parent_as] = child;
-						}
-						this.append(child);
+						this.append(child(this));
 					}
 
 					// Node element.
@@ -616,12 +621,19 @@ function CreateVElementClass({
 						if (child._assign_to_parent_as !== undefined) {
 							this[child._assign_to_parent_as] = child;
 						}
+						if (this._on_append_callback !== undefined) {
+							this._on_append_callback(child)
+						}
 						this.appendChild(child);
 					}
 
 					// Append text.
 					else if (vweb.utils.is_string(child)) {
-						this.appendChild(document.createTextNode(child));	
+						const node = document.createTextNode(child);
+						if (this._on_append_callback !== undefined) {
+							this._on_append_callback(node)
+						}
+						this.appendChild(node);	
 					}
 				}
 			}
@@ -633,12 +645,15 @@ function CreateVElementClass({
 			if (this._assign_to_parent_as !== undefined) {
 				parent[this._assign_to_parent_as] = this;
 			}
+			if (parent._on_append_callback !== undefined) {
+				parent._on_append_callback(this);
+			}
 			parent.appendChild(this);
 			return this;
 		}
 
 		// Append the children to parent element.
-		append_children_to(parent) {
+		append_children_to(parent, on_append_callback) {
 			if (this.base_element_type == "VirtualScroller") {
 				for (let i = 0; i < parent.children.length; i++) {
 					parent.v_children.push(parent.children[i]);
@@ -648,6 +663,9 @@ function CreateVElementClass({
 				while (this.firstChild) {
 					if (this.firstChild._assign_to_parent_as !== undefined) {
 						parent[this.firstChild._assign_to_parent_as] = this;
+					}
+					if (on_append_callback !== undefined) {
+						on_append_callback(this.firstChild);
 					}
 					parent.appendChild(this.firstChild)
 				}
@@ -1116,7 +1134,6 @@ function CreateVElementClass({
 
 					// When the childs basis + the row width would overflow 1 then add it to the next line.
 					if (row_width + basis > 1) {
-						console.log(child, "overflow");
 						set_flex();
 						++row;
 						row_width = 0;
@@ -1180,19 +1197,25 @@ function CreateVElementClass({
 				case "ZStack":
 					if (value == null) { return this.style.justifyContent; }
 					if (value === "default") { value = ""; }
-					this.style.justifyContent = value;
+					if (this.style.justifyContent !== value) {
+						this.style.justifyContent = value;
+					}
 					return this;
 				case "VStack":
 				case "Scroller":
 				case "View":
 					if (value == null) { return this.style.alignItems; }
 					if (value === "default") { value = "normal"; }
-					this.style.alignItems = value;
+					if (this.style.alignItems !== value) {
+						this.style.alignItems = value;
+					}
 					return this;
 				default:
 					if (value == null) { return this.style.textAlign; }
 					if (value === "default") { value = "normal"; }
-					this.style.textAlign = value;
+					if (this.style.textAlign !== value) {
+						this.style.textAlign = value;
+					}
 				return this;
 			}
 		}
@@ -1213,25 +1236,33 @@ function CreateVElementClass({
 				case "ZStack":
 					if (value == null) { return this.style.alignItems; }
 					if (value === "default") { value = "normal"; }
-					this.style.alignItems = value;
+					if (value !== this.style.alignItems) {
+						this.style.alignItems = value;
+					}
 					return this;
 				case "VStack":
 				case "Scroller":
 				case "View":
 					if (value == null) { return this.style.justifyContent; }
 					if (value === "default") { value = ""; }
-					this.style.justifyContent = value;
+					if (value !== this.style.justifyContent) {
+						this.style.justifyContent = value;
+					}
 					return this;
 				case "Text":
 					if (value == null) { return this.style.alignItems; }
 					if (this.style.display == null || !this.style.display.includes("flex")) {
 						this.display("flex");
 					}
-					this.style.alignItems = value;
+					if (value !== this.style.alignItems) {
+						this.style.alignItems = value;
+					}
 					return this;
 				default:
 					if (value == null) { return this.style.justifyContent; }
-					this.style.justifyContent = value;
+					if (value !== this.style.justifyContent) {
+						this.style.justifyContent = value;
+					}
 					return this;
 			}
 		}
@@ -1267,7 +1298,7 @@ function CreateVElementClass({
 		// ---------------------------------------------------------
 		// Styling functions.
 
-		/*	@docs: {
+		/*	@docs:
 	     *	@title: Color
 	     *	@description: 
 	     *		Sets the color of text, also supports a `GradientType` element.
@@ -1277,12 +1308,12 @@ function CreateVElementClass({
 	     *		Returns the `VElement` object. 
 	     *		Unless parameter `value` is `null`, then the attribute's value is returned. 
 	     *		When the value is `null` and the color has been set using a `GradientType`, `transparent` will be returned.
-	     *	@parameter: {
+	     *	@parameter:
 	     *		@name: value
 	     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
 	     *	} 
 	     *	@inherit: false
-		 } */ 
+		 */ 
 		color(value) {
 		 	if (value == null) { return this.style.color; }
 		 	if (value instanceof GradientType) {
@@ -1485,7 +1516,7 @@ function CreateVElementClass({
 		}
 
 		// A shorthand property for all the background-* properties.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Background
          *	@description: 
          *		A shorthand property for all the background-* properties.
@@ -1494,12 +1525,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         background(value) {
             if (value == null) { return this.style.background; }
             if (typeof value === "string" && (value.eq_first("linear-gradient") || value.eq_first("radial-gradient"))) {
@@ -1673,7 +1704,7 @@ function CreateVElementClass({
 		}
 
 		// Specifies one or more classnames for an element (refers to a class in a style sheet).
-	    /*	@docs: {
+	    /*	@docs:
 	     *	@title: Class
 	     *	@description: 
 	     *		Specifies one or more classnames for an element (refers to a class in a style sheet).
@@ -1682,7 +1713,7 @@ function CreateVElementClass({
 	     *		Returns the attribute value when parameter `value` is `null`.
 	     *	@return: 
 	     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-	     *	@parameter: {
+	     *	@parameter:
 	     *		@name: value
 	     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
 	     *	} 
@@ -1744,6 +1775,17 @@ function CreateVElementClass({
 			// Retrieve enabled.
 			else {
 				return this.onmousedown != null;
+			}
+		}
+
+		// Get the text width of the entire text as one line, useful for input elements.
+		text_width(text = null) {
+			const width_measurer = document.createElement("canvas").getContext("2d");
+			width_measurer.font = window.getComputedStyle(this).font;
+			if (text == null) {
+				return width_measurer.measureText(this.selected).width;
+			} else {
+				return width_measurer.measureText(text).width;
 			}
 		}
 
@@ -2272,7 +2314,7 @@ function CreateVElementClass({
 		}
 
 		// Script to be run when an element's scrollbar is being scrolled.
-        /*	@docs: {
+        /*	@docs:
          *	@title: On scroll
          *	@description: 
          *		Script to be run when an element's scrollbar is being scrolled.
@@ -2283,12 +2325,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         on_scroll(opts_or_callback = {callback: null, delay: null}) {
             if (opts_or_callback == null) { return this.onscroll; }
             if (vweb.utils.is_func(opts_or_callback)) {
@@ -2310,7 +2352,7 @@ function CreateVElementClass({
         }
 
 	    // Script to be run when the browser window is being resized.
-	    /*	@docs: {
+	    /*	@docs:
 	     *	@title: On resize
 	     *	@description: 
 	     *		Script to be run when the browser window is being resized.
@@ -2318,12 +2360,12 @@ function CreateVElementClass({
 	     *		The first parameter of the callback is the `VElement` object.
 	     *	@return: 
 	     *		Returns the `VElement` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-	     *	@parameter: {
+	     *	@parameter:
 	     *		@name: value
 	     *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
 	     *	}: 
 	     *	@inherit: false
-		 } */ 
+		 */ 
 		on_window_resize({callback, once = false, delay = 25}) {
 		 	if (callback == null) { return window.onresize; }
 		 	const e = this;
@@ -2337,7 +2379,7 @@ function CreateVElementClass({
 		}
 
 	    // Custom on attachment drop event.
-	    // Callback parameters are ({name: ..., path: ..., is_dir: ..., data: ..., file: ...})
+	    // Callback parameters are ({name: ..., path: ..., is_dir: ..., data: ..., file: ..., size: ...}). The size is in MB.
 	    on_attachment_drop({callback, read = true, compress = false, on_start = () => {}}) {
 	    	this.ondragover = (event) => {
 	    		event.preventDefault();
@@ -2362,6 +2404,7 @@ function CreateVElementClass({
 		                        data: null,
 		                        compressed: false,
 		                        file: file,
+		                        size: file.size / (1024 * 1024),
 		                    };
 
 		                    // Check if it's a directory item (e.g., from a folder).
@@ -2515,12 +2558,18 @@ function CreateVElementClass({
 	    // Mainly used for input and textarea elements.
 	    // Can not me combined "on_key_press()".
 	    on_enter(callback) {
-	    	const e = this;
-	    	super.onkeypress = function(event) {
-	    		if (event.key === "Enter") {
-	    			callback(e, event);
-	    		}
-	    	}
+	    	this._on_enter_callback = callback;
+	    	if (this._on_keypress_set !== true) {
+		    	this._on_keypress_set = true;
+		    	const e = this;
+		    	super.onkeypress = function(event) {
+		    		if (this._on_enter_callback !== undefined && event.key === "Enter") {
+		    			this._on_enter_callback(e, event);
+		    		} else if (this._on_escape_callback !== undefined && event.key === "Escape") {
+		    			this._on_escape_callback(e, event);
+		    		}
+		    	}	
+		    }
 	    	return this;
 	    }
 
@@ -2528,12 +2577,18 @@ function CreateVElementClass({
 	    // Mainly used for input and textarea elements.
 	    // Can not be combined with "on_key_press()".
 	    on_escape(callback) {
-	    	const e = this;
-	    	super.onkeypress = function(event) {
-	    		if (event.key === "Escape") {
-	    			callback(e, event);
-	    		}
-	    	}
+	    	this._on_escape_callback = callback;
+	    	if (this._on_keypress_set !== true) {
+		    	this._on_keypress_set = true;
+		    	const e = this;
+		    	super.onkeypress = function(event) {
+		    		if (this._on_enter_callback !== undefined && event.key === "Enter") {
+		    			this._on_enter_callback(e, event);
+		    		} else if (this._on_escape_callback !== undefined && event.key === "Escape") {
+		    			this._on_escape_callback(e, event);
+		    		}
+		    	}	
+		    }
 	    	return this;
 	    }
 
@@ -2642,7 +2697,7 @@ function CreateVElementClass({
 		 *			}```
 		 *          
 		 * }
-		 } */
+		 */
 		on_shortcut(shortcuts = []) {
 
 		    // Check if a shortcut was matched.
@@ -2783,20 +2838,20 @@ function CreateVElementClass({
 		}
 
 		// Script to be run when a context menu is triggered.
-        /*	@docs: {
+        /*	@docs:
          *	@title: On context menu
          *	@description: 
          *		Script to be run when a context menu is triggered.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: callback
          *		@description: 
          *			The parameter may either be a callback function, a ContextMenu object or an Array as the ContextMenu parameter.
          *		@name: function, ContextMenu, array
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         on_context_menu(callback) {
             if (callback == null) {
             	if (this._context_menu !== undefined) {
@@ -2824,10 +2879,28 @@ function CreateVElementClass({
         	return this;
         }
 
-		/*  @docs: {
+        // On mouse enter.
+        on_mouse_enter(callback) {
+            if (callback == null) { return this._on_mouse_enter_callback; }
+            this._on_mouse_enter_callback = callback;
+            const e = this;
+            this.addEventListener("mouseenter", (t) => callback(e, t))
+        	return this;
+        }
+
+        // On mouse leave.
+        on_mouse_leave(callback) {
+            if (callback == null) { return this._on_mouse_leave_callback; }
+            this._on_mouse_leave_callback = callback;
+            const e = this;
+            this.addEventListener("mouseleave", (t) => callback(e, t))
+        	return this;
+        }
+
+		/*  @docs:
 		 *  @title: On gesture
 		 *  @description: Create touch gesture events.
-		 *  @parameter: {
+		 *  @parameter:
 		 *      @name: gestures
 		 *      @description:
 		 *          The array with gesture objects.
@@ -2842,7 +2915,7 @@ function CreateVElementClass({
 		 *          Possible values for `direction` are `top`, `right`, `bottom` and `left`.
 		 *          Possible values for `touches` are `1`, till `3`.
 		 *  }
-		 } */
+		 */
 		// function on_gesture (element, gestures = []) {
 
 		//     // Vars.
@@ -3032,8 +3105,6 @@ function CreateVElementClass({
 				selection.removeAllRanges();
 			}
 			selection.addRange(range);
-			console.log(range);
-			console.log(selection);
 			return this;
 		}
 
@@ -3052,7 +3123,7 @@ function CreateVElementClass({
 		}
 
 		// Specifies an alternate text when the original element fails to display.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Alt
          *	@description: 
          *		Specifies an alternate text when the original element fails to display.
@@ -3061,12 +3132,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         alt(value) {
             if (value == null) { return this.getAttribute("alt"); }
         	this.setAttribute("alt", value)
@@ -3129,7 +3200,7 @@ function CreateVElementClass({
         // Reference: https://www.w3schools.com/cssref/index.php. 
 
         // Specifies an accent color for user-interface controls.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Accent color
          *	@description: 
          *		Specifies an accent color for user-interface controls.
@@ -3138,12 +3209,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         accent_color(value) {
             if (value == null) { return this.style.accentColor; }
             this.style.accentColor = value;
@@ -3151,7 +3222,7 @@ function CreateVElementClass({
         }
 
         // Specifies the alignment between the lines inside a flexible container when the items do not use all available space.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Align content
          *	@description: 
          *		Specifies the alignment between the lines inside a flexible container when the items do not use all available space.
@@ -3160,12 +3231,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         align_content(value) {
             if (value == null) { return this.style.alignContent; }
             this.style.alignContent = value;
@@ -3177,7 +3248,7 @@ function CreateVElementClass({
         }
 
         // Specifies the alignment for items inside a flexible container.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Align items
          *	@description: 
          *		Specifies the alignment for items inside a flexible container.
@@ -3186,12 +3257,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         align_items(value) {
             if (value == null) { return this.style.alignItems; }
             this.style.alignItems = value;
@@ -3203,7 +3274,7 @@ function CreateVElementClass({
         }
 
         // Specifies the alignment for selected items inside a flexible container.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Align self
          *	@description: 
          *		Specifies the alignment for selected items inside a flexible container.
@@ -3212,12 +3283,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         align_self(value) {
             if (value == null) { return this.style.alignSelf; }
             this.style.alignSelf = value;
@@ -3229,7 +3300,7 @@ function CreateVElementClass({
         }
 
         // Resets all properties (except unicode-bidi and direction).
-        /*	@docs: {
+        /*	@docs:
          *	@title: All
          *	@description: 
          *		Resets all properties (except unicode-bidi and direction).
@@ -3238,12 +3309,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         all(value) {
             if (value == null) { return this.style.all; }
             this.style.all = value;
@@ -3251,7 +3322,7 @@ function CreateVElementClass({
         }
 
         // A shorthand property for all the animation-* properties.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Animation
          *	@description: 
          *		A shorthand property for all the animation-* properties.
@@ -3260,12 +3331,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         animation(value) {
             if (value == null) { return this.style.animation; }
             this.style.animation = value;
@@ -3277,7 +3348,7 @@ function CreateVElementClass({
         }
 
         // Specifies a delay for the start of an animation.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Animation delay
          *	@description: 
          *		Specifies a delay for the start of an animation.
@@ -3286,12 +3357,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         animation_delay(value) {
             if (value == null) { return this.style.animationDelay; }
             this.style.animationDelay = value;
@@ -3303,7 +3374,7 @@ function CreateVElementClass({
         }
 
         // Specifies whether an animation should be played forwards, backwards or in alternate cycles.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Animation direction
          *	@description: 
          *		Specifies whether an animation should be played forwards, backwards or in alternate cycles.
@@ -3312,12 +3383,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         animation_direction(value) {
             if (value == null) { return this.style.animationDirection; }
             this.style.animationDirection = value;
@@ -3329,7 +3400,7 @@ function CreateVElementClass({
         }
 
         // Specifies how long an animation should take to complete one cycle.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Animation duration
          *	@description: 
          *		Specifies how long an animation should take to complete one cycle.
@@ -3338,12 +3409,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         animation_duration(value) {
             if (value == null) { return this.style.animationDuration; }
             this.style.animationDuration = value;
@@ -3355,7 +3426,7 @@ function CreateVElementClass({
         }
 
         // Specifies a style for the element when the animation is not playing (before it starts, after it ends, or both).
-        /*	@docs: {
+        /*	@docs:
          *	@title: Animation fill mode
          *	@description: 
          *		Specifies a style for the element when the animation is not playing (before it starts, after it ends, or both).
@@ -3364,12 +3435,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         animation_fill_mode(value) {
             if (value == null) { return this.style.animationFillMode; }
             this.style.animationFillMode = value;
@@ -3381,7 +3452,7 @@ function CreateVElementClass({
         }
 
         // Specifies the number of times an animation should be played.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Animation iteration count
          *	@description: 
          *		Specifies the number of times an animation should be played.
@@ -3390,12 +3461,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         animation_iteration_count(value) {
             if (value == null) { return this.style.animationIterationCount; }
             this.style.animationIterationCount = value;
@@ -3407,7 +3478,7 @@ function CreateVElementClass({
         }
 
         // Specifies a name for the @keyframes animation.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Animation name
          *	@description: 
          *		Specifies a name for the @keyframes animation.
@@ -3416,12 +3487,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         animation_name(value) {
             if (value == null) { return this.style.animationName; }
             this.style.animationName = value;
@@ -3433,7 +3504,7 @@ function CreateVElementClass({
         }
 
         // Specifies whether the animation is running or paused.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Animation play state
          *	@description: 
          *		Specifies whether the animation is running or paused.
@@ -3442,12 +3513,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         animation_play_state(value) {
             if (value == null) { return this.style.animationPlayState; }
             this.style.animationPlayState = value;
@@ -3459,7 +3530,7 @@ function CreateVElementClass({
         }
 
         // Specifies the speed curve of an animation.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Animation timing function
          *	@description: 
          *		Specifies the speed curve of an animation.
@@ -3468,12 +3539,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         animation_timing_function(value) {
             if (value == null) { return this.style.animationTimingFunction; }
             this.style.animationTimingFunction = value;
@@ -3485,7 +3556,7 @@ function CreateVElementClass({
         }
 
         // Specifies preferred aspect ratio of an element.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Aspect ratio
          *	@description: 
          *		Specifies preferred aspect ratio of an element.
@@ -3494,12 +3565,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         aspect_ratio(value) {
             if (value == null) { return this.style.aspectRatio; }
             this.style.aspectRatio = value;
@@ -3507,7 +3578,7 @@ function CreateVElementClass({
         }
 
         // Defines a graphical effect to the area behind an element.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Backdrop filter
          *	@description: 
          *		Defines a graphical effect to the area behind an element.
@@ -3516,12 +3587,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         backdrop_filter(value) {
             if (value == null) { return this.style.backdropFilter; }
             this.style.backdropFilter = value;
@@ -3533,7 +3604,7 @@ function CreateVElementClass({
         }
 
         // Defines whether or not the back face of an element should be visible when facing the user.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Backface visibility
          *	@description: 
          *		Defines whether or not the back face of an element should be visible when facing the user.
@@ -3542,12 +3613,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         backface_visibility(value) {
             if (value == null) { return this.style.backfaceVisibility; }
             this.style.backfaceVisibility = value;
@@ -3559,7 +3630,7 @@ function CreateVElementClass({
         }
 
         // Sets whether a background image scrolls with the rest of the page, or is fixed.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Background attachment
          *	@description: 
          *		Sets whether a background image scrolls with the rest of the page, or is fixed.
@@ -3568,12 +3639,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         background_attachment(value) {
             if (value == null) { return this.style.backgroundAttachment; }
             this.style.backgroundAttachment = value;
@@ -3581,7 +3652,7 @@ function CreateVElementClass({
         }
 
         // Specifies the blending mode of each background layer (color/image).
-        /*	@docs: {
+        /*	@docs:
          *	@title: Background blend mode
          *	@description: 
          *		Specifies the blending mode of each background layer (color/image).
@@ -3590,12 +3661,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         background_blend_mode(value) {
             if (value == null) { return this.style.backgroundBlendMode; }
             this.style.backgroundBlendMode = value;
@@ -3603,7 +3674,7 @@ function CreateVElementClass({
         }
 
         // Defines how far the background (color or image) should extend within an element.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Background clip
          *	@description: 
          *		Defines how far the background (color or image) should extend within an element.
@@ -3612,12 +3683,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         background_clip(value) {
             if (value == null) { return this.style.backgroundClip; }
             this.style.backgroundClip = value;
@@ -3629,7 +3700,7 @@ function CreateVElementClass({
         }
 
         // Specifies the background color of an element.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Background color
          *	@description: 
          *		Specifies the background color of an element.
@@ -3638,12 +3709,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         background_color(value) {
             if (value == null) { return this.style.backgroundColor; }
             this.style.backgroundColor = value;
@@ -3651,7 +3722,7 @@ function CreateVElementClass({
         }
 
         // Specifies one or more background images for an element.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Background image
          *	@description: 
          *		Specifies one or more background images for an element.
@@ -3660,12 +3731,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         background_image(value) {
             if (value == null) { return this.style.backgroundImage; }
             this.style.backgroundImage = value;
@@ -3673,7 +3744,7 @@ function CreateVElementClass({
         }
 
         // Specifies the origin position of a background image.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Background origin
          *	@description: 
          *		Specifies the origin position of a background image.
@@ -3682,12 +3753,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         background_origin(value) {
             if (value == null) { return this.style.backgroundOrigin; }
             this.style.backgroundOrigin = value;
@@ -3699,7 +3770,7 @@ function CreateVElementClass({
         }
 
         // Specifies the position of a background image.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Background position
          *	@description: 
          *		Specifies the position of a background image.
@@ -3708,12 +3779,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         background_position(value) {
             if (value == null) { return this.style.backgroundPosition; }
             this.style.backgroundPosition = value;
@@ -3721,7 +3792,7 @@ function CreateVElementClass({
         }
 
         // Specifies the position of a background image on x-axis.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Background position x
          *	@description: 
          *		Specifies the position of a background image on x-axis.
@@ -3730,12 +3801,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         background_position_x(value) {
             if (value == null) { return this.style.backgroundPositionX; }
             this.style.backgroundPositionX = value;
@@ -3743,7 +3814,7 @@ function CreateVElementClass({
         }
 
         // Specifies the position of a background image on y-axis.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Background position y
          *	@description: 
          *		Specifies the position of a background image on y-axis.
@@ -3752,12 +3823,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         background_position_y(value) {
             if (value == null) { return this.style.backgroundPositionY; }
             this.style.backgroundPositionY = value;
@@ -3765,7 +3836,7 @@ function CreateVElementClass({
         }
 
         // Sets if/how a background image will be repeated.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Background repeat
          *	@description: 
          *		Sets if/how a background image will be repeated.
@@ -3774,12 +3845,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         background_repeat(value) {
             if (value == null) { return this.style.backgroundRepeat; }
             this.style.backgroundRepeat = value;
@@ -3787,7 +3858,7 @@ function CreateVElementClass({
         }
 
         // Specifies the size of the background images.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Background size
          *	@description: 
          *		Specifies the size of the background images.
@@ -3796,12 +3867,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         background_size(value) {
             if (value == null) { return this.style.backgroundSize; }
             this.style.backgroundSize = this.pad_numeric(value);
@@ -3813,7 +3884,7 @@ function CreateVElementClass({
         }
 
         // Specifies the size of an element in block direction.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Block size
          *	@description: 
          *		Specifies the size of an element in block direction.
@@ -3822,12 +3893,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         block_size(value) {
             if (value == null) { return this.style.blockSize; }
             this.style.blockSize = this.pad_numeric(value);
@@ -3842,7 +3913,7 @@ function CreateVElementClass({
         // }
 
         // A shorthand property for border-block-width, border-block-style and border-block-color.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Border block
          *	@description: 
          *		A shorthand property for border-block-width, border-block-style and border-block-color.
@@ -3851,12 +3922,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         border_block(value) {
             if (value == null) { return this.style.borderBlock; }
             this.style.borderBlock = value;
@@ -3864,7 +3935,7 @@ function CreateVElementClass({
         }
 
         // Sets the color of the borders at start and end in the block direction.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Border block color
          *	@description: 
          *		Sets the color of the borders at start and end in the block direction.
@@ -3873,12 +3944,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         border_block_color(value) {
             if (value == null) { return this.style.borderBlockColor; }
             this.style.borderBlockColor = value;
@@ -3886,7 +3957,7 @@ function CreateVElementClass({
         }
 
         // Sets the color of the border at the end in the block direction.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Border block end color
          *	@description: 
          *		Sets the color of the border at the end in the block direction.
@@ -3895,12 +3966,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         border_block_end_color(value) {
             if (value == null) { return this.style.borderBlockEndColor; }
             this.style.borderBlockEndColor = value;
@@ -3908,7 +3979,7 @@ function CreateVElementClass({
         }
 
         // Sets the style of the border at the end in the block direction.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Border block end style
          *	@description: 
          *		Sets the style of the border at the end in the block direction.
@@ -3917,12 +3988,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         border_block_end_style(value) {
             if (value == null) { return this.style.borderBlockEndStyle; }
             this.style.borderBlockEndStyle = value;
@@ -3930,7 +4001,7 @@ function CreateVElementClass({
         }
 
         // Sets the width of the border at the end in the block direction.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Border block end width
          *	@description: 
          *		Sets the width of the border at the end in the block direction.
@@ -3939,12 +4010,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         border_block_end_width(value) {
             if (value == null) { return this.style.borderBlockEndWidth; }
             this.style.borderBlockEndWidth = this.pad_numeric(value);
@@ -3952,7 +4023,7 @@ function CreateVElementClass({
         }
 
         // Sets the color of the border at the start in the block direction.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Border block start color
          *	@description: 
          *		Sets the color of the border at the start in the block direction.
@@ -3961,12 +4032,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         border_block_start_color(value) {
             if (value == null) { return this.style.borderBlockStartColor; }
             this.style.borderBlockStartColor = value;
@@ -3974,7 +4045,7 @@ function CreateVElementClass({
         }
 
         // Sets the style of the border at the start in the block direction.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Border block start style
          *	@description: 
          *		Sets the style of the border at the start in the block direction.
@@ -3983,12 +4054,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         border_block_start_style(value) {
             if (value == null) { return this.style.borderBlockStartStyle; }
             this.style.borderBlockStartStyle = value;
@@ -3996,7 +4067,7 @@ function CreateVElementClass({
         }
 
         // Sets the width of the border at the start in the block direction.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Border block start width
          *	@description: 
          *		Sets the width of the border at the start in the block direction.
@@ -4005,12 +4076,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         border_block_start_width(value) {
             if (value == null) { return this.style.borderBlockStartWidth; }
             this.style.borderBlockStartWidth = this.pad_numeric(value);
@@ -4018,7 +4089,7 @@ function CreateVElementClass({
         }
 
         // Sets the style of the borders at start and end in the block direction.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Border block style
          *	@description: 
          *		Sets the style of the borders at start and end in the block direction.
@@ -4027,12 +4098,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         border_block_style(value) {
             if (value == null) { return this.style.borderBlockStyle; }
             this.style.borderBlockStyle = value;
@@ -4040,7 +4111,7 @@ function CreateVElementClass({
         }
 
         // Sets the width of the borders at start and end in the block direction.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Border block width
          *	@description: 
          *		Sets the width of the borders at start and end in the block direction.
@@ -4049,12 +4120,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         border_block_width(value) {
             if (value == null) { return this.style.borderBlockWidth; }
             this.style.borderBlockWidth = this.pad_numeric(value);
@@ -4062,7 +4133,7 @@ function CreateVElementClass({
         }
 
         // A shorthand property for border-bottom-width, border-bottom-style and border-bottom-color.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Border bottom
          *	@description: 
          *		A shorthand property for border-bottom-width, border-bottom-style and border-bottom-color.
@@ -4071,12 +4142,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         border_bottom(value) {
             if (value == null) { return this.style.borderBottom; }
             this.style.borderBottom = this.pad_numeric(value);
@@ -4084,7 +4155,7 @@ function CreateVElementClass({
         }
 
         // Sets the color of the bottom border.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Border bottom color
          *	@description: 
          *		Sets the color of the bottom border.
@@ -4093,12 +4164,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         border_bottom_color(value) {
             if (value == null) { return this.style.borderBottomColor; }
             this.style.borderBottomColor = value;
@@ -4106,7 +4177,7 @@ function CreateVElementClass({
         }
 
         // Defines the radius of the border of the bottom-left corner.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Border bottom left radius
          *	@description: 
          *		Defines the radius of the border of the bottom-left corner.
@@ -4115,12 +4186,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         border_bottom_left_radius(value) {
             if (value == null) { return this.style.borderBottomLeftRadius; }
             this.style.borderBottomLeftRadius = this.pad_numeric(value);
@@ -4128,7 +4199,7 @@ function CreateVElementClass({
         }
 
         // Defines the radius of the border of the bottom-right corner.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Border bottom right radius
          *	@description: 
          *		Defines the radius of the border of the bottom-right corner.
@@ -4137,12 +4208,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         border_bottom_right_radius(value) {
             if (value == null) { return this.style.borderBottomRightRadius; }
             this.style.borderBottomRightRadius = this.pad_numeric(value);
@@ -4150,7 +4221,7 @@ function CreateVElementClass({
         }
 
         // Sets the style of the bottom border.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Border bottom style
          *	@description: 
          *		Sets the style of the bottom border.
@@ -4159,12 +4230,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         border_bottom_style(value) {
             if (value == null) { return this.style.borderBottomStyle; }
             this.style.borderBottomStyle = value;
@@ -4172,7 +4243,7 @@ function CreateVElementClass({
         }
 
         // Sets the width of the bottom border.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Border bottom width
          *	@description: 
          *		Sets the width of the bottom border.
@@ -4181,12 +4252,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         border_bottom_width(value) {
             if (value == null) { return this.style.borderBottomWidth; }
             this.style.borderBottomWidth = this.pad_numeric(value);
@@ -4194,7 +4265,7 @@ function CreateVElementClass({
         }
 
         // Sets whether table borders should collapse into a single border or be separated.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Border collapse
          *	@description: 
          *		Sets whether table borders should collapse into a single border or be separated.
@@ -4203,12 +4274,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         border_collapse(value) {
             if (value == null) { return this.style.borderCollapse; }
             this.style.borderCollapse = value;
@@ -4216,7 +4287,7 @@ function CreateVElementClass({
         }
 
         // Sets the color of the four borders.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Border color
          *	@description: 
          *		Sets the color of the four borders.
@@ -4225,12 +4296,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         border_color(value) {
             if (value == null) { return this.style.borderColor; }
             this.style.borderColor = value;
@@ -4238,7 +4309,7 @@ function CreateVElementClass({
         }
 
         // A shorthand property for all the border-image-* properties.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Border image
          *	@description: 
          *		A shorthand property for all the border-image-* properties.
@@ -4247,12 +4318,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         border_image(value) {
             if (value == null) { return this.style.borderImage; }
             this.style.borderImage = value;
@@ -4264,7 +4335,7 @@ function CreateVElementClass({
         }
 
         // Specifies the amount by which the border image area extends beyond the border box.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Border image outset
          *	@description: 
          *		Specifies the amount by which the border image area extends beyond the border box.
@@ -4273,12 +4344,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         border_image_outset(value) {
             if (value == null) { return this.style.borderImageOutset; }
             this.style.borderImageOutset = value;
@@ -4286,7 +4357,7 @@ function CreateVElementClass({
         }
 
         // Specifies whether the border image should be repeated, rounded or stretched.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Border image repeat
          *	@description: 
          *		Specifies whether the border image should be repeated, rounded or stretched.
@@ -4295,12 +4366,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         border_image_repeat(value) {
             if (value == null) { return this.style.borderImageRepeat; }
             this.style.borderImageRepeat = value;
@@ -4308,7 +4379,7 @@ function CreateVElementClass({
         }
 
         // Specifies how to slice the border image.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Border image slice
          *	@description: 
          *		Specifies how to slice the border image.
@@ -4317,12 +4388,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         border_image_slice(value) {
             if (value == null) { return this.style.borderImageSlice; }
             this.style.borderImageSlice = value;
@@ -4330,7 +4401,7 @@ function CreateVElementClass({
         }
 
         // Specifies the path to the image to be used as a border.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Border image source
          *	@description: 
          *		Specifies the path to the image to be used as a border.
@@ -4339,12 +4410,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         border_image_source(value) {
             if (value == null) { return this.style.borderImageSource; }
             this.style.borderImageSource = value;
@@ -4352,7 +4423,7 @@ function CreateVElementClass({
         }
 
         // Specifies the width of the border image.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Border image width
          *	@description: 
          *		Specifies the width of the border image.
@@ -4361,12 +4432,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         border_image_width(value) {
             if (value == null) { return this.style.borderImageWidth; }
             this.style.borderImageWidth = this.pad_numeric(value);
@@ -4374,7 +4445,7 @@ function CreateVElementClass({
         }
 
         // A shorthand property for border-inline-width, border-inline-style and border-inline-color.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Border inline
          *	@description: 
          *		A shorthand property for border-inline-width, border-inline-style and border-inline-color.
@@ -4383,12 +4454,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         border_inline(value) {
             if (value == null) { return this.style.borderInline; }
             this.style.borderInline = value;
@@ -4396,7 +4467,7 @@ function CreateVElementClass({
         }
 
         // Sets the color of the borders at start and end in the inline direction.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Border inline color
          *	@description: 
          *		Sets the color of the borders at start and end in the inline direction.
@@ -4405,12 +4476,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         border_inline_color(value) {
             if (value == null) { return this.style.borderInlineColor; }
             this.style.borderInlineColor = value;
@@ -4418,7 +4489,7 @@ function CreateVElementClass({
         }
 
         // Sets the color of the border at the end in the inline direction.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Border inline end color
          *	@description: 
          *		Sets the color of the border at the end in the inline direction.
@@ -4427,12 +4498,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         border_inline_end_color(value) {
             if (value == null) { return this.style.borderInlineEndColor; }
             this.style.borderInlineEndColor = value;
@@ -4440,7 +4511,7 @@ function CreateVElementClass({
         }
 
         // Sets the style of the border at the end in the inline direction.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Border inline end style
          *	@description: 
          *		Sets the style of the border at the end in the inline direction.
@@ -4449,12 +4520,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         border_inline_end_style(value) {
             if (value == null) { return this.style.borderInlineEndStyle; }
             this.style.borderInlineEndStyle = value;
@@ -4462,7 +4533,7 @@ function CreateVElementClass({
         }
 
         // Sets the width of the border at the end in the inline direction.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Border inline end width
          *	@description: 
          *		Sets the width of the border at the end in the inline direction.
@@ -4471,12 +4542,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         border_inline_end_width(value) {
             if (value == null) { return this.style.borderInlineEndWidth; }
             this.style.borderInlineEndWidth = this.pad_numeric(value);
@@ -4484,7 +4555,7 @@ function CreateVElementClass({
         }
 
         // Sets the color of the border at the start in the inline direction.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Border inline start color
          *	@description: 
          *		Sets the color of the border at the start in the inline direction.
@@ -4493,12 +4564,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         border_inline_start_color(value) {
             if (value == null) { return this.style.borderInlineStartColor; }
             this.style.borderInlineStartColor = value;
@@ -4506,7 +4577,7 @@ function CreateVElementClass({
         }
 
         // Sets the style of the border at the start in the inline direction.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Border inline start style
          *	@description: 
          *		Sets the style of the border at the start in the inline direction.
@@ -4515,12 +4586,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         border_inline_start_style(value) {
             if (value == null) { return this.style.borderInlineStartStyle; }
             this.style.borderInlineStartStyle = value;
@@ -4528,7 +4599,7 @@ function CreateVElementClass({
         }
 
         // Sets the width of the border at the start in the inline direction.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Border inline start width
          *	@description: 
          *		Sets the width of the border at the start in the inline direction.
@@ -4537,12 +4608,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         border_inline_start_width(value) {
             if (value == null) { return this.style.borderInlineStartWidth; }
             this.style.borderInlineStartWidth = this.pad_numeric(value);
@@ -4550,7 +4621,7 @@ function CreateVElementClass({
         }
 
         // Sets the style of the borders at start and end in the inline direction.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Border inline style
          *	@description: 
          *		Sets the style of the borders at start and end in the inline direction.
@@ -4559,12 +4630,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         border_inline_style(value) {
             if (value == null) { return this.style.borderInlineStyle; }
             this.style.borderInlineStyle = value;
@@ -4572,7 +4643,7 @@ function CreateVElementClass({
         }
 
         // Sets the width of the borders at start and end in the inline direction.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Border inline width
          *	@description: 
          *		Sets the width of the borders at start and end in the inline direction.
@@ -4581,12 +4652,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         border_inline_width(value) {
             if (value == null) { return this.style.borderInlineWidth; }
             this.style.borderInlineWidth = this.pad_numeric(value);
@@ -4594,7 +4665,7 @@ function CreateVElementClass({
         }
 
         // A shorthand property for all the border-left-* properties.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Border left
          *	@description: 
          *		A shorthand property for all the border-left-* properties.
@@ -4603,12 +4674,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         border_left(value) {
             if (value == null) { return this.style.borderLeft; }
             this.style.borderLeft = this.pad_numeric(value);
@@ -4616,7 +4687,7 @@ function CreateVElementClass({
         }
 
         // Sets the color of the left border.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Border left color
          *	@description: 
          *		Sets the color of the left border.
@@ -4625,12 +4696,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         border_left_color(value) {
             if (value == null) { return this.style.borderLeftColor; }
             this.style.borderLeftColor = value;
@@ -4638,7 +4709,7 @@ function CreateVElementClass({
         }
 
         // Sets the style of the left border.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Border left style
          *	@description: 
          *		Sets the style of the left border.
@@ -4647,12 +4718,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         border_left_style(value) {
             if (value == null) { return this.style.borderLeftStyle; }
             this.style.borderLeftStyle = value;
@@ -4660,7 +4731,7 @@ function CreateVElementClass({
         }
 
         // Sets the width of the left border.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Border left width
          *	@description: 
          *		Sets the width of the left border.
@@ -4669,12 +4740,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         border_left_width(value) {
             if (value == null) { return this.style.borderLeftWidth; }
             this.style.borderLeftWidth = this.pad_numeric(value);
@@ -4682,7 +4753,7 @@ function CreateVElementClass({
         }
 
         // A shorthand property for the four border-*-radius properties.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Border radius
          *	@description: 
          *		A shorthand property for the four border-*-radius properties.
@@ -4691,12 +4762,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         border_radius(value) {
             if (value == null) { return this.style.borderRadius; }
             this.style.borderRadius = this.pad_numeric(value);
@@ -4708,7 +4779,7 @@ function CreateVElementClass({
         }
 
         // A shorthand property for all the border-right-* properties.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Border right
          *	@description: 
          *		A shorthand property for all the border-right-* properties.
@@ -4717,12 +4788,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         border_right(value) {
             if (value == null) { return this.style.borderRight; }
             this.style.borderRight = this.pad_numeric(value);
@@ -4730,7 +4801,7 @@ function CreateVElementClass({
         }
 
         // Sets the color of the right border.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Border right color
          *	@description: 
          *		Sets the color of the right border.
@@ -4739,12 +4810,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         border_right_color(value) {
             if (value == null) { return this.style.borderRightColor; }
             this.style.borderRightColor = value;
@@ -4752,7 +4823,7 @@ function CreateVElementClass({
         }
 
         // Sets the style of the right border.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Border right style
          *	@description: 
          *		Sets the style of the right border.
@@ -4761,12 +4832,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         border_right_style(value) {
             if (value == null) { return this.style.borderRightStyle; }
             this.style.borderRightStyle = value;
@@ -4774,7 +4845,7 @@ function CreateVElementClass({
         }
 
         // Sets the width of the right border.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Border right width
          *	@description: 
          *		Sets the width of the right border.
@@ -4783,12 +4854,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         border_right_width(value) {
             if (value == null) { return this.style.borderRightWidth; }
             this.style.borderRightWidth = this.pad_numeric(value);
@@ -4796,7 +4867,7 @@ function CreateVElementClass({
         }
 
         // Sets the distance between the borders of adjacent cells.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Border spacing
          *	@description: 
          *		Sets the distance between the borders of adjacent cells.
@@ -4805,12 +4876,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         border_spacing(value) {
             if (value == null) { return this.style.borderSpacing; }
             this.style.borderSpacing = value;
@@ -4818,7 +4889,7 @@ function CreateVElementClass({
         }
 
         // Sets the style of the four borders.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Border style
          *	@description: 
          *		Sets the style of the four borders.
@@ -4827,12 +4898,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         border_style(value) {
             if (value == null) { return this.style.borderStyle; }
             this.style.borderStyle = value;
@@ -4840,7 +4911,7 @@ function CreateVElementClass({
         }
 
         // A shorthand property for border-top-width, border-top-style and border-top-color.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Border top
          *	@description: 
          *		A shorthand property for border-top-width, border-top-style and border-top-color.
@@ -4849,12 +4920,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         border_top(value) {
             if (value == null) { return this.style.borderTop; }
             this.style.borderTop = this.pad_numeric(value);
@@ -4862,7 +4933,7 @@ function CreateVElementClass({
         }
 
         // Sets the color of the top border.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Border top color
          *	@description: 
          *		Sets the color of the top border.
@@ -4871,12 +4942,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         border_top_color(value) {
             if (value == null) { return this.style.borderTopColor; }
             this.style.borderTopColor = value;
@@ -4884,7 +4955,7 @@ function CreateVElementClass({
         }
 
         // Defines the radius of the border of the top-left corner.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Border top left radius
          *	@description: 
          *		Defines the radius of the border of the top-left corner.
@@ -4893,12 +4964,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         border_top_left_radius(value) {
             if (value == null) { return this.style.borderTopLeftRadius; }
             this.style.borderTopLeftRadius = this.pad_numeric(value);
@@ -4906,7 +4977,7 @@ function CreateVElementClass({
         }
 
         // Defines the radius of the border of the top-right corner.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Border top right radius
          *	@description: 
          *		Defines the radius of the border of the top-right corner.
@@ -4915,12 +4986,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         border_top_right_radius(value) {
             if (value == null) { return this.style.borderTopRightRadius; }
             this.style.borderTopRightRadius = this.pad_numeric(value);
@@ -4928,7 +4999,7 @@ function CreateVElementClass({
         }
 
         // Sets the style of the top border.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Border top style
          *	@description: 
          *		Sets the style of the top border.
@@ -4937,12 +5008,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         border_top_style(value) {
             if (value == null) { return this.style.borderTopStyle; }
             this.style.borderTopStyle = value;
@@ -4950,7 +5021,7 @@ function CreateVElementClass({
         }
 
         // Sets the width of the top border.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Border top width
          *	@description: 
          *		Sets the width of the top border.
@@ -4959,12 +5030,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         border_top_width(value) {
             if (value == null) { return this.style.borderTopWidth; }
             this.style.borderTopWidth = this.pad_numeric(value);
@@ -4972,7 +5043,7 @@ function CreateVElementClass({
         }
 
         // Sets the width of the four borders.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Border width
          *	@description: 
          *		Sets the width of the four borders.
@@ -4981,12 +5052,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         border_width(value) {
             if (value == null) { return this.style.borderWidth; }
             this.style.borderWidth = this.pad_numeric(value);
@@ -4994,7 +5065,7 @@ function CreateVElementClass({
         }
 
         // Sets the elements position, from the bottom of its parent element.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Bottom
          *	@description: 
          *		Sets the elements position, from the bottom of its parent element.
@@ -5003,12 +5074,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         bottom(value) {
             if (value == null) { return this.style.bottom; }
             this.style.bottom = this.pad_numeric(value);
@@ -5016,7 +5087,7 @@ function CreateVElementClass({
         }
 
         // Sets the behavior of the background and border of an element at page-break, or, for in-line elements, at line-break.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Box decoration break
          *	@description: 
          *		Sets the behavior of the background and border of an element at page-break, or, for in-line elements, at line-break.
@@ -5025,12 +5096,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         box_decoration_break(value) {
             if (value == null) { return this.style.boxDecorationBreak; }
             this.style.boxDecorationBreak = value;
@@ -5038,7 +5109,7 @@ function CreateVElementClass({
         }
 
         // The box-reflect property is used to create a reflection of an element.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Box reflect
          *	@description: 
          *		The box-reflect property is used to create a reflection of an element.
@@ -5047,12 +5118,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         box_reflect(value) {
             if (value == null) { return this.style.boxReflect; }
             this.style.boxReflect = value;
@@ -5060,7 +5131,7 @@ function CreateVElementClass({
         }
 
         // Attaches one or more shadows to an element.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Box shadow
          *	@description: 
          *		Attaches one or more shadows to an element.
@@ -5069,12 +5140,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         box_shadow(value) {
             if (value == null) { return this.style.boxShadow; }
             this.style.boxShadow = value;
@@ -5086,7 +5157,7 @@ function CreateVElementClass({
         }
 
         // Defines how the width and height of an element are calculated: should they include padding and borders, or not.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Box sizing
          *	@description: 
          *		Defines how the width and height of an element are calculated: should they include padding and borders, or not.
@@ -5095,12 +5166,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         box_sizing(value) {
             if (value == null) { return this.style.boxSizing; }
             this.style.boxSizing = value;
@@ -5112,7 +5183,7 @@ function CreateVElementClass({
         }
 
         // Specifies whether or not a page-, column-, or region-break should occur after the specified element.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Break after
          *	@description: 
          *		Specifies whether or not a page-, column-, or region-break should occur after the specified element.
@@ -5121,12 +5192,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         break_after(value) {
             if (value == null) { return this.style.breakAfter; }
             this.style.breakAfter = value;
@@ -5134,7 +5205,7 @@ function CreateVElementClass({
         }
 
         // Specifies whether or not a page-, column-, or region-break should occur before the specified element.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Break before
          *	@description: 
          *		Specifies whether or not a page-, column-, or region-break should occur before the specified element.
@@ -5143,12 +5214,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         break_before(value) {
             if (value == null) { return this.style.breakBefore; }
             this.style.breakBefore = value;
@@ -5156,7 +5227,7 @@ function CreateVElementClass({
         }
 
         // Specifies whether or not a page-, column-, or region-break should occur inside the specified element.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Break inside
          *	@description: 
          *		Specifies whether or not a page-, column-, or region-break should occur inside the specified element.
@@ -5165,12 +5236,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         break_inside(value) {
             if (value == null) { return this.style.breakInside; }
             this.style.breakInside = value;
@@ -5178,7 +5249,7 @@ function CreateVElementClass({
         }
 
         // Specifies the placement of a table caption.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Caption side
          *	@description: 
          *		Specifies the placement of a table caption.
@@ -5187,12 +5258,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         caption_side(value) {
             if (value == null) { return this.style.captionSide; }
             this.style.captionSide = value;
@@ -5200,7 +5271,7 @@ function CreateVElementClass({
         }
 
         // Specifies the color of the cursor (caret) in inputs, textareas, or any element that is editable.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Caret color
          *	@description: 
          *		Specifies the color of the cursor (caret) in inputs, textareas, or any element that is editable.
@@ -5209,12 +5280,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         caret_color(value) {
             if (value == null) { return this.style.caretColor; }
             this.style.caretColor = value;
@@ -5222,7 +5293,7 @@ function CreateVElementClass({
         }
 
         // Specifies what should happen with the element that is next to a floating element.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Clear
          *	@description: 
          *		Specifies what should happen with the element that is next to a floating element.
@@ -5231,12 +5302,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         clear(value) {
             if (value == null) { return this.style.clear; }
             this.style.clear = value;
@@ -5244,7 +5315,7 @@ function CreateVElementClass({
         }
 
         // Clips an absolutely positioned element.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Clip
          *	@description: 
          *		Clips an absolutely positioned element.
@@ -5253,12 +5324,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         clip(value) {
             if (value == null) { return this.style.clip; }
             this.style.clip = value;
@@ -5273,7 +5344,7 @@ function CreateVElementClass({
         // }
 
         // Specifies the number of columns an element should be divided into.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Column count
          *	@description: 
          *		Specifies the number of columns an element should be divided into.
@@ -5282,12 +5353,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         column_count(value) {
             if (value == null) { return this.style.columnCount; }
             this.style.columnCount = value;
@@ -5299,7 +5370,7 @@ function CreateVElementClass({
         }
 
         // Specifies how to fill columns, balanced or not.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Column fill
          *	@description: 
          *		Specifies how to fill columns, balanced or not.
@@ -5308,12 +5379,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         column_fill(value) {
             if (value == null) { return this.style.columnFill; }
             this.style.columnFill = value;
@@ -5321,7 +5392,7 @@ function CreateVElementClass({
         }
 
         // Specifies the gap between the columns.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Column gap
          *	@description: 
          *		Specifies the gap between the columns.
@@ -5330,12 +5401,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         column_gap(value) {
             if (value == null) { return this.style.columnGap; }
             this.style.columnGap = value;
@@ -5347,7 +5418,7 @@ function CreateVElementClass({
         }
 
         // A shorthand property for all the column-rule-* properties.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Column rule
          *	@description: 
          *		A shorthand property for all the column-rule-* properties.
@@ -5356,12 +5427,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         column_rule(value) {
             if (value == null) { return this.style.columnRule; }
             this.style.columnRule = value;
@@ -5373,7 +5444,7 @@ function CreateVElementClass({
         }
 
         // Specifies the color of the rule between columns.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Column rule color
          *	@description: 
          *		Specifies the color of the rule between columns.
@@ -5382,12 +5453,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         column_rule_color(value) {
             if (value == null) { return this.style.columnRuleColor; }
             this.style.columnRuleColor = value;
@@ -5399,7 +5470,7 @@ function CreateVElementClass({
         }
 
         // Specifies the style of the rule between columns.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Column rule style
          *	@description: 
          *		Specifies the style of the rule between columns.
@@ -5408,12 +5479,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         column_rule_style(value) {
             if (value == null) { return this.style.columnRuleStyle; }
             this.style.columnRuleStyle = value;
@@ -5425,7 +5496,7 @@ function CreateVElementClass({
         }
 
         // Specifies the width of the rule between columns.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Column rule width
          *	@description: 
          *		Specifies the width of the rule between columns.
@@ -5434,12 +5505,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         column_rule_width(value) {
             if (value == null) { return this.style.columnRuleWidth; }
             this.style.columnRuleWidth = this.pad_numeric(value);
@@ -5451,7 +5522,7 @@ function CreateVElementClass({
         }
 
         // Specifies how many columns an element should span across.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Column span
          *	@description: 
          *		Specifies how many columns an element should span across.
@@ -5460,12 +5531,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         column_span(value) {
             if (value == null) { return this.style.columnSpan; }
             this.style.columnSpan = value;
@@ -5473,7 +5544,7 @@ function CreateVElementClass({
         }
 
         // Specifies the column width.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Column width
          *	@description: 
          *		Specifies the column width.
@@ -5482,12 +5553,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         column_width(value) {
             if (value == null) { return this.style.columnWidth; }
             this.style.columnWidth = this.pad_numeric(value);
@@ -5499,7 +5570,7 @@ function CreateVElementClass({
         }
 
         // A shorthand property for column-width and column-count.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Columns
          *	@description: 
          *		A shorthand property for column-width and column-count.
@@ -5508,12 +5579,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         columns(value) {
             if (value == null) { return this.style.columns; }
             this.style.columns = value;
@@ -5521,7 +5592,7 @@ function CreateVElementClass({
         }
 
         // Used with the :before and :after pseudo-elements, to insert generated content.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Content
          *	@description: 
          *		Used with the :before and :after pseudo-elements, to insert generated content.
@@ -5530,12 +5601,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         content(value) {
             if (value == null) { return this.style.content; }
             this.style.content = value;
@@ -5543,7 +5614,7 @@ function CreateVElementClass({
         }
 
         // Increases or decreases the value of one or more CSS counters.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Counter increment
          *	@description: 
          *		Increases or decreases the value of one or more CSS counters.
@@ -5552,12 +5623,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         counter_increment(value) {
             if (value == null) { return this.style.counterIncrement; }
             this.style.counterIncrement = value;
@@ -5565,7 +5636,7 @@ function CreateVElementClass({
         }
 
         // Creates or resets one or more CSS counters.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Counter reset
          *	@description: 
          *		Creates or resets one or more CSS counters.
@@ -5574,12 +5645,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         counter_reset(value) {
             if (value == null) { return this.style.counterReset; }
             this.style.counterReset = value;
@@ -5587,7 +5658,7 @@ function CreateVElementClass({
         }
 
         // Specifies the mouse cursor to be displayed when pointing over an element.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Cursor
          *	@description: 
          *		Specifies the mouse cursor to be displayed when pointing over an element.
@@ -5596,12 +5667,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         cursor(value) {
             if (value == null) { return this.style.cursor; }
             this.style.cursor = value;
@@ -5609,7 +5680,7 @@ function CreateVElementClass({
         }
 
         // Specifies the text direction/writing direction.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Direction
          *	@description: 
          *		Specifies the text direction/writing direction.
@@ -5618,12 +5689,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         direction(value) {
             if (value == null) { return this.style.direction; }
             this.style.direction = value;
@@ -5638,7 +5709,7 @@ function CreateVElementClass({
         // }
 
         // Specifies whether or not to display borders and background on empty cells in a table.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Empty cells
          *	@description: 
          *		Specifies whether or not to display borders and background on empty cells in a table.
@@ -5647,12 +5718,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         empty_cells(value) {
             if (value == null) { return this.style.emptyCells; }
             this.style.emptyCells = value;
@@ -5660,7 +5731,7 @@ function CreateVElementClass({
         }
 
         // Defines effects (e.g. blurring or color shifting) on an element before the element is displayed.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Filter
          *	@description: 
          *		Defines effects (e.g. blurring or color shifting) on an element before the element is displayed.
@@ -5669,12 +5740,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         filter(value) {
             if (value == null) { return this.style.filter; }
             this.style.filter = value;
@@ -5686,7 +5757,7 @@ function CreateVElementClass({
         }
 
         // A shorthand property for the flex-grow, flex-shrink, and the flex-basis properties.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Flex
          *	@description: 
          *		A shorthand property for the flex-grow, flex-shrink, and the flex-basis properties.
@@ -5695,12 +5766,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         flex(value) {
             if (value == null) { return this.style.flex; }
             this.style.flex = value;
@@ -5712,7 +5783,7 @@ function CreateVElementClass({
         }
 
         // Specifies the initial length of a flexible item.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Flex basis
          *	@description: 
          *		Specifies the initial length of a flexible item.
@@ -5721,12 +5792,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         flex_basis(value) {
             if (value == null) { return this.style.flexBasis; }
             this.style.flexBasis = value;
@@ -5738,7 +5809,7 @@ function CreateVElementClass({
         }
 
         // Specifies the direction of the flexible items.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Flex direction
          *	@description: 
          *		Specifies the direction of the flexible items.
@@ -5747,12 +5818,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         flex_direction(value) {
             if (value == null) { return this.style.flexDirection; }
             this.style.flexDirection = value;
@@ -5764,7 +5835,7 @@ function CreateVElementClass({
         }
 
         // A shorthand property for the flex-direction and the flex-wrap properties.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Flex flow
          *	@description: 
          *		A shorthand property for the flex-direction and the flex-wrap properties.
@@ -5773,12 +5844,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         flex_flow(value) {
             if (value == null) { return this.style.flexFlow; }
             this.style.flexFlow = value;
@@ -5790,7 +5861,7 @@ function CreateVElementClass({
         }
 
         // Specifies how much the item will grow relative to the rest.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Flex grow
          *	@description: 
          *		Specifies how much the item will grow relative to the rest.
@@ -5799,12 +5870,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         flex_grow(value) {
             if (value == null) { return this.style.flexGrow; }
             this.style.flexGrow = value;
@@ -5816,7 +5887,7 @@ function CreateVElementClass({
         }
 
         // Specifies how the item will shrink relative to the rest.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Flex shrink
          *	@description: 
          *		Specifies how the item will shrink relative to the rest.
@@ -5825,12 +5896,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         flex_shrink(value) {
             if (value == null) { return this.style.flexShrink; }
             this.style.flexShrink = value;
@@ -5842,7 +5913,7 @@ function CreateVElementClass({
         }
 
         // Specifies whether the flexible items should wrap or not.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Flex wrap
          *	@description: 
          *		Specifies whether the flexible items should wrap or not.
@@ -5851,12 +5922,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         flex_wrap(value) {
             if (value == null) { return this.style.flexWrap; }
             this.style.flexWrap = value;
@@ -5868,7 +5939,7 @@ function CreateVElementClass({
         }
 
         // Specifies whether an element should float to the left, right, or not at all.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Float
          *	@description: 
          *		Specifies whether an element should float to the left, right, or not at all.
@@ -5877,12 +5948,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         float(value) {
             if (value == null) { return this.style.float; }
             this.style.float = value;
@@ -5890,7 +5961,7 @@ function CreateVElementClass({
         }
 
         // A shorthand property for the font-style, font-variant, font-weight, font-size/line-height, and the font-family properties.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Font
          *	@description: 
          *		A shorthand property for the font-style, font-variant, font-weight, font-size/line-height, and the font-family properties.
@@ -5899,12 +5970,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         font(value) {
             if (value == null) { return this.style.font; }
             this.style.font = value;
@@ -5912,7 +5983,7 @@ function CreateVElementClass({
         }
 
         // Specifies the font family for text.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Font family
          *	@description: 
          *		Specifies the font family for text.
@@ -5921,12 +5992,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         font_family(value) {
             if (value == null) { return this.style.fontFamily; }
             this.style.fontFamily = value;
@@ -5934,7 +6005,7 @@ function CreateVElementClass({
         }
 
         // Allows control over advanced typographic features in OpenType fonts.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Font feature settings
          *	@description: 
          *		Allows control over advanced typographic features in OpenType fonts.
@@ -5943,12 +6014,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         font_feature_settings(value) {
             if (value == null) { return this.style.fontFeatureSettings; }
             this.style.fontFeatureSettings = value;
@@ -5956,7 +6027,7 @@ function CreateVElementClass({
         }
 
         // Controls the usage of the kerning information (how letters are spaced).
-        /*	@docs: {
+        /*	@docs:
          *	@title: Font kerning
          *	@description: 
          *		Controls the usage of the kerning information (how letters are spaced).
@@ -5965,12 +6036,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         font_kerning(value) {
             if (value == null) { return this.style.fontKerning; }
             this.style.fontKerning = value;
@@ -5978,7 +6049,7 @@ function CreateVElementClass({
         }
 
         // Controls the usage of language-specific glyphs in a typeface.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Font language override
          *	@description: 
          *		Controls the usage of language-specific glyphs in a typeface.
@@ -5987,12 +6058,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         font_language_override(value) {
             if (value == null) { return this.style.fontLanguageOverride; }
             this.style.fontLanguageOverride = value;
@@ -6000,7 +6071,7 @@ function CreateVElementClass({
         }
 
         // Specifies the font size of text.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Font size
          *	@description: 
          *		Specifies the font size of text.
@@ -6009,12 +6080,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         font_size(value) {
             if (value == null) { return this.style.fontSize; }
             this.style.fontSize = this.pad_numeric(value);
@@ -6022,7 +6093,7 @@ function CreateVElementClass({
         }
 
         // Preserves the readability of text when font fallback occurs.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Font size adjust
          *	@description: 
          *		Preserves the readability of text when font fallback occurs.
@@ -6031,12 +6102,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         font_size_adjust(value) {
             if (value == null) { return this.style.fontSizeAdjust; }
             this.style.fontSizeAdjust = value;
@@ -6044,7 +6115,7 @@ function CreateVElementClass({
         }
 
         // Selects a normal, condensed, or expanded face from a font family.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Font stretch
          *	@description: 
          *		Selects a normal, condensed, or expanded face from a font family.
@@ -6053,12 +6124,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         font_stretch(value) {
             if (value == null) { return this.style.fontStretch; }
             this.style.fontStretch = value;
@@ -6066,7 +6137,7 @@ function CreateVElementClass({
         }
 
         // Specifies the font style for text.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Font style
          *	@description: 
          *		Specifies the font style for text.
@@ -6075,12 +6146,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         font_style(value) {
             if (value == null) { return this.style.fontStyle; }
             this.style.fontStyle = value;
@@ -6088,7 +6159,7 @@ function CreateVElementClass({
         }
 
         // Controls which missing typefaces (bold or italic) may be synthesized by the browser.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Font synthesis
          *	@description: 
          *		Controls which missing typefaces (bold or italic) may be synthesized by the browser.
@@ -6097,12 +6168,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         font_synthesis(value) {
             if (value == null) { return this.style.fontSynthesis; }
             this.style.fontSynthesis = value;
@@ -6110,7 +6181,7 @@ function CreateVElementClass({
         }
 
         // Specifies whether or not a text should be displayed in a small-caps font.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Font variant
          *	@description: 
          *		Specifies whether or not a text should be displayed in a small-caps font.
@@ -6119,12 +6190,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         font_variant(value) {
             if (value == null) { return this.style.fontVariant; }
             this.style.fontVariant = value;
@@ -6132,7 +6203,7 @@ function CreateVElementClass({
         }
 
         // Controls the usage of alternate glyphs associated to alternative names defined in @font-feature-values.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Font variant alternates
          *	@description: 
          *		Controls the usage of alternate glyphs associated to alternative names defined in @font-feature-values.
@@ -6141,12 +6212,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         font_variant_alternates(value) {
             if (value == null) { return this.style.fontVariantAlternates; }
             this.style.fontVariantAlternates = value;
@@ -6154,7 +6225,7 @@ function CreateVElementClass({
         }
 
         // Controls the usage of alternate glyphs for capital letters.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Font variant caps
          *	@description: 
          *		Controls the usage of alternate glyphs for capital letters.
@@ -6163,12 +6234,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         font_variant_caps(value) {
             if (value == null) { return this.style.fontVariantCaps; }
             this.style.fontVariantCaps = value;
@@ -6176,7 +6247,7 @@ function CreateVElementClass({
         }
 
         // Controls the usage of alternate glyphs for East Asian scripts (e.g Japanese and Chinese).
-        /*	@docs: {
+        /*	@docs:
          *	@title: Font variant east asian
          *	@description: 
          *		Controls the usage of alternate glyphs for East Asian scripts (e.g Japanese and Chinese).
@@ -6185,12 +6256,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         font_variant_east_asian(value) {
             if (value == null) { return this.style.fontVariantEastAsian; }
             this.style.fontVariantEastAsian = value;
@@ -6198,7 +6269,7 @@ function CreateVElementClass({
         }
 
         // Controls which ligatures and contextual forms are used in textual content of the elements it applies to.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Font variant ligatures
          *	@description: 
          *		Controls which ligatures and contextual forms are used in textual content of the elements it applies to.
@@ -6207,12 +6278,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         font_variant_ligatures(value) {
             if (value == null) { return this.style.fontVariantLigatures; }
             this.style.fontVariantLigatures = value;
@@ -6220,7 +6291,7 @@ function CreateVElementClass({
         }
 
         // Controls the usage of alternate glyphs for numbers, fractions, and ordinal markers.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Font variant numeric
          *	@description: 
          *		Controls the usage of alternate glyphs for numbers, fractions, and ordinal markers.
@@ -6229,12 +6300,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         font_variant_numeric(value) {
             if (value == null) { return this.style.fontVariantNumeric; }
             this.style.fontVariantNumeric = value;
@@ -6242,7 +6313,7 @@ function CreateVElementClass({
         }
 
         // Controls the usage of alternate glyphs of smaller size positioned as superscript or subscript regarding the baseline of the font.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Font variant position
          *	@description: 
          *		Controls the usage of alternate glyphs of smaller size positioned as superscript or subscript regarding the baseline of the font.
@@ -6251,12 +6322,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         font_variant_position(value) {
             if (value == null) { return this.style.fontVariantPosition; }
             this.style.fontVariantPosition = value;
@@ -6264,7 +6335,7 @@ function CreateVElementClass({
         }
 
         // Specifies the weight of a font.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Font weight
          *	@description: 
          *		Specifies the weight of a font.
@@ -6273,12 +6344,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         font_weight(value) {
             if (value == null) { return this.style.fontWeight; }
             this.style.fontWeight = value;
@@ -6286,7 +6357,7 @@ function CreateVElementClass({
         }
 
         // A shorthand property for the row-gap and the column-gap properties.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Gap
          *	@description: 
          *		A shorthand property for the row-gap and the column-gap properties.
@@ -6295,12 +6366,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         gap(value) {
             if (value == null) { return this.style.gap; }
             this.style.gap = value;
@@ -6308,7 +6379,7 @@ function CreateVElementClass({
         }
 
         // A shorthand property for the grid-template-rows, grid-template-columns, grid-template-areas, grid-auto-rows, grid-auto-columns, and the grid-auto-flow properties.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Grid
          *	@description: 
          *		A shorthand property for the grid-template-rows, grid-template-columns, grid-template-areas, grid-auto-rows, grid-auto-columns, and the grid-auto-flow properties.
@@ -6317,12 +6388,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         grid(value) {
             if (value == null) { return this.style.grid; }
             this.style.grid = value;
@@ -6330,7 +6401,7 @@ function CreateVElementClass({
         }
 
         // Either specifies a name for the grid item, or this property is a shorthand property for the grid-row-start, grid-column-start, grid-row-end, and grid-column-end properties.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Grid area
          *	@description: 
          *		Either specifies a name for the grid item, or this property is a shorthand property for the grid-row-start, grid-column-start, grid-row-end, and grid-column-end properties.
@@ -6339,12 +6410,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         grid_area(value) {
             if (value == null) { return this.style.gridArea; }
             this.style.gridArea = value;
@@ -6352,7 +6423,7 @@ function CreateVElementClass({
         }
 
         // Specifies a default column size.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Grid auto columns
          *	@description: 
          *		Specifies a default column size.
@@ -6361,12 +6432,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         grid_auto_columns(value) {
             if (value == null) { return this.style.gridAutoColumns; }
             this.style.gridAutoColumns = value;
@@ -6374,7 +6445,7 @@ function CreateVElementClass({
         }
 
         // Specifies how auto-placed items are inserted in the grid.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Grid auto flow
          *	@description: 
          *		Specifies how auto-placed items are inserted in the grid.
@@ -6383,12 +6454,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         grid_auto_flow(value) {
             if (value == null) { return this.style.gridAutoFlow; }
             this.style.gridAutoFlow = value;
@@ -6396,7 +6467,7 @@ function CreateVElementClass({
         }
 
         // Specifies a default row size.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Grid auto rows
          *	@description: 
          *		Specifies a default row size.
@@ -6405,12 +6476,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         grid_auto_rows(value) {
             if (value == null) { return this.style.gridAutoRows; }
             this.style.gridAutoRows = value;
@@ -6418,7 +6489,7 @@ function CreateVElementClass({
         }
 
         // A shorthand property for the grid-column-start and the grid-column-end properties.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Grid column
          *	@description: 
          *		A shorthand property for the grid-column-start and the grid-column-end properties.
@@ -6427,12 +6498,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         grid_column(value) {
             if (value == null) { return this.style.gridColumn; }
             this.style.gridColumn = value;
@@ -6440,7 +6511,7 @@ function CreateVElementClass({
         }
 
         // Specifies where to end the grid item.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Grid column end
          *	@description: 
          *		Specifies where to end the grid item.
@@ -6449,12 +6520,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         grid_column_end(value) {
             if (value == null) { return this.style.gridColumnEnd; }
             this.style.gridColumnEnd = value;
@@ -6462,7 +6533,7 @@ function CreateVElementClass({
         }
 
         // Specifies the size of the gap between columns.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Grid column gap
          *	@description: 
          *		Specifies the size of the gap between columns.
@@ -6471,12 +6542,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         grid_column_gap(value) {
             if (value == null) { return this.style.gridColumnGap; }
             this.style.gridColumnGap = value;
@@ -6484,7 +6555,7 @@ function CreateVElementClass({
         }
 
         // Specifies where to start the grid item.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Grid column start
          *	@description: 
          *		Specifies where to start the grid item.
@@ -6493,12 +6564,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         grid_column_start(value) {
             if (value == null) { return this.style.gridColumnStart; }
             this.style.gridColumnStart = value;
@@ -6506,7 +6577,7 @@ function CreateVElementClass({
         }
 
         // A shorthand property for the grid-row-gap and grid-column-gap properties.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Grid gap
          *	@description: 
          *		A shorthand property for the grid-row-gap and grid-column-gap properties.
@@ -6515,12 +6586,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         grid_gap(value) {
             if (value == null) { return this.style.gridGap; }
             this.style.gridGap = value;
@@ -6528,7 +6599,7 @@ function CreateVElementClass({
         }
 
         // A shorthand property for the grid-row-start and the grid-row-end properties.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Grid row
          *	@description: 
          *		A shorthand property for the grid-row-start and the grid-row-end properties.
@@ -6537,12 +6608,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         grid_row(value) {
             if (value == null) { return this.style.gridRow; }
             this.style.gridRow = value;
@@ -6550,7 +6621,7 @@ function CreateVElementClass({
         }
 
         // Specifies where to end the grid item.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Grid row end
          *	@description: 
          *		Specifies where to end the grid item.
@@ -6559,12 +6630,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         grid_row_end(value) {
             if (value == null) { return this.style.gridRowEnd; }
             this.style.gridRowEnd = value;
@@ -6572,7 +6643,7 @@ function CreateVElementClass({
         }
 
         // Specifies the size of the gap between rows.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Grid row gap
          *	@description: 
          *		Specifies the size of the gap between rows.
@@ -6581,12 +6652,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         grid_row_gap(value) {
             if (value == null) { return this.style.gridRowGap; }
             this.style.gridRowGap = value;
@@ -6594,7 +6665,7 @@ function CreateVElementClass({
         }
 
         // Specifies where to start the grid item.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Grid row start
          *	@description: 
          *		Specifies where to start the grid item.
@@ -6603,12 +6674,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         grid_row_start(value) {
             if (value == null) { return this.style.gridRowStart; }
             this.style.gridRowStart = value;
@@ -6616,7 +6687,7 @@ function CreateVElementClass({
         }
 
         // A shorthand property for the grid-template-rows, grid-template-columns and grid-areas properties.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Grid template
          *	@description: 
          *		A shorthand property for the grid-template-rows, grid-template-columns and grid-areas properties.
@@ -6625,12 +6696,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         grid_template(value) {
             if (value == null) { return this.style.gridTemplate; }
             this.style.gridTemplate = value;
@@ -6638,7 +6709,7 @@ function CreateVElementClass({
         }
 
         // Specifies how to display columns and rows, using named grid items.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Grid template areas
          *	@description: 
          *		Specifies how to display columns and rows, using named grid items.
@@ -6647,12 +6718,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         grid_template_areas(value) {
             if (value == null) { return this.style.gridTemplateAreas; }
             this.style.gridTemplateAreas = value;
@@ -6660,7 +6731,7 @@ function CreateVElementClass({
         }
 
         // Specifies the size of the columns, and how many columns in a grid layout.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Grid template columns
          *	@description: 
          *		Specifies the size of the columns, and how many columns in a grid layout.
@@ -6669,12 +6740,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         grid_template_columns(value) {
             if (value == null) { return this.style.gridTemplateColumns; }
             this.style.gridTemplateColumns = value;
@@ -6682,7 +6753,7 @@ function CreateVElementClass({
         }
 
         // Specifies the size of the rows in a grid layout.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Grid template rows
          *	@description: 
          *		Specifies the size of the rows in a grid layout.
@@ -6691,12 +6762,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         grid_template_rows(value) {
             if (value == null) { return this.style.gridTemplateRows; }
             this.style.gridTemplateRows = value;
@@ -6704,7 +6775,7 @@ function CreateVElementClass({
         }
 
         // Specifies whether a punctuation character may be placed outside the line box.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Hanging punctuation
          *	@description: 
          *		Specifies whether a punctuation character may be placed outside the line box.
@@ -6713,12 +6784,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         hanging_punctuation(value) {
             if (value == null) { return this.style.hangingPunctuation; }
             this.style.hangingPunctuation = value;
@@ -6733,7 +6804,7 @@ function CreateVElementClass({
         // }
 
         // Sets how to split words to improve the layout of paragraphs.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Hyphens
          *	@description: 
          *		Sets how to split words to improve the layout of paragraphs.
@@ -6742,12 +6813,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         hyphens(value) {
             if (value == null) { return this.style.hyphens; }
             this.style.hyphens = value;
@@ -6755,7 +6826,7 @@ function CreateVElementClass({
         }
 
         // Specifies the type of algorithm to use for image scaling.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Image rendering
          *	@description: 
          *		Specifies the type of algorithm to use for image scaling.
@@ -6764,12 +6835,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         image_rendering(value) {
             if (value == null) { return this.style.imageRendering; }
             this.style.imageRendering = value;
@@ -6777,7 +6848,7 @@ function CreateVElementClass({
         }
 
         // Specifies the size of an element in the inline direction.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Inline size
          *	@description: 
          *		Specifies the size of an element in the inline direction.
@@ -6786,12 +6857,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         inline_size(value) {
             if (value == null) { return this.style.inlineSize; }
             this.style.inlineSize = this.pad_numeric(value);
@@ -6799,7 +6870,7 @@ function CreateVElementClass({
         }
 
         // Specifies the distance between an element and the parent element.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Inset
          *	@description: 
          *		Specifies the distance between an element and the parent element.
@@ -6808,12 +6879,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         inset(value) {
             if (value == null) { return this.style.inset; }
             this.style.inset = value;
@@ -6821,7 +6892,7 @@ function CreateVElementClass({
         }
 
         // Specifies the distance between an element and the parent element in the block direction.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Inset block
          *	@description: 
          *		Specifies the distance between an element and the parent element in the block direction.
@@ -6830,12 +6901,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         inset_block(value) {
             if (value == null) { return this.style.insetBlock; }
             this.style.insetBlock = value;
@@ -6843,7 +6914,7 @@ function CreateVElementClass({
         }
 
         // Specifies the distance between the end of an element and the parent element in the block direction.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Inset block end
          *	@description: 
          *		Specifies the distance between the end of an element and the parent element in the block direction.
@@ -6852,12 +6923,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         inset_block_end(value) {
             if (value == null) { return this.style.insetBlockEnd; }
             this.style.insetBlockEnd = value;
@@ -6865,7 +6936,7 @@ function CreateVElementClass({
         }
 
         // Specifies the distance between the start of an element and the parent element in the block direction.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Inset block start
          *	@description: 
          *		Specifies the distance between the start of an element and the parent element in the block direction.
@@ -6874,12 +6945,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         inset_block_start(value) {
             if (value == null) { return this.style.insetBlockStart; }
             this.style.insetBlockStart = value;
@@ -6887,7 +6958,7 @@ function CreateVElementClass({
         }
 
         // Specifies the distance between an element and the parent element in the inline direction.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Inset inline
          *	@description: 
          *		Specifies the distance between an element and the parent element in the inline direction.
@@ -6896,12 +6967,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         inset_inline(value) {
             if (value == null) { return this.style.insetInline; }
             this.style.insetInline = value;
@@ -6909,7 +6980,7 @@ function CreateVElementClass({
         }
 
         // Specifies the distance between the end of an element and the parent element in the inline direction.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Inset inline end
          *	@description: 
          *		Specifies the distance between the end of an element and the parent element in the inline direction.
@@ -6918,12 +6989,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         inset_inline_end(value) {
             if (value == null) { return this.style.insetInlineEnd; }
             this.style.insetInlineEnd = value;
@@ -6931,7 +7002,7 @@ function CreateVElementClass({
         }
 
         // Specifies the distance between the start of an element and the parent element in the inline direction.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Inset inline start
          *	@description: 
          *		Specifies the distance between the start of an element and the parent element in the inline direction.
@@ -6940,12 +7011,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         inset_inline_start(value) {
             if (value == null) { return this.style.insetInlineStart; }
             this.style.insetInlineStart = value;
@@ -6953,7 +7024,7 @@ function CreateVElementClass({
         }
 
         // Defines whether an element must create a new stacking content.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Isolation
          *	@description: 
          *		Defines whether an element must create a new stacking content.
@@ -6962,12 +7033,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         isolation(value) {
             if (value == null) { return this.style.isolation; }
             this.style.isolation = value;
@@ -6975,7 +7046,7 @@ function CreateVElementClass({
         }
 
         // Specifies the alignment between the items inside a flexible container when the items do not use all available space.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Justify content
          *	@description: 
          *		Specifies the alignment between the items inside a flexible container when the items do not use all available space.
@@ -6984,12 +7055,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         justify_content(value) {
             if (value == null) { return this.style.justifyContent; }
             this.style.justifyContent = value;
@@ -7001,7 +7072,7 @@ function CreateVElementClass({
         }
 
         // Is set on the grid container. Specifies the alignment of grid items in the inline direction.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Justify items
          *	@description: 
          *		Is set on the grid container. Specifies the alignment of grid items in the inline direction.
@@ -7010,12 +7081,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         justify_items(value) {
             if (value == null) { return this.style.justifyItems; }
             this.style.justifyItems = value;
@@ -7023,7 +7094,7 @@ function CreateVElementClass({
         }
 
         // Is set on the grid item. Specifies the alignment of the grid item in the inline direction.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Justify self
          *	@description: 
          *		Is set on the grid item. Specifies the alignment of the grid item in the inline direction.
@@ -7032,12 +7103,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         justify_self(value) {
             if (value == null) { return this.style.justifySelf; }
             this.style.justifySelf = value;
@@ -7045,7 +7116,7 @@ function CreateVElementClass({
         }
 
         // Specifies the left position of a positioned element.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Left
          *	@description: 
          *		Specifies the left position of a positioned element.
@@ -7054,12 +7125,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         left(value) {
             if (value == null) { return this.style.left; }
             this.style.left = this.pad_numeric(value);
@@ -7067,7 +7138,7 @@ function CreateVElementClass({
         }
 
         // Increases or decreases the space between characters in a text.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Letter spacing
          *	@description: 
          *		Increases or decreases the space between characters in a text.
@@ -7076,12 +7147,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         letter_spacing(value) {
             if (value == null) { return this.style.letterSpacing; }
             this.style.letterSpacing = value;
@@ -7089,7 +7160,7 @@ function CreateVElementClass({
         }
 
         // Specifies how/if to break lines.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Line break
          *	@description: 
          *		Specifies how/if to break lines.
@@ -7098,12 +7169,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         line_break(value) {
             if (value == null) { return this.style.lineBreak; }
             this.style.lineBreak = value;
@@ -7111,7 +7182,7 @@ function CreateVElementClass({
         }
 
         // Sets the line height.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Line height
          *	@description: 
          *		Sets the line height.
@@ -7120,12 +7191,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         line_height(value) {
             if (value == null) { return this.style.lineHeight; }
             this.style.lineHeight = this.pad_numeric(value);
@@ -7133,7 +7204,7 @@ function CreateVElementClass({
         }
 
         // Sets all the properties for a list in one declaration.
-        /*	@docs: {
+        /*	@docs:
          *	@title: List style
          *	@description: 
          *		Sets all the properties for a list in one declaration.
@@ -7142,12 +7213,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         list_style(value) {
             if (value == null) { return this.style.listStyle; }
             this.style.listStyle = value;
@@ -7155,7 +7226,7 @@ function CreateVElementClass({
         }
 
         // Specifies an image as the list-item marker.
-        /*	@docs: {
+        /*	@docs:
          *	@title: List style image
          *	@description: 
          *		Specifies an image as the list-item marker.
@@ -7164,12 +7235,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         list_style_image(value) {
             if (value == null) { return this.style.listStyleImage; }
             this.style.listStyleImage = value;
@@ -7177,7 +7248,7 @@ function CreateVElementClass({
         }
 
         // Specifies the position of the list-item markers (bullet points).
-        /*	@docs: {
+        /*	@docs:
          *	@title: List style position
          *	@description: 
          *		Specifies the position of the list-item markers (bullet points).
@@ -7186,12 +7257,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         list_style_position(value) {
             if (value == null) { return this.style.listStylePosition; }
             this.style.listStylePosition = value;
@@ -7199,7 +7270,7 @@ function CreateVElementClass({
         }
 
         // Specifies the type of list-item marker.
-        /*	@docs: {
+        /*	@docs:
          *	@title: List style type
          *	@description: 
          *		Specifies the type of list-item marker.
@@ -7208,12 +7279,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         list_style_type(value) {
             if (value == null) { return this.style.listStyleType; }
             this.style.listStyleType = value;
@@ -7228,7 +7299,7 @@ function CreateVElementClass({
         // }
 
         // Specifies the margin in the block direction.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Margin block
          *	@description: 
          *		Specifies the margin in the block direction.
@@ -7237,12 +7308,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         margin_block(value) {
             if (value == null) { return this.style.marginBlock; }
             this.style.marginBlock = value;
@@ -7250,7 +7321,7 @@ function CreateVElementClass({
         }
 
         // Specifies the margin at the end in the block direction.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Margin block end
          *	@description: 
          *		Specifies the margin at the end in the block direction.
@@ -7259,12 +7330,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         margin_block_end(value) {
             if (value == null) { return this.style.marginBlockEnd; }
             this.style.marginBlockEnd = value;
@@ -7272,7 +7343,7 @@ function CreateVElementClass({
         }
 
         // Specifies the margin at the start in the block direction.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Margin block start
          *	@description: 
          *		Specifies the margin at the start in the block direction.
@@ -7281,12 +7352,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         margin_block_start(value) {
             if (value == null) { return this.style.marginBlockStart; }
             this.style.marginBlockStart = value;
@@ -7294,7 +7365,7 @@ function CreateVElementClass({
         }
 
         // Sets the bottom margin of an element.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Margin bottom
          *	@description: 
          *		Sets the bottom margin of an element.
@@ -7303,12 +7374,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         margin_bottom(value) {
             if (value == null) { return this.style.marginBottom; }
             this.style.marginBottom = this.pad_numeric(value);
@@ -7316,7 +7387,7 @@ function CreateVElementClass({
         }
 
         // Specifies the margin in the inline direction.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Margin inline
          *	@description: 
          *		Specifies the margin in the inline direction.
@@ -7325,12 +7396,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         margin_inline(value) {
             if (value == null) { return this.style.marginInline; }
             this.style.marginInline = value;
@@ -7338,7 +7409,7 @@ function CreateVElementClass({
         }
 
         // Specifies the margin at the end in the inline direction.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Margin inline end
          *	@description: 
          *		Specifies the margin at the end in the inline direction.
@@ -7347,12 +7418,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         margin_inline_end(value) {
             if (value == null) { return this.style.marginInlineEnd; }
             this.style.marginInlineEnd = value;
@@ -7360,7 +7431,7 @@ function CreateVElementClass({
         }
 
         // Specifies the margin at the start in the inline direction.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Margin inline start
          *	@description: 
          *		Specifies the margin at the start in the inline direction.
@@ -7369,12 +7440,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         margin_inline_start(value) {
             if (value == null) { return this.style.marginInlineStart; }
             this.style.marginInlineStart = value;
@@ -7382,7 +7453,7 @@ function CreateVElementClass({
         }
 
         // Sets the left margin of an element.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Margin left
          *	@description: 
          *		Sets the left margin of an element.
@@ -7391,12 +7462,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         margin_left(value) {
             if (value == null) { return this.style.marginLeft; }
             this.style.marginLeft = this.pad_numeric(value);
@@ -7404,7 +7475,7 @@ function CreateVElementClass({
         }
 
         // Sets the right margin of an element.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Margin right
          *	@description: 
          *		Sets the right margin of an element.
@@ -7413,12 +7484,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         margin_right(value) {
             if (value == null) { return this.style.marginRight; }
             this.style.marginRight = this.pad_numeric(value);
@@ -7426,7 +7497,7 @@ function CreateVElementClass({
         }
 
         // Sets the top margin of an element.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Margin top
          *	@description: 
          *		Sets the top margin of an element.
@@ -7435,12 +7506,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         margin_top(value) {
             if (value == null) { return this.style.marginTop; }
             this.style.marginTop = this.pad_numeric(value);
@@ -7448,7 +7519,7 @@ function CreateVElementClass({
         }
 
         // Hides parts of an element by masking or clipping an image at specific places.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Mask
          *	@description: 
          *		Hides parts of an element by masking or clipping an image at specific places.
@@ -7457,12 +7528,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         mask(value) {
             if (value == null) { return this.style.mask; }
             this.style.mask = value;
@@ -7474,7 +7545,7 @@ function CreateVElementClass({
         }
 
         // Specifies the mask area.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Mask clip
          *	@description: 
          *		Specifies the mask area.
@@ -7483,12 +7554,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         mask_clip(value) {
             if (value == null) { return this.style.maskClip; }
             this.style.maskClip = value;
@@ -7496,7 +7567,7 @@ function CreateVElementClass({
         }
 
         // Represents a compositing operation used on the current mask layer with the mask layers below it.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Mask composite
          *	@description: 
          *		Represents a compositing operation used on the current mask layer with the mask layers below it.
@@ -7505,12 +7576,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         mask_composite(value) {
             if (value == null) { return this.style.maskComposite; }
             this.style.maskComposite = value;
@@ -7522,7 +7593,7 @@ function CreateVElementClass({
         }
 
         // Specifies an image to be used as a mask layer for an element.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Mask image
          *	@description: 
          *		Specifies an image to be used as a mask layer for an element.
@@ -7531,12 +7602,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         mask_image(value) {
             if (value == null) { return this.style.maskImage; }
             this.style.maskImage = value;
@@ -7548,7 +7619,7 @@ function CreateVElementClass({
         }
 
         // Specifies whether the mask layer image is treated as a luminance mask or as an alpha mask.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Mask mode
          *	@description: 
          *		Specifies whether the mask layer image is treated as a luminance mask or as an alpha mask.
@@ -7557,12 +7628,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         mask_mode(value) {
             if (value == null) { return this.style.maskMode; }
             this.style.maskMode = value;
@@ -7570,7 +7641,7 @@ function CreateVElementClass({
         }
 
         // Specifies the origin position (the mask position area) of a mask layer image.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Mask origin
          *	@description: 
          *		Specifies the origin position (the mask position area) of a mask layer image.
@@ -7579,12 +7650,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         mask_origin(value) {
             if (value == null) { return this.style.maskOrigin; }
             this.style.maskOrigin = value;
@@ -7592,7 +7663,7 @@ function CreateVElementClass({
         }
 
         // Sets the starting position of a mask layer image (relative to the mask position area).
-        /*	@docs: {
+        /*	@docs:
          *	@title: Mask position
          *	@description: 
          *		Sets the starting position of a mask layer image (relative to the mask position area).
@@ -7601,12 +7672,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         mask_position(value) {
             if (value == null) { return this.style.maskPosition; }
             this.style.maskPosition = value;
@@ -7614,7 +7685,7 @@ function CreateVElementClass({
         }
 
         // Specifies how the mask layer image is repeated.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Mask repeat
          *	@description: 
          *		Specifies how the mask layer image is repeated.
@@ -7623,12 +7694,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         mask_repeat(value) {
             if (value == null) { return this.style.maskRepeat; }
             this.style.maskRepeat = value;
@@ -7636,7 +7707,7 @@ function CreateVElementClass({
         }
 
         // Specifies the size of a mask layer image.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Mask size
          *	@description: 
          *		Specifies the size of a mask layer image.
@@ -7645,12 +7716,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         mask_size(value) {
             if (value == null) { return this.style.maskSize; }
             this.style.maskSize = this.pad_numeric(value);
@@ -7658,7 +7729,7 @@ function CreateVElementClass({
         }
 
         // Specifies whether an SVG <mask> element is treated as a luminance mask or as an alpha mask.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Mask type
          *	@description: 
          *		Specifies whether an SVG <mask> element is treated as a luminance mask or as an alpha mask.
@@ -7667,12 +7738,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         mask_type(value) {
             if (value == null) { return this.style.maskType; }
             this.style.maskType = value;
@@ -7680,7 +7751,7 @@ function CreateVElementClass({
         }
 
         // Sets the maximum height of an element.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Max height
          *	@description: 
          *		Sets the maximum height of an element.
@@ -7689,12 +7760,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         max_height(value) {
             if (value == null) { return this.style.maxHeight; }
             this.style.maxHeight = this.pad_numeric(value);
@@ -7702,7 +7773,7 @@ function CreateVElementClass({
         }
 
         // Sets the maximum width of an element.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Max width
          *	@description: 
          *		Sets the maximum width of an element.
@@ -7711,12 +7782,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         max_width(value) {
             if (value == null) { return this.style.maxWidth; }
             this.style.maxWidth = this.pad_numeric(value);
@@ -7724,7 +7795,7 @@ function CreateVElementClass({
         }
 
         // Sets the maximum size of an element in the block direction.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Max block size
          *	@description: 
          *		Sets the maximum size of an element in the block direction.
@@ -7733,12 +7804,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         max_block_size(value) {
             if (value == null) { return this.style.maxBlockSize; }
             this.style.maxBlockSize = this.pad_numeric(value);
@@ -7746,7 +7817,7 @@ function CreateVElementClass({
         }
 
         // Sets the maximum size of an element in the inline direction.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Max inline size
          *	@description: 
          *		Sets the maximum size of an element in the inline direction.
@@ -7755,12 +7826,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         max_inline_size(value) {
             if (value == null) { return this.style.maxInlineSize; }
             this.style.maxInlineSize = this.pad_numeric(value);
@@ -7768,7 +7839,7 @@ function CreateVElementClass({
         }
 
         // Sets the minimum size of an element in the block direction.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Min block size
          *	@description: 
          *		Sets the minimum size of an element in the block direction.
@@ -7777,12 +7848,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         min_block_size(value) {
             if (value == null) { return this.style.minBlockSize; }
             this.style.minBlockSize = this.pad_numeric(value);
@@ -7790,7 +7861,7 @@ function CreateVElementClass({
         }
 
         // Sets the minimum size of an element in the inline direction.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Min inline size
          *	@description: 
          *		Sets the minimum size of an element in the inline direction.
@@ -7799,12 +7870,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         min_inline_size(value) {
             if (value == null) { return this.style.minInlineSize; }
             this.style.minInlineSize = this.pad_numeric(value);
@@ -7812,7 +7883,7 @@ function CreateVElementClass({
         }
 
         // Sets the minimum height of an element.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Min height
          *	@description: 
          *		Sets the minimum height of an element.
@@ -7821,12 +7892,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         min_height(value) {
             if (value == null) { return this.style.minHeight; }
             this.style.minHeight = this.pad_numeric(value);
@@ -7834,7 +7905,7 @@ function CreateVElementClass({
         }
 
         // Sets the minimum width of an element.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Min width
          *	@description: 
          *		Sets the minimum width of an element.
@@ -7843,12 +7914,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         min_width(value) {
             if (value == null) { return this.style.minWidth; }
             this.style.minWidth = this.pad_numeric(value);
@@ -7856,7 +7927,7 @@ function CreateVElementClass({
         }
 
         // Specifies how an element's content should blend with its direct parent background.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Mix blend mode
          *	@description: 
          *		Specifies how an element's content should blend with its direct parent background.
@@ -7865,12 +7936,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         mix_blend_mode(value) {
             if (value == null) { return this.style.mixBlendMode; }
             this.style.mixBlendMode = value;
@@ -7878,7 +7949,7 @@ function CreateVElementClass({
         }
 
         // Specifies how the contents of a replaced element should be fitted to the box established by its used height and width.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Object fit
          *	@description: 
          *		Specifies how the contents of a replaced element should be fitted to the box established by its used height and width.
@@ -7887,12 +7958,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         object_fit(value) {
             if (value == null) { return this.style.objectFit; }
             this.style.objectFit = value;
@@ -7900,7 +7971,7 @@ function CreateVElementClass({
         }
 
         // Specifies the alignment of the replaced element inside its box.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Object position
          *	@description: 
          *		Specifies the alignment of the replaced element inside its box.
@@ -7909,12 +7980,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         object_position(value) {
             if (value == null) { return this.style.objectPosition; }
             this.style.objectPosition = value;
@@ -7922,7 +7993,7 @@ function CreateVElementClass({
         }
 
         // Is a shorthand, and specifies how to animate an element along a path.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Offset
          *	@description: 
          *		Is a shorthand, and specifies how to animate an element along a path.
@@ -7931,12 +8002,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         offset(value) {
             if (value == null) { return this.style.offset; }
             this.style.offset = value;
@@ -7944,7 +8015,7 @@ function CreateVElementClass({
         }
 
         // Specifies a point on an element that is fixed to the path it is animated along.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Offset anchor
          *	@description: 
          *		Specifies a point on an element that is fixed to the path it is animated along.
@@ -7953,12 +8024,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         offset_anchor(value) {
             if (value == null) { return this.style.offsetAnchor; }
             this.style.offsetAnchor = value;
@@ -7966,7 +8037,7 @@ function CreateVElementClass({
         }
 
         // Specifies the position along a path where an animated element is placed.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Offset distance
          *	@description: 
          *		Specifies the position along a path where an animated element is placed.
@@ -7975,12 +8046,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         offset_distance(value) {
             if (value == null) { return this.style.offsetDistance; }
             this.style.offsetDistance = value;
@@ -7988,7 +8059,7 @@ function CreateVElementClass({
         }
 
         // Specifies the path an element is animated along.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Offset path
          *	@description: 
          *		Specifies the path an element is animated along.
@@ -7997,12 +8068,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         offset_path(value) {
             if (value == null) { return this.style.offsetPath; }
             this.style.offsetPath = value;
@@ -8010,7 +8081,7 @@ function CreateVElementClass({
         }
 
         // Specifies rotation of an element as it is animated along a path.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Offset rotate
          *	@description: 
          *		Specifies rotation of an element as it is animated along a path.
@@ -8019,12 +8090,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         offset_rotate(value) {
             if (value == null) { return this.style.offsetRotate; }
             this.style.offsetRotate = value;
@@ -8039,7 +8110,7 @@ function CreateVElementClass({
         // }
 
         // Sets the order of the flexible item, relative to the rest.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Order
          *	@description: 
          *		Sets the order of the flexible item, relative to the rest.
@@ -8048,12 +8119,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         order(value) {
             if (value == null) { return this.style.order; }
             this.style.order = value;
@@ -8065,7 +8136,7 @@ function CreateVElementClass({
         }
 
         // Sets the minimum number of lines that must be left at the bottom of a page or column.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Orphans
          *	@description: 
          *		Sets the minimum number of lines that must be left at the bottom of a page or column.
@@ -8074,12 +8145,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         orphans(value) {
             if (value == null) { return this.style.orphans; }
             this.style.orphans = value;
@@ -8087,7 +8158,7 @@ function CreateVElementClass({
         }
 
         // A shorthand property for the outline-width, outline-style, and the outline-color properties.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Outline
          *	@description: 
          *		A shorthand property for the outline-width, outline-style, and the outline-color properties.
@@ -8096,12 +8167,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         outline(value) {
             if (value == null) { return this.style.outline; }
             this.style.outline = value;
@@ -8109,7 +8180,7 @@ function CreateVElementClass({
         }
 
         // Sets the color of an outline.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Outline color
          *	@description: 
          *		Sets the color of an outline.
@@ -8118,12 +8189,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         outline_color(value) {
             if (value == null) { return this.style.outlineColor; }
             this.style.outlineColor = value;
@@ -8131,7 +8202,7 @@ function CreateVElementClass({
         }
 
         // Offsets an outline, and draws it beyond the border edge.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Outline offset
          *	@description: 
          *		Offsets an outline, and draws it beyond the border edge.
@@ -8140,12 +8211,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         outline_offset(value) {
             if (value == null) { return this.style.outlineOffset; }
             this.style.outlineOffset = value;
@@ -8153,7 +8224,7 @@ function CreateVElementClass({
         }
 
         // Sets the style of an outline.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Outline style
          *	@description: 
          *		Sets the style of an outline.
@@ -8162,12 +8233,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         outline_style(value) {
             if (value == null) { return this.style.outlineStyle; }
             this.style.outlineStyle = value;
@@ -8175,7 +8246,7 @@ function CreateVElementClass({
         }
 
         // Sets the width of an outline.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Outline width
          *	@description: 
          *		Sets the width of an outline.
@@ -8184,12 +8255,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         outline_width(value) {
             if (value == null) { return this.style.outlineWidth; }
             this.style.outlineWidth = this.pad_numeric(value);
@@ -8197,7 +8268,7 @@ function CreateVElementClass({
         }
 
         // Specifies what happens if content overflows an element's box.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Overflow
          *	@description: 
          *		Specifies what happens if content overflows an element's box.
@@ -8206,12 +8277,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         overflow(value) {
             if (value == null) { return this.style.overflow; }
             this.style.overflow = value;
@@ -8219,7 +8290,7 @@ function CreateVElementClass({
         }
 
         // Specifies whether or not content in viewable area in a scrollable contianer should be pushed down when new content is loaded above.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Overflow anchor
          *	@description: 
          *		Specifies whether or not content in viewable area in a scrollable contianer should be pushed down when new content is loaded above.
@@ -8228,12 +8299,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         overflow_anchor(value) {
             if (value == null) { return this.style.overflowAnchor; }
             this.style.overflowAnchor = value;
@@ -8241,7 +8312,7 @@ function CreateVElementClass({
         }
 
         // Specifies whether or not the browser can break lines with long words, if they overflow the container.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Overflow wrap
          *	@description: 
          *		Specifies whether or not the browser can break lines with long words, if they overflow the container.
@@ -8250,12 +8321,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         overflow_wrap(value) {
             if (value == null) { return this.style.overflowWrap; }
             this.style.overflowWrap = value;
@@ -8263,7 +8334,7 @@ function CreateVElementClass({
         }
 
         // Specifies whether or not to clip the left/right edges of the content, if it overflows the element's content area.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Overflow x
          *	@description: 
          *		Specifies whether or not to clip the left/right edges of the content, if it overflows the element's content area.
@@ -8272,12 +8343,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         overflow_x(value) {
             if (value == null) { return this.style.overflowX; }
             this.style.overflowX = value;
@@ -8285,7 +8356,7 @@ function CreateVElementClass({
         }
 
         // Specifies whether or not to clip the top/bottom edges of the content, if it overflows the element's content area.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Overflow y
          *	@description: 
          *		Specifies whether or not to clip the top/bottom edges of the content, if it overflows the element's content area.
@@ -8294,12 +8365,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         overflow_y(value) {
             if (value == null) { return this.style.overflowY; }
             this.style.overflowY = value;
@@ -8307,7 +8378,7 @@ function CreateVElementClass({
         }
 
         // Specifies whether to have scroll chaining or overscroll affordance in x- and y-directions.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Overscroll behavior
          *	@description: 
          *		Specifies whether to have scroll chaining or overscroll affordance in x- and y-directions.
@@ -8316,12 +8387,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         overscroll_behavior(value) {
             if (value == null) { return this.style.overscrollBehavior; }
             this.style.overscrollBehavior = value;
@@ -8329,7 +8400,7 @@ function CreateVElementClass({
         }
 
         // Specifies whether to have scroll chaining or overscroll affordance in the block direction.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Overscroll behavior block
          *	@description: 
          *		Specifies whether to have scroll chaining or overscroll affordance in the block direction.
@@ -8338,12 +8409,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         overscroll_behavior_block(value) {
             if (value == null) { return this.style.overscrollBehaviorBlock; }
             this.style.overscrollBehaviorBlock = value;
@@ -8351,7 +8422,7 @@ function CreateVElementClass({
         }
 
         // Specifies whether to have scroll chaining or overscroll affordance in the inline direction.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Overscroll behavior inline
          *	@description: 
          *		Specifies whether to have scroll chaining or overscroll affordance in the inline direction.
@@ -8360,12 +8431,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         overscroll_behavior_inline(value) {
             if (value == null) { return this.style.overscrollBehaviorInline; }
             this.style.overscrollBehaviorInline = value;
@@ -8373,7 +8444,7 @@ function CreateVElementClass({
         }
 
         // Specifies whether to have scroll chaining or overscroll affordance in x-direction.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Overscroll behavior x
          *	@description: 
          *		Specifies whether to have scroll chaining or overscroll affordance in x-direction.
@@ -8382,12 +8453,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         overscroll_behavior_x(value) {
             if (value == null) { return this.style.overscrollBehaviorX; }
             this.style.overscrollBehaviorX = value;
@@ -8395,7 +8466,7 @@ function CreateVElementClass({
         }
 
         // Specifies whether to have scroll chaining or overscroll affordance in y-directions.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Overscroll behavior y
          *	@description: 
          *		Specifies whether to have scroll chaining or overscroll affordance in y-directions.
@@ -8404,12 +8475,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         overscroll_behavior_y(value) {
             if (value == null) { return this.style.overscrollBehaviorY; }
             this.style.overscrollBehaviorY = value;
@@ -8424,7 +8495,7 @@ function CreateVElementClass({
         // }
 
         // Specifies the padding in the block direction.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Padding block
          *	@description: 
          *		Specifies the padding in the block direction.
@@ -8433,12 +8504,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         padding_block(value) {
             if (value == null) { return this.style.paddingBlock; }
             this.style.paddingBlock = value;
@@ -8446,7 +8517,7 @@ function CreateVElementClass({
         }
 
         // Specifies the padding at the end in the block direction.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Padding block end
          *	@description: 
          *		Specifies the padding at the end in the block direction.
@@ -8455,12 +8526,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         padding_block_end(value) {
             if (value == null) { return this.style.paddingBlockEnd; }
             this.style.paddingBlockEnd = value;
@@ -8468,7 +8539,7 @@ function CreateVElementClass({
         }
 
         // Specifies the padding at the start in the block direction.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Padding block start
          *	@description: 
          *		Specifies the padding at the start in the block direction.
@@ -8477,12 +8548,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         padding_block_start(value) {
             if (value == null) { return this.style.paddingBlockStart; }
             this.style.paddingBlockStart = value;
@@ -8490,7 +8561,7 @@ function CreateVElementClass({
         }
 
         // Sets the bottom padding of an element.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Padding bottom
          *	@description: 
          *		Sets the bottom padding of an element.
@@ -8499,12 +8570,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         padding_bottom(value) {
             if (value == null) { return this.style.paddingBottom; }
             this.style.paddingBottom = this.pad_numeric(value);
@@ -8512,7 +8583,7 @@ function CreateVElementClass({
         }
 
         // Specifies the padding in the inline direction.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Padding inline
          *	@description: 
          *		Specifies the padding in the inline direction.
@@ -8521,12 +8592,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         padding_inline(value) {
             if (value == null) { return this.style.paddingInline; }
             this.style.paddingInline = value;
@@ -8534,7 +8605,7 @@ function CreateVElementClass({
         }
 
         // Specifies the padding at the end in the inline direction.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Padding inline end
          *	@description: 
          *		Specifies the padding at the end in the inline direction.
@@ -8543,12 +8614,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         padding_inline_end(value) {
             if (value == null) { return this.style.paddingInlineEnd; }
             this.style.paddingInlineEnd = value;
@@ -8556,7 +8627,7 @@ function CreateVElementClass({
         }
 
         // Specifies the padding at the start in the inline direction.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Padding inline start
          *	@description: 
          *		Specifies the padding at the start in the inline direction.
@@ -8565,12 +8636,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         padding_inline_start(value) {
             if (value == null) { return this.style.paddingInlineStart; }
             this.style.paddingInlineStart = value;
@@ -8578,7 +8649,7 @@ function CreateVElementClass({
         }
 
         // Sets the left padding of an element.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Padding left
          *	@description: 
          *		Sets the left padding of an element.
@@ -8587,12 +8658,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         padding_left(value) {
             if (value == null) { return this.style.paddingLeft; }
             this.style.paddingLeft = this.pad_numeric(value);
@@ -8600,7 +8671,7 @@ function CreateVElementClass({
         }
 
         // Sets the right padding of an element.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Padding right
          *	@description: 
          *		Sets the right padding of an element.
@@ -8609,12 +8680,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         padding_right(value) {
             if (value == null) { return this.style.paddingRight; }
             this.style.paddingRight = this.pad_numeric(value);
@@ -8622,7 +8693,7 @@ function CreateVElementClass({
         }
 
         // Sets the top padding of an element.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Padding top
          *	@description: 
          *		Sets the top padding of an element.
@@ -8631,12 +8702,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         padding_top(value) {
             if (value == null) { return this.style.paddingTop; }
             this.style.paddingTop = this.pad_numeric(value);
@@ -8644,7 +8715,7 @@ function CreateVElementClass({
         }
 
         // Sets the page-break behavior after an element.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Page break after
          *	@description: 
          *		Sets the page-break behavior after an element.
@@ -8653,12 +8724,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         page_break_after(value) {
             if (value == null) { return this.style.pageBreakAfter; }
             this.style.pageBreakAfter = value;
@@ -8666,7 +8737,7 @@ function CreateVElementClass({
         }
 
         // Sets the page-break behavior before an element.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Page break before
          *	@description: 
          *		Sets the page-break behavior before an element.
@@ -8675,12 +8746,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         page_break_before(value) {
             if (value == null) { return this.style.pageBreakBefore; }
             this.style.pageBreakBefore = value;
@@ -8688,7 +8759,7 @@ function CreateVElementClass({
         }
 
         // Sets the page-break behavior inside an element.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Page break inside
          *	@description: 
          *		Sets the page-break behavior inside an element.
@@ -8697,12 +8768,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         page_break_inside(value) {
             if (value == null) { return this.style.pageBreakInside; }
             this.style.pageBreakInside = value;
@@ -8710,7 +8781,7 @@ function CreateVElementClass({
         }
 
         // Sets the order of how an SVG element or text is painted.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Paint order
          *	@description: 
          *		Sets the order of how an SVG element or text is painted.
@@ -8719,12 +8790,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         paint_order(value) {
             if (value == null) { return this.style.paintOrder; }
             this.style.paintOrder = value;
@@ -8732,7 +8803,7 @@ function CreateVElementClass({
         }
 
         // Gives a 3D-positioned element some perspective.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Perspective
          *	@description: 
          *		Gives a 3D-positioned element some perspective.
@@ -8741,12 +8812,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         perspective(value) {
             if (value == null) { return this.style.perspective; }
             this.style.perspective = value;
@@ -8758,7 +8829,7 @@ function CreateVElementClass({
         }
 
         // Defines at which position the user is looking at the 3D-positioned element.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Perspective origin
          *	@description: 
          *		Defines at which position the user is looking at the 3D-positioned element.
@@ -8767,12 +8838,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         perspective_origin(value) {
             if (value == null) { return this.style.perspectiveOrigin; }
             this.style.perspectiveOrigin = value;
@@ -8784,7 +8855,7 @@ function CreateVElementClass({
         }
 
         // Specifies align-content and justify-content property values for flexbox and grid layouts.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Place content
          *	@description: 
          *		Specifies align-content and justify-content property values for flexbox and grid layouts.
@@ -8793,12 +8864,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         place_content(value) {
             if (value == null) { return this.style.placeContent; }
             this.style.placeContent = value;
@@ -8806,7 +8877,7 @@ function CreateVElementClass({
         }
 
         // Specifies align-items and justify-items property values for grid layouts.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Place items
          *	@description: 
          *		Specifies align-items and justify-items property values for grid layouts.
@@ -8815,12 +8886,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         place_items(value) {
             if (value == null) { return this.style.placeItems; }
             this.style.placeItems = value;
@@ -8828,7 +8899,7 @@ function CreateVElementClass({
         }
 
         // Specifies align-self and justify-self property values for grid layouts.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Place self
          *	@description: 
          *		Specifies align-self and justify-self property values for grid layouts.
@@ -8837,12 +8908,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         place_self(value) {
             if (value == null) { return this.style.placeSelf; }
             this.style.placeSelf = value;
@@ -8850,7 +8921,7 @@ function CreateVElementClass({
         }
 
         // Defines whether or not an element reacts to pointer events.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Pointer events
          *	@description: 
          *		Defines whether or not an element reacts to pointer events.
@@ -8859,12 +8930,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         pointer_events(value) {
             if (value == null) { return this.style.pointerEvents; }
             this.style.pointerEvents = value;
@@ -8879,7 +8950,7 @@ function CreateVElementClass({
         // }
 
         // Sets the type of quotation marks for embedded quotations.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Quotes
          *	@description: 
          *		Sets the type of quotation marks for embedded quotations.
@@ -8888,12 +8959,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         quotes(value) {
             if (value == null) { return this.style.quotes; }
             this.style.quotes = value;
@@ -8901,7 +8972,7 @@ function CreateVElementClass({
         }
 
         // Defines if (and how) an element is resizable by the user.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Resize
          *	@description: 
          *		Defines if (and how) an element is resizable by the user.
@@ -8910,12 +8981,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         resize(value) {
             if (value == null) { return this.style.resize; }
             this.style.resize = value;
@@ -8923,7 +8994,7 @@ function CreateVElementClass({
         }
 
         // Specifies the right position of a positioned element.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Right
          *	@description: 
          *		Specifies the right position of a positioned element.
@@ -8932,12 +9003,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         right(value) {
             if (value == null) { return this.style.right; }
             this.style.right = this.pad_numeric(value);
@@ -8945,7 +9016,7 @@ function CreateVElementClass({
         }
 
         // Specifies the gap between the grid rows.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Row gap
          *	@description: 
          *		Specifies the gap between the grid rows.
@@ -8954,12 +9025,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         row_gap(value) {
             if (value == null) { return this.style.rowGap; }
             this.style.rowGap = value;
@@ -8967,7 +9038,7 @@ function CreateVElementClass({
         }
 
         // Specifies the size of an element by scaling up or down.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Scale
          *	@description: 
          *		Specifies the size of an element by scaling up or down.
@@ -8976,12 +9047,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         scale(value) {
             if (value == null) { return this.style.scale; }
             this.style.scale = value;
@@ -8989,7 +9060,7 @@ function CreateVElementClass({
         }
 
         // Specifies whether to smoothly animate the scroll position in a scrollable box, instead of a straight jump.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Scroll behavior
          *	@description: 
          *		Specifies whether to smoothly animate the scroll position in a scrollable box, instead of a straight jump.
@@ -8998,12 +9069,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         scroll_behavior(value) {
             if (value == null) { return this.style.scrollBehavior; }
             this.style.scrollBehavior = value;
@@ -9011,7 +9082,7 @@ function CreateVElementClass({
         }
 
         // Specifies the margin between the snap position and the container.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Scroll margin
          *	@description: 
          *		Specifies the margin between the snap position and the container.
@@ -9020,12 +9091,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         scroll_margin(value) {
             if (value == null) { return this.style.scrollMargin; }
             this.style.scrollMargin = value;
@@ -9033,7 +9104,7 @@ function CreateVElementClass({
         }
 
         // Specifies the margin between the snap position and the container in the block direction.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Scroll margin block
          *	@description: 
          *		Specifies the margin between the snap position and the container in the block direction.
@@ -9042,12 +9113,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         scroll_margin_block(value) {
             if (value == null) { return this.style.scrollMarginBlock; }
             this.style.scrollMarginBlock = value;
@@ -9055,7 +9126,7 @@ function CreateVElementClass({
         }
 
         // Specifies the end margin between the snap position and the container in the block direction.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Scroll margin block end
          *	@description: 
          *		Specifies the end margin between the snap position and the container in the block direction.
@@ -9064,12 +9135,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         scroll_margin_block_end(value) {
             if (value == null) { return this.style.scrollMarginBlockEnd; }
             this.style.scrollMarginBlockEnd = value;
@@ -9077,7 +9148,7 @@ function CreateVElementClass({
         }
 
         // Specifies the start margin between the snap position and the container in the block direction.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Scroll margin block start
          *	@description: 
          *		Specifies the start margin between the snap position and the container in the block direction.
@@ -9086,12 +9157,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         scroll_margin_block_start(value) {
             if (value == null) { return this.style.scrollMarginBlockStart; }
             this.style.scrollMarginBlockStart = value;
@@ -9099,7 +9170,7 @@ function CreateVElementClass({
         }
 
         // Specifies the margin between the snap position on the bottom side and the container.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Scroll margin bottom
          *	@description: 
          *		Specifies the margin between the snap position on the bottom side and the container.
@@ -9108,12 +9179,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         scroll_margin_bottom(value) {
             if (value == null) { return this.style.scrollMarginBottom; }
             this.style.scrollMarginBottom = this.pad_numeric(value);
@@ -9121,7 +9192,7 @@ function CreateVElementClass({
         }
 
         // Specifies the margin between the snap position and the container in the inline direction.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Scroll margin inline
          *	@description: 
          *		Specifies the margin between the snap position and the container in the inline direction.
@@ -9130,12 +9201,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         scroll_margin_inline(value) {
             if (value == null) { return this.style.scrollMarginInline; }
             this.style.scrollMarginInline = value;
@@ -9143,7 +9214,7 @@ function CreateVElementClass({
         }
 
         // Specifies the end margin between the snap position and the container in the inline direction.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Scroll margin inline end
          *	@description: 
          *		Specifies the end margin between the snap position and the container in the inline direction.
@@ -9152,12 +9223,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         scroll_margin_inline_end(value) {
             if (value == null) { return this.style.scrollMarginInlineEnd; }
             this.style.scrollMarginInlineEnd = value;
@@ -9165,7 +9236,7 @@ function CreateVElementClass({
         }
 
         // Specifies the start margin between the snap position and the container in the inline direction.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Scroll margin inline start
          *	@description: 
          *		Specifies the start margin between the snap position and the container in the inline direction.
@@ -9174,12 +9245,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         scroll_margin_inline_start(value) {
             if (value == null) { return this.style.scrollMarginInlineStart; }
             this.style.scrollMarginInlineStart = value;
@@ -9187,7 +9258,7 @@ function CreateVElementClass({
         }
 
         // Specifies the margin between the snap position on the left side and the container.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Scroll margin left
          *	@description: 
          *		Specifies the margin between the snap position on the left side and the container.
@@ -9196,12 +9267,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         scroll_margin_left(value) {
             if (value == null) { return this.style.scrollMarginLeft; }
             this.style.scrollMarginLeft = this.pad_numeric(value);
@@ -9209,7 +9280,7 @@ function CreateVElementClass({
         }
 
         // Specifies the margin between the snap position on the right side and the container.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Scroll margin right
          *	@description: 
          *		Specifies the margin between the snap position on the right side and the container.
@@ -9218,12 +9289,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         scroll_margin_right(value) {
             if (value == null) { return this.style.scrollMarginRight; }
             this.style.scrollMarginRight = this.pad_numeric(value);
@@ -9231,7 +9302,7 @@ function CreateVElementClass({
         }
 
         // Specifies the margin between the snap position on the top side and the container.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Scroll margin top
          *	@description: 
          *		Specifies the margin between the snap position on the top side and the container.
@@ -9240,12 +9311,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         scroll_margin_top(value) {
             if (value == null) { return this.style.scrollMarginTop; }
             this.style.scrollMarginTop = this.pad_numeric(value);
@@ -9253,7 +9324,7 @@ function CreateVElementClass({
         }
 
         // Specifies the distance from the container to the snap position on the child elements.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Scroll padding
          *	@description: 
          *		Specifies the distance from the container to the snap position on the child elements.
@@ -9262,12 +9333,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         scroll_padding(value) {
             if (value == null) { return this.style.scrollPadding; }
             this.style.scrollPadding = value;
@@ -9275,7 +9346,7 @@ function CreateVElementClass({
         }
 
         // Specifies the distance in block direction from the container to the snap position on the child elements.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Scroll padding block
          *	@description: 
          *		Specifies the distance in block direction from the container to the snap position on the child elements.
@@ -9284,12 +9355,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         scroll_padding_block(value) {
             if (value == null) { return this.style.scrollPaddingBlock; }
             this.style.scrollPaddingBlock = value;
@@ -9297,7 +9368,7 @@ function CreateVElementClass({
         }
 
         // Specifies the distance in block direction from the end of the container to the snap position on the child elements.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Scroll padding block end
          *	@description: 
          *		Specifies the distance in block direction from the end of the container to the snap position on the child elements.
@@ -9306,12 +9377,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         scroll_padding_block_end(value) {
             if (value == null) { return this.style.scrollPaddingBlockEnd; }
             this.style.scrollPaddingBlockEnd = value;
@@ -9319,7 +9390,7 @@ function CreateVElementClass({
         }
 
         // Specifies the distance in block direction from the start of the container to the snap position on the child elements.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Scroll padding block start
          *	@description: 
          *		Specifies the distance in block direction from the start of the container to the snap position on the child elements.
@@ -9328,12 +9399,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         scroll_padding_block_start(value) {
             if (value == null) { return this.style.scrollPaddingBlockStart; }
             this.style.scrollPaddingBlockStart = value;
@@ -9341,7 +9412,7 @@ function CreateVElementClass({
         }
 
         // Specifies the distance from the bottom of the container to the snap position on the child elements.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Scroll padding bottom
          *	@description: 
          *		Specifies the distance from the bottom of the container to the snap position on the child elements.
@@ -9350,12 +9421,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         scroll_padding_bottom(value) {
             if (value == null) { return this.style.scrollPaddingBottom; }
             this.style.scrollPaddingBottom = this.pad_numeric(value);
@@ -9363,7 +9434,7 @@ function CreateVElementClass({
         }
 
         // Specifies the distance in inline direction from the container to the snap position on the child elements.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Scroll padding inline
          *	@description: 
          *		Specifies the distance in inline direction from the container to the snap position on the child elements.
@@ -9372,12 +9443,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         scroll_padding_inline(value) {
             if (value == null) { return this.style.scrollPaddingInline; }
             this.style.scrollPaddingInline = value;
@@ -9385,7 +9456,7 @@ function CreateVElementClass({
         }
 
         // Specifies the distance in inline direction from the end of the container to the snap position on the child elements.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Scroll padding inline end
          *	@description: 
          *		Specifies the distance in inline direction from the end of the container to the snap position on the child elements.
@@ -9394,12 +9465,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         scroll_padding_inline_end(value) {
             if (value == null) { return this.style.scrollPaddingInlineEnd; }
             this.style.scrollPaddingInlineEnd = value;
@@ -9407,7 +9478,7 @@ function CreateVElementClass({
         }
 
         // Specifies the distance in inline direction from the start of the container to the snap position on the child elements.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Scroll padding inline start
          *	@description: 
          *		Specifies the distance in inline direction from the start of the container to the snap position on the child elements.
@@ -9416,12 +9487,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         scroll_padding_inline_start(value) {
             if (value == null) { return this.style.scrollPaddingInlineStart; }
             this.style.scrollPaddingInlineStart = value;
@@ -9429,7 +9500,7 @@ function CreateVElementClass({
         }
 
         // Specifies the distance from the left side of the container to the snap position on the child elements.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Scroll padding left
          *	@description: 
          *		Specifies the distance from the left side of the container to the snap position on the child elements.
@@ -9438,12 +9509,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         scroll_padding_left(value) {
             if (value == null) { return this.style.scrollPaddingLeft; }
             this.style.scrollPaddingLeft = this.pad_numeric(value);
@@ -9451,7 +9522,7 @@ function CreateVElementClass({
         }
 
         // Specifies the distance from the right side of the container to the snap position on the child elements.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Scroll padding right
          *	@description: 
          *		Specifies the distance from the right side of the container to the snap position on the child elements.
@@ -9460,12 +9531,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         scroll_padding_right(value) {
             if (value == null) { return this.style.scrollPaddingRight; }
             this.style.scrollPaddingRight = this.pad_numeric(value);
@@ -9473,7 +9544,7 @@ function CreateVElementClass({
         }
 
         // Specifies the distance from the top of the container to the snap position on the child elements.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Scroll padding top
          *	@description: 
          *		Specifies the distance from the top of the container to the snap position on the child elements.
@@ -9482,12 +9553,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         scroll_padding_top(value) {
             if (value == null) { return this.style.scrollPaddingTop; }
             this.style.scrollPaddingTop = this.pad_numeric(value);
@@ -9495,7 +9566,7 @@ function CreateVElementClass({
         }
 
         // Specifies where to position elements when the user stops scrolling.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Scroll snap align
          *	@description: 
          *		Specifies where to position elements when the user stops scrolling.
@@ -9504,12 +9575,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         scroll_snap_align(value) {
             if (value == null) { return this.style.scrollSnapAlign; }
             this.style.scrollSnapAlign = value;
@@ -9517,7 +9588,7 @@ function CreateVElementClass({
         }
 
         // Specifies scroll behaviour after fast swipe on trackpad or touch screen.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Scroll snap stop
          *	@description: 
          *		Specifies scroll behaviour after fast swipe on trackpad or touch screen.
@@ -9526,12 +9597,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         scroll_snap_stop(value) {
             if (value == null) { return this.style.scrollSnapStop; }
             this.style.scrollSnapStop = value;
@@ -9539,7 +9610,7 @@ function CreateVElementClass({
         }
 
         // Specifies how snap behaviour should be when scrolling.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Scroll snap type
          *	@description: 
          *		Specifies how snap behaviour should be when scrolling.
@@ -9548,12 +9619,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         scroll_snap_type(value) {
             if (value == null) { return this.style.scrollSnapType; }
             this.style.scrollSnapType = value;
@@ -9561,7 +9632,7 @@ function CreateVElementClass({
         }
 
         // Specifies the color of the scrollbar of an element.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Scrollbar color
          *	@description: 
          *		Specifies the color of the scrollbar of an element.
@@ -9570,12 +9641,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         scrollbar_color(value) {
             if (value == null) { return this.style.scrollbarColor; }
             this.style.scrollbarColor = value;
@@ -9583,7 +9654,7 @@ function CreateVElementClass({
         }
 
         // Specifies the width of a tab character.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Tab size
          *	@description: 
          *		Specifies the width of a tab character.
@@ -9592,12 +9663,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         tab_size(value) {
             if (value == null) { return this.style.tabSize; }
             this.style.tabSize = value;
@@ -9609,7 +9680,7 @@ function CreateVElementClass({
         }
 
         // Defines the algorithm used to lay out table cells, rows, and columns.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Table layout
          *	@description: 
          *		Defines the algorithm used to lay out table cells, rows, and columns.
@@ -9618,12 +9689,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         table_layout(value) {
             if (value == null) { return this.style.tableLayout; }
             this.style.tableLayout = value;
@@ -9631,7 +9702,7 @@ function CreateVElementClass({
         }
 
         // Specifies the horizontal alignment of text.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Text align
          *	@description: 
          *		Specifies the horizontal alignment of text.
@@ -9640,12 +9711,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         text_align(value) {
             if (value == null) { return this.style.textAlign; }
             this.style.textAlign = value;
@@ -9653,7 +9724,7 @@ function CreateVElementClass({
         }
 
         // Describes how the last line of a block or a line right before a forced line break is aligned when text-align is "justify".
-        /*	@docs: {
+        /*	@docs:
          *	@title: Text align last
          *	@description: 
          *		Describes how the last line of a block or a line right before a forced line break is aligned when text-align is "justify".
@@ -9662,12 +9733,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         text_align_last(value) {
             if (value == null) { return this.style.textAlignLast; }
             this.style.textAlignLast = value;
@@ -9675,7 +9746,7 @@ function CreateVElementClass({
         }
 
         // Specifies the combination of multiple characters into the space of a single character.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Text combine upright
          *	@description: 
          *		Specifies the combination of multiple characters into the space of a single character.
@@ -9684,12 +9755,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         text_combine_upright(value) {
             if (value == null) { return this.style.textCombineUpright; }
             this.style.textCombineUpright = value;
@@ -9697,7 +9768,7 @@ function CreateVElementClass({
         }
 
         // Specifies the decoration added to text.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Text decoration
          *	@description: 
          *		Specifies the decoration added to text.
@@ -9706,12 +9777,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         text_decoration(value) {
             if (value == null) { return this.style.textDecoration; }
             this.style.textDecoration = value;
@@ -9719,7 +9790,7 @@ function CreateVElementClass({
         }
 
         // Specifies the color of the text-decoration.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Text decoration color
          *	@description: 
          *		Specifies the color of the text-decoration.
@@ -9728,12 +9799,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         text_decoration_color(value) {
             if (value == null) { return this.style.textDecorationColor; }
             this.style.textDecorationColor = value;
@@ -9741,7 +9812,7 @@ function CreateVElementClass({
         }
 
         // Specifies the type of line in a text-decoration.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Text decoration line
          *	@description: 
          *		Specifies the type of line in a text-decoration.
@@ -9750,12 +9821,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         text_decoration_line(value) {
             if (value == null) { return this.style.textDecorationLine; }
             this.style.textDecorationLine = value;
@@ -9763,7 +9834,7 @@ function CreateVElementClass({
         }
 
         // Specifies the style of the line in a text decoration.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Text decoration style
          *	@description: 
          *		Specifies the style of the line in a text decoration.
@@ -9772,12 +9843,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         text_decoration_style(value) {
             if (value == null) { return this.style.textDecorationStyle; }
             this.style.textDecorationStyle = value;
@@ -9785,7 +9856,7 @@ function CreateVElementClass({
         }
 
         // Specifies the thickness of the decoration line.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Text decoration thickness
          *	@description: 
          *		Specifies the thickness of the decoration line.
@@ -9794,12 +9865,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         text_decoration_thickness(value) {
             if (value == null) { return this.style.textDecorationThickness; }
             this.style.textDecorationThickness = value;
@@ -9807,7 +9878,7 @@ function CreateVElementClass({
         }
 
         // Applies emphasis marks to text.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Text emphasis
          *	@description: 
          *		Applies emphasis marks to text.
@@ -9816,12 +9887,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         text_emphasis(value) {
             if (value == null) { return this.style.textEmphasis; }
             this.style.textEmphasis = value;
@@ -9829,7 +9900,7 @@ function CreateVElementClass({
         }
 
         // Specifies the indentation of the first line in a text-block.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Text indent
          *	@description: 
          *		Specifies the indentation of the first line in a text-block.
@@ -9838,12 +9909,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         text_indent(value) {
             if (value == null) { return this.style.textIndent; }
             this.style.textIndent = value;
@@ -9851,7 +9922,7 @@ function CreateVElementClass({
         }
 
         // Specifies the justification method used when text-align is "justify".
-        /*	@docs: {
+        /*	@docs:
          *	@title: Text justify
          *	@description: 
          *		Specifies the justification method used when text-align is "justify".
@@ -9860,12 +9931,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         text_justify(value) {
             if (value == null) { return this.style.textJustify; }
             this.style.textJustify = value;
@@ -9873,7 +9944,7 @@ function CreateVElementClass({
         }
 
         // Defines the orientation of characters in a line.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Text orientation
          *	@description: 
          *		Defines the orientation of characters in a line.
@@ -9882,12 +9953,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         text_orientation(value) {
             if (value == null) { return this.style.textOrientation; }
             this.style.textOrientation = value;
@@ -9895,7 +9966,7 @@ function CreateVElementClass({
         }
 
         // Specifies what should happen when text overflows the containing element.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Text overflow
          *	@description: 
          *		Specifies what should happen when text overflows the containing element.
@@ -9904,12 +9975,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         text_overflow(value) {
             if (value == null) { return this.style.textOverflow; }
             this.style.textOverflow = value;
@@ -9917,7 +9988,7 @@ function CreateVElementClass({
         }
 
         // Adds shadow to text.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Text shadow
          *	@description: 
          *		Adds shadow to text.
@@ -9926,12 +9997,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         text_shadow(value) {
             if (value == null) { return this.style.textShadow; }
             this.style.textShadow = value;
@@ -9939,7 +10010,7 @@ function CreateVElementClass({
         }
 
         // Controls the capitalization of text.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Text transform
          *	@description: 
          *		Controls the capitalization of text.
@@ -9948,12 +10019,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         text_transform(value) {
             if (value == null) { return this.style.textTransform; }
             this.style.textTransform = value;
@@ -9961,7 +10032,7 @@ function CreateVElementClass({
         }
 
         // Specifies the position of the underline which is set using the text-decoration property.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Text underline position
          *	@description: 
          *		Specifies the position of the underline which is set using the text-decoration property.
@@ -9970,12 +10041,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         text_underline_position(value) {
             if (value == null) { return this.style.textUnderlinePosition; }
             this.style.textUnderlinePosition = value;
@@ -9983,7 +10054,7 @@ function CreateVElementClass({
         }
 
         // Specifies the top position of a positioned element.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Top
          *	@description: 
          *		Specifies the top position of a positioned element.
@@ -9992,12 +10063,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         top(value) {
             if (value == null) { return this.style.top; }
             this.style.top = this.pad_numeric(value);
@@ -10005,7 +10076,7 @@ function CreateVElementClass({
         }
 
         // Applies a 2D or 3D transformation to an element.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Transform
          *	@description: 
          *		Applies a 2D or 3D transformation to an element.
@@ -10014,12 +10085,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         transform(value) {
             if (value == null) { return this.style.transform; }
             this.style.transform = value;
@@ -10031,7 +10102,7 @@ function CreateVElementClass({
         }
 
         // Allows you to change the position on transformed elements.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Transform origin
          *	@description: 
          *		Allows you to change the position on transformed elements.
@@ -10040,12 +10111,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         transform_origin(value) {
             if (value == null) { return this.style.transformOrigin; }
             this.style.transformOrigin = value;
@@ -10057,7 +10128,7 @@ function CreateVElementClass({
         }
 
         // Specifies how nested elements are rendered in 3D space.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Transform style
          *	@description: 
          *		Specifies how nested elements are rendered in 3D space.
@@ -10066,12 +10137,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         transform_style(value) {
             if (value == null) { return this.style.transformStyle; }
             this.style.transformStyle = value;
@@ -10083,7 +10154,7 @@ function CreateVElementClass({
         }
 
         // A shorthand property for all the transition-* properties.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Transition
          *	@description: 
          *		A shorthand property for all the transition-* properties.
@@ -10092,12 +10163,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         transition(value) {
             if (value == null) { return this.style.transition; }
             this.style.transition = value;
@@ -10109,7 +10180,7 @@ function CreateVElementClass({
         }
 
         // Specifies when the transition effect will start.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Transition delay
          *	@description: 
          *		Specifies when the transition effect will start.
@@ -10118,12 +10189,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         transition_delay(value) {
             if (value == null) { return this.style.transitionDelay; }
             this.style.transitionDelay = value;
@@ -10135,7 +10206,7 @@ function CreateVElementClass({
         }
 
         // Specifies how many seconds or milliseconds a transition effect takes to complete.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Transition duration
          *	@description: 
          *		Specifies how many seconds or milliseconds a transition effect takes to complete.
@@ -10144,12 +10215,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         transition_duration(value) {
             if (value == null) { return this.style.transitionDuration; }
             this.style.transitionDuration = value;
@@ -10161,7 +10232,7 @@ function CreateVElementClass({
         }
 
         // Specifies the name of the CSS property the transition effect is for.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Transition property
          *	@description: 
          *		Specifies the name of the CSS property the transition effect is for.
@@ -10170,12 +10241,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         transition_property(value) {
             if (value == null) { return this.style.transitionProperty; }
             this.style.transitionProperty = value;
@@ -10187,7 +10258,7 @@ function CreateVElementClass({
         }
 
         // Specifies the speed curve of the transition effect.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Transition timing function
          *	@description: 
          *		Specifies the speed curve of the transition effect.
@@ -10196,12 +10267,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         transition_timing_function(value) {
             if (value == null) { return this.style.transitionTimingFunction; }
             this.style.transitionTimingFunction = value;
@@ -10213,7 +10284,7 @@ function CreateVElementClass({
         }
 
         // Specifies the position of an element.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Translate
          *	@description: 
          *		Specifies the position of an element.
@@ -10222,12 +10293,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         translate(value) {
             if (value == null) { return this.style.translate; }
             this.style.translate = value;
@@ -10235,7 +10306,7 @@ function CreateVElementClass({
         }
 
         // Used together with the direction property to set or return whether the text should be overridden to support multiple languages in the same document.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Unicode bidi
          *	@description: 
          *		Used together with the direction property to set or return whether the text should be overridden to support multiple languages in the same document.
@@ -10244,12 +10315,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         unicode_bidi(value) {
             if (value == null) { return this.style.unicodeBidi; }
             this.style.unicodeBidi = value;
@@ -10257,7 +10328,7 @@ function CreateVElementClass({
         }
 
         // Specifies whether the text of an element can be selected.
-        /*	@docs: {
+        /*	@docs:
          *	@title: User select
          *	@description: 
          *		Specifies whether the text of an element can be selected.
@@ -10266,12 +10337,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         user_select(value) {
             if (value == null) { return this.style.userSelect; }
             this.style.userSelect = value;
@@ -10290,7 +10361,7 @@ function CreateVElementClass({
         // }
 
         // Specifies whether or not an element is visible.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Visibility
          *	@description: 
          *		Specifies whether or not an element is visible.
@@ -10299,12 +10370,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         visibility(value) {
             if (value == null) { return this.style.visibility; }
             this.style.visibility = value;
@@ -10312,7 +10383,7 @@ function CreateVElementClass({
         }
 
         // Specifies how white-space inside an element is handled.
-        /*	@docs: {
+        /*	@docs:
          *	@title: White space
          *	@description: 
          *		Specifies how white-space inside an element is handled.
@@ -10321,12 +10392,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         white_space(value) {
             if (value == null) { return this.style.whiteSpace; }
             this.style.whiteSpace = value;
@@ -10334,7 +10405,7 @@ function CreateVElementClass({
         }
 
         // Sets the minimum number of lines that must be left at the top of a page or column.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Widows
          *	@description: 
          *		Sets the minimum number of lines that must be left at the top of a page or column.
@@ -10343,12 +10414,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         widows(value) {
             if (value == null) { return this.style.widows; }
             this.style.widows = value;
@@ -10363,7 +10434,7 @@ function CreateVElementClass({
         // }
 
         // Specifies how words should break when reaching the end of a line.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Word break
          *	@description: 
          *		Specifies how words should break when reaching the end of a line.
@@ -10372,12 +10443,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         word_break(value) {
             if (value == null) { return this.style.wordBreak; }
             this.style.wordBreak = value;
@@ -10385,7 +10456,7 @@ function CreateVElementClass({
         }
 
         // Increases or decreases the space between words in a text.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Word spacing
          *	@description: 
          *		Increases or decreases the space between words in a text.
@@ -10394,12 +10465,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         word_spacing(value) {
             if (value == null) { return this.style.wordSpacing; }
             this.style.wordSpacing = value;
@@ -10407,7 +10478,7 @@ function CreateVElementClass({
         }
 
         // Allows long, unbreakable words to be broken and wrap to the next line.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Word wrap
          *	@description: 
          *		Allows long, unbreakable words to be broken and wrap to the next line.
@@ -10416,12 +10487,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         word_wrap(value) {
             if (value == null) { return this.style.wordWrap; }
             this.style.wordWrap = value;
@@ -10429,7 +10500,7 @@ function CreateVElementClass({
         }
 
         // Specifies whether lines of text are laid out horizontally or vertically.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Writing mode
          *	@description: 
          *		Specifies whether lines of text are laid out horizontally or vertically.
@@ -10438,12 +10509,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         writing_mode(value) {
             if (value == null) { return this.style.writingMode; }
             this.style.writingMode = value;
@@ -10455,7 +10526,7 @@ function CreateVElementClass({
         // Reference: https://www.w3schools.com/tags/ref_attributes.asp. 
 
         // Specifies the types of files that the server accepts (only for type="file").
-        /*	@docs: {
+        /*	@docs:
          *	@title: Accept
          *	@description: 
          *		Specifies the types of files that the server accepts (only for type="file").
@@ -10464,12 +10535,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         accept(value) {
             if (value == null) { return super.accept; }
         	super.accept = value;
@@ -10477,7 +10548,7 @@ function CreateVElementClass({
         }
 
         // Specifies the character encodings that are to be used for the form submission.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Accept charset
          *	@description: 
          *		Specifies the character encodings that are to be used for the form submission.
@@ -10486,12 +10557,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         accept_charset(value) {
             if (value == null) { return super.accept_charset; }
         	super.accept_charset = value;
@@ -10499,7 +10570,7 @@ function CreateVElementClass({
         }
 
         // Specifies where to send the form-data when a form is submitted.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Action
          *	@description: 
          *		Specifies where to send the form-data when a form is submitted.
@@ -10508,12 +10579,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         action(value) {
             if (value == null) { return super.action; }
         	super.action = value;
@@ -10521,7 +10592,7 @@ function CreateVElementClass({
         }
 
         // Specifies that the script is executed asynchronously (only for external scripts).
-        /*	@docs: {
+        /*	@docs:
          *	@title: Async
          *	@description: 
          *		Specifies that the script is executed asynchronously (only for external scripts).
@@ -10530,12 +10601,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         async(value) {
             if (value == null) { return super.async; }
         	super.async = value;
@@ -10543,7 +10614,7 @@ function CreateVElementClass({
         }
 
         // Specifies whether the <form> or the <input> element should have autocomplete enabled.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Auto complete
          *	@description: 
          *		Specifies whether the <form> or the <input> element should have autocomplete enabled.
@@ -10552,12 +10623,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         auto_complete(value) {
             if (value == null) { return super.autocomplete; }
         	super.autocomplete = value;
@@ -10565,7 +10636,7 @@ function CreateVElementClass({
         }
 
         // Specifies that the element should automatically get focus when the page loads.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Auto focus
          *	@description: 
          *		Specifies that the element should automatically get focus when the page loads.
@@ -10574,12 +10645,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         auto_focus(value) {
             if (value == null) { return super.autofocus; }
         	super.autofocus = value;
@@ -10587,7 +10658,7 @@ function CreateVElementClass({
         }
 
         // Specifies that the audio/video will start playing as soon as it is ready.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Auto play
          *	@description: 
          *		Specifies that the audio/video will start playing as soon as it is ready.
@@ -10596,12 +10667,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         auto_play(value) {
             if (value == null) { return super.autoplay; }
         	super.autoplay = value;
@@ -10609,7 +10680,7 @@ function CreateVElementClass({
         }
 
         // Specifies the character encoding.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Charset
          *	@description: 
          *		Specifies the character encoding.
@@ -10618,12 +10689,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         charset(value) {
             if (value == null) { return super.charset; }
         	super.charset = value;
@@ -10631,7 +10702,7 @@ function CreateVElementClass({
         }
 
         // Specifies that an <input> element should be pre-selected when the page loads (for type="checkbox" or type="radio").
-        /*	@docs: {
+        /*	@docs:
          *	@title: Checked
          *	@description: 
          *		Specifies that an <input> element should be pre-selected when the page loads (for type="checkbox" or type="radio").
@@ -10640,12 +10711,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         checked(value) {
             if (value == null) { return super.checked; }
         	super.checked = value;
@@ -10653,7 +10724,7 @@ function CreateVElementClass({
         }
 
         // Specifies a URL which explains the quote/deleted/inserted text.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Cite
          *	@description: 
          *		Specifies a URL which explains the quote/deleted/inserted text.
@@ -10662,12 +10733,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         cite(value) {
             if (value == null) { return super.cite; }
         	super.cite = value;
@@ -10682,7 +10753,7 @@ function CreateVElementClass({
         // }
 
         // Specifies the visible width of a text area.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Cols
          *	@description: 
          *		Specifies the visible width of a text area.
@@ -10691,12 +10762,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         cols(value) {
             if (value == null) { return super.cols; }
         	super.cols = value;
@@ -10704,7 +10775,7 @@ function CreateVElementClass({
         }
 
         // Specifies the number of columns a table cell should span.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Colspan
          *	@description: 
          *		Specifies the number of columns a table cell should span.
@@ -10713,12 +10784,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         colspan(value) {
             if (value == null) { return super.colspan; }
         	super.colspan = value;
@@ -10726,7 +10797,7 @@ function CreateVElementClass({
         }
 
         // Gives the value associated with the http-equiv or name attribute.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Content
          *	@description: 
          *		Gives the value associated with the http-equiv or name attribute.
@@ -10735,12 +10806,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         content(value) {
             if (value == null) { return super.content; }
         	super.content = value;
@@ -10748,7 +10819,7 @@ function CreateVElementClass({
         }
 
         // Specifies whether the content of an element is editable or not.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Content editable
          *	@description: 
          *		Specifies whether the content of an element is editable or not.
@@ -10757,12 +10828,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         content_editable(value) {
             if (value == null) { return super.contenteditable; }
         	super.contenteditable = value;
@@ -10770,7 +10841,7 @@ function CreateVElementClass({
         }
 
         // Specifies that audio/video controls should be displayed (such as a play/pause button etc).
-        /*	@docs: {
+        /*	@docs:
          *	@title: Controls
          *	@description: 
          *		Specifies that audio/video controls should be displayed (such as a play/pause button etc).
@@ -10779,12 +10850,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         controls(value) {
             if (value == null) { return super.controls; }
         	super.controls = value;
@@ -10792,7 +10863,7 @@ function CreateVElementClass({
         }
 
         // Specifies the coordinates of the area.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Coords
          *	@description: 
          *		Specifies the coordinates of the area.
@@ -10801,12 +10872,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         coords(value) {
             if (value == null) { return super.coords; }
         	super.coords = value;
@@ -10814,7 +10885,7 @@ function CreateVElementClass({
         }
 
         // Specifies the URL of the resource to be used by the object.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Data
          *	@description: 
          *		Specifies the URL of the resource to be used by the object.
@@ -10823,12 +10894,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         data(value) {
             if (value == null) { return super.data; }
         	super.data = value;
@@ -10836,7 +10907,7 @@ function CreateVElementClass({
         }
 
         // Specifies the date and time.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Datetime
          *	@description: 
          *		Specifies the date and time.
@@ -10845,12 +10916,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         datetime(value) {
             if (value == null) { return super.datetime; }
         	super.datetime = value;
@@ -10858,7 +10929,7 @@ function CreateVElementClass({
         }
 
         // Specifies that the track is to be enabled if the user's preferences do not indicate that another track would be more appropriate.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Default
          *	@description: 
          *		Specifies that the track is to be enabled if the user's preferences do not indicate that another track would be more appropriate.
@@ -10867,12 +10938,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         default(value) {
             if (value == null) { return super.default; }
         	super.default = value;
@@ -10880,7 +10951,7 @@ function CreateVElementClass({
         }
 
         // Specifies that the script is executed when the page has finished parsing (only for external scripts).
-        /*	@docs: {
+        /*	@docs:
          *	@title: Defer
          *	@description: 
          *		Specifies that the script is executed when the page has finished parsing (only for external scripts).
@@ -10889,12 +10960,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         defer(value) {
             if (value == null) { return super.defer; }
         	super.defer = value;
@@ -10902,7 +10973,7 @@ function CreateVElementClass({
         }
 
         // Specifies the text direction for the content in an element.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Dir
          *	@description: 
          *		Specifies the text direction for the content in an element.
@@ -10911,12 +10982,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         dir(value) {
             if (value == null) { return super.dir; }
         	super.dir = value;
@@ -10924,7 +10995,7 @@ function CreateVElementClass({
         }
 
         // Specifies that the text direction will be submitted.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Dirname
          *	@description: 
          *		Specifies that the text direction will be submitted.
@@ -10933,12 +11004,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         dirname(value) {
             if (value == null) { return super.dirname; }
         	super.dirname = value;
@@ -10946,7 +11017,7 @@ function CreateVElementClass({
         }
 
         // Specifies that the specified element/group of elements should be disabled.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Disabled
          *	@description: 
          *		Specifies that the specified element/group of elements should be disabled.
@@ -10955,12 +11026,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         disabled(value) {
             if (value == null) { return super.disabled; }
         	super.disabled = value;
@@ -10968,7 +11039,7 @@ function CreateVElementClass({
         }
 
         // Specifies that the target will be downloaded when a user clicks on the hyperlink.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Download
          *	@description: 
          *		Specifies that the target will be downloaded when a user clicks on the hyperlink.
@@ -10977,12 +11048,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         download(value) {
             if (value == null) { return super.download; }
         	super.download = value;
@@ -10990,7 +11061,7 @@ function CreateVElementClass({
         }
 
         // Specifies whether an element is draggable or not.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Draggable
          *	@description: 
          *		Specifies whether an element is draggable or not.
@@ -10999,12 +11070,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         draggable(value) {
             if (value == null) { return super.draggable; }
         	super.draggable = value;
@@ -11012,7 +11083,7 @@ function CreateVElementClass({
         }
 
         // Specifies how the form-data should be encoded when submitting it to the server (only for method="post").
-        /*	@docs: {
+        /*	@docs:
          *	@title: Enctype
          *	@description: 
          *		Specifies how the form-data should be encoded when submitting it to the server (only for method="post").
@@ -11021,12 +11092,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         enctype(value) {
             if (value == null) { return super.enctype; }
         	super.enctype = value;
@@ -11034,7 +11105,7 @@ function CreateVElementClass({
         }
 
         // Specifies which form element(s) a label/calculation is bound to.
-        /*	@docs: {
+        /*	@docs:
          *	@title: For
          *	@description: 
          *		Specifies which form element(s) a label/calculation is bound to.
@@ -11043,12 +11114,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         for(value) {
             if (value == null) { return super.for; }
         	super.for = value;
@@ -11056,7 +11127,7 @@ function CreateVElementClass({
         }
 
         // Specifies the name of the form the element belongs to.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Form
          *	@description: 
          *		Specifies the name of the form the element belongs to.
@@ -11065,12 +11136,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         form(value) {
             if (value == null) { return super.form; }
         	super.form = value;
@@ -11078,7 +11149,7 @@ function CreateVElementClass({
         }
 
         // Specifies where to send the form-data when a form is submitted. Only for type="submit".
-        /*	@docs: {
+        /*	@docs:
          *	@title: Form action
          *	@description: 
          *		Specifies where to send the form-data when a form is submitted. Only for type="submit".
@@ -11087,12 +11158,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         form_action(value) {
             if (value == null) { return super.formaction; }
         	super.formaction = value;
@@ -11100,7 +11171,7 @@ function CreateVElementClass({
         }
 
         // Specifies one or more headers cells a cell is related to.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Headers
          *	@description: 
          *		Specifies one or more headers cells a cell is related to.
@@ -11109,12 +11180,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         headers(value) {
             if (value == null) { return super.headers; }
         	super.headers = value;
@@ -11136,7 +11207,7 @@ function CreateVElementClass({
         // }
 
         // Specifies the range that is considered to be a high value.
-        /*	@docs: {
+        /*	@docs:
          *	@title: High
          *	@description: 
          *		Specifies the range that is considered to be a high value.
@@ -11145,12 +11216,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         high(value) {
             if (value == null) { return super.high; }
         	super.high = value;
@@ -11158,7 +11229,7 @@ function CreateVElementClass({
         }
 
         // Specifies the URL of the page the link goes to.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Href
          *	@description: 
          *		Specifies the URL of the page the link goes to.
@@ -11167,12 +11238,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         href(value) {
             if (value == null) { return super.href; }
         	super.href = value;
@@ -11180,7 +11251,7 @@ function CreateVElementClass({
         }
 
         // Specifies the language of the linked document.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Href lang
          *	@description: 
          *		Specifies the language of the linked document.
@@ -11189,12 +11260,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         href_lang(value) {
             if (value == null) { return super.hreflang; }
         	super.hreflang = value;
@@ -11202,7 +11273,7 @@ function CreateVElementClass({
         }
 
         // Provides an HTTP header for the information/value of the content attribute.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Http equiv
          *	@description: 
          *		Provides an HTTP header for the information/value of the content attribute.
@@ -11211,12 +11282,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         http_equiv(value) {
             if (value == null) { return super.http_equiv; }
         	super.http_equiv = value;
@@ -11224,7 +11295,7 @@ function CreateVElementClass({
         }
 
         // Specifies a unique id for an element.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Id
          *	@description: 
          *		Specifies a unique id for an element.
@@ -11233,12 +11304,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         id(value) {
             if (value == null) { return super.id; }
         	super.id = value;
@@ -11246,7 +11317,7 @@ function CreateVElementClass({
         }
 
         // Specifies an image as a server-side image map.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Is map
          *	@description: 
          *		Specifies an image as a server-side image map.
@@ -11255,12 +11326,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         is_map(value) {
             if (value == null) { return super.ismap; }
         	super.ismap = value;
@@ -11268,7 +11339,7 @@ function CreateVElementClass({
         }
 
         // Specifies the kind of text track.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Kind
          *	@description: 
          *		Specifies the kind of text track.
@@ -11277,12 +11348,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         kind(value) {
             if (value == null) { return super.kind; }
         	super.kind = value;
@@ -11290,7 +11361,7 @@ function CreateVElementClass({
         }
 
         // Specifies the title of the text track.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Label
          *	@description: 
          *		Specifies the title of the text track.
@@ -11299,12 +11370,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         label(value) {
             if (value == null) { return super.label; }
         	super.label = value;
@@ -11312,7 +11383,7 @@ function CreateVElementClass({
         }
 
         // Specifies the language of the element's content.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Lang
          *	@description: 
          *		Specifies the language of the element's content.
@@ -11321,12 +11392,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         lang(value) {
             if (value == null) { return super.lang; }
         	super.lang = value;
@@ -11334,7 +11405,7 @@ function CreateVElementClass({
         }
 
         // Refers to a <datalist> element that contains pre-defined options for an <input> element.
-        /*	@docs: {
+        /*	@docs:
          *	@title: List
          *	@description: 
          *		Refers to a <datalist> element that contains pre-defined options for an <input> element.
@@ -11343,12 +11414,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         list(value) {
             if (value == null) { return super.list; }
         	super.list = value;
@@ -11356,7 +11427,7 @@ function CreateVElementClass({
         }
 
         // Specifies that the audio/video will start over again, every time it is finished.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Loop
          *	@description: 
          *		Specifies that the audio/video will start over again, every time it is finished.
@@ -11365,12 +11436,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         loop(value) {
             if (value == null) { return super.loop; }
         	super.loop = value;
@@ -11378,7 +11449,7 @@ function CreateVElementClass({
         }
 
         // Specifies the range that is considered to be a low value.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Low
          *	@description: 
          *		Specifies the range that is considered to be a low value.
@@ -11387,12 +11458,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         low(value) {
             if (value == null) { return super.low; }
         	super.low = value;
@@ -11400,7 +11471,7 @@ function CreateVElementClass({
         }
 
         // Specifies the maximum value.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Max
          *	@description: 
          *		Specifies the maximum value.
@@ -11409,12 +11480,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         max(value) {
             if (value == null) { return super.max; }
         	super.max = value;
@@ -11422,7 +11493,7 @@ function CreateVElementClass({
         }
 
         // Specifies the maximum number of characters allowed in an element.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Max length
          *	@description: 
          *		Specifies the maximum number of characters allowed in an element.
@@ -11431,12 +11502,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         max_length(value) {
             if (value == null) { return super.maxlength; }
         	super.maxlength = value;
@@ -11451,7 +11522,7 @@ function CreateVElementClass({
         // }
 
         // Specifies the HTTP method to use when sending form-data.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Method
          *	@description: 
          *		Specifies the HTTP method to use when sending form-data.
@@ -11460,12 +11531,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         method(value) {
             if (value == null) { return super.method; }
         	super.method = value;
@@ -11473,7 +11544,7 @@ function CreateVElementClass({
         }
 
         // Specifies a minimum value.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Min
          *	@description: 
          *		Specifies a minimum value.
@@ -11482,12 +11553,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         min(value) {
             if (value == null) { return super.min; }
         	super.min = value;
@@ -11495,7 +11566,7 @@ function CreateVElementClass({
         }
 
         // Specifies that a user can enter more than one value.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Multiple
          *	@description: 
          *		Specifies that a user can enter more than one value.
@@ -11504,12 +11575,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         multiple(value) {
             if (value == null) { return super.multiple; }
         	super.multiple = value;
@@ -11517,7 +11588,7 @@ function CreateVElementClass({
         }
 
         // Specifies that the audio output of the video should be muted.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Muted
          *	@description: 
          *		Specifies that the audio output of the video should be muted.
@@ -11526,12 +11597,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         muted(value) {
             if (value == null) { return super.muted; }
         	super.muted = value;
@@ -11546,7 +11617,7 @@ function CreateVElementClass({
         // }
 
         // Specifies that the form should not be validated when submitted.
-        /*	@docs: {
+        /*	@docs:
          *	@title: No validate
          *	@description: 
          *		Specifies that the form should not be validated when submitted.
@@ -11555,12 +11626,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         no_validate(value) {
             if (value == null) { return super.novalidate; }
         	super.novalidate = value;
@@ -11568,7 +11639,7 @@ function CreateVElementClass({
         }
 
         // Specifies that the details should be visible (open) to the user.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Open
          *	@description: 
          *		Specifies that the details should be visible (open) to the user.
@@ -11577,12 +11648,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         open(value) {
             if (value == null) { return super.open; }
         	super.open = value;
@@ -11590,7 +11661,7 @@ function CreateVElementClass({
         }
 
         // Specifies what value is the optimal value for the gauge.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Optimum
          *	@description: 
          *		Specifies what value is the optimal value for the gauge.
@@ -11599,12 +11670,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         optimum(value) {
             if (value == null) { return super.optimum; }
         	super.optimum = value;
@@ -11612,7 +11683,7 @@ function CreateVElementClass({
         }
 
         // Specifies a regular expression that an <input> element's value is checked against.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Pattern
          *	@description: 
          *		Specifies a regular expression that an <input> element's value is checked against.
@@ -11621,12 +11692,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         pattern(value) {
             if (value == null) { return super.pattern; }
         	super.pattern = value;
@@ -11634,7 +11705,7 @@ function CreateVElementClass({
         }
 
         // Specifies a short hint that describes the expected value of the element.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Placeholder
          *	@description: 
          *		Specifies a short hint that describes the expected value of the element.
@@ -11643,12 +11714,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         placeholder(value) {
             if (value == null) { return super.placeholder; }
         	super.placeholder = value;
@@ -11656,7 +11727,7 @@ function CreateVElementClass({
         }
 
         // Specifies an image to be shown while the video is downloading, or until the user hits the play button.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Poster
          *	@description: 
          *		Specifies an image to be shown while the video is downloading, or until the user hits the play button.
@@ -11665,12 +11736,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         poster(value) {
             if (value == null) { return super.poster; }
         	super.poster = value;
@@ -11678,7 +11749,7 @@ function CreateVElementClass({
         }
 
         // Specifies if and how the author thinks the audio/video should be loaded when the page loads.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Preload
          *	@description: 
          *		Specifies if and how the author thinks the audio/video should be loaded when the page loads.
@@ -11687,12 +11758,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         preload(value) {
             if (value == null) { return super.preload; }
         	super.preload = value;
@@ -11700,7 +11771,7 @@ function CreateVElementClass({
         }
 
         // Specifies that the element is read-only.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Readonly
          *	@description: 
          *		Specifies that the element is read-only.
@@ -11709,12 +11780,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         readonly(value) {
             if (value == null) { return super.readOnly; }
         	super.readOnly = value;
@@ -11722,7 +11793,7 @@ function CreateVElementClass({
         }
 
         // Specifies the relationship between the current document and the linked document.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Rel
          *	@description: 
          *		Specifies the relationship between the current document and the linked document.
@@ -11731,12 +11802,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         rel(value) {
             if (value == null) { return super.rel; }
         	super.rel = value;
@@ -11744,7 +11815,7 @@ function CreateVElementClass({
         }
 
         // Specifies that the element must be filled out before submitting the form.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Required
          *	@description: 
          *		Specifies that the element must be filled out before submitting the form.
@@ -11753,12 +11824,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         required(value) {
             if (value == null) { return super.required; }
         	super.required = value;
@@ -11766,7 +11837,7 @@ function CreateVElementClass({
         }
 
         // Specifies that the list order should be descending (9,8,7...).
-        /*	@docs: {
+        /*	@docs:
          *	@title: Reversed
          *	@description: 
          *		Specifies that the list order should be descending (9,8,7...).
@@ -11775,12 +11846,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         reversed(value) {
             if (value == null) { return super.reversed; }
         	super.reversed = value;
@@ -11788,7 +11859,7 @@ function CreateVElementClass({
         }
 
         // Specifies the visible number of lines in a text area.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Rows
          *	@description: 
          *		Specifies the visible number of lines in a text area.
@@ -11797,12 +11868,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         rows(value) {
             if (value == null) { return super.rows; }
         	super.rows = value;
@@ -11810,7 +11881,7 @@ function CreateVElementClass({
         }
 
         // Specifies the number of rows a table cell should span.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Row span
          *	@description: 
          *		Specifies the number of rows a table cell should span.
@@ -11819,12 +11890,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         row_span(value) {
             if (value == null) { return super.rowspan; }
         	super.rowspan = value;
@@ -11832,7 +11903,7 @@ function CreateVElementClass({
         }
 
         // Enables an extra set of restrictions for the content in an <iframe>.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Sandbox
          *	@description: 
          *		Enables an extra set of restrictions for the content in an <iframe>.
@@ -11841,12 +11912,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         sandbox(value) {
             if (value == null) { return super.sandbox; }
         	super.sandbox = value;
@@ -11854,7 +11925,7 @@ function CreateVElementClass({
         }
 
         // Specifies whether a header cell is a header for a column, row, or group of columns or rows.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Scope
          *	@description: 
          *		Specifies whether a header cell is a header for a column, row, or group of columns or rows.
@@ -11863,12 +11934,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         scope(value) {
             if (value == null) { return super.scope; }
         	super.scope = value;
@@ -11876,7 +11947,7 @@ function CreateVElementClass({
         }
 
         // Specifies that an option should be pre-selected when the page loads.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Selected
          *	@description: 
          *		Specifies that an option should be pre-selected when the page loads.
@@ -11885,12 +11956,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         selected(value) {
             if (value == null) { return super.selected; }
         	super.selected = value;
@@ -11898,7 +11969,7 @@ function CreateVElementClass({
         }
 
         // Specifies the shape of the area.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Shape
          *	@description: 
          *		Specifies the shape of the area.
@@ -11907,12 +11978,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         shape(value) {
             if (value == null) { return super.shape; }
         	super.shape = value;
@@ -11920,7 +11991,7 @@ function CreateVElementClass({
         }
 
         // Specifies the width, in characters (for <input>) or specifies the number of visible options (for <select>).
-        /*	@docs: {
+        /*	@docs:
          *	@title: Size
          *	@description: 
          *		Specifies the width, in characters (for <input>) or specifies the number of visible options (for <select>).
@@ -11929,12 +12000,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         size(value) {
             if (value == null) { return super.size; }
         	super.size = value;
@@ -11942,7 +12013,7 @@ function CreateVElementClass({
         }
 
         // Specifies the size of the linked resource.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Sizes
          *	@description: 
          *		Specifies the size of the linked resource.
@@ -11951,12 +12022,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         sizes(value) {
             if (value == null) { return super.sizes; }
         	super.sizes = value;
@@ -11964,7 +12035,7 @@ function CreateVElementClass({
         }
 
         // Specifies the number of columns to span.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Span
          *	@description: 
          *		Specifies the number of columns to span.
@@ -11973,12 +12044,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         span(value) {
             if (value == null) { return super.span; }
         	super.span = value;
@@ -11986,7 +12057,7 @@ function CreateVElementClass({
         }
 
         // Specifies whether the element is to have its spelling and grammar checked or not.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Spell check
          *	@description: 
          *		Specifies whether the element is to have its spelling and grammar checked or not.
@@ -11995,12 +12066,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         spell_check(value) {
             if (value == null) { return super.spellcheck; }
         	super.spellcheck = value;
@@ -12008,7 +12079,7 @@ function CreateVElementClass({
         }
 
         // Specifies the URL of the media file.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Src
          *	@description: 
          *		Specifies the URL of the media file.
@@ -12017,12 +12088,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         src(value) {
             if (value == null) { return super.src; }
         	super.src = value;
@@ -12030,7 +12101,7 @@ function CreateVElementClass({
         }
 
         // Specifies the HTML content of the page to show in the <iframe>.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Src doc
          *	@description: 
          *		Specifies the HTML content of the page to show in the <iframe>.
@@ -12039,12 +12110,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         src_doc(value) {
             if (value == null) { return super.srcdoc; }
         	super.srcdoc = value;
@@ -12052,7 +12123,7 @@ function CreateVElementClass({
         }
 
         // Specifies the language of the track text data (required if kind="subtitles").
-        /*	@docs: {
+        /*	@docs:
          *	@title: Src lang
          *	@description: 
          *		Specifies the language of the track text data (required if kind="subtitles").
@@ -12061,12 +12132,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         src_lang(value) {
             if (value == null) { return super.srclang; }
         	super.srclang = value;
@@ -12074,7 +12145,7 @@ function CreateVElementClass({
         }
 
         // Specifies the URL of the image to use in different situations.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Rrsrc set
          *	@description: 
          *		Specifies the URL of the image to use in different situations.
@@ -12083,12 +12154,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         rrsrc_set(value) {
             if (value == null) { return super.srcset; }
         	super.srcset = value;
@@ -12096,7 +12167,7 @@ function CreateVElementClass({
         }
 
         // Specifies the start value of an ordered list.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Start
          *	@description: 
          *		Specifies the start value of an ordered list.
@@ -12105,12 +12176,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         start(value) {
             if (value == null) { return super.start; }
         	super.start = value;
@@ -12118,7 +12189,7 @@ function CreateVElementClass({
         }
 
         // Specifies the legal number intervals for an input field.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Step
          *	@description: 
          *		Specifies the legal number intervals for an input field.
@@ -12127,12 +12198,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         step(value) {
             if (value == null) { return super.step; }
         	super.step = value;
@@ -12147,7 +12218,7 @@ function CreateVElementClass({
         // }
 
         // Specifies the tabbing order of an element.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Tab index
          *	@description: 
          *		Specifies the tabbing order of an element.
@@ -12156,12 +12227,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         tab_index(value) {
             if (value == null) { return super.tabindex; }
         	super.tabindex = value;
@@ -12169,7 +12240,7 @@ function CreateVElementClass({
         }
 
         // Specifies the target for where to open the linked document or where to submit the form.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Target
          *	@description: 
          *		Specifies the target for where to open the linked document or where to submit the form.
@@ -12178,12 +12249,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         target(value) {
             if (value == null) { return super.target; }
         	super.target = value;
@@ -12191,7 +12262,7 @@ function CreateVElementClass({
         }
 
         // Specifies extra information about an element.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Title
          *	@description: 
          *		Specifies extra information about an element.
@@ -12200,12 +12271,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         title(value) {
             if (value == null) { return super.title; }
         	super.title = value;
@@ -12213,7 +12284,7 @@ function CreateVElementClass({
         }
 
         // Specifies whether the content of an element should be translated or not.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Translate
          *	@description: 
          *		Specifies whether the content of an element should be translated or not.
@@ -12222,12 +12293,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         translate(value) {
             if (value == null) { return super.translate; }
         	super.translate = value;
@@ -12235,7 +12306,7 @@ function CreateVElementClass({
         }
 
         // Specifies the type of element.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Type
          *	@description: 
          *		Specifies the type of element.
@@ -12244,12 +12315,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         type(value) {
             if (value == null) { return super.type; }
         	super.type = value;
@@ -12257,7 +12328,7 @@ function CreateVElementClass({
         }
 
         // Specifies an image as a client-side image map.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Use map
          *	@description: 
          *		Specifies an image as a client-side image map.
@@ -12266,12 +12337,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         use_map(value) {
             if (value == null) { return super.usemap; }
         	super.usemap = value;
@@ -12279,7 +12350,7 @@ function CreateVElementClass({
         }
 
         // Specifies the value of the element.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Value
          *	@description: 
          *		Specifies the value of the element.
@@ -12288,12 +12359,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         value(value) {
             if (value == null) { return super.value; }
         	super.value = value;
@@ -12315,7 +12386,7 @@ function CreateVElementClass({
         // }
 
         // Script to be run after the document is printed.
-        /*	@docs: {
+        /*	@docs:
          *	@title: On after print
          *	@description: 
          *		Script to be run after the document is printed.
@@ -12326,12 +12397,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         on_after_print(callback) {
             if (callback == null) { return this.onafterprint; }
         	const e = this;
@@ -12340,7 +12411,7 @@ function CreateVElementClass({
         }
 
         // Script to be run before the document is printed.
-        /*	@docs: {
+        /*	@docs:
          *	@title: On before print
          *	@description: 
          *		Script to be run before the document is printed.
@@ -12351,12 +12422,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         on_before_print(callback) {
             if (callback == null) { return this.onbeforeprint; }
         	const e = this;
@@ -12365,7 +12436,7 @@ function CreateVElementClass({
         }
 
         // Script to be run when the document is about to be unloaded.
-        /*	@docs: {
+        /*	@docs:
          *	@title: On before unload
          *	@description: 
          *		Script to be run when the document is about to be unloaded.
@@ -12376,12 +12447,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         on_before_unload(callback) {
             if (callback == null) { return this.onbeforeunload; }
         	const e = this;
@@ -12390,7 +12461,7 @@ function CreateVElementClass({
         }
 
         // Script to be run when an error occurs.
-        /*	@docs: {
+        /*	@docs:
          *	@title: On error
          *	@description: 
          *		Script to be run when an error occurs.
@@ -12401,12 +12472,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         on_error(callback) {
             if (callback == null) { return this.onerror; }
         	const e = this;
@@ -12415,7 +12486,7 @@ function CreateVElementClass({
         }
 
         // Script to be run when there has been changes to the anchor part of the a URL.
-        /*	@docs: {
+        /*	@docs:
          *	@title: On hash change
          *	@description: 
          *		Script to be run when there has been changes to the anchor part of the a URL.
@@ -12426,12 +12497,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         on_hash_change(callback) {
             if (callback == null) { return this.onhashchange; }
         	const e = this;
@@ -12440,7 +12511,7 @@ function CreateVElementClass({
         }
 
         // Fires after the page is finished loading.
-        /*	@docs: {
+        /*	@docs:
          *	@title: On load
          *	@description: 
          *		Fires after the page is finished loading.
@@ -12451,12 +12522,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         on_load(callback) {
             if (callback == null) { return this.onload; }
         	const e = this;
@@ -12465,7 +12536,7 @@ function CreateVElementClass({
         }
 
         // Script to be run when the message is triggered.
-        /*	@docs: {
+        /*	@docs:
          *	@title: On message
          *	@description: 
          *		Script to be run when the message is triggered.
@@ -12476,12 +12547,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         on_message(callback) {
             if (callback == null) { return this.onmessage; }
         	const e = this;
@@ -12490,7 +12561,7 @@ function CreateVElementClass({
         }
 
         // Script to be run when the browser starts to work offline.
-        /*	@docs: {
+        /*	@docs:
          *	@title: On offline
          *	@description: 
          *		Script to be run when the browser starts to work offline.
@@ -12501,12 +12572,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         on_offline(callback) {
             if (callback == null) { return this.onoffline; }
         	const e = this;
@@ -12515,7 +12586,7 @@ function CreateVElementClass({
         }
 
         // Script to be run when the browser starts to work online.
-        /*	@docs: {
+        /*	@docs:
          *	@title: On online
          *	@description: 
          *		Script to be run when the browser starts to work online.
@@ -12526,12 +12597,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         on_online(callback) {
             if (callback == null) { return this.ononline; }
         	const e = this;
@@ -12540,7 +12611,7 @@ function CreateVElementClass({
         }
 
         // Script to be run when a user navigates away from a page.
-        /*	@docs: {
+        /*	@docs:
          *	@title: On page hide
          *	@description: 
          *		Script to be run when a user navigates away from a page.
@@ -12551,12 +12622,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         on_page_hide(callback) {
             if (callback == null) { return this.onpagehide; }
         	const e = this;
@@ -12565,7 +12636,7 @@ function CreateVElementClass({
         }
 
         // Script to be run when a user navigates to a page.
-        /*	@docs: {
+        /*	@docs:
          *	@title: On page show
          *	@description: 
          *		Script to be run when a user navigates to a page.
@@ -12576,12 +12647,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         on_page_show(callback) {
             if (callback == null) { return this.onpageshow; }
         	const e = this;
@@ -12590,7 +12661,7 @@ function CreateVElementClass({
         }
 
         // Script to be run when the window's history changes.
-        /*	@docs: {
+        /*	@docs:
          *	@title: On popstate
          *	@description: 
          *		Script to be run when the window's history changes.
@@ -12601,12 +12672,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         on_popstate(callback) {
             if (callback == null) { return this.onpopstate; }
         	const e = this;
@@ -12615,7 +12686,7 @@ function CreateVElementClass({
         }
 
         // Script to be run when a Web Storage area is updated.
-        /*	@docs: {
+        /*	@docs:
          *	@title: On storage
          *	@description: 
          *		Script to be run when a Web Storage area is updated.
@@ -12626,12 +12697,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         on_storage(callback) {
             if (callback == null) { return this.onstorage; }
         	const e = this;
@@ -12640,7 +12711,7 @@ function CreateVElementClass({
         }
 
         // Fires once a page has unloaded (or the browser window has been closed).
-        /*	@docs: {
+        /*	@docs:
          *	@title: On unload
          *	@description: 
          *		Fires once a page has unloaded (or the browser window has been closed).
@@ -12651,12 +12722,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         on_unload(callback) {
             if (callback == null) { return this.onunload; }
         	const e = this;
@@ -12665,7 +12736,7 @@ function CreateVElementClass({
         }
 
         // Fires the moment that the element loses focus.
-        /*	@docs: {
+        /*	@docs:
          *	@title: On blur
          *	@description: 
          *		Fires the moment that the element loses focus.
@@ -12676,12 +12747,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         on_blur(callback) {
             if (callback == null) { return this.onblur; }
         	const e = this;
@@ -12690,7 +12761,7 @@ function CreateVElementClass({
         }
 
         // Fires the moment when the value of the element is changed.
-        /*	@docs: {
+        /*	@docs:
          *	@title: On change
          *	@description: 
          *		Fires the moment when the value of the element is changed.
@@ -12701,12 +12772,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         on_change(callback) {
             if (callback == null) { return this.onchange; }
         	const e = this;
@@ -12715,7 +12786,7 @@ function CreateVElementClass({
         }
 
         // Fires the moment when the element gets focus.
-        /*	@docs: {
+        /*	@docs:
          *	@title: On focus
          *	@description: 
          *		Fires the moment when the element gets focus.
@@ -12726,12 +12797,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         on_focus(callback) {
             if (callback == null) { return this.onfocus; }
         	const e = this;
@@ -12740,7 +12811,7 @@ function CreateVElementClass({
         }
 
         // Script to be run when an element gets user input.
-        /*	@docs: {
+        /*	@docs:
          *	@title: On input
          *	@description: 
          *		Script to be run when an element gets user input.
@@ -12751,12 +12822,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         on_input(callback) {
             if (callback == null) { return this.oninput; }
         	const e = this;
@@ -12765,7 +12836,7 @@ function CreateVElementClass({
         }
 
         // Script to be run before an element gets user input.
-        /*	@docs: {
+        /*	@docs:
          *	@title: On input
          *	@description: 
          *		Script to be run before an element gets user input.
@@ -12776,12 +12847,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         on_before_input(callback) {
             if (callback == null) { return this.onbeforeinput; }
         	const e = this;
@@ -12790,7 +12861,7 @@ function CreateVElementClass({
         }
 
         // Script to be run when an element is invalid.
-        /*	@docs: {
+        /*	@docs:
          *	@title: On invalid
          *	@description: 
          *		Script to be run when an element is invalid.
@@ -12801,12 +12872,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         on_invalid(callback) {
             if (callback == null) { return this.oninvalid; }
         	const e = this;
@@ -12815,7 +12886,7 @@ function CreateVElementClass({
         }
 
         // Fires when the Reset button in a form is clicked.
-        /*	@docs: {
+        /*	@docs:
          *	@title: On reset
          *	@description: 
          *		Fires when the Reset button in a form is clicked.
@@ -12826,12 +12897,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         on_reset(callback) {
             if (callback == null) { return this.onreset; }
         	const e = this;
@@ -12840,7 +12911,7 @@ function CreateVElementClass({
         }
 
         // Fires when the user writes something in a search field (for <input="search">).
-        /*	@docs: {
+        /*	@docs:
          *	@title: On search
          *	@description: 
          *		Fires when the user writes something in a search field (for <input="search">).
@@ -12851,12 +12922,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         on_search(callback) {
             if (callback == null) { return this.onsearch; }
         	const e = this;
@@ -12865,7 +12936,7 @@ function CreateVElementClass({
         }
 
         // Fires after some text has been selected in an element.
-        /*	@docs: {
+        /*	@docs:
          *	@title: On select
          *	@description: 
          *		Fires after some text has been selected in an element.
@@ -12876,12 +12947,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         on_select(callback) {
             if (callback == null) { return this.onselect; }
         	const e = this;
@@ -12890,7 +12961,7 @@ function CreateVElementClass({
         }
 
         // Fires when a form is submitted.
-        /*	@docs: {
+        /*	@docs:
          *	@title: On submit
          *	@description: 
          *		Fires when a form is submitted.
@@ -12901,12 +12972,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         on_submit(callback) {
             if (callback == null) { return this.onsubmit; }
         	const e = this;
@@ -12915,7 +12986,7 @@ function CreateVElementClass({
         }
 
         // Fires when a user is pressing a key.
-        /*	@docs: {
+        /*	@docs:
          *	@title: On key down
          *	@description: 
          *		Fires when a user is pressing a key.
@@ -12926,12 +12997,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         on_key_down(callback) {
             if (callback == null) { return this.onkeydown; }
         	const e = this;
@@ -12940,7 +13011,7 @@ function CreateVElementClass({
         }
 
         // Fires when a user presses a key.
-        /*	@docs: {
+        /*	@docs:
          *	@title: On key press
          *	@description: 
          *		Fires when a user presses a key.
@@ -12951,12 +13022,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         on_key_press(callback) {
             if (callback == null) { return this.onkeypress; }
         	const e = this;
@@ -12965,7 +13036,7 @@ function CreateVElementClass({
         }
 
         // Fires when a user releases a key.
-        /*	@docs: {
+        /*	@docs:
          *	@title: On key up
          *	@description: 
          *		Fires when a user releases a key.
@@ -12976,12 +13047,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         on_key_up(callback) {
             if (callback == null) { return this.onkeyup; }
         	const e = this;
@@ -12998,7 +13069,7 @@ function CreateVElementClass({
         // }
 
         // Fires on a mouse double-click on the element.
-        /*	@docs: {
+        /*	@docs:
          *	@title: On dbl click
          *	@description: 
          *		Fires on a mouse double-click on the element.
@@ -13009,12 +13080,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         on_dbl_click(callback) {
             if (callback == null) { return this.ondblclick; }
         	const e = this;
@@ -13023,7 +13094,7 @@ function CreateVElementClass({
         }
 
         // Fires when a mouse button is pressed down on an element.
-        /*	@docs: {
+        /*	@docs:
          *	@title: On mouse down
          *	@description: 
          *		Fires when a mouse button is pressed down on an element.
@@ -13034,12 +13105,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         on_mouse_down(callback) {
             if (callback == null) { return this.onmousedown; }
         	const e = this;
@@ -13048,7 +13119,7 @@ function CreateVElementClass({
         }
 
         // Fires when the mouse pointer is moving while it is over an element.
-        /*	@docs: {
+        /*	@docs:
          *	@title: On mouse move
          *	@description: 
          *		Fires when the mouse pointer is moving while it is over an element.
@@ -13059,12 +13130,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         on_mouse_move(callback) {
             if (callback == null) { return this.onmousemove; }
         	const e = this;
@@ -13073,7 +13144,7 @@ function CreateVElementClass({
         }
 
         // Fires when the mouse pointer moves out of an element.
-        /*	@docs: {
+        /*	@docs:
          *	@title: On mouse out
          *	@description: 
          *		Fires when the mouse pointer moves out of an element.
@@ -13084,12 +13155,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         on_mouse_out(callback) {
             if (callback == null) { return this.onmouseout; }
         	const e = this;
@@ -13098,7 +13169,7 @@ function CreateVElementClass({
         }
 
         // Fires when the mouse pointer moves over an element.
-        /*	@docs: {
+        /*	@docs:
          *	@title: On mouse over
          *	@description: 
          *		Fires when the mouse pointer moves over an element.
@@ -13109,12 +13180,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         on_mouse_over(callback) {
             if (callback == null) { return this.onmouseover; }
         	const e = this;
@@ -13123,7 +13194,7 @@ function CreateVElementClass({
         }
 
         // Fires when a mouse button is released over an element.
-        /*	@docs: {
+        /*	@docs:
          *	@title: On mouse up
          *	@description: 
          *		Fires when a mouse button is released over an element.
@@ -13134,12 +13205,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         on_mouse_up(callback) {
             if (callback == null) { return this.onmouseup; }
         	const e = this;
@@ -13148,7 +13219,7 @@ function CreateVElementClass({
         }
 
         // Deprecated. Use the onwheel attribute instead.
-        /*	@docs: {
+        /*	@docs:
          *	@title: On mouse wheel
          *	@description: 
          *		Deprecated. Use the onwheel attribute instead.
@@ -13159,12 +13230,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         on_mouse_wheel(callback) {
             if (callback == null) { return this.onmousewheel; }
         	const e = this;
@@ -13173,7 +13244,7 @@ function CreateVElementClass({
         }
 
         // Fires when the mouse wheel rolls up or down over an element.
-        /*	@docs: {
+        /*	@docs:
          *	@title: On wheel
          *	@description: 
          *		Fires when the mouse wheel rolls up or down over an element.
@@ -13184,12 +13255,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         on_wheel(callback) {
             if (callback == null) { return this.onwheel; }
         	const e = this;
@@ -13198,7 +13269,7 @@ function CreateVElementClass({
         }
 
         // Script to be run when an element is dragged.
-        /*	@docs: {
+        /*	@docs:
          *	@title: On drag
          *	@description: 
          *		Script to be run when an element is dragged.
@@ -13209,12 +13280,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         on_drag(callback) {
             if (callback == null) { return this.ondrag; }
         	const e = this;
@@ -13223,7 +13294,7 @@ function CreateVElementClass({
         }
 
         // Script to be run at the end of a drag operation.
-        /*	@docs: {
+        /*	@docs:
          *	@title: On drag end
          *	@description: 
          *		Script to be run at the end of a drag operation.
@@ -13234,12 +13305,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         on_drag_end(callback) {
             if (callback == null) { return this.ondragend; }
         	const e = this;
@@ -13248,7 +13319,7 @@ function CreateVElementClass({
         }
 
         // Script to be run when an element has been dragged to a valid drop target.
-        /*	@docs: {
+        /*	@docs:
          *	@title: On drag enter
          *	@description: 
          *		Script to be run when an element has been dragged to a valid drop target.
@@ -13259,12 +13330,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         on_drag_enter(callback) {
             if (callback == null) { return this.ondragenter; }
         	const e = this;
@@ -13273,7 +13344,7 @@ function CreateVElementClass({
         }
 
         // Script to be run when an element leaves a valid drop target.
-        /*	@docs: {
+        /*	@docs:
          *	@title: On drag leave
          *	@description: 
          *		Script to be run when an element leaves a valid drop target.
@@ -13284,12 +13355,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         on_drag_leave(callback) {
             if (callback == null) { return this.ondragleave; }
         	const e = this;
@@ -13298,7 +13369,7 @@ function CreateVElementClass({
         }
 
         // Script to be run when an element is being dragged over a valid drop target.
-        /*	@docs: {
+        /*	@docs:
          *	@title: On drag over
          *	@description: 
          *		Script to be run when an element is being dragged over a valid drop target.
@@ -13309,12 +13380,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         on_drag_over(callback) {
             if (callback == null) { return this.ondragover; }
         	const e = this;
@@ -13323,7 +13394,7 @@ function CreateVElementClass({
         }
 
         // Script to be run at the start of a drag operation.
-        /*	@docs: {
+        /*	@docs:
          *	@title: On drag start
          *	@description: 
          *		Script to be run at the start of a drag operation.
@@ -13334,12 +13405,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         on_drag_start(callback) {
             if (callback == null) { return this.ondragstart; }
         	const e = this;
@@ -13348,7 +13419,7 @@ function CreateVElementClass({
         }
 
         // Script to be run when dragged element is being dropped.
-        /*	@docs: {
+        /*	@docs:
          *	@title: On drop
          *	@description: 
          *		Script to be run when dragged element is being dropped.
@@ -13359,12 +13430,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         on_drop(callback) {
             if (callback == null) { return this.ondrop; }
         	const e = this;
@@ -13381,7 +13452,7 @@ function CreateVElementClass({
         // }
 
         // Fires when the user copies the content of an element.
-        /*	@docs: {
+        /*	@docs:
          *	@title: On copy
          *	@description: 
          *		Fires when the user copies the content of an element.
@@ -13392,12 +13463,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         on_copy(callback) {
             if (callback == null) { return this.oncopy; }
         	const e = this;
@@ -13406,7 +13477,7 @@ function CreateVElementClass({
         }
 
         // Fires when the user cuts the content of an element.
-        /*	@docs: {
+        /*	@docs:
          *	@title: On cut
          *	@description: 
          *		Fires when the user cuts the content of an element.
@@ -13417,12 +13488,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         on_cut(callback) {
             if (callback == null) { return this.oncut; }
         	const e = this;
@@ -13431,7 +13502,7 @@ function CreateVElementClass({
         }
 
         // Fires when the user pastes some content in an element.
-        /*	@docs: {
+        /*	@docs:
          *	@title: On paste
          *	@description: 
          *		Fires when the user pastes some content in an element.
@@ -13442,12 +13513,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         on_paste(callback) {
             if (callback == null) { return this.onpaste; }
         	const e = this;
@@ -13456,7 +13527,7 @@ function CreateVElementClass({
         }
 
         // Script to be run on abort.
-        /*	@docs: {
+        /*	@docs:
          *	@title: On abort
          *	@description: 
          *		Script to be run on abort.
@@ -13467,12 +13538,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         on_abort(callback) {
             if (callback == null) { return this.onabort; }
         	const e = this;
@@ -13481,7 +13552,7 @@ function CreateVElementClass({
         }
 
         // Script to be run when a file is ready to start playing (when it has buffered enough to begin).
-        /*	@docs: {
+        /*	@docs:
          *	@title: On canplay
          *	@description: 
          *		Script to be run when a file is ready to start playing (when it has buffered enough to begin).
@@ -13492,12 +13563,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         on_canplay(callback) {
             if (callback == null) { return this.oncanplay; }
         	const e = this;
@@ -13506,7 +13577,7 @@ function CreateVElementClass({
         }
 
         // Script to be run when a file can be played all the way to the end without pausing for buffering.
-        /*	@docs: {
+        /*	@docs:
          *	@title: On canplay through
          *	@description: 
          *		Script to be run when a file can be played all the way to the end without pausing for buffering.
@@ -13517,12 +13588,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         on_canplay_through(callback) {
             if (callback == null) { return this.oncanplaythrough; }
         	const e = this;
@@ -13531,7 +13602,7 @@ function CreateVElementClass({
         }
 
         // Script to be run when the cue changes in a <track> element.
-        /*	@docs: {
+        /*	@docs:
          *	@title: On cue change
          *	@description: 
          *		Script to be run when the cue changes in a <track> element.
@@ -13542,12 +13613,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         on_cue_change(callback) {
             if (callback == null) { return this.oncuechange; }
         	const e = this;
@@ -13556,7 +13627,7 @@ function CreateVElementClass({
         }
 
         // Script to be run when the length of the media changes.
-        /*	@docs: {
+        /*	@docs:
          *	@title: On duration change
          *	@description: 
          *		Script to be run when the length of the media changes.
@@ -13567,12 +13638,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         on_duration_change(callback) {
             if (callback == null) { return this.ondurationchange; }
         	const e = this;
@@ -13581,7 +13652,7 @@ function CreateVElementClass({
         }
 
         // Script to be run when something bad happens and the file is suddenly unavailable (like unexpectedly disconnects).
-        /*	@docs: {
+        /*	@docs:
          *	@title: On emptied
          *	@description: 
          *		Script to be run when something bad happens and the file is suddenly unavailable (like unexpectedly disconnects).
@@ -13592,12 +13663,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         on_emptied(callback) {
             if (callback == null) { return this.onemptied; }
         	const e = this;
@@ -13606,7 +13677,7 @@ function CreateVElementClass({
         }
 
         // Script to be run when the media has reach the end (a useful event for messages like "thanks for listening").
-        /*	@docs: {
+        /*	@docs:
          *	@title: On ended
          *	@description: 
          *		Script to be run when the media has reach the end (a useful event for messages like "thanks for listening").
@@ -13617,12 +13688,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         on_ended(callback) {
             if (callback == null) { return this.onended; }
         	const e = this;
@@ -13631,7 +13702,7 @@ function CreateVElementClass({
         }
 
         // Script to be run when an error occurs when the file is being loaded.
-        /*	@docs: {
+        /*	@docs:
          *	@title: On error
          *	@description: 
          *		Script to be run when an error occurs when the file is being loaded.
@@ -13642,12 +13713,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         on_error(callback) {
             if (callback == null) { return this.onerror; }
         	const e = this;
@@ -13656,7 +13727,7 @@ function CreateVElementClass({
         }
 
         // Script to be run when media data is loaded.
-        /*	@docs: {
+        /*	@docs:
          *	@title: On loaded data
          *	@description: 
          *		Script to be run when media data is loaded.
@@ -13667,12 +13738,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         on_loaded_data(callback) {
             if (callback == null) { return this.onloadeddata; }
         	const e = this;
@@ -13681,7 +13752,7 @@ function CreateVElementClass({
         }
 
         // Script to be run when meta data (like dimensions and duration) are loaded.
-        /*	@docs: {
+        /*	@docs:
          *	@title: On loaded metadata
          *	@description: 
          *		Script to be run when meta data (like dimensions and duration) are loaded.
@@ -13692,12 +13763,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         on_loaded_metadata(callback) {
             if (callback == null) { return this.onloadedmetadata; }
         	const e = this;
@@ -13706,7 +13777,7 @@ function CreateVElementClass({
         }
 
         // Script to be run just as the file begins to load before anything is actually loaded.
-        /*	@docs: {
+        /*	@docs:
          *	@title: On load start
          *	@description: 
          *		Script to be run just as the file begins to load before anything is actually loaded.
@@ -13717,12 +13788,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         on_load_start(callback) {
             if (callback == null) { return this.onloadstart; }
         	const e = this;
@@ -13731,7 +13802,7 @@ function CreateVElementClass({
         }
 
         // Script to be run when the media is paused either by the user or programmatically.
-        /*	@docs: {
+        /*	@docs:
          *	@title: On pause
          *	@description: 
          *		Script to be run when the media is paused either by the user or programmatically.
@@ -13742,12 +13813,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         on_pause(callback) {
             if (callback == null) { return this.onpause; }
         	const e = this;
@@ -13756,7 +13827,7 @@ function CreateVElementClass({
         }
 
         // Script to be run when the media is ready to start playing.
-        /*	@docs: {
+        /*	@docs:
          *	@title: On play
          *	@description: 
          *		Script to be run when the media is ready to start playing.
@@ -13767,12 +13838,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         on_play(callback) {
             if (callback == null) { return this.onplay; }
         	const e = this;
@@ -13781,7 +13852,7 @@ function CreateVElementClass({
         }
 
         // Script to be run when the media actually has started playing.
-        /*	@docs: {
+        /*	@docs:
          *	@title: On playing
          *	@description: 
          *		Script to be run when the media actually has started playing.
@@ -13792,12 +13863,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         on_playing(callback) {
             if (callback == null) { return this.onplaying; }
         	const e = this;
@@ -13806,7 +13877,7 @@ function CreateVElementClass({
         }
 
         // Script to be run when the browser is in the process of getting the media data.
-        /*	@docs: {
+        /*	@docs:
          *	@title: Onprogress
          *	@description: 
          *		Script to be run when the browser is in the process of getting the media data.
@@ -13817,12 +13888,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         onprogress(callback) {
             if (callback == null) { return this.onprogress; }
         	const e = this;
@@ -13831,7 +13902,7 @@ function CreateVElementClass({
         }
 
         // Script to be run each time the playback rate changes (like when a user switches to a slow motion or fast forward mode).
-        /*	@docs: {
+        /*	@docs:
          *	@title: On rate change
          *	@description: 
          *		Script to be run each time the playback rate changes (like when a user switches to a slow motion or fast forward mode).
@@ -13842,12 +13913,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         on_rate_change(callback) {
             if (callback == null) { return this.onratechange; }
         	const e = this;
@@ -13856,7 +13927,7 @@ function CreateVElementClass({
         }
 
         // Script to be run when the seeking attribute is set to false indicating that seeking has ended.
-        /*	@docs: {
+        /*	@docs:
          *	@title: On seeked
          *	@description: 
          *		Script to be run when the seeking attribute is set to false indicating that seeking has ended.
@@ -13867,12 +13938,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         on_seeked(callback) {
             if (callback == null) { return this.onseeked; }
         	const e = this;
@@ -13881,7 +13952,7 @@ function CreateVElementClass({
         }
 
         // Script to be run when the seeking attribute is set to true indicating that seeking is active.
-        /*	@docs: {
+        /*	@docs:
          *	@title: On seeking
          *	@description: 
          *		Script to be run when the seeking attribute is set to true indicating that seeking is active.
@@ -13892,12 +13963,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         on_seeking(callback) {
             if (callback == null) { return this.onseeking; }
         	const e = this;
@@ -13906,7 +13977,7 @@ function CreateVElementClass({
         }
 
         // Script to be run when the browser is unable to fetch the media data for whatever reason.
-        /*	@docs: {
+        /*	@docs:
          *	@title: On stalled
          *	@description: 
          *		Script to be run when the browser is unable to fetch the media data for whatever reason.
@@ -13917,12 +13988,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         on_stalled(callback) {
             if (callback == null) { return this.onstalled; }
         	const e = this;
@@ -13931,7 +14002,7 @@ function CreateVElementClass({
         }
 
         // Script to be run when fetching the media data is stopped before it is completely loaded for whatever reason.
-        /*	@docs: {
+        /*	@docs:
          *	@title: On suspend
          *	@description: 
          *		Script to be run when fetching the media data is stopped before it is completely loaded for whatever reason.
@@ -13942,12 +14013,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         on_suspend(callback) {
             if (callback == null) { return this.onsuspend; }
         	const e = this;
@@ -13956,7 +14027,7 @@ function CreateVElementClass({
         }
 
         // Script to be run when the playing position has changed (like when the user fast forwards to a different point in the media).
-        /*	@docs: {
+        /*	@docs:
          *	@title: On time update
          *	@description: 
          *		Script to be run when the playing position has changed (like when the user fast forwards to a different point in the media).
@@ -13967,12 +14038,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         on_time_update(callback) {
             if (callback == null) { return this.ontimeupdate; }
         	const e = this;
@@ -13981,7 +14052,7 @@ function CreateVElementClass({
         }
 
         // Script to be run each time the volume is changed which (includes setting the volume to "mute").
-        /*	@docs: {
+        /*	@docs:
          *	@title: On volume change
          *	@description: 
          *		Script to be run each time the volume is changed which (includes setting the volume to "mute").
@@ -13992,12 +14063,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         on_volume_change(callback) {
             if (callback == null) { return this.onvolumechange; }
         	const e = this;
@@ -14006,7 +14077,7 @@ function CreateVElementClass({
         }
 
         // Script to be run when the media has paused but is expected to resume (like when the media pauses to buffer more data).
-        /*	@docs: {
+        /*	@docs:
          *	@title: On waiting
          *	@description: 
          *		Script to be run when the media has paused but is expected to resume (like when the media pauses to buffer more data).
@@ -14017,12 +14088,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         on_waiting(callback) {
             if (callback == null) { return this.onwaiting; }
         	const e = this;
@@ -14031,7 +14102,7 @@ function CreateVElementClass({
         }
 
         // Fires when the user opens or closes the <details> element.
-        /*	@docs: {
+        /*	@docs:
          *	@title: On toggle
          *	@description: 
          *		Fires when the user opens or closes the <details> element.
@@ -14042,12 +14113,12 @@ function CreateVElementClass({
          *		Returns the attribute value when parameter `value` is `null`.
          *	@return: 
          *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-         *	@parameter: {
+         *	@parameter:
          *		@name: value
          *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
          *	}: 
          *	@inherit: false
-         } */ 
+         */ 
         on_toggle(callback) {
             if (callback == null) { return this.ontoggle; }
         	const e = this;
@@ -14065,10 +14136,10 @@ function CreateVElementClass({
 };
 
 // Element class.
-@vweb_constructor_wrapper
 const VElementElement = CreateVElementClass({type: "VElement", tag: "div"}); // should always remain a "div" since some elements like LoaderButton rely on the behaviour of a div.
+function VElement(...args) { return new VElementElement(...args); }
 
 // Style class.
 // Used to create styles without an element, for example for animations.
-@vweb_constructor_wrapper
 const StyleElement = CreateVElementClass({type: "Style", tag: "style"});
+function Style(...args) { return new StyleElement(...args); }

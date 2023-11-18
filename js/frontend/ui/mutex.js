@@ -6,7 +6,7 @@
 // ---------------------------------------------------------
 // Mutex class.
 
-@vweb_constructor_wrapper
+@constructor_wrapper
 class MutexElement {
     constructor() {
         this.locked = false;

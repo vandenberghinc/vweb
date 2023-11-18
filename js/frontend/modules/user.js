@@ -6,17 +6,6 @@
 // User module.
 vweb.user = {};
 
-// Reset all cached values.
-vweb.user._reset = function() {
-	this._uid = undefined;
-	this._username = undefined;
-	this._email = undefined;
-	this._first_name = undefined;
-	this._last_name = undefined;
-	this._is_authenticated = undefined;
-	this._is_activated = undefined;
-}
-
 // Get user id from cookie.
 /* 	@docs:
  * 	@chapter: Client
@@ -26,23 +15,17 @@ vweb.user._reset = function() {
  *	@return: Returns the user id when the user is authenticated and `null` when the user is not authenticated.
  */
 vweb.user.uid = function() {
-	if (vweb.utils.cookies_parse_required()) {
-		this._reset();
+	let uid = vweb.cookies.get("UserID");
+	if (uid == "-1") {
+		return null;
 	}
-	else if (this._uid !== undefined) {
-		return this._uid;
-	}
-	this._uid = vweb.utils.cookie("UserID");
-	if (this._uid == "-1") {
-		this._uid = null;
-	}
-	else if (this._uid !== null) {
-		this._uid = parseInt(this._uid);
-		if (isNaN(this._uid)) {
-			this._uid = null;
+	else if (uid !== null) {
+		uid = parseInt(uid);
+		if (isNaN(uid)) {
+			return null;
 		}
 	}
-	return this._uid;
+	return uid;
 }
 
 // Get username from cookie.
@@ -54,17 +37,11 @@ vweb.user.uid = function() {
  *	@return: Returns the user's username when the user is authenticated and `null` when the user is not authenticated.
  */
 vweb.user.username = function() {
-	if (vweb.utils.cookies_parse_required()) {
-		this._reset();
+	let username = vweb.cookies.get("UserName");
+	if (username == "") {
+		username = null;
 	}
-	else if (this._username !== undefined) {
-		return this._username;
-	}
-	this._username = vweb.utils.cookie("UserName");
-	if (this._username == "") {
-		this._username = null;
-	}
-	return this._username;
+	return username;
 }
 
 // Get email from cookie.
@@ -76,17 +53,11 @@ vweb.user.username = function() {
  *	@return: Returns the user's email when the user is authenticated and `null` when the user is not authenticated.
  */
 vweb.user.email = function() {
-	if (vweb.utils.cookies_parse_required()) {
-		this._reset();
+	let email = vweb.cookies.get("UserEmail");
+	if (email == "") {
+		email = null;
 	}
-	else if (this._email !== undefined) {
-		return this._email;
-	}
-	this._email = vweb.utils.cookie("UserEmail");
-	if (this._email == "") {
-		this._email = null;
-	}
-	return this._email;
+	return email;
 }
 
 // Get first name from cookie.
@@ -98,17 +69,11 @@ vweb.user.email = function() {
  *	@return: Returns the user's first name when the user is authenticated and `null` when the user is not authenticated.
  */
 vweb.user.first_name = function() {
-	if (vweb.utils.cookies_parse_required()) {
-		this._reset();
+	let first_name = vweb.cookies.get("UserFirstName");
+	if (first_name == "") {
+		first_name = null;
 	}
-	else if (this._first_name !== undefined) {
-		return this._first_name;
-	}
-	this._first_name = vweb.utils.cookie("UserFirstName");
-	if (this._first_name == "") {
-		this._first_name = null;
-	}
-	return this._first_name;
+	return first_name;
 }
 
 // Get last name from cookie.
@@ -120,17 +85,11 @@ vweb.user.first_name = function() {
  *	@return: Returns the user's last anme when the user is authenticated and `null` when the user is not authenticated.
  */
 vweb.user.last_name = function() {
-	if (vweb.utils.cookies_parse_required()) {
-		this._reset();
+	let last_name = vweb.cookies.get("UserLastName");
+	if (last_name == "") {
+		last_name = null;
 	}
-	else if (this._last_name !== undefined) {
-		return this._last_name;
-	}
-	this._last_name = vweb.utils.cookie("UserLastName");
-	if (this._last_name == "") {
-		this._last_name = null;
-	}
-	return this._last_name;
+	return last_name;
 }
 
 // Get the is authenticated boolean.
@@ -142,14 +101,7 @@ vweb.user.last_name = function() {
  *	@return: Returns a boolean indicating whether the current user is authenticated.
  */
 vweb.user.is_authenticated = function() {
-	if (vweb.utils.cookies_parse_required()) {
-		this._reset();
-	}
-	else if (this._is_authenticated !== undefined) {
-		return this._is_authenticated;
-	}
-	this._is_authenticated = this.uid() != null;
-	return this._is_authenticated;
+	return this.uid() != null;
 }
 
 // Get the is user activated boolean.
@@ -161,14 +113,7 @@ vweb.user.is_authenticated = function() {
  *	@return: Returns a boolean indicating whether the current user is activated.
  */
 vweb.user.is_activated = function() {
-	if (vweb.utils.cookies_parse_required()) {
-		this._reset();
-	}
-	else if (this._is_activated !== undefined) {
-		return this._is_activated;
-	}
-	this._is_activated = vweb.utils.cookie("UserActivated") === "true";
-	return this._is_activated;
+	return vweb.cookies.get("UserActivated") === "true";
 }
 
 // Get user.
@@ -177,12 +122,19 @@ vweb.user.is_activated = function() {
  * 	@title: Get
  *	@description: Get the authenticated user object.
  *	@type: Promise
- *	@return: Returns a promise with the authenticated user's object as promise and a request error on a failed request.
+ *	@return: Returns a promise with the authenticated user's object as promise or a request error on a failed request.
+ *	@param:
+ *		@name: detailed
+ *		@desc: Retrieve the detailed user information as well.
+ *		@type: boolean
  */
-vweb.user.get = function() {
+vweb.user.get = async function(detailed = false) {
 	return vweb.utils.request({
 		method: "GET",
-		url: "/vweb/backend/user/",
+		url: "/vweb/user/",
+		data: {
+			detailed: detailed,
+		}
 	});
 }
 
@@ -192,12 +144,12 @@ vweb.user.get = function() {
  * 	@title: Set
  *	@description: Update the authenticated user object.
  *	@type: Promise
- *	@return: Returns a promise with the with a successfull update response and a request error on a failed request.
+ *	@return: Returns a promise with the with a successfull update response or a request error on a failed request.
  */
-vweb.user.set = function(user) {
+vweb.user.set = async function(user) {
 	return vweb.utils.request({
 		method: "POST",
-		url: "/vweb/backend/user/",
+		url: "/vweb/user/",
 		data: user,
 	});
 }
@@ -208,12 +160,12 @@ vweb.user.set = function(user) {
  * 	@title: Activate
  *	@description: Activate the authenticated user.
  *	@type: Promise
- *	@return: Returns a promise with the with a successfull update response and a request error on a failed request.
+ *	@return: Returns a promise with the with a successfull update response or a request error on a failed request.
  */
-vweb.user.activate = function(code = "") {
+vweb.user.activate = async function(code = "") {
 	return vweb.utils.request({
 		method: "POST",
-		url: "/vweb/backend/auth/activate",
+		url: "/vweb/auth/activate",
 		data: {
 			"2fa": code,
 		},
@@ -226,21 +178,36 @@ vweb.user.activate = function(code = "") {
  * 	@title: Change Password
  *	@description: Change the password of the authenticated user.
  *	@type: Promise
- *	@return: Returns a promise with the with a successfull update response and a request error on a failed request.
+ *	@return: Returns a promise with the with a successfull update response or a request error on a failed request.
  */
-vweb.user.change_password = function({
+vweb.user.change_password = async function({
 	current_password = "", 
 	password = "", 
 	verify_password = "",
 }) {
 	return vweb.utils.request({
 		method: "POST",
-		url: "/vweb/backend/user/change_password",
+		url: "/vweb/user/change_password",
 		data: {
 			current_password: current_password,
 			password: password,
 			verify_password: verify_password,
 		},
+	});
+}
+
+// Delete account.
+/* 	@docs:
+ * 	@chapter: Client
+ * 	@title: Delete account
+ *	@description: Delete the user account
+ *	@type: Promise
+ *	@return: Returns a promise with the with a successfull update response or a request error on a failed request.
+ */
+vweb.user.delete_account = async function() {
+	return vweb.utils.request({
+		method: "DELETE",
+		url: "/vweb/user",
 	});
 }
 
@@ -250,12 +217,12 @@ vweb.user.change_password = function({
  * 	@title: Generate API Key
  *	@description: Generate a new api key for the authenticated user.
  *	@type: Promise
- *	@return: Returns a promise with the with a successfull update response with the newly generated api key as attribute and a request error on a failed request.
+ *	@return: Returns a promise with the with a successfull update response with the newly generated api key as attribute or a request error on a failed request.
  */
-vweb.user.generate_api_key = function() {
+vweb.user.generate_api_key = async function() {
 	return vweb.utils.request({
 		method: "POST",
-		url: "/vweb/backend/user/api_key",
+		url: "/vweb/user/api_key",
 	});
 }
 
@@ -265,12 +232,12 @@ vweb.user.generate_api_key = function() {
  * 	@title: Revoke API Key
  *	@description: Revoke the api key of the authenticated user.
  *	@type: Promise
- *	@return: Returns a promise with the with a successfull update response and a request error on a failed request.
+ *	@return: Returns a promise with the with a successfull update response or a request error on a failed request.
  */
-vweb.user.revoke_api_key = function() {
+vweb.user.revoke_api_key = async function() {
 	return vweb.utils.request({
 		method: "DELETE",
-		url: "/vweb/backend/user/api_key",
+		url: "/vweb/user/api_key",
 	});
 }
 
@@ -280,12 +247,12 @@ vweb.user.revoke_api_key = function() {
  * 	@title: Load Data
  *	@description: Load data from the authenticated user's database.
  *	@type: Promise
- *	@return: Returns a promise with the with a successfull update response with the loaded user's data and a request error on a failed request.
+ *	@return: Returns a promise with the with a successfull update response with the loaded user's data or a request error on a failed request.
  */
-vweb.user.load = function(path, def = "") {
+vweb.user.load = async function(path, def = "") {
 	return vweb.utils.request({
 		method: "GET",
-		url: "/vweb/backend/user/data",
+		url: "/vweb/user/data",
 		data: {
 			path: path,
 			def: "",
@@ -299,12 +266,12 @@ vweb.user.load = function(path, def = "") {
  * 	@title: Save Data
  *	@description: Save data to the authenticated user's database.
  *	@type: Promise
- *	@return: Returns a promise with the with a successfull update response and a request error on a failed request.
+ *	@return: Returns a promise with the with a successfull update response or a request error on a failed request.
  */
-vweb.user.save = function(path = "", data = {}) {
+vweb.user.save = async function(path = "", data = {}) {
 	return vweb.utils.request({
 		method: "POST",
-		url: "/vweb/backend/user/data",
+		url: "/vweb/user/data",
 		data: {
 			path: path,
 			data: data,
@@ -318,12 +285,12 @@ vweb.user.save = function(path = "", data = {}) {
  * 	@title: Load Protected Data
  *	@description: Load protected data from the authenticated user's database.
  *	@type: Promise
- *	@return: Returns a promise with the with a successfull update response with the loaded user's data and a request error on a failed request.
+ *	@return: Returns a promise with the with a successfull update response with the loaded user's data or a request error on a failed request.
  */
-vweb.user.load_protected = function(path, def = "") {
+vweb.user.load_protected = async function(path, def = "") {
 	return vweb.utils.request({
 		method: "GET",
-		url: "/vweb/backend/user/data/protected",
+		url: "/vweb/user/data/protected",
 		data: {
 			path: path,
 			def: def,

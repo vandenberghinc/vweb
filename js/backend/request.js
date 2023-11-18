@@ -371,9 +371,9 @@ class Request {
      *          The default value to return when the parameter does not exist. 
      *
      *          If the parameter is not defined and `def` is `undefined` then this function will throw an error. 
-     *          Only when `def` is `undefined` errors will be thrown, when `def` is `null` and the parameter is undefined then `null` will be returned as the default value.
+     *          When `def` is `undefined` errors will be thrown, when `def` is `null` and the parameter is undefined then `null` will be returned as the default value.
      *
-     *          However errors may still be thrown when the incorrect type has been sent by the user.
+     *          Errors will always be thrown when the incorrect type has been sent by the user.
      *      @type: any
      *  @usage:
      *      ...
@@ -495,7 +495,7 @@ class Request {
                 }
                 const success = type.iterate((type) => {
                     const l_is_array = type === "array";
-                    const l_is_null = type === "array";
+                    const l_is_null = type === "null";
 
                     // Same type.
                     if (l_is_array === false && l_is_null === false && type === value_type) {

@@ -4,8 +4,8 @@
  */
 
 // Image.
-@vweb_constructor_wrapper
-@vweb_register_element
+@constructor_wrapper
+@register_element
 class ImageElement extends CreateVElementClass({
 	type: "Image",
 	tag: "img",
@@ -172,8 +172,8 @@ class ImageElement extends CreateVElementClass({
 }
 
 // ImageMask.
-@vweb_constructor_wrapper
-@vweb_register_element
+@constructor_wrapper
+@register_element
 class ImageMaskElement extends CreateVElementClass({
 	type: "ImageMask",
 	tag: "div",

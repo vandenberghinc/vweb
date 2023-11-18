@@ -4,16 +4,16 @@
  */
 
 // Canvas.
-/*	@docs: {
+/*	@docs:
  *	@chapter: UI
  *	@title: Canvas
  *	@description:
  *		Canvas element.
  *	@warning:
  *		This class is still experimental and may be subjec to future change.
- } */
- @vweb_constructor_wrapper
-@vweb_register_element
+ */
+ @constructor_wrapper
+@register_element
 class CanvasElement extends CreateVElementClass({
 	type: "Canvas",
 	tag: "canvas",
@@ -88,34 +88,29 @@ class CanvasElement extends CreateVElementClass({
 	// Functions.
 
     // Create a line.
-    /*	@docs: {
+    /*	@docs:
      *	@title: Line.
      *	@description: 
      *		Create a line, optionally curved and with custom styling.
      *	@return: 
      *		Returns the `Canvas` object.
-     *	@parameter: {
+     *	@parameter:
      *		@name: points
      *		@description: The line points, an array with objects with `x` and `y` values.
-     *	} 
-     *	@parameter: {
+     *	@parameter:
      *		@name: tension
      *		@description: The smoothness of the line, use `null` or `0` for a straight line and {>0.0, 2.0} for a smooth line.
-     *	} 
-     *	@parameter: {
+     *	@parameter:
      *		@name: color
      *		@description: The line color.
-     *	} 
-     *	@parameter: {
+     *	@parameter:
      *		@name: fill
      *		@description: The fill color, supports a `GradientType` class. leave `null` to ignore.
-     *	} 
-     *	@parameter: {
+     *	@parameter:
      *		@name: scale
      *		@type: boolean
      *		@description: When enabled all x and y coordinates are treated as a 0.0 till 1.0 scale in relation to the canvas' width and height.
-     *	} 
-     *	@parameter: {
+     *	@parameter:
      *		@name: dots
      *		@type: object
      *		@description: 
@@ -125,8 +120,7 @@ class CanvasElement extends CreateVElementClass({
      *				width: 0.01, // Dot width in pixels when `scale` is `false`, and dot width in percentage `{0.0,1.0}` when `scale` is `true`.
      *				color: "black", // Fill color.
      *			}```
-     *	} 
-     } */ 
+     */ 
     lines({
     	points = [{x: 0, y: 0}],
     	tension = null,

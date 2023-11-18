@@ -14,32 +14,28 @@ const {vlib} = require("./vinc.js");
 // ---------------------------------------------------------
 // Endpoint.
 
-/*  @docs: {
+/*  @docs:
  *  @chapter: Backend
     @title: FileWatcher
     @description: 
         Used to watch all included files and restart the server when any changes have been made.
-    @parameter: {
+    @parameter:
         @name: source
         @description: The path to the source directory to watch.
         @type: string
-    }
-    @parameter: {
+    @parameter:
         @name: target
         @description: The sub path relative to the source to the target file which will start the server.
         @type: string
-    }
-    @parameter: {
+    @parameter:
         @name: args
         @description: The additional start arguments.
         @type: array[string]
-    }
-    @parameter: {
+    @parameter:
         @name: interval
         @description: The interval in milliseconds between file change checks.
         @type: number
-    }
- } */
+ */
 class FileWatcher {
     constructor({
         source = null,
@@ -95,6 +91,8 @@ class FileWatcher {
         });
         
         // Spawn process.
+        this.scan_files();
+        this.has_changed = false;
         this.spawn_process();
 
         // Start scan loop.
@@ -105,7 +103,7 @@ class FileWatcher {
     scan() {
         this.scan_files()
         if (this.has_changed) {
-            this.spawn_process();
+            this.restart_process();
         }
         setTimeout(() => this.scan(), this.interval);
     }
@@ -121,7 +119,6 @@ class FileWatcher {
             }
             const stat = libfs.statSync(path);
             if (this.mtimes[path] != stat.mtimeMs) {
-                // console.log("Changed path: ", path)
                 this.has_changed = true;
             }
             this.mtimes[path] = stat.mtimeMs;
@@ -134,36 +131,37 @@ class FileWatcher {
     }
 
     // Spawn process.
-    spawn_process(forced = false) {
-        this.has_changed = false;
-        if (!forced && this.proc != null) {
-            console.log("Restarting server due to file changes."); // @warning if you change this running on text you should update vide::BuildSystem since that depends on this log line.
-            this.proc.kill("SIGINT");
-        } else {
-            this.proc = libproc.spawn(
-                "node",
-                this.args,
-                {
-                    cwd: this.source,
-                    stdio: "inherit",
-                    detached: true,
-                    env: {
-                         ...process.env,
-                        "VWEB_FILE_WATCHER": "1",
-                    },
+    spawn_process() {
+        this.proc = libproc.spawn(
+            "node",
+            this.args,
+            {
+                cwd: this.source,
+                stdio: "inherit",
+                detached: true,
+                env: {
+                     ...process.env,
+                    "VWEB_FILE_WATCHER": "1",
                 },
-            )
-            this.proc.on("exit", (code, signal) => {
-                if (code == 0) {
-                    this.spawn_process(true);
-                } else {
-                    process.exit(code);
-                }
-            })
-            this.proc.on("error", () => {
-                process.exit(1);
-            })
-        }
+            },
+        )
+        this.proc.on("exit", (code, signal) => {
+            if (code == 0) {
+                this.spawn_process();
+            } else {
+                process.exit(code);
+            }
+        })
+        this.proc.on("error", () => {
+            process.exit(1);
+        })
+    }
+
+    // Spawn process.
+    async restart_process() {
+        console.log(`${new vlib.Date().format("%d-%m-%y %H:%M:%S")} - Restarting server due to file changes.`); // @warning if you change this running on text you should update vide::BuildSystem since that depends on this log line.
+        this.has_changed = false;
+        this.proc.kill("SIGINT");
     }
 }
 

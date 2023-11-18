@@ -4,8 +4,8 @@
  */
 
 // Title.
-@vweb_constructor_wrapper
-@vweb_register_element
+@constructor_wrapper
+@register_element
 class TitleElement extends CreateVElementClass({
 	type: "Title",
 	tag: "h1",
@@ -30,8 +30,8 @@ class TitleElement extends CreateVElementClass({
 }
 
 // Subtitle.
-@vweb_constructor_wrapper
-@vweb_register_element
+@constructor_wrapper
+@register_element
 class SubtitleElement extends CreateVElementClass({
 	type: "Subtitle",
 	tag: "h2",

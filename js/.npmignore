@@ -1,6 +1,11 @@
 # Project dependent files.
 # ...
 
+# Non minimized files.
+/frontend/libs
+/frontend/modules
+/frontend/ui
+
 # Git files.
 /.git*
 

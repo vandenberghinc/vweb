@@ -4,8 +4,8 @@
  */
 
 // Button.
-@vweb_constructor_wrapper
-@vweb_register_element
+@constructor_wrapper
+@register_element
 class ButtonElement extends CreateVElementClass({
 	type: "Button",
 	tag: "div",
@@ -20,6 +20,7 @@ class ButtonElement extends CreateVElementClass({
 		"display": "grid",
 		"align-items": "center",
 		"white-space": "nowrap",
+		"user-select": "none",
 	},
 	default_events: {
 		"onmousedown": function() { this.style.filter = "brightness(80%)"; },
@@ -44,8 +45,8 @@ class ButtonElement extends CreateVElementClass({
 // BorderButton.
 // Supports a gradient color for the border combined with border radius.
 // Warning: this class is still experimental and may be subject to future change.
-@vweb_constructor_wrapper
-@vweb_register_element
+@constructor_wrapper
+@register_element
 class BorderButtonElement extends CreateVElementClass({
 	type: "BorderButton",
 	tag: "a",
@@ -59,6 +60,7 @@ class BorderButtonElement extends CreateVElementClass({
 		"position": "relative",
 		"z-index": 0,
 		"background": "none",
+		"user-select": "none",
 		// Custom.
 		"--child-color": "black",
 		"--child-background": "black",
@@ -186,14 +188,21 @@ class BorderButtonElement extends CreateVElementClass({
 			return super.styles(style_dict);
 		}
 	}
+
+	// Set text.
+	text(val) {
+		if (val == null) { return this.text_e.text(); }
+		this.text_e.text(val);
+		return this;
+	}
 		
 }
 
 // Loader button.
 // Warning: you should not use function "LoaderButton.loader.hide() / LoaderButton.loader.show()" use "LoaderButton.hide_loader() / LoaderButton.show_loader()" instead.
 // Warning: This class is still experimental and may be subject to future change.
-@vweb_constructor_wrapper
-@vweb_register_element
+@constructor_wrapper
+@register_element
 class LoaderButtonElement extends VStackElement {
 
 	// Default styling.
@@ -207,6 +216,7 @@ class LoaderButtonElement extends VStackElement {
 		"background": "black",
 		"color": "inherit",
 		"font-size": "16px",
+		"user-select": "none",
 		// Custom.
 		"--loader-width": "20px",
 		"--loader-height": "20px",
@@ -247,23 +257,6 @@ class LoaderButtonElement extends VStackElement {
 
 	}
 
-	// Show the loader and disable the button on click event.
-	show_loader() {
-		this.disable();
-		this.text.hide();
-		this.loader.update();
-		this.loader.show();
-		return this;
-	}
-
-	// Hide the loader and enable the button on click event.
-	hide_loader() {
-		this.enable();
-		this.loader.hide();
-		this.text.show();
-		return this;
-	}
-
 	// Get the styling attributes.
 	// The values of the children that may have been changed by the custom funcs should be added.
 	styles(style_dict) {
@@ -280,6 +273,23 @@ class LoaderButtonElement extends VStackElement {
 	// Set default since it inherits HStackElement.
 	set_default() {
 		return super.set_default(LoaderButtonElement);
+	}
+
+	// Show the loader and disable the button on click event.
+	show_loader() {
+		this.disable();
+		this.text.hide();
+		this.loader.update();
+		this.loader.show();
+		return this;
+	}
+
+	// Hide the loader and enable the button on click event.
+	hide_loader() {
+		this.enable();
+		this.loader.hide();
+		this.text.show();
+		return this;
 	}
 
 }

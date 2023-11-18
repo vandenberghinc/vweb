@@ -1235,7 +1235,7 @@ class Server {
                 method: "GET",
                 endpoint: "/vweb/vweb.js",
                 content_type: "application/javascript",
-                path: new vlib.Path(`${__dirname}/../frontend/vweb.js`),
+                path: new vlib.Path(`${__dirname}/../frontend/min/vweb.js`),
             },
             {
                 method: "GET",
@@ -1270,7 +1270,7 @@ class Server {
             // Send 2fa.
             {
                 method: "GET",
-                endpoint: "/vweb/backend/auth/2fa",
+                endpoint: "/vweb/auth/2fa",
                 content_type: "application/json",
                 rate_limit: 100,
                 rate_limit_duration: 60,
@@ -1304,7 +1304,7 @@ class Server {
             // Sign in.
             {
                 method: "POST",
-                endpoint: "/vweb/backend/auth/signin",
+                endpoint: "/vweb/auth/signin",
                 content_type: "application/json",
                 rate_limit: 100,
                 rate_limit_duration: 60,
@@ -1389,7 +1389,7 @@ class Server {
             // Sign out.
             {
                 method: "POST",
-                endpoint: "/vweb/backend/auth/signout",
+                endpoint: "/vweb/auth/signout",
                 content_type: "application/json",
                 authenticated: true,
                 rate_limit: 100,
@@ -1412,7 +1412,7 @@ class Server {
             // Sign up.
             {
                 method: "POST",
-                endpoint: "/vweb/backend/auth/signup",
+                endpoint: "/vweb/auth/signup",
                 content_type: "application/json",
                 rate_limit: 100,
                 rate_limit_duration: 60,
@@ -1467,7 +1467,7 @@ class Server {
             // Activate account.
             {
                 method: "POST",
-                endpoint: "/vweb/backend/auth/activate",
+                endpoint: "/vweb/auth/activate",
                 content_type: "application/json",
                 rate_limit: 100,
                 rate_limit_duration: 60,
@@ -1521,7 +1521,7 @@ class Server {
             // Forgot password.
             {
                 method: "POST",
-                endpoint: "/vweb/backend/auth/forgot_password",
+                endpoint: "/vweb/auth/forgot_password",
                 content_type: "application/json",
                 rate_limit: 100,
                 rate_limit_duration: 60,
@@ -1571,7 +1571,7 @@ class Server {
             // Get user.
             {
                 method: "GET",
-                endpoint: "/vweb/backend/user",
+                endpoint: "/vweb/user",
                 content_type: "application/json",
                 authenticated: true,
                 rate_limit: 100,
@@ -1585,7 +1585,7 @@ class Server {
             // Set user.
             {
                 method: "POST",
-                endpoint: "/vweb/backend/user",
+                endpoint: "/vweb/user",
                 authenticated: true,
                 rate_limit: 100,
                 rate_limit_duration: 60,
@@ -1599,7 +1599,7 @@ class Server {
             // Change password.
             {
                 method: "POST",
-                endpoint: "/vweb/backend/user/change_password",
+                endpoint: "/vweb/user/change_password",
                 authenticated: true,
                 rate_limit: 100,
                 rate_limit_duration: 60,
@@ -1645,7 +1645,7 @@ class Server {
             // Generate api key.
             {
                 method: "POST",
-                endpoint: "/vweb/backend/user/api_key",
+                endpoint: "/vweb/user/api_key",
                 authenticated: true,
                 rate_limit: 100,
                 rate_limit_duration: 60,
@@ -1662,7 +1662,7 @@ class Server {
             // Revoke api key.
             {
                 method: "DELETE",
-                endpoint: "/vweb/backend/user/api_key",
+                endpoint: "/vweb/user/api_key",
                 authenticated: true,
                 rate_limit: 100,
                 rate_limit_duration: 60,
@@ -1678,7 +1678,7 @@ class Server {
             // Load data.
             {
                 method: "GET",
-                endpoint: "/vweb/backend/user/data",
+                endpoint: "/vweb/user/data",
                 authenticated: true,
                 rate_limit: 100,
                 rate_limit_duration: 60,
@@ -1708,7 +1708,7 @@ class Server {
             // Save data.
             {
                 method: "POST",
-                endpoint: "/vweb/backend/user/data",
+                endpoint: "/vweb/user/data",
                 authenticated: true,
                 rate_limit: 100,
                 rate_limit_duration: 60,
@@ -1735,7 +1735,7 @@ class Server {
             // Load proteced data.
             {
                 method: "GET",
-                endpoint: "/vweb/backend/user/data/protected",
+                endpoint: "/vweb/user/data/protected",
                 authenticated: true,
                 rate_limit: 100,
                 rate_limit_duration: 60,
@@ -1771,7 +1771,7 @@ class Server {
                 // Get products.
                 {
                     method: "GET",
-                    endpoint: "/vweb/backend/payments/products",
+                    endpoint: "/vweb/payments/products",
                     content_type: "application/json",
                     rate_limit: 100,
                     rate_limit_duration: 60,
@@ -1783,7 +1783,7 @@ class Server {
                 // Get made payments.
                 {
                     method: "GET",
-                    endpoint: "/vweb/backend/payments/payments",
+                    endpoint: "/vweb/payments/payments",
                     content_type: "application/json",
                     authenticated: true,
                     rate_limit: 100,
@@ -1817,7 +1817,7 @@ class Server {
                 // Get subscriptions.
                 {
                     method: "GET",
-                    endpoint: "/vweb/backend/payments/subscriptions",
+                    endpoint: "/vweb/payments/subscriptions",
                     content_type: "application/json",
                     authenticated: true,
                     rate_limit: 100,
@@ -1836,7 +1836,7 @@ class Server {
                 // Is subscribed.
                 {
                     method: "POST",
-                    endpoint: "/vweb/backend/payments/subscribed",
+                    endpoint: "/vweb/payments/subscribed",
                     content_type: "application/json",
                     authenticated: true,
                     rate_limit: 100,
@@ -1861,7 +1861,7 @@ class Server {
                 // Cancel subscription.
                 {
                     method: "DELETE",
-                    endpoint: "/vweb/backend/payments/subscription",
+                    endpoint: "/vweb/payments/subscription",
                     content_type: "application/json",
                     authenticated: true,
                     rate_limit: 100,
@@ -1885,7 +1885,7 @@ class Server {
                 // Get refundable payments.
                 {
                     method: "GET",
-                    endpoint: "/vweb/backend/payments/refundable",
+                    endpoint: "/vweb/payments/refundable",
                     content_type: "application/json",
                     authenticated: true,
                     rate_limit: 100,
@@ -1914,7 +1914,7 @@ class Server {
                 // Request a refund.
                 {
                     method: "POST",
-                    endpoint: "/vweb/backend/payments/refund",
+                    endpoint: "/vweb/payments/refund",
                     content_type: "application/json",
                     authenticated: true,
                     rate_limit: 100,
@@ -1940,7 +1940,7 @@ class Server {
                 // Charge a shopping cart.
                 {
                     method: "POST",
-                    endpoint: "/vweb/backend/payments/charge",
+                    endpoint: "/vweb/payments/charge",
                     content_type: "application/json",
                     rate_limit: 100,
                     rate_limit_duration: 60,
@@ -2050,10 +2050,10 @@ class Server {
                 },
 
                 // Stripe Webhook.
-                // Can be tested with cli command `stripe listen --events refund.updated,invoice.payment_action_required,invoice.payment_failed,invoice.payment_succeeded,customer.subscription.created,customer.subscription.deleted --skip-verify --forward-to localhost:8000/vweb/backend/payments/webhook`
+                // Can be tested with cli command `stripe listen --events refund.updated,invoice.payment_action_required,invoice.payment_failed,invoice.payment_succeeded,customer.subscription.created,customer.subscription.deleted --skip-verify --forward-to localhost:8000/vweb/payments/webhook`
                 {
                     method: "POST",
-                    endpoint: "/vweb/backend/payments/webhook",
+                    endpoint: "/vweb/payments/webhook",
                     content_type: "application/json",
                     rate_limit: 10000,
                     rate_limit_duration: 60,
@@ -3258,7 +3258,7 @@ class Server {
             await this._initialize_products()
 
             // Create the webohok.
-            const url = `https://${this.domain}/vweb/backend/payments/webhook`;
+            const url = `https://${this.domain}/vweb/payments/webhook`;
             const enabled_events = [
                 "refund.updated",
                 "invoice.payment_action_required",

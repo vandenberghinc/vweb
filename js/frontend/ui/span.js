@@ -4,8 +4,8 @@
  */
 
 // Text.
-@vweb_constructor_wrapper
-@vweb_register_element
+@constructor_wrapper
+@register_element
 class SpanElement extends CreateVElementClass({
 	type: "Span",
 	tag: "span",

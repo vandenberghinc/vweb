@@ -7,8 +7,8 @@
 vweb.elements.language_codeblocks = [];
 
 // CodeBlock.
-@vweb_constructor_wrapper
-@vweb_register_element
+@constructor_wrapper
+@register_element
 class CodeBlockElement extends CreateVElementClass({
 	type: "CodeBlock",
 	tag: "code",
@@ -407,13 +407,14 @@ class CodeBlockElement extends CreateVElementClass({
 
 		// Set padding.
 		this.padding(0)
-		if (this.languages !== undefined) {
-			// this.pre.padding(CodeBlockElement.default_style.padding);
-			// this.pre.padding(0, null, 0, null);
-			// this.content.padding_bottom(0);
-			this.content.padding(CodeBlockElement.default_style.padding);
-			// this.content.padding(null, 0, null, 0);
-		}
+		// if (this.languages !== undefined) {
+		// 	// this.pre.padding(CodeBlockElement.default_style.padding);
+		// 	// this.pre.padding(0, null, 0, null);
+		// 	// this.content.padding_bottom(0);
+		// 	this.content.padding(CodeBlockElement.default_style.padding);
+		// 	// this.content.padding(null, 0, null, 0);
+		// }
+		// this.content.padding(CodeBlockElement.default_style.padding);
 
 		// Select the default code language or the first code language.
 		if (this.languages !== undefined) {
@@ -564,8 +565,8 @@ class CodeBlockElement extends CreateVElementClass({
 }
 
 // CodePre.
-@vweb_constructor_wrapper
-@vweb_register_element
+@constructor_wrapper
+@register_element
 class CodePreElement extends CreateVElementClass({
 	type: "CodePre",
 	tag: "pre",
@@ -810,8 +811,8 @@ class CodePreElement extends CreateVElementClass({
 }
 
 // CodeLine.
-@vweb_constructor_wrapper
-@vweb_register_element
+@constructor_wrapper
+@register_element
 class CodeLineElement extends CreateVElementClass({
 	type: "CodeLine",
 	tag: "span",

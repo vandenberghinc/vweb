@@ -1,6 +1,6 @@
 {
     "name": "@vandenberghinc/vweb",
-    "version": "1.1.9",
+    "version": "1.2.2",
     "description": "",
     "main": "backend/vweb.js",
     "scripts": {
@@ -11,9 +11,10 @@
         "access": "public"
     },
     "dependencies": {
+        "@adyen/api-library": "^15.0.0-beta",
         "@vandenberghinc/vhighlight": "^1.2.1",
         "@vandenberghinc/vlib": "^1.2.9",
         "nodemailer": "^6.9.5",
-        "stripe": "^13.10.0"
+        "pdfkit": "^0.14.0"
     }
 }

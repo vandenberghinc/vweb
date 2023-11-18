@@ -4,11 +4,11 @@
  */
 
 // Gradient.
-@vweb_constructor_wrapper
+@constructor_wrapper(suffix="Type")
 class GradientType {
 
 	// Constructor.
-	/*	@docs: {
+	/*	@docs:
      *	@title: Gradient.
      *	@description: 
      *		Create a gradient object.
@@ -16,13 +16,12 @@ class GradientType {
      *		Can also be constructed with wrapper function `Gradient`.
      *	@return: 
      *		Returns the `GradientType` object.
-     *	@parameter: {
+     *	@parameter:
      *		@name: ...args
      *		@description: 
      *			The arguments can either be of length 1, containing the full gradient string `new GradientType ("linear-gradient(...)")`.
      *			Or the arguments can be as `new GradientType("linear", "black", "0%", "white", "100%")`.
-     *	} 
-     } */ 
+     */ 
 	constructor(...args) {
 		if (args.length === 1) {
 			this.gradient = args[0];

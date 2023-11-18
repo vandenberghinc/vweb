@@ -3,9 +3,10 @@
  * Copyright: © 2022 - 2023 Daan van den Bergh.
  */
 
-// Scroller.
-@vweb_constructor_wrapper
-const SpacerElement = CreateVElementClass({
+// Spacer.
+@constructor_wrapper
+@register_element
+class SpacerElement extends CreateVElementClass({
 	type: "Spacer",
 	tag: "div",
 	default_style: {
@@ -17,4 +18,6 @@ const SpacerElement = CreateVElementClass({
 		"filter": "opacity(0)",
 		"justify-content": "stretch",
 	},
-});
+}) {
+	constructor() { super(); }	
+}

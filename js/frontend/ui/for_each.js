@@ -4,8 +4,8 @@
  */
 
 // ForEach.
-@vweb_constructor_wrapper
-@vweb_register_element
+@constructor_wrapper
+@register_element
 class ForEachElement extends CreateVElementClass({
 	type: "ForEach",
 	tag: "section",

@@ -5,8 +5,8 @@
 
 // RingLoader.
 // - The width and height must be in pixels.
-@vweb_constructor_wrapper
-@vweb_register_element
+@constructor_wrapper
+@register_element
 class PopupElement extends VStackElement {
 	constructor({
 		title = "",
@@ -16,6 +16,7 @@ class PopupElement extends VStackElement {
 		image = false,
 		image_color = "white",
 		content = [],
+		auto_hide = true,
 		on_no = () => {},
 		on_yes = () => {},
 		on_popup = () => {},
@@ -30,13 +31,14 @@ class PopupElement extends VStackElement {
 		// Mutex.
         this.mutex = new Mutex();
 
-        // Handlers.
+        // Args.
+        this.auto_hide = auto_hide;
         this.on_no_handler = on_no;
         this.on_yes_handler = on_yes;
         this.on_popup_handler = on_popup;
         this.escape_handler = (event) => {
             if (event.key == "Escape") {
-                this.close();
+                this.close(true);
             }
         };
 
@@ -44,21 +46,25 @@ class PopupElement extends VStackElement {
 		this.image = ImageMask(image)
             .mask_color(image_color)
             .frame(35, 35)
-            .position(-17.5, "calc(50% - 17.5px)", null, null);
+            .position(-17.5, "calc(50% - 17.5px)", null, null)
+            .parent(this)
+            .abs_parent(this);
         if (image === false) {
         	this.image.hide();
         }
 
         // Title.
-        this.title_e = Title().append(title)
+        this.title = Title()
+        	.inner_html(title)
             .font_family("inherit")
             .font_weight(500)
             .font_size(34)
             .abs_parent(this)
-        this.title(title);
+            .parent(this)
 
         // Text.
-        this.text_e = Text()
+        this.text = Text()
+        	.inner_html(text)
             .font_family("inherit")
             .font_size(16)
             .line_height(22)
@@ -66,29 +72,41 @@ class PopupElement extends VStackElement {
             .margin(15, 20, 0, 20)
             .wrap(true)
             .abs_parent(this)
-        this.text(text);
+            .parent(this)
 
         // No button.
-        this.no_button = Button(no)
+        this.no_button = LoaderButton(no)
             .padding(10, 10, 10, 10)
             .stretch(true)
             .margin_right(5)
             .abs_parent(this)
-            .on_click(() => {
-            	this.close();
+            .parent(this)
+            .on_click(async () => {
+            	this.no_button.show_loader();
+            	await this.close(this.auto_hide);
+            	this.no_button.hide_loader();
             })
 
         // Yes button.
-        this.yes_button = Button(yes)
+        this.yes_button = LoaderButton(yes)
             .padding(10, 10, 10, 10)
             .stretch(true)
             .margin_left(5)
             .abs_parent(this)
-            .on_click(() => {
-            	this.hide();
+            .parent(this)
+            .on_click(async () => {
+            	this.yes_button.show_loader();
+            	if (this.auto_hide) {
+            		this.hide();
+            	}
 	            document.body.removeEventListener("keydown", this.escape_handler);
-	            this.on_yes_handler(this);
+	            const res = this.on_yes_handler(this);
+	            if (res instanceof Promise) {
+	            	try { await res; }
+	            	catch (err) { console.error(err); }
+	            }
 	            this.mutex.unlock();
+	            this.yes_button.hide_loader();
             });
 
         // The buttons.
@@ -96,16 +114,18 @@ class PopupElement extends VStackElement {
 	        .width("100%")
 	        .margin_top(30)
 	        .abs_parent(this)
+	        .parent(this)
 
        	// The custom content.
        	this.content = VStack(...content)
-       		.abs_parent(this);
+       		.abs_parent(this)
+       		.parent(this);
 
         // The content.
         this.widget = VStack(
 	            this.image,
-	            this.title_e,
-	            this.text_e,
+	            this.title,
+	            this.text,
 	            this.content,
 	            this.buttons,
 	        )
@@ -118,12 +138,12 @@ class PopupElement extends VStackElement {
 	        .border(1, "gray")
 	        .box_shadow("0px 0px 10px #00000050")
 	        .abs_parent(this)
+	        .parent(this)
 
 		// Create content.
         this.append(this.widget)
 
 	    // Styling.
-	    this.hide()
 	    this.position(0, 0, 0, 0)
 	    // do not use background blur since that decreases the performance too much.
 	    this.background("#00000060")
@@ -144,49 +164,20 @@ class PopupElement extends VStackElement {
 	}
 
 	// Close the popup.
-	close() {
-		this.hide();
-        document.body.removeEventListener("keydown", this.escape_handler);
-        this.on_no_handler(this);
+	async close(force_hide = true) {
+		if (force_hide) {
+			this.hide();
+			document.body.removeEventListener("keydown", this.escape_handler);
+		}
+		if (this._on_no_called !== true) { // since this could also be called from the on no handler.
+			this._on_no_called = true;
+			const res = this.on_no_handler(this);
+			if (res instanceof Promise) {
+            	try { await res; }
+            	catch (err) { console.error(err); }
+            }
+		}
         this.mutex.unlock();
-	}
-
-	// Set title.
-	title(data) {
-		if (data == null) {
-			return this.title_e.textContent;
-		}
-		if (typeof data === "string") {
-			this.title_e.inner_html(data);
-		}
-		else if (Array.isArray(data)) {
-			data.iterate((item) => {
-				this.title_e.append();
-			});
-		} 
-		else {
-			this.title_e.append(data);	
-		}
-		return this;
-	}
-
-	// Set text.
-	text(data) {
-		if (data == null) {
-			return this.text_e.textContent;
-		}
-		if (typeof data === "string") {
-			this.text_e.inner_html(data);
-		}
-		else if (Array.isArray(data)) {
-			data.iterate((item) => {
-				this.text_e.append();
-			});
-		} 
-		else {
-			this.text_e.append(data);	
-		}
-		return this;
 	}
 
 	// Set image color.
@@ -207,17 +198,19 @@ class PopupElement extends VStackElement {
         content = null,
         on_no = null,
         on_yes = null,
+        auto_close = true,
     } = {}) {
 
     	// Call on popup.
 		this.on_popup_handler(this);
 
     	// Set args.
+    	this.auto_close = auto_close;
     	if (title !== null) {
-    		this.title(title);
+    		this.title.inner_html(title);
     	}
     	if (text !== null) {
-    		this.text(text);
+    		this.text.inner_html(text);
     	}
     	if (image !== null) {
     		this.image.src(image);

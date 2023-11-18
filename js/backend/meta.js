@@ -6,51 +6,43 @@
 // ---------------------------------------------------------
 // Meta information.
 
-/*  @docs: {
+/*  @docs:
  *  @chapter: Backend
     @title: Meta
     @description: The js view meta information class.
-    @parameter: {
+    @parameter:
         @name: author
         @description: The author's name.
         @type: string
-    }
-    @parameter: {
+    @parameter:
         @name: title
         @description: The page's title.
         @type: string
-    }
-    @parameter: {
+    @parameter:
         @name: description
         @description: The page's description.
         @type: string
-    }
-    @parameter: {
+    @parameter:
         @name: image
         @description: The page's image source.
         @type: string
-    }
-    @parameter: {
+    @parameter:
         @name: robots
         @description: The robots rules.
         @type: string
-    }
-    @parameter: {
+    @parameter:
         @name: charset
         @description: The used charset.
         @type: string
-    }
-    @parameter: {
+    @parameter:
         @name: viewport
         @description: The viewport settings.
         @type: string
-    }
-    @parameter: {
+    @parameter:
         @name: favicon
         @description: The url to the favicon.
         @type: string
-    }
- } */
+ */
 class Meta {
     constructor({
         author = null,
@@ -77,7 +69,7 @@ class Meta {
      * @title: Copy
      * @description: Create a copy of the current meta object without any references.
      */
-    copy() {
+    copy(override = {}) {
         return new Meta({
             author: this.author,
             title: this.title,
@@ -87,6 +79,7 @@ class Meta {
             charset: this.charset,
             viewport: this.viewport,
             favicon: this.favicon,
+            ...override,
         })
     }
 

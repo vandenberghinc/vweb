@@ -4,8 +4,8 @@
  */
 
 // Extended input.
-@vweb_constructor_wrapper
-@vweb_register_element
+@constructor_wrapper
+@register_element
 class RefundViewElement extends VStackElement {
 
 	// Default styling.
@@ -35,7 +35,7 @@ class RefundViewElement extends VStackElement {
 		super();
 
 		// Attributes.
-		this.base_element_type = "RefundView";
+		this.element_type = "RefundView";
 
 		// Set default styling.
 		this.styles(ExtendedInputElement.default_style);

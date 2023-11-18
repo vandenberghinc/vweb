@@ -4,8 +4,8 @@
  */
 
 // Button.
-@vweb_constructor_wrapper
-@vweb_register_element
+@constructor_wrapper
+@register_element
 class ContextMenuElement extends VStackElement {
 
 	// Constructor.
