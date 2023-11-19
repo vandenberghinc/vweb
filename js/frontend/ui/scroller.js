@@ -865,7 +865,12 @@ class WindowScrollerElement extends CreateVElementClass({
 
         // @todo update scroll position on resize.
         const _this_ = this;
+        this.child_scrolling = false;
         this._child_on_scroll = function (e) {
+
+            // console.log("Child:", _this_.child_scrolling)
+            _this_.child_scrolling = true;
+            setTimeout(() => {_this_.child_scrolling = false}, 250)
 
             // Set top bar shadow.
             if (_topbar != null) {
@@ -890,7 +895,8 @@ class WindowScrollerElement extends CreateVElementClass({
         const _on_scroll_callback = (e) => {
 
             // Prevent default on already animating.
-            if (this.animating === true) {
+            // console.log("Parent:", _this_.child_scrolling)
+            if (this.animating === true || _this_.child_scrolling) {
                 e.preventDefault();
                 return ;
             }
@@ -933,8 +939,10 @@ class WindowScrollerElement extends CreateVElementClass({
                 // Check views.
                 const scroll_index = parseInt(scroll_top / this.window_scroll_height);
                 const stop_animating = () => {
-                    this.animating = false;
-                    this.scrollTop = this.index * this.window_scroll_height;
+                    setTimeout(() => {
+                        this.animating = false;
+                        this.scrollTop = this.index * this.window_scroll_height;
+                    }, 250)
                 }
                 if (scroll_index > this.index) {
                     this.animating = true;

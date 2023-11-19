@@ -64,6 +64,7 @@ class FileWatcher {
         // Attributes.
         this.additional_paths = [];
         this.mtimes = {};
+        this.promise = new Promise(() => {});
     }
 
     // Start.

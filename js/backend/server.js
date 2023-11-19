@@ -2098,6 +2098,13 @@ class Server {
 
     // Initialize.
     async _initialize() {
+
+        // Is the file watcher.
+        if (this.file_watcher != null) {
+            await this.file_watcher.promise;
+        }
+
+        // No file watcher.
         const file_watcher_restart = process.argv.includes("--file-watcher-restart");
 
         // Check & create database.
@@ -2541,7 +2548,7 @@ class Server {
             }
 
             // Initialize the endpoint.
-            endpoint._initialize();
+            endpoint._initialize(this);
 
             // Add endpoint.
             this.endpoints.push(endpoint);

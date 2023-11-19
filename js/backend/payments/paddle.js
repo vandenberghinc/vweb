@@ -680,6 +680,7 @@ class Paddle {
 
     // Initialize all products.
     async _initialize_products() {
+        const file_watcher_restart = process.argv.includes("--file-watcher-restart");
 
         // Extend and initialize all products.
         // Check a payment product / plan product.
@@ -772,18 +773,22 @@ class Paddle {
             }
         })
 
-        // Get all products and prices.
-        const existing_products = await this._get_products();
-        const existing_prices = await this._get_prices();
+        // Check registered products.
+        if (file_watcher_restart === false) {
 
-        // Check all products.
-        await this.products.iterate_async_await(async (product) => {
-            if (product.plans != null) {
-                await product.plans.iterate_async_await(async (plan) => await this._check_product(plan, existing_products, existing_prices));
-            } else {
-                await this._check_product(product, existing_products, existing_prices)
-            }
-        });
+            // Get all products and prices.
+            const existing_products = await this._get_products();
+            const existing_prices = await this._get_prices();
+
+            // Check all products.
+            await this.products.iterate_async_await(async (product) => {
+                if (product.plans != null) {
+                    await product.plans.iterate_async_await(async (plan) => await this._check_product(plan, existing_products, existing_prices));
+                } else {
+                    await this._check_product(product, existing_products, existing_prices)
+                }
+            });
+        }
     }
 
     // Initialize the payments.
@@ -803,9 +808,7 @@ class Paddle {
         }
 
         // Initialize products.
-        if (file_watcher_restart === false) {
-            await this._initialize_products();
-        }
+        await this._initialize_products();
 
         // Add endpoints.
         this.server.endpoint(

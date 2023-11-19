@@ -83,76 +83,78 @@ class ImageElement extends CreateVElementClass({
 	}
 
 	// Height, purely for safari.
-	// height(value) {
-	// 	if (this._img === undefined) {
-	// 		return super.height(value);
-	// 	}
-	// 	if (value == null) {
-	// 		return this._img.height;
-	// 	}
-	// 	if (typeof value !== "number") {
-	// 		this._img.style.height = value;
-	// 	} else {
-	// 		this._img.height = value;
-	// 	}
-	// 	return this;
-	// }
-	// min_height(value) {
-	// 	if (this._img === undefined) {
-	// 		return super.min_height(value);
-	// 	}
-	// 	if (value == null) {
-	// 		return this._img.style.minHeight;
-	// 	}
-	// 	this._img.style.minHeight = this.pad_numeric(value, "px");
-	// 	return this;
-	// }
-	// max_height(value) {
-	// 	if (this._img === undefined) {
-	// 		return super.max_height(value);
-	// 	}
-	// 	if (value == null) {
-	// 		return this._img.style.maxHeight;
-	// 	}
-	// 	this._img.style.maxHeight = this.pad_numeric(value, "px");
-	// 	return this;
-	// }
+	height(value) {
+		if (this._img === undefined) {
+			return super.height(value);
+		}
+		if (value == null) {
+			return this._img.height;
+		}
+		if (typeof value !== "number") {
+			this._img.style.height = value;
+		} else {
+			this._img.style.height = this.pad_numeric(value, "px");
+			this._img.height = value;
+		}
+		return this;
+	}
+	min_height(value) {
+		if (this._img === undefined) {
+			return super.min_height(value);
+		}
+		if (value == null) {
+			return this._img.style.minHeight;
+		}
+		this._img.style.minHeight = this.pad_numeric(value, "px");
+		return this;
+	}
+	max_height(value) {
+		if (this._img === undefined) {
+			return super.max_height(value);
+		}
+		if (value == null) {
+			return this._img.style.maxHeight;
+		}
+		this._img.style.maxHeight = this.pad_numeric(value, "px");
+		return this;
+	}
 
 	// Width, purely for safari.
-	// width(value) {
-	// 	if (this._img === undefined || typeof value !== "number") {
-	// 		return super.width(value);
-	// 	}
-	// 	if (value == null) {
-	// 		return this._img.width;
-	// 	}
-	// 	if (typeof value !== "number") {
-	// 		this._img.style.width = value;
-	// 	} else {
-	// 		this._img.width = value;
-	// 	}
-	// 	return this;
-	// }
-	// min_width(value) {
-	// 	if (this._img === undefined) {
-	// 		return super.min_width(value);
-	// 	}
-	// 	if (value == null) {
-	// 		return this._img.style.minWidth;
-	// 	}
-	// 	this._img.style.minWidth = this.pad_numeric(value, "px");
-	// 	return this;
-	// }
-	// max_width(value) {
-	// 	if (this._img === undefined) {
-	// 		return super.max_width(value);
-	// 	}
-	// 	if (value == null) {
-	// 		return this._img.style.maxWidth;
-	// 	}
-	// 	this._img.style.maxWidth = this.pad_numeric(value, "px");
-	// 	return this;
-	// }
+	width(value) {
+		if (this._img === undefined || typeof value !== "number") {
+			return super.width(value);
+		}
+		if (value == null) {
+			return this._img.width;
+		}
+		if (typeof value !== "number") {
+			this._img.style.width = value;
+		} else {
+			this._img.style.width = this.pad_numeric(value, "px");
+			this._img.width = value;
+		}
+		return this;
+	}
+	min_width(value) {
+		if (this._img === undefined) {
+			return super.min_width(value);
+		}
+		if (value == null) {
+			return this._img.style.minWidth;
+		}
+		this._img.style.minWidth = this.pad_numeric(value, "px");
+		return this;
+	}
+	max_width(value) {
+		if (this._img === undefined) {
+			return super.max_width(value);
+		}
+		if (value == null) {
+			return this._img.style.maxWidth;
+		}
+		this._img.style.maxWidth = this.pad_numeric(value, "px");
+		return this;
+	}
 
 	// Loading "eager" or "lazy", purely for safari.
 	loading(value) {

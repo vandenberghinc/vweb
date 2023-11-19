@@ -374,6 +374,13 @@ function CreateVElementClass({
 					this.events(E.default_events);
 				}
 			}
+
+			// Construct an instance of HTMLInputElement
+			if (vweb.is_safari) {
+			    const i = document.createElement(tag);
+			    Object.setPrototypeOf(i, E.prototype);
+			    return i;
+			}
 		}
 		
 		// ---------------------------------------------------------
