@@ -877,11 +877,6 @@ if (E.default_events!=null){
 this.events(E.default_events);
 }
 }
-if (vweb.is_safari){
-const i=document.createElement(tag);
-Object.setPrototypeOf(i,E.prototype);
-return i;
-}
 }
 clone(clone_children=true){
 const clone=new this.constructor();
@@ -1604,7 +1599,7 @@ this.style.backgroundImage=value.gradient;
 this.style.backgroundClip="text";
 this.style["-webkit-background-clip"]="text";
 this.style.color="transparent";
-} else if (value.eq_first("linear-gradient(")||value.eq_first("radial-gradient(")){
+} else if (value._is_gradient||value.eq_first("linear-gradient(")||value.eq_first("radial-gradient(")){
 this.style.backgroundImage=value;
 this.style.backgroundClip="text";
 this.style["-webkit-background-clip"]="text";
@@ -2322,7 +2317,6 @@ let matched=false,repeat=false;
 for (let i=0;i<element._on_appear_callbacks.length;i++){
 const callback=element._on_appear_callbacks[i];
 if (
-callback.called!==true&&
 (callback.threshold==null||entry.intersectionRatio>=callback.threshold)
 ){
 matched=true;
@@ -2330,10 +2324,10 @@ const res=callback.callback(element);
 if (res instanceof Promise){
 await promise;
 }
-if (callback.repeat!==true){
-callback.called=true;
-} else {
+if (callback.repeat){
 repeat=true;
+} else {
+callback.called=true;
 }
 }
 }
@@ -2366,9 +2360,7 @@ rect.bottom<=(window.innerHeight||document.documentElement.clientHeight)&&
 rect.right<=(window.innerWidth||document.documentElement.clientWidth)
 ){
 callback(this);
-if (repeat!==true){
 observer.observe(this);
-}
 }
 else {
 observer.observe(this);
@@ -2381,7 +2373,7 @@ if (this._on_keypress_set!==true){
 this._on_keypress_set=true;
 const e=this;
 super.onkeypress=function(event){
-if (this._on_enter_callback!==undefined&&event.key==="Enter"){
+if (this._on_enter_callback!==undefined&&event.key==="Enter"&&event.shiftKey===false){
 this._on_enter_callback(e,event);
 } else if (this._on_escape_callback!==undefined&&event.key==="Escape"){
 this._on_escape_callback(e,event);
@@ -2396,7 +2388,7 @@ if (this._on_keypress_set!==true){
 this._on_keypress_set=true;
 const e=this;
 super.onkeypress=function(event){
-if (this._on_enter_callback!==undefined&&event.key==="Enter"){
+if (this._on_enter_callback!==undefined&&event.key==="Enter"&&event.shiftKey===false){
 this._on_enter_callback(e,event);
 } else if (this._on_escape_callback!==undefined&&event.key==="Escape"){
 this._on_escape_callback(e,event);
@@ -6242,7 +6234,7 @@ this.border_e=VElement()
 .mask_composite("exclude")
 .styles({
 "-webkit-mask":"linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
-"-webkit-mask-composite":navigator.userAgent.includes("Firefox")?"exclude":"xor",
+"-webkit-mask-composite":(navigator.userAgent.includes("Firefox")||navigator.userAgent.includes("Mozilla"))?"exclude":"xor",
 })
 this.text_e=VElement()
 .color(BorderButtonElement.default_style["--child-color"])
@@ -7807,7 +7799,6 @@ tag:"input",
 default_style:{
 "margin":"0px 0px 0px 0px",
 "padding":"2.5px 5px 2.5px 5px",
-"height":"20px",
 "font":"inherit",
 "color":"inherit",
 "background":"none",
@@ -7823,81 +7814,66 @@ default_attributes:{
 "autocapitalize":"none",
 },
 }){
-constructor(placeholder){
+constructor(placeholder,type="text"){
 super();
-this.type("text");
+if (vweb.is_safari){
+this.attachShadow({mode:'open'});
+this._e=document.createElement("input");
+this._e.style.font="inherit";
+this._e.style.color="inherit";
+this._e.style.background="none";
+this._e.style.border="none";
+this._e.style.outline="none";
+this._e.style.whitespace="nowrap";
+this._e.style.width="100%";
+this._e.style.padding=InputElement.default_style.padding;
+this.shadowRoot.appendChild(this._e);
+this.padding("0")
+}
 this.placeholder(placeholder);
+this.type(type);
+}
+value(val){ if (this._e===undefined){ return super.value(val);} if (val==null){ return this._e.value;} this._e.value=val; return this;}
+required(val){ if (this._e===undefined){ return super.required(val);} if (val==null){ return this._e.required;} this._e.required=val; return this;}
+type(val){ if (this._e===undefined){ return super.type(val);} if (val==null){ return this._e.type;} this._e.type=val; return this;}
+placeholder(val){ if (this._e===undefined){ return super.placeholder(val);} if (val==null){ return this._e.placeholder;} this._e.placeholder=val; return this;}
+resize(val){ if (this._e===undefined){ return super.resize(val);} if (val==null){ return this._e.resize;} this._e.resize=val; return this;}
+padding(...values){
+if (this._e===undefined){ return super.padding(values);}
+if (values.length===0){
+return this._e.style.padding;
+} else if (values.length===1){
+this._e.style.padding=this.pad_numeric(values[0]);
+} else if (values.length===2){
+if (values[0]!=null){
+this._e.style.paddingTop=this.pad_numeric(values[0]);
+}
+if (values[1]!=null){
+this._e.style.paddingRight=this.pad_numeric(values[1]);
+}
+if (values[0]!=null){
+this._e.style.paddingBottom=this.pad_numeric(values[0]);
+}
+if (values[1]!=null){
+this._e.style.paddingLeft=this.pad_numeric(values[1]);
+}
+} else if (values.length===4){
+this._e.style.paddingTop=this.pad_numeric(values[0]);
+if (values[1]!=null){
+this._e.style.paddingRight=this.pad_numeric(values[1]);
+}
+if (values[2]!=null){
+this._e.style.paddingBottom=this.pad_numeric(values[2]);
+}
+if (values[3]!=null){
+this._e.style.paddingLeft=this.pad_numeric(values[3]);
+}
+} else {
+console.error("Invalid number of arguments for function \"padding()\".");
+}
+return this;
 }
 };function Input(...args){return new InputElement(...args)};;vweb.elements.register(InputElement);
-class PasswordInputElement extends CreateVElementClass({
-type:"PasswordInput",
-tag:"input",
-default_style:{
-"margin":"0px 0px 0px 0px",
-"padding":"2.5px 5px 2.5px 5px",
-"height":"20px",
-"font":"inherit",
-"color":"inherit",
-"background":"none",
-"outline":"none",
-"border":"none",
-"border-radius":"10px",
-"text-align":"start",
-"white-space":"nowrap",
-},
-}){
-constructor(placeholder){
-super();
-this.type("password");
-this.placeholder(placeholder);
-}
-};function PasswordInput(...args){return new PasswordInputElement(...args)};;vweb.elements.register(PasswordInputElement);
-class EmailInputElement extends CreateVElementClass({
-type:"EmailInput",
-tag:"input",
-default_style:{
-"margin":"0px 0px 0px 0px",
-"padding":"2.5px 5px 2.5px 5px",
-"height":"20px",
-"font":"inherit",
-"color":"inherit",
-"background":"none",
-"outline":"none",
-"border":"none",
-"border-radius":"10px",
-"text-align":"start",
-"white-space":"nowrap",
-},
-}){
-constructor(placeholder){
-super();
-this.type("email");
-this.placeholder(placeholder);
-}
-};function EmailInput(...args){return new EmailInputElement(...args)};;vweb.elements.register(EmailInputElement);
-class PhoneNumberInputElement extends CreateVElementClass({
-type:"PhoneNumberInput",
-tag:"input",
-default_style:{
-"margin":"0px 0px 0px 0px",
-"padding":"2.5px 5px 2.5px 5px",
-"height":"20px",
-"font":"inherit",
-"color":"inherit",
-"background":"none",
-"outline":"none",
-"border":"none",
-"border-radius":"10px",
-"text-align":"start",
-"white-space":"nowrap",
-},
-}){
-constructor(placeholder){
-super();
-this.type("tel");
-this.placeholder(placeholder);
-}
-};function PhoneNumberInput(...args){return new PhoneNumberInputElement(...args)};;vweb.elements.register(PhoneNumberInputElement);
 class InputBoxElement extends CreateVElementClass({
 type:"InputBox",
 tag:"textarea",
@@ -7915,44 +7891,72 @@ default_style:{
 "white-space":"wrap",
 "resize":"none",
 },
+default_attributes:{
+"spellcheck":"false",
+"autocorrect":"off",
+"autocapitalize":"none",
+},
 }){
 constructor(placeholder){
 super();
+if (vweb.is_safari){
+this.attachShadow({mode:'open'});
+this._e=document.createElement("textarea");
+this._e.style.font="inherit";
+this._e.style.color="inherit";
+this._e.style.background="none";
+this._e.style.border="none";
+this._e.style.outline="none";
+this._e.style.width="100%";
+this._e.style.height="100%";
+this._e.style.margin="0";
+this._e.style.padding=InputBoxElement.default_style.padding;
+this.shadowRoot.appendChild(this._e);
+this.padding("0")
+}
 this.placeholder(placeholder);
 }
+value(val){ if (this._e===undefined){ return super.value(val);} if (val==null){ return this._e.value;} this._e.value=val; return this;}
+required(val){ if (this._e===undefined){ return super.required(val);} if (val==null){ return this._e.required;} this._e.required=val; return this;}
+type(val){ if (this._e===undefined){ return super.type(val);} if (val==null){ return this._e.type;} this._e.type=val; return this;}
+placeholder(val){ if (this._e===undefined){ return super.placeholder(val);} if (val==null){ return this._e.placeholder;} this._e.placeholder=val; return this;}
+resize(val){ if (this._e===undefined){ return super.resize(val);} if (val==null){ return this._e.resize;} this._e.resize=val; return this;}
+padding(...values){
+if (this._e===undefined){ return super.padding(values);}
+if (values.length===0){
+return this._e.style.padding;
+} else if (values.length===1){
+this._e.style.padding=this.pad_numeric(values[0]);
+} else if (values.length===2){
+if (values[0]!=null){
+this._e.style.paddingTop=this.pad_numeric(values[0]);
+}
+if (values[1]!=null){
+this._e.style.paddingRight=this.pad_numeric(values[1]);
+}
+if (values[0]!=null){
+this._e.style.paddingBottom=this.pad_numeric(values[0]);
+}
+if (values[1]!=null){
+this._e.style.paddingLeft=this.pad_numeric(values[1]);
+}
+} else if (values.length===4){
+this._e.style.paddingTop=this.pad_numeric(values[0]);
+if (values[1]!=null){
+this._e.style.paddingRight=this.pad_numeric(values[1]);
+}
+if (values[2]!=null){
+this._e.style.paddingBottom=this.pad_numeric(values[2]);
+}
+if (values[3]!=null){
+this._e.style.paddingLeft=this.pad_numeric(values[3]);
+}
+} else {
+console.error("Invalid number of arguments for function \"padding()\".");
+}
+return this;
+}
 };function InputBox(...args){return new InputBoxElement(...args)};;vweb.elements.register(InputBoxElement);
-class SelectOptionInputElement extends CreateVElementClass({
-type:"SelectOptionInput",
-tag:"select",
-default_style:{
-"margin":"0px 0px 0px 0px",
-"padding":"2.5px 5px 2.5px 5px",
-"height":"20px",
-"font":"inherit",
-"color":"inherit",
-"background":"none",
-"outline":"none",
-"border":"none",
-"border-radius":"10px",
-"text-align":"start",
-"white-space":"wrap",
-"resize":"none",
-},
-}){
-constructor(){
-super();
-for (let i=0;i<arguments.length;i++){
-let e=document.createElement("option");
-e.style.font="inherit";
-e.value=arguments[i];
-e.textContent=arguments[i];
-if (i==0){
-e.selected=true;
-}
-this.append(e);
-}
-}
-};function SelectOptionInput(...args){return new SelectOptionInputElement(...args)};;vweb.elements.register(SelectOptionInputElement);
 class ExtendedInputElement extends VStackElement{
 static default_style={
 ...VStackElement.default_style,
@@ -7977,7 +7981,7 @@ placeholder="Input",
 id=null,
 readonly=false,
 required=false,
-type=Input,
+type="text",
 }={}){
 super();
 if (id!=null){
@@ -8010,7 +8014,12 @@ this.image=ImageMask(image)
 if (image==null){
 this.image.hide();
 }
-this.input=type(placeholder)
+if (type==="box"||type==="area"){
+this.input=InputBox(placeholder)
+} else {
+this.input=Input(placeholder,type)
+}
+this.input
 .parent(this)
 .color("inherit")
 .readonly(readonly)
@@ -9917,147 +9926,19 @@ this.v_children.push(document.createTextNode(child));
 return this;
 }
 };function VirtualScroller(...args){return new VirtualScrollerElement(...args)};;vweb.elements.register(VirtualScrollerElement);
-class WindowScrollerElement extends CreateVElementClass({
-type:"WindowScroller",
-tag:"div",
-default_style:{
-"margin":"0px",
-"padding":"0px",
-"display":"flex",
-"overflow":"visible",
-"align-content":"flex-start",
-"flex-direction":"column",
-},
-}){
-constructor({
-duration=500,
-_topbar=null,
-}={}){
+class SnapScrollerElement extends VStackElement{
+constructor(...children){
 super();
-this.duration=duration;
-this.index=0;
-this.windows=[];
-this.last_scroll_top=0;
-this.window_scroll_height=50;
-this.min_width("100%");
-this.stretch(true);
-this.position("relative");
-this.overflow("hidden scroll");
-this.class("hide_scrollbar");
-this.on_animation_scroll=()=>{};
-const _this_=this;
-this.child_scrolling=false;
-this._child_on_scroll=function (e){
-_this_.child_scrolling=true;
-setTimeout(()=>{_this_.child_scrolling=false},250)
-if (_topbar!=null){
-if (this.scrollTop>0&&_topbar.has_shadow!==true){
-_topbar.has_shadow=true;
-_topbar.shadow("0px 0px 10px #000000")
-} else if (this.scrollTop===0&&_topbar.has_shadow===true){
-_topbar.has_shadow=false;
-_topbar.shadow("none")
+this.element_type="SnapScroller";
+this.overflow_y("scroll");
+this.scroll_snap_type("y mandatory");
+this.append(...children);
 }
-}
-if (this.scrollTop===0){
-_this_.scrollTop=(_this_.index-1)*_this_.window_scroll_height;
-} else if (this.scrollTop+this.clientHeight>=this.scrollHeight){
-_this_.scrollTop=(_this_.index+1)*_this_.window_scroll_height;
-}
-}
-const _on_scroll_callback=(e)=>{
-if (this.animating===true||_this_.child_scrolling){
-e.preventDefault();
-return ;
-}
-const win=this.windows[this.index];
-const scroll_top=this.scrollTop;
-const height=this.clientHeight;
-const scroll_up=this.scrollTop>this.last_scroll_top;
-this.last_scroll_top=scroll_top;
-if (_topbar!=null){
-if (win.scrollTop>0&&_topbar.has_shadow!==true){
-_topbar.has_shadow=true;
-_topbar.shadow("0px 0px 10px #000000")
-} else if (win.scrollTop===0&&_topbar.has_shadow===true){
-setTimeout(()=>{
-_topbar.has_shadow=false;
-_topbar.shadow("none")
-}, this.duration)
-}
-}
-if (scroll_top>this.windows.length*this.window_scroll_height){
-this.scrollTop=this.windows.length*this.window_scroll_height;
-e.stopPropagation();
-e.preventDefault();
-return null;
-}
-if (
-(win.scrollTop+win.clientHeight>=win.scrollHeight)||
-(win.scrollTop===0)
-){
-const scroll_index=parseInt(scroll_top/this.window_scroll_height);
-const stop_animating=()=>{
-setTimeout(()=>{
-this.animating=false;
-this.scrollTop=this.index*this.window_scroll_height;
-},250)
-}
-if (scroll_index>this.index){
-this.animating=true;
-e.preventDefault();
-this.next(scroll_index, false)
-.then(stop_animating)
-.catch(stop_animating)
-this.scrollTop=this.index*this.window_scroll_height;
-} else if (scroll_index<this.index){
-this.animating=true;
-e.preventDefault();
-this.prev(scroll_index, false)
-.then(stop_animating)
-.catch(stop_animating)
-this.scrollTop=this.index*this.window_scroll_height;
-}
-}
-}
-this.addEventListener("scroll",_on_scroll_callback,{passive:false });
-window.addEventListener("hashchange",(e)=>{
-const hash=window.location.hash.substr(1);
-if (hash!==null&&hash!==""){
-this.windows.iterate((win)=>{
-if (hash===win.id()){
-console.log("Select",win.id())
-if (win.index>this.index){
-this.next(win.index, true);
-} else {
-this.prev(win.index, true);
-}
-return false;
-}
-})
-}
-})
-}
-append(win){
-win.transition(`opacity ${this.duration*2}ms, transform ${this.duration}ms ease`)
-win.fixed_frame("100%","100%");
-win.position(0,0,0,0);
-win.position("sticky");
-win.overflow("scroll");
-win.overscroll_behavior("bounce");
-win.align_vertical("default");
-win.addEventListener("scroll", this._child_on_scroll);
-win.outline("none");
-win.border("none");
-win.center();
-if (this.windows.length>0){
-win.transform("translateY(100%)")
-win.opacity(0)
-}
-else {
-win.transform("translateY(0)")
-win.opacity(1)
-}
+append(...children){
+for (let i=0;i<children.length;i++){
+const win=children[i];
+if (win==null){ continue;}
+win.min_height("100%");
 win.on_render((e)=>{
 if (win.scrollHeight>this.clientHeight){
 e.align_vertical("default");
@@ -10072,93 +9953,20 @@ e.align_vertical("default");
 e.center_vertical();
 }
 })
-win.index=this.windows.length;
-this.windows.push(win);
+win.style.height="100%";
+win.style.minHeight="100%";
+win.style.maxHeight="100%";
+win.style.overflowY="scroll";
+win.style["scroll-snap-align"]="start";
 super.append(win);
-const hash=window.location.hash.substr(1);
-if (hash!==null&&hash!==""&&hash===win.id()){
-this.on_render(()=>{
-this.next(win.index, true);
-})
 }
+return this
+}
+scroll_into_child(index,behaviour="smooth"){
+this.child(index).scrollIntoView({behavior:behaviour});
 return this;
 }
-async next(index,update_scroll_top=true){
-return new Promise(async (resolve)=>{
-if (index<this.windows.length){
-if (update_scroll_top){
-this.scrollTop=this.window_scroll_height*index;
-}
-const current=this.windows[this.index];
-current.style.opacity=0;
-current.style.transform='translateY(-100%)';
-this.index=index;
-const next=this.windows[this.index];
-if (next.is_scrollable()){
-next.leading_vertical()
-} else {
-next.center_vertical()
-}
-next.scrollTop=0;
-next.style.opacity=1;
-next.style.transform='translateY(0)';
-next.scrollTop=0;
-if (Array.isArray(next._on_appear_callbacks)){
-let promises=[];
-for (let i=0;i<next._on_appear_callbacks.length;i++){
-const res=next._on_appear_callbacks[i].exec()
-if (res instanceof Promise){
-promises.push(res);
-}
-}
-await Promise.all(promises);
-}
-setTimeout(resolve, this.duration);
-}
-else {
-resolve();
-}
-});
-}
-async prev(index,update_scroll_top=true){
-return new Promise(async (resolve)=>{
-const old_index=this.index;
-if (index>=0){
-if (update_scroll_top){
-this.scrollTop=this.window_scroll_height*index;
-}
-const current=this.windows[this.index];
-current.style.opacity=0;
-current.style.transform='translateY(100%)';
-this.index=index;
-const next=this.windows[this.index];
-if (next.is_scrollable()){
-next.leading_vertical()
-} else {
-next.center_vertical()
-}
-next.scrollTop=next.scrollHeight;
-next.style.opacity=1;
-next.style.transform='translateY(0)';
-next.scrollTop=next.scrollHeight;
-if (Array.isArray(next._on_appear_callbacks)){
-let promises=[];
-for (let i=0;i<next._on_appear_callbacks.length;i++){
-const res=next._on_appear_callbacks[i].exec()
-if (res instanceof Promise){
-promises.push(res);
-}
-}
-await Promise.all(promises);
-}
-setTimeout(resolve, this.duration);
-}
-else {
-resolve();
-}
-});
-}
-};function WindowScroller(...args){return new WindowScrollerElement(...args)};;vweb.elements.register(WindowScrollerElement);
+};function SnapScroller(...args){return new SnapScrollerElement(...args)};;vweb.elements.register(SnapScrollerElement);
 class SliderElement extends VStackElement{
 constructor(value=0.0){
 super();

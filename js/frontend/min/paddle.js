@@ -400,7 +400,7 @@ return this._set_step();
 vweb.payments._render_steps_element=function(){
 const style=this._style;
 this._prev_step_button=HStack(
-ImageMask("/static/payments/arrow.long.png")
+ImageMask("/static/payments/arrow.long.webp")
 .frame(15,15)
 .mask_color(this._style.subtext_fg)
 .transform("rotate(180deg)")
@@ -528,6 +528,7 @@ this._checkout_button.hide_loader();
 this._overview_element=VStack(
 Title("Overview")
 .color(this._style.title_fg)
+.width("fit-content")
 .font_size(this._style.font_size-2)
 .flex_shrink(0)
 .margin(0,0,15,0)
@@ -651,7 +652,7 @@ Text(`Your shopping cart is empty.`)
 .white_space("pre")
 .line_height("1.4em")
 .center(),
-ImageMask("/static/payments/shopping_cart.png")
+ImageMask("/static/payments/shopping_cart.webp")
 .frame(35,35)
 .margin_bottom(15)
 .mask_color(style.theme_fg),
@@ -664,6 +665,7 @@ ImageMask("/static/payments/shopping_cart.png")
 this.append(
 Title("Order Details")
 .color(style.title_fg)
+.width("fit-content")
 .font_size(style.font_size-2)
 .flex_shrink(0)
 .margin(0,0,0,0)
@@ -741,7 +743,7 @@ Text("Quantity:")
 .padding(0)
 .flex_shrink(0),
 quantity_input,
-ImageMask("/static/payments/minus.png")
+ImageMask("/static/payments/minus.webp")
 .frame(20,20)
 .padding(5)
 .margin_right(5)
@@ -759,7 +761,7 @@ await cart.remove(item.product.id,1)
 this.refresh()
 }
 }),
-ImageMask("/static/payments/plus.png")
+ImageMask("/static/payments/plus.webp")
 .frame(20,20)
 .padding(5)
 .margin_right(5)
@@ -772,7 +774,7 @@ ImageMask("/static/payments/plus.png")
 await cart.add(item.product.id,1)
 this.refresh()
 }),
-ImageMask("/static/payments/trash.png")
+ImageMask("/static/payments/trash.webp")
 .frame(20,20)
 .padding(5)
 .margin_right(5)
@@ -1008,7 +1010,7 @@ Text(`There are no ${container.title.toLowerCase()}.`)
 .white_space("pre")
 .line_height("1.4em")
 .center(),
-Image("/static/payments/check.png")
+Image("/static/payments/check.webp")
 .frame(30,30)
 .margin_top(15)
 .assign_to_parent_as("success_image_e"),
@@ -1027,6 +1029,7 @@ item.product=await vweb.payments.get_product(item.product);
 container.append(
 Title(container.title)
 .color(style.title_fg)
+.width("fit-content")
 .font_size(style.font_size-2)
 .flex_shrink(0)
 .margin(0,0,0,0)
@@ -1115,7 +1118,7 @@ title:"Request Refund",
 text:`You are about to request a refund for payment <span style='border-radius: 7px; background: ${style.widget_bg}; padding: 1px 4px; font-size: 0.9em;'>${payment.id}</span>, do you wish to proceed?`,
 no:"No",
 yes:"Yes",
-image:"/static/payments/error.png",
+image:"/static/payments/error.webp",
 on_yes:async ()=>{
 try {
 await vweb.payments.create_refund(payment);
@@ -1137,6 +1140,7 @@ this.refunding_option.click();
 .parent()
 .title
 .color(style.title_fg)
+.width("fit-content")
 .font_size(style.font_size)
 .flex_shrink(0)
 .margin(0,0,0,10)
@@ -1185,7 +1189,7 @@ this.refunding_option.click();
 .background(style.theme_fg)
 .margin(0,5,0,0)
 .update(),
-!container.is_refunded?null :Image("/static/payments/check.png")
+!container.is_refunded?null :Image("/static/payments/check.webp")
 .frame(20,20)
 .margin(0,5,0,0),
 )
@@ -1246,6 +1250,7 @@ return ExtendedSelect(args)
 this._billing_element=Form(
 Title("Billing Details")
 .color(this._style.title_fg)
+.width("fit-content")
 .font_size(this._style.font_size-2)
 .flex_shrink(0)
 .margin(0,0,0,0)
@@ -1531,14 +1536,14 @@ Text("Processing your payment, please wait.")
 .white_space("pre")
 .line_height("1.4em")
 .center(),
-ImageMask("/static/payments/error.png")
+ImageMask("/static/payments/error.webp")
 .hide()
 .frame(40,40)
 .padding(5)
 .mask_color(this._style.missing_fg)
 .margin_top(15)
 .assign_to_parent_as("error_image_e"),
-Image("/static/payments/party.png")
+Image("/static/payments/party.webp")
 .hide()
 .frame(40,40)
 .margin_top(15)
@@ -1557,7 +1562,7 @@ RingLoader()
 timestamp:Date.now(),
 set_error:function (message="The payment has failed, please check your information and try again.\n If the problem persists, contact support for assistance."){
 this.loader_e.hide();
-this.error_image_e.src("/static/payments/error.png");
+this.error_image_e.src("/static/payments/error.webp");
 this.error_image_e.show();
 this.success_image_e.hide();
 this.title_e.text("Error")
@@ -1565,7 +1570,7 @@ this.text_e.text(message);
 },
 set_cancelled:function (message="The payment has been cancelled."){
 this.loader_e.hide();
-this.error_image_e.src("/static/payments/cancelled.png");
+this.error_image_e.src("/static/payments/cancelled.webp");
 this.error_image_e.show();
 this.success_image_e.hide();
 this.title_e.text("Cancelled")

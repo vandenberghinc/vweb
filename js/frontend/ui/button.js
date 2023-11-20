@@ -106,7 +106,7 @@ class BorderButtonElement extends CreateVElementClass({
 			.mask_composite("exclude")
 			.styles({
 				"-webkit-mask": "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
-				"-webkit-mask-composite": navigator.userAgent.includes("Firefox") ? "exclude" : "xor",
+				"-webkit-mask-composite": (navigator.userAgent.includes("Firefox") || navigator.userAgent.includes("Mozilla")) ? "exclude" : "xor",
 			})
 
 		// Text child.

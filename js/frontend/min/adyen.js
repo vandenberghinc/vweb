@@ -822,7 +822,7 @@ HStack(
 CreateInput({
 label:"Country Code",
 placeholder:"+1",
-type:PhoneNumberInput,
+type:"tel",
 })
 .value("+31")
 .max_width("fit-content")
@@ -833,7 +833,7 @@ type:PhoneNumberInput,
 CreateInput({
 label:"Phone Number",
 placeholder:"123-456-7890",
-type:PhoneNumberInput,
+type:"tel",
 })
 .value("681471789")
 .margin_top(10)

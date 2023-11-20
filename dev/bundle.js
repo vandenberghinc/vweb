@@ -52,14 +52,16 @@ compiler.bundle({
 });
 
 // Bundle seperate modules.
-seperate_modules.iterate((name) => {
-    if (name === "compression.js") {return null;}
-    compiler.bundle({
-        export_path: `${frontend}/min/${name}`,
-        includes: [`${frontend}/modules/${name}`],
-        log: true,
+if (process.argv.includes("--vweb") === false) {
+    seperate_modules.iterate((name) => {
+        if (name === "compression.js") {return null;}
+        compiler.bundle({
+            export_path: `${frontend}/min/${name}`,
+            includes: [`${frontend}/modules/${name}`],
+            log: true,
+        })
     })
-})
+}
 
 
 // Log.

@@ -3,6 +3,201 @@
  * Copyright: © 2022 - 2023 Daan van den Bergh.
  */
 
+ // Input.
+@constructor_wrapper
+@register_element
+class InputElement extends CreateVElementClass({
+	type: "Input",
+	tag: "input",
+	default_style: {
+		"margin": "0px 0px 0px 0px",
+		"padding": "2.5px 5px 2.5px 5px",
+		"font": "inherit",
+		"color": "inherit",
+		"background": "none",
+		"outline": "none",
+		"border": "none",
+		"border-radius": "10px",
+		"text-align": "start",
+		"white-space": "nowrap",
+	},
+	default_attributes: {
+        "spellcheck": "false",
+        "autocorrect": "off",
+        "autocapitalize": "none",
+	},
+}) {
+	
+	// Constructor.
+	constructor(placeholder, type = "text") {
+		
+		// Initialize base class.
+		super();
+
+		// Safari does not render images correctly for custom elements.
+		if (vweb.is_safari) {
+			this.attachShadow({ mode: 'open' });
+			this._e = document.createElement("input");
+			this._e.style.font = "inherit";
+			this._e.style.color = "inherit";
+			this._e.style.background = "none";
+			this._e.style.border = "none";
+			this._e.style.outline = "none";
+			this._e.style.whitespace = "nowrap";
+			this._e.style.width = "100%";
+			this._e.style.padding = InputElement.default_style.padding;
+			this.shadowRoot.appendChild(this._e);
+			this.padding("0")
+		}
+	
+		// Set src.
+		this.placeholder(placeholder);
+		this.type(type);
+	}
+
+	// Alias functions.
+	value(val) { if (this._e === undefined) { return super.value(val); } if (val == null) { return this._e.value; } this._e.value = val; return this; }
+	required(val) { if (this._e === undefined) { return super.required(val); } if (val == null) { return this._e.required; } this._e.required = val; return this; }
+	type(val) { if (this._e === undefined) { return super.type(val); } if (val == null) { return this._e.type; } this._e.type = val; return this; }
+	placeholder(val) { if (this._e === undefined) { return super.placeholder(val); } if (val == null) { return this._e.placeholder; } this._e.placeholder = val; return this; }
+	resize(val) { if (this._e === undefined) { return super.resize(val); } if (val == null) { return this._e.resize; } this._e.resize = val; return this; }
+	padding(...values) {
+		if (this._e === undefined) { return super.padding(values); }
+		if (values.length === 0) {
+			return this._e.style.padding;
+		} else if (values.length === 1) {
+			this._e.style.padding = this.pad_numeric(values[0]);
+		} else if (values.length === 2) {	
+			if (values[0] != null) {
+				this._e.style.paddingTop = this.pad_numeric(values[0]);
+			}
+			if (values[1] != null) {
+				this._e.style.paddingRight = this.pad_numeric(values[1]);
+			}
+			if (values[0] != null) {
+				this._e.style.paddingBottom = this.pad_numeric(values[0]);
+			}
+			if (values[1] != null) {
+				this._e.style.paddingLeft = this.pad_numeric(values[1]);
+			}
+		} else if (values.length === 4) {
+			this._e.style.paddingTop = this.pad_numeric(values[0]);
+			if (values[1] != null) {
+				this._e.style.paddingRight = this.pad_numeric(values[1]);
+			}
+			if (values[2] != null) {
+				this._e.style.paddingBottom = this.pad_numeric(values[2]);
+			}
+			if (values[3] != null) {
+				this._e.style.paddingLeft = this.pad_numeric(values[3]);
+			}
+		} else {
+			console.error("Invalid number of arguments for function \"padding()\".");
+		}
+		return this;
+	}
+
+}
+
+// InputBox.
+@constructor_wrapper
+@register_element
+class InputBoxElement extends CreateVElementClass({
+	type: "InputBox",
+	tag: "textarea",
+	default_style: {
+		"margin": "0px 0px 0px 0px",
+		"padding": "2.5px 5px 2.5px 5px",
+		"height": "20px",
+		"font": "inherit",
+		"color": "inherit",
+		"background": "none",
+		"outline": "none",
+		"border": "none",
+		"border-radius": "10px",
+		"text-align": "start",
+		"white-space": "wrap",
+		"resize": "none",
+	},
+	default_attributes: {
+        "spellcheck": "false",
+        "autocorrect": "off",
+        "autocapitalize": "none",
+	},
+}) {
+	
+	// Constructor.
+	constructor(placeholder) {
+		
+		// Initialize base class.
+		super();
+
+		// Safari does not render images correctly for custom elements.
+		if (vweb.is_safari) {
+			this.attachShadow({ mode: 'open' });
+			this._e = document.createElement("textarea");
+			this._e.style.font = "inherit";
+			this._e.style.color = "inherit";
+			this._e.style.background = "none";
+			this._e.style.border = "none";
+			this._e.style.outline = "none";
+			this._e.style.width = "100%";
+			this._e.style.height = "100%";
+			this._e.style.margin = "0";
+			this._e.style.padding = InputBoxElement.default_style.padding;
+			this.shadowRoot.appendChild(this._e);
+			this.padding("0")
+		}
+	
+		// Set src.
+		this.placeholder(placeholder);
+	}
+
+	// Alias functions.
+	value(val) { if (this._e === undefined) { return super.value(val); } if (val == null) { return this._e.value; } this._e.value = val; return this; }
+	required(val) { if (this._e === undefined) { return super.required(val); } if (val == null) { return this._e.required; } this._e.required = val; return this; }
+	type(val) { if (this._e === undefined) { return super.type(val); } if (val == null) { return this._e.type; } this._e.type = val; return this; }
+	placeholder(val) { if (this._e === undefined) { return super.placeholder(val); } if (val == null) { return this._e.placeholder; } this._e.placeholder = val; return this; }
+	resize(val) { if (this._e === undefined) { return super.resize(val); } if (val == null) { return this._e.resize; } this._e.resize = val; return this; }
+	padding(...values) {
+		if (this._e === undefined) { return super.padding(values); }
+		if (values.length === 0) {
+			return this._e.style.padding;
+		} else if (values.length === 1) {
+			this._e.style.padding = this.pad_numeric(values[0]);
+		} else if (values.length === 2) {	
+			if (values[0] != null) {
+				this._e.style.paddingTop = this.pad_numeric(values[0]);
+			}
+			if (values[1] != null) {
+				this._e.style.paddingRight = this.pad_numeric(values[1]);
+			}
+			if (values[0] != null) {
+				this._e.style.paddingBottom = this.pad_numeric(values[0]);
+			}
+			if (values[1] != null) {
+				this._e.style.paddingLeft = this.pad_numeric(values[1]);
+			}
+		} else if (values.length === 4) {
+			this._e.style.paddingTop = this.pad_numeric(values[0]);
+			if (values[1] != null) {
+				this._e.style.paddingRight = this.pad_numeric(values[1]);
+			}
+			if (values[2] != null) {
+				this._e.style.paddingBottom = this.pad_numeric(values[2]);
+			}
+			if (values[3] != null) {
+				this._e.style.paddingLeft = this.pad_numeric(values[3]);
+			}
+		} else {
+			console.error("Invalid number of arguments for function \"padding()\".");
+		}
+		return this;
+	}
+
+}
+
+/*
 // Input.
 @constructor_wrapper
 @register_element
@@ -235,6 +430,7 @@ class SelectOptionInputElement extends CreateVElementClass({
 	}
 	
 }
+*/
 
 // Extended input.
 @constructor_wrapper
@@ -269,7 +465,7 @@ class ExtendedInputElement extends VStackElement {
 		id = null,
 		readonly = false,
 		required = false,
-		type = Input,
+		type = "text",
 	} = {}) {
 
 		// Initialize super.
@@ -316,7 +512,12 @@ class ExtendedInputElement extends VStackElement {
 		}
 
 		// Input element.
-		this.input = type(placeholder)
+		if (type === "box" || type === "area") {
+			this.input = InputBox(placeholder)
+		} else {
+			this.input = Input(placeholder, type)	
+		}
+		this.input
 			.parent(this)
 			.color("inherit")
 			.readonly(readonly)

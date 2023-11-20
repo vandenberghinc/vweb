@@ -814,15 +814,89 @@ class VirtualScrollerElement extends ScrollerElement {
     }
 }
 
-// Window Scroller.
 /*  @docs:
-    @title: Window Scroller
+    @title: Snap Scroller
     @experimental: true
     @description: 
-        Scrolls the windows per window.
+        Scrolls the windows per window (snap scrolling).
 
         This class is still experimental.
  */
+@constructor_wrapper
+@register_element
+class SnapScrollerElement extends VStackElement {
+    constructor(...children) {
+
+        // Base.
+        super();
+
+        // Element type.
+        this.element_type = "SnapScroller";
+
+        // Style.
+        this.overflow_y("scroll");
+        this.scroll_snap_type("y mandatory");
+
+        // Add children.
+        this.append(...children);
+    }
+
+    // Append.
+    append(...children) {
+        for (let i = 0; i < children.length; i++) {
+            const win = children[i];
+            if (win == null) { continue; }
+
+            // Style.
+            win.min_height("100%");
+            // win.scroll_snap_align("start");
+
+            // Set alignment.
+            win.on_render((e) => {
+                if (win.scrollHeight > this.clientHeight) {
+                    e.align_vertical("default");
+                } else {
+                    e.center_vertical();
+                }
+            })
+            win.on_resize((e) => {
+                if (win.scrollHeight > this.clientHeight) {
+                    e.align_vertical("default");
+                } else {
+                    e.center_vertical();
+                }
+            })
+
+            // Append.
+            win.style.height = "100%";
+            win.style.minHeight = "100%";
+            win.style.maxHeight = "100%";
+            win.style.overflowY = "scroll";
+            win.style["scroll-snap-align"] = "start";
+            super.append(win);
+            // const section = document.createElement("section");
+            // section.style.height = "100%";
+            // section.style.minHeight = "100%";
+            // section.style.maxHeight = "100%";
+            // section.style.overflowY = "scroll";
+            // section.style["scroll-snap-align"] = "start";
+            // section.appendChild(win);
+            // super.append(section);
+        }
+
+        // Response.
+        return this
+    }
+
+    // Scroll into child.
+    scroll_into_child(index, behaviour = "smooth") {
+        this.child(index).scrollIntoView({behavior: behaviour});
+        return this;
+    }
+}
+
+// Window Scroller.
+/*
 @constructor_wrapper
 @register_element
 class WindowScrollerElement extends CreateVElementClass({
@@ -1168,3 +1242,4 @@ class WindowScrollerElement extends CreateVElementClass({
     }
 
 }
+*/

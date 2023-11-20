@@ -374,13 +374,6 @@ function CreateVElementClass({
 					this.events(E.default_events);
 				}
 			}
-
-			// Construct an instance of HTMLInputElement
-			if (vweb.is_safari) {
-			    const i = document.createElement(tag);
-			    Object.setPrototypeOf(i, E.prototype);
-			    return i;
-			}
 		}
 		
 		// ---------------------------------------------------------
@@ -1328,7 +1321,7 @@ function CreateVElementClass({
 		 		this.style.backgroundClip = "text";
 		 		this.style["-webkit-background-clip"] = "text";
 		 		this.style.color = "transparent";
-		 	} else if (value.eq_first("linear-gradient(") || value.eq_first("radial-gradient(")) {
+		 	} else if (value._is_gradient || value.eq_first("linear-gradient(") || value.eq_first("radial-gradient(")) {
 		 		this.style.backgroundImage = value;
 		 		this.style.backgroundClip = "text";
 		 		this.style["-webkit-background-clip"] = "text";
@@ -2496,7 +2489,7 @@ function CreateVElementClass({
 						for (let i = 0; i < element._on_appear_callbacks.length; i++) {
 							const callback = element._on_appear_callbacks[i];
 	                        if (
-	                        	callback.called !== true &&
+	                        	// (callback.repeat || callback.called !== true) &&
 	                    		(callback.threshold == null || entry.intersectionRatio >= callback.threshold)    	
 	                        ) {
 	                        	matched = true;
@@ -2504,15 +2497,16 @@ function CreateVElementClass({
 	                            if (res instanceof Promise) {
 	                                await promise;
 	                            }
-	                            if (callback.repeat !== true) {
-									callback.called = true;
-								} else {
+	                            if (callback.repeat) {
 									repeat = true;
+								} else {
+									callback.called = true;
 								}
 	                        }
 	                    }
 
 	                    // Not matched, add again since it was intersecting but no threshold success.
+	                    // So unobserve and observe otherwise it wont get called again till it is fully out of visible viewport.
 	                    if (matched === false) {
 	                    	observer.unobserve(element);
 							observer.observe(element);
@@ -2535,7 +2529,7 @@ function CreateVElementClass({
 	    	}
 
 	    	// Add callback.
-	    	// Always add to callback so the user can also manually iterate and perhaps call the callbacks, like @doxly/WindowScroller
+	    	// Always add to callback so the user can also manually iterate and perhaps call the callbacks.
 	    	if (Array.isArray(this._on_appear_callbacks)) {
 	    		this._on_appear_callbacks.push({callback, threshold, repeat, exec: () => callback(this)});
 	    	} else {
@@ -2551,9 +2545,9 @@ function CreateVElementClass({
 			  rect.right <= (window.innerWidth || document.documentElement.clientWidth)
 			) {
 				callback(this);
-				if (repeat !== true) {
+				// if (repeat === true) { // do this always since this may also be considered as already visibke when it is not.
 					observer.observe(this);
-				}
+				// }
 			}
 			else {
 		    	observer.observe(this);
@@ -2570,7 +2564,7 @@ function CreateVElementClass({
 		    	this._on_keypress_set = true;
 		    	const e = this;
 		    	super.onkeypress = function(event) {
-		    		if (this._on_enter_callback !== undefined && event.key === "Enter") {
+		    		if (this._on_enter_callback !== undefined && event.key === "Enter" && event.shiftKey === false) {
 		    			this._on_enter_callback(e, event);
 		    		} else if (this._on_escape_callback !== undefined && event.key === "Escape") {
 		    			this._on_escape_callback(e, event);
@@ -2589,7 +2583,7 @@ function CreateVElementClass({
 		    	this._on_keypress_set = true;
 		    	const e = this;
 		    	super.onkeypress = function(event) {
-		    		if (this._on_enter_callback !== undefined && event.key === "Enter") {
+		    		if (this._on_enter_callback !== undefined && event.key === "Enter" && event.shiftKey === false) {
 		    			this._on_enter_callback(e, event);
 		    		} else if (this._on_escape_callback !== undefined && event.key === "Escape") {
 		    			this._on_escape_callback(e, event);
@@ -2973,7 +2967,6 @@ function CreateVElementClass({
 		//     }
 
 		//     // Bind touch start event to element.
-		//     console.log("OIOI");
 		//     // window.addEventListener("touchstart", touch_start)
 		//     // element.ontouchstart = touch_start;
 		//     element.addEventListener("touchstart", (event) => {
