@@ -516,7 +516,7 @@ class Server {
             enable_2fa: {type: "boolean", required: false},
             enable_account_activation: {type: "boolean", required: false},
             production: {type: "boolean", required: false},
-            file_watcher: {type: ["null", "string"], required: false},
+            file_watcher: {type: ["null", "string", "object"], required: false},
         });
 
         // Assign attributes directly.
@@ -668,7 +668,7 @@ class Server {
             this.file_watcher.excluded.push(this.database.str());
 
             // Add default and static endpoints.
-            this.file_watcher.additional_paths = additional_paths;
+            this.file_watcher.additional_paths = this.file_watcher.additional_paths.concat(additional_paths);
             
             // Start.
             this.file_watcher.start();

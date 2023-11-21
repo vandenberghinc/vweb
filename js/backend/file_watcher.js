@@ -41,8 +41,9 @@ class FileWatcher {
         source = null,
         target = "start.js",
         args = [],
-        interval = 500,
+        interval = 750,
         excluded = [],
+        additional_paths = [],
 
     }) {
 
@@ -62,7 +63,7 @@ class FileWatcher {
         }
 
         // Attributes.
-        this.additional_paths = [];
+        this.additional_paths = additional_paths;
         this.mtimes = {};
         this.promise = new Promise(() => {});
     }
@@ -71,13 +72,13 @@ class FileWatcher {
     start() {
 
         // Drop all additional files that are part of the source directory.
-        let additional_paths = [];
-        this.additional_paths.iterate((path) => {
-            if (path.eq_first(this.source) === false) {
-                additional_paths.push(path);
-            }
-        })
-        this.additional_paths = additional_paths;
+        // let additional_paths = [];
+        // this.additional_paths.iterate((path) => {
+        //     if (path.eq_first(this.source) === false) {
+        //         additional_paths.push(path);
+        //     }
+        // })
+        // this.additional_paths = additional_paths;
 
         // Scan initial files.
         this.scan_files();

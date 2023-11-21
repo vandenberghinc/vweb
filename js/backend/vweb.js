@@ -14,6 +14,7 @@ const vweb = {
     Server: require("./server.js"),
     Status: require("./status.js"),
     Mail: require("./mail.js"),
+    FileWatcher: require("./file_watcher.js"),
     version: require("../.version.js"),
 }
 

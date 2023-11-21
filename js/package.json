@@ -1,6 +1,6 @@
 {
     "name": "@vandenberghinc/vweb",
-    "version": "1.2.2",
+    "version": "1.2.5",
     "description": "",
     "main": "backend/vweb.js",
     "scripts": {
@@ -16,5 +16,6 @@
         "@vandenberghinc/vlib": "^1.2.9",
         "nodemailer": "^6.9.5",
         "pdfkit": "^0.14.0"
-    }
+    },
+    "live_version": "1.2.4"
 }
