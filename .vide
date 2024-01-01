@@ -44,7 +44,7 @@
         }
     ],
     "git_username": "vandenberghinc",
-    "git_email": "admin@vandenberghinc.com",
+    "git_email": "dev@vandenberghinc.com",
     "git_remotes": [
         {
             "remote": "origin",
