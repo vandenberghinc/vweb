@@ -10,6 +10,7 @@
 /.git*
 
 # npm files.
+.npmrc
 .npmignore
 /node_modules
 package-lock.json

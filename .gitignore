@@ -1,3 +1,7 @@
+.gitignore
+.vide
+.npmignore
+.npmrc
 .DS_Store
 /demo
 

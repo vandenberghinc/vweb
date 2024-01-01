@@ -27,13 +27,15 @@ const utils = require("../utils.js");
 // @todo india subscriptions has other rules, not implemented: https://docs.adyen.com/payment-methods/cards/cards-recurring-india/
 
 /*  @docs:
+    @ignore: true
     @deprecated: true
-    @chapter: Backend
-    @title: Server
+    @nav: Backend
+    @chapter: Payments
+    @title: Adyen
     @description: 
         The adyen payments class.
     @warning: You must set the "Allowed Origins" sections in your Adyen Dashboard for your client key, development websites can use `http://127.0.0.1:8000` or `http://localhost:8000`. Can be set under Dashboard > Developer > API Credentials > Select API  Key > Client Settings.
-    @warning: You must enable the "Standard webhook" in your adyen account with endpoint "/vweb/payments/webhook", generate a hask key and assign it to param `webhook_key`, and make sure the following events are enabled `AUTHORISATION`, `CANCELLATION`, `TECHNICAL_CANCEL`, `REFUND` and `REFUND_FAILED`.`
+    @warning: You must enable the "Standard webhook" in your adyen account with endpoint "/vweb/payments/webhook", generate a hask key and assign it to param `webhook_key`, and make sure the following events are enabled `AUTHORISATION`, `CANCELLATION`, `TECHNICAL_CANCEL`, `REFUND` and `REFUND_FAILED`.
     @warning: You must enable the `additionalData.recurring.recurringDetailReference` parameter from the `AUTHORISATION` webhook. To do this navigate to the Customer Area --> Developers --> Additional Data --> Enable "Recurring Details".
     @param:
         @name: secret_key
@@ -106,7 +108,7 @@ class Adyen {
     }) {
 
         // Verify args.
-        vlib.utils.verify_params(arguments[0], {
+        vlib.utils.verify_params({params: arguments[0], check_unknown: true, info: {
             api_key: "string",
             client_key: "string",
             webhook_key: {type: ["string", "array"]},
@@ -115,7 +117,7 @@ class Adyen {
             products: "array",
             blocked_payment_methods: {type: "array", required: false},
             _server: "object",
-        });
+        }});
 
         // Attributes.
         this.type = "adyen";
@@ -1116,9 +1118,7 @@ class Adyen {
             All failed payments are no longer stored in the database.
         @param:
             @name: uid
-            @required: true
-            @type: number
-            @desc: The uid of the user.
+            @cached: Users:uid:param
         @param:
             @name: days
             @type: number
@@ -1146,7 +1146,6 @@ class Adyen {
     }) {
 
         // Get path.
-        this.server._check_uid_within_range(uid);
         const dir = this.server.database.join(`.sys/pym_p/${uid}/`, false);
         if (dir.exists() === false) {
             return [];
@@ -1184,9 +1183,7 @@ class Adyen {
         @desc: Get all payments that are refundable.
         @param:
             @name: uid
-            @required: true
-            @type: number
-            @desc: The uid of the user.
+            @cached: Users:uid:param
         @param:
             @name: days
             @type: number
@@ -1222,9 +1219,7 @@ class Adyen {
         @desc: Get all payments that are successfully refunded.
         @param:
             @name: uid
-            @required: true
-            @type: number
-            @desc: The uid of the user.
+            @cached: Users:uid:param
         @param:
             @name: days
             @type: number
@@ -1260,9 +1255,7 @@ class Adyen {
         @desc: Get all payments that are currently in the refunding process.
         @param:
             @name: uid
-            @required: true
-            @type: number
-            @desc: The uid of the user.
+            @cached: Users:uid:param
         @param:
             @name: days
             @type: number
@@ -1299,8 +1292,7 @@ class Adyen {
         @desc: Create a payment from the a shopping cart.
         @param:
             @name: uid
-            @type: number
-            @desc: The uid of the user.
+            @cached: Users:uid:param
         @param:
             @name: cart
             @type: array[object]
@@ -1324,13 +1316,8 @@ class Adyen {
         ip = "",
     }) {
 
-        // By id.
-        if (uid != null) {
-            this.server._check_uid_within_range(uid);
-        }
-
         // Check args.
-        vlib.utils.verify_params({uid, cart, billing_details, ip}, {
+        vlib.utils.verify_params({params: {uid, cart, billing_details, ip}, info: {
             uid: {type: "number", required: false},
             cart: "array",
             billing_details: {
@@ -1350,7 +1337,7 @@ class Adyen {
                 }
             },
             ip: "string",
-        })
+        }})
 
         // Vars.
         const id = `pym_${uid == null ? "unauth" : uid}_${Date.now()}${String.random(4)}`;

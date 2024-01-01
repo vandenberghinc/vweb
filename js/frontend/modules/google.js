@@ -9,12 +9,24 @@ vweb.google.id = "{{GOOGLE_TAG}}";
 
 // Enable tracking cookies.
 // Source: https://developers.google.com/analytics/devguides/collection/gajs/#disable
+/*  @docs:
+    @nav: Frontend
+    @chapter: Google
+    @title: Enable tracking
+    @desc: Enable google analytics tracking
+ */
 vweb.google.enable_tracking = function() {
 	document.cookie = "ga-opt-out=false; Path=/; SameSite=None;";
 }
 
 // Disable tracking cookies.
 // Source: https://developers.google.com/analytics/devguides/collection/gajs/#disable
+/*  @docs:
+    @nav: Frontend
+    @chapter: Google
+    @title: Disable tracking
+    @desc: Disable google analytics tracking
+ */
 vweb.google.disable_tracking = function() {
 	document.cookie = "ga-opt-out=true; Path=/; SameSite=None;";
 }

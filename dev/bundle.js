@@ -10,11 +10,11 @@
 const libfs = require("fs");
 let vhighlight;
 if (libfs.existsSync("/Volumes/persistance")) {
-    vhighlight = require("/Volumes/persistance/private/vinc/vhighlight/vhighlight.js");
-    require("/Volumes/persistance/private/vinc/vlib/js/vlib.js");
+    vhighlight = require("/Volumes/persistance/private/dev/vinc/vhighlight/vhighlight.js");
+    require("/Volumes/persistance/private/dev/vinc/vlib/js/vlib.js");
 } else {
-    vhighlight = require("/Users/administrator/persistance/private/vinc/vhighlight/vhighlight.js");
-    require("/Users/administrator/persistance/private/vinc/vlib/js/vlib.js");
+    vhighlight = require("/Users/administrator/persistance/private/dev/vinc/vhighlight/vhighlight.js");
+    require("/Users/administrator/persistance/private/dev/vinc/vlib/js/vlib.js");
 }
 
 // Source file.

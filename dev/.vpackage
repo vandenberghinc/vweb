@@ -12,8 +12,8 @@
     "ssh": {
         "vinc": "/vserver/storages/vinc/$NAME/",
         "vinc.wan": "/vserver/storages/vinc/$NAME/",
-        "dev.vinc": "/Volumes/persistance/private/vinc/$NAME/",
-        "dev.vinc.wan": "/Volumes/persistance/private/vinc/$NAME/",
+        "dev.vinc": "/Volumes/persistance/private/dev/vinc/$NAME/",
+        "dev.vinc.wan": "/Volumes/persistance/private/dev/vinc/$NAME/",
         "paperspace": "vinc/$NAME/",
         "vandenberghinc.com": "vinc/$NAME/"
     },

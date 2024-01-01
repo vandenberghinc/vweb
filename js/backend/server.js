@@ -19,25 +19,29 @@ const libos = require('os');
 const {vlib, vhighlight} = require("./vinc.js");
 const utils = require("./utils.js");
 const Meta = require('./meta.js');
-const Mail = require('./mail.js');
+const Mail = require('./plugins/mail.js');
 const Status = require("./status.js");
 const Mutex = require("./mutex.js");
 const Endpoint = require("./endpoint.js");
 const Response = require("./response.js");
 const Request = require("./request.js");
+const Database = require("./database.js");
 const FileWatcher = require("./file_watcher.js");
+const Users = require("./users.js");
 const Adyen = require("./payments/adyen.js");
 const Paddle = require("./payments/paddle.js");
 const {FrontendError} = utils;
 
 // ---------------------------------------------------------
 // The server object.
+// @todo redirect to https on http also important for seo.
+// @todo convert throw new Error to frontend errors.
 // @todo figure out with what settings nodejs should be started for heavy servers, for example larger memory size `--max-old-space-size`
 // @todo implement usage of multiple cpu's using lib `cluster`.
 // @todo when rendering pages the user could use a special OptimizeText() function which will be optimized for copy writing and seo when adding loading static files. Quite hard but would be sublime (writesonic is a good platform).
 
 /*  @docs:
-    @chapter: Backend
+    @nav: Backend
     @title: Server
     @description: 
         The backend server class.
@@ -85,8 +89,11 @@ const {FrontendError} = utils;
         @required: true
     @parameter:
         @name: database
-        @description: The path to the database directory.
-        @type: string
+        @description:
+            The mongodb database settings.
+
+            The parameter can be defined as a `string` type as the database uri, or as an object with parameters for the <type>Database</type> object.
+        @type: string, object
         @required: true
     @parameter:
         @name: default_headers
@@ -183,21 +190,21 @@ const {FrontendError} = utils;
             The smpt arguments object.
             More information about the arguments can be found at the nodemailer <link https://nodemailer.com/smtp/>documentation<link>.
         @type: object
-        @attributes:
+        @attribute:
             @name: sender
             @description:
                 The smtp sender address may either be a string with the email address, e.g. `your@email.com`.
                 Or an array with the sender name and email address, e.g. `["Sender", "your@email.com"]`.
             @type: string, array
-        @attributes:
+        @attribute:
             @name: host
             @description: The mail server's host address.
             @type: string
-        @attributes:
+        @attribute:
             @name: port
             @description: The mail server's port.
             @type: number
-        @attributes:
+        @attribute:
             @name: secure
             @description: Enable secure options.
             @type: boolean
@@ -205,11 +212,11 @@ const {FrontendError} = utils;
             @name: auth
             @description: The authentication settings.
             @type: object
-            @attributes:
+            @attribute:
                 @name: user
                 @description: The email used for authentication.
                 @type: string
-            @attributes:
+            @attribute:
                 @name: pass
                 @description: The password used for authentication.
                 @type: string
@@ -223,10 +230,10 @@ const {FrontendError} = utils;
             @description: The payment provider name.
             @required: true
             @enum:
-                @name: adyen
+                @value: adyen
                 @desc: Payment provider Adyen.
             @enum:
-                @name: paddle
+                @value: paddle
                 @desc: Payment provider Paddle.
     @parameter:
         @name: google_tag
@@ -235,7 +242,7 @@ const {FrontendError} = utils;
     @parameter:
         @name: file_watcher
         @description: The file watcher arguments, define to enable file watching. The parameter may either be an FileWatcher object, an object with arguments or a string for the `source` argument. The process argument `--no-file-watcher` can always be used to temporarily disable the file watcher.
-        @type: FileWatcher, object, string.
+        @type: FileWatcher, object, string
     @parameter:
         @name: mail_style
         @description: The mail settings to customize automatically generated mails.
@@ -248,29 +255,48 @@ const {FrontendError} = utils;
             @name: button_bg
             @description: The background color of the button's in your mails.
             @type: string
+    @parameter:
+        @name: offline
+        @description: Boolean indicating if the development server is being run offline.
+        @type: boolean
 
     @attribute:
-        @name: on_2fa_mail
-        @desc:
-            When a 2fa mail is sent, the mail can be generated using a callback. Only when the mail body is not passed in the parameters of `send_2fa()`, the callback will be checked.
-        @param:
-            @name: code
-            @description: The 2fa code.
-        @param:
-            @name: username
-            @description: The user's username.
-        @param:
-            @name: email
-            @description: The user's email.
-        @param:
-            @name: date
-            @description: The current date in UTC format.
-        @param:
-            @name: ip
-            @description: The client's ip address.
-        @param:
-            @name: device
-            @description: The client's device string.
+        @name: users
+        @type: object
+        @attribute:
+            @name: public
+            @type: UIDCollection
+            @desc: 
+                The database collection for public data of users.
+                
+                More information about the collection's functions can be found at <type>UIDCollection</type>
+            @warning: 
+                The authenticated user always has read and write access to all data inside the user's protected directory through the backend rest api. Any other users or unauthenticated users do not have access to this data.
+        @attribute:
+            @name: protected
+            @type: UIDCollection
+            @desc: 
+                The database collection for public data of users.
+                
+                More information about the collection's functions can be found at <type>UIDCollection</type>
+            @warning:
+                The authenticated user always has read access to all data inside the user's protected directory through the backend rest api. Any other users or unauthenticated users do not have access to this data.
+        @attribute:
+            @name: private
+            @type: UIDCollection
+            @desc: 
+                The database collection for public data of users.
+                
+                More information about the collection's functions can be found at <type>UIDCollection</type>
+            @note:
+                The user has no read or write access to the private directory.
+    @attribute:
+        @name: storage
+        @type: Collection
+        @desc: 
+            The database storage collection for the website's system backend data.
+            
+            More information about the collection's functions can be found at <type>Collection</type>
  */
 
 // @tdo implement 3D secure "requires_action" status for a refund and payment intent.
@@ -432,7 +458,7 @@ class Server {
         port = 8000,
         domain = null,
         statics = [],
-        database = null,
+        database = "mongodb://localhost:27017/main",
         favicon = null,
         company = null,
         meta = new Meta(),
@@ -459,14 +485,16 @@ class Server {
         enable_account_activation = true,
         production = false,
         file_watcher = null,
+        offline = false,
     }) {
 
         // Verify args.
-        vlib.utils.verify_params(arguments[0], {
+        vlib.utils.verify_params({params: arguments[0], check_unknown: true, info: {
             ip: "string",
+            port: "number",
             domain: "string",
             statics: "array",
-            database: "string",
+            database: {type: ["string", "object"]},
             favicon: {type: "string", required: false},
             company: {
                 type: "object",
@@ -491,6 +519,7 @@ class Server {
                 attrs: {
                     certificate: "string",
                     private_key: "string",
+                    passphrase: {type: "string", default: null},
                 }
             },
             smtp: {type: ["null", "object"], required: false},
@@ -499,6 +528,7 @@ class Server {
                 attrs: {
                     font: {type: "string", default: '"Helvetica", sans-serif'},
                     title_fg: {type: "string", default: "#121B23"},
+                    subtitle_fg: {type: "string", default: "#121B23"},
                     text_fg: {type: "string", default: "#1F2F3D"},
                     button_fg: {type: "string", default: "#FFFFFF"},
                     footer_fg: {type: "string", default: "#686B80"},
@@ -517,7 +547,8 @@ class Server {
             enable_account_activation: {type: "boolean", required: false},
             production: {type: "boolean", required: false},
             file_watcher: {type: ["null", "string", "object"], required: false},
-        });
+            offline: {type: "boolean", default: false}
+        }});
 
         // Assign attributes directly.
         this.port = port;
@@ -530,6 +561,7 @@ class Server {
         this.production = production;
         this.company = company;
         this.mail_style = mail_style;
+        this.offline = offline;
 
         // Set domain.
         this.domain = domain.replace("https://","").replace("http://","");
@@ -539,6 +571,9 @@ class Server {
 
         // Set full domain.
         this.full_domain = `http${tls == null || tls.private_key === null ? "" : "s"}://${domain}`; // also required for Stripe.
+        while (this.full_domain.charAt(this.full_domain.length - 1) === "/") {
+            this.full_domain = this.full_domain.substr(0, this.full_domain.length - 1);
+        }
 
         // Set statics.
         this.statics = [];
@@ -555,9 +590,6 @@ class Server {
         if (export_static === undefined) {
             throw Error("The static directories must at least include one directory named \"static\".");
         }
-
-        // Set database.
-        this.database = new vlib.Path(database).abs();
 
         // Set meta.
         if (meta instanceof Meta === false) {
@@ -643,7 +675,7 @@ class Server {
         sync_dir(src_static.join("payments"), export_static.join("payments"));
 
         // File watcher.
-        if (process.argv.includes("--no-file-watcher") === false && file_watcher != null && process.env.VWEB_FILE_WATCHER != '1') {
+        if (process.argv.includes("--no-file-watcher") === false && this.production === false && file_watcher != null && process.env.VWEB_FILE_WATCHER != '1') {
 
             // Create default endpoints.
             let additional_paths = this._create_default_endpoints();
@@ -665,7 +697,7 @@ class Server {
             } else {
                 this.file_watcher = new FileWatcher(file_watcher);
             }
-            this.file_watcher.excluded.push(this.database.str());
+            // this.file_watcher.excluded.push(this.database.str());
 
             // Add default and static endpoints.
             this.file_watcher.additional_paths = this.file_watcher.additional_paths.concat(additional_paths);
@@ -674,6 +706,16 @@ class Server {
             this.file_watcher.start();
             return ;
         }
+
+        // Initialize the database class.
+        if (typeof database === "string" || database instanceof String) {
+            this.db = new Database({uri: database, _server: this});
+        } else {
+            this.db = new Database({...database, _server: this});
+        }
+
+        // Initialize the users class.
+        this.users = new Users(this);
 
         // The smtp instance.
         if (smtp) {
@@ -696,10 +738,6 @@ class Server {
         // Create an HTTP server
         this.http = http.createServer((request, response) => this._serve(request, response));
 
-        // Max uid.
-        this.max_uid = null;
-        this.edit_max_uid_mutex = new Mutex();
-
         // The master sha256 hash key.
         this.hash_key = null;
     }
@@ -707,8 +745,39 @@ class Server {
     // ---------------------------------------------------------
     // Utils (private).
 
+    // Get a content type from an extension.
+    _get_content_type(extension) {
+        let content_type = Server.content_type_mimes.iterate((item) => {
+            if (item[0] == extension) {
+                return item[1];
+            }
+        })
+        if (content_type == null) {
+            content_type = "application/octet-stream";
+        }
+        return content_type;
+    }
+
+    // ---------------------------------------------------------
+    // Crypto (private).
+
+    // Generate a crypto key.
+    _generate_crypto_key(length = 32) {
+        return libcrypto.randomBytes(length).toString('hex');
+    }
+
+    // Create a sha hmac with the master key.
+    _hmac(data) {
+        const hmac = libcrypto.createHmac("sha256", this.hash_key);
+        hmac.update(data);
+        return hmac.digest("hex");
+    }
+
+    // ---------------------------------------------------------
+    // Headers (private).
+
     // Initialize the default headers.
-    _initialize_default_headers() {
+    _init_default_headers() {
         let csp = "";
         Object.keys(this.csp).iterate((key) => {
             csp += key;
@@ -722,487 +791,6 @@ class Server {
         this.default_headers["Content-Security-Policy"] = csp;
     }
 
-    // Iterate a subpath directory in the database.
-    async _iter_db_dir(subpath, callback) {
-        return this.database.join(subpath).paths_sync().iterate_async_await((path) => {
-            if (path.name() !== ".DS_Store") {
-                return callback(path);
-            }
-        });
-    }
-
-    // Check of the uid is within the max uid range.
-    _check_uid_within_range(uid) {
-        if (uid == null || uid < 0 || uid == "") {
-            throw Error("Undefined user id.");
-        }
-        else if (uid > this.max_uid) {
-            throw Error(`User id "${uid}" does not exist.`);
-        }
-    }
-
-    // Get a content type from an extension.
-    _sys_get_content_type(extension) {
-        let content_type = Server.content_type_mimes.iterate((item) => {
-            if (item[0] == extension) {
-                return item[1];
-            }
-        })
-        if (content_type == null) {
-            content_type = "application/octet-stream";
-        }
-        return content_type;
-    }
-
-    // Generate a key.
-    _sys_generate_key(path) {
-        const length = 32;
-        const charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-        let key = "";
-        for (let i = 0; i < length; i++) {
-            key += charset.charAt(Math.floor(Math.random() * charset.length));
-        }
-        return key;
-    }
-
-    // Generate a crypto key.
-    _sys_generate_crypto_key(length = 32) {
-        return libcrypto.randomBytes(length).toString('hex');
-    }
-
-    // Generate a 2fa code.
-    _sys_generate_2fa() {
-        const length = 6;
-        const charset = "0123456789";
-        let key = "";
-        for (let i = 0; i < length; i++) {
-            key += charset.charAt(Math.floor(Math.random() * charset.length));
-        }
-        return key;
-    }
-
-    // Load data into an object formatted line by line.
-    // All data will be loaded as a string.
-    // When the path does not exists the input object will be returned.
-    _sys_load_data_into_obj(path, obj = {}, keys = []) {
-        if (!path.exists()) {
-            return obj;
-        }
-        const data = path.load_sync();
-        let key = 0;
-        const info = {line: "", line_number: 0}
-        for (let i = 0; i < data.length; i++) {
-            const c = data.charAt(i);
-            if (c == '\n') {
-                if (obj[keys[key]] == null) {
-                    obj[keys[key]] = "";
-                }
-                ++key;
-            } else {
-                if (obj[keys[key]] == null) {
-                    obj[keys[key]] = "";
-                }
-                obj[keys[key]] += c;
-            }
-        }
-        // for (let i = key; i < keys.length; i++) {
-        //     obj[keys[i]] = "";
-        // }
-        return obj;
-    }
-
-    // Save an object to data formatted line by line.
-    _sys_save_data_into_obj(path, obj, keys) {
-        let data = "";
-        for (let i = 0; i < keys.length; i++) {
-            if (typeof obj[keys[i]] === "string") {
-                data += obj[keys[i]];
-            } else {
-                data += obj[keys[i]].toString();
-            }
-            data += "\n";
-        }
-        path.save_sync(data);
-    }
-
-    // Save or delete uid by username,
-    _sys_save_uid_by_username(uid, username) {
-        this.database.join(`.sys/usernames/${username}`, false).save_sync(uid.toString());
-    }
-    _sys_delete_uid_by_username(username) {
-        this.database.join(`.sys/usernames/${username}`, false).del_sync();
-    }
-
-    // Save or delete uid by email,
-    _sys_save_uid_by_email(uid, email) {
-        this.database.join(`.sys/emails/${email}`, false).save_sync(uid.toString());
-    }
-    _sys_delete_uid_by_email(email) {
-        this.database.join(`.sys/emails/${email}`, false).del_sync();
-    }
-
-    /*  Save, load or delete a system user object.
-        An object has the following keys if the user is not deleted: 
-        When adding additional fields the min keys length for detailed data detection inside `set_user` should be updated.
-        {
-            uid: number,
-            first_name: string,
-            last_name: string,
-            username: string,
-            email: string,
-            password: string,
-            api_key: string,
-            phone_number: string,
-        }
-     */
-    _sys_load_user(uid) {
-        return this._sys_load_data_into_obj(this.database.join(`.sys/users/${uid}`, false), {uid: uid}, [
-            "first_name",
-            "last_name",
-            "username",
-            "email",
-            "password",
-            "api_key",
-            "phone_number",
-        ]);
-    }
-    _sys_save_user(uid, user) {
-        return this._sys_save_data_into_obj(
-            this.database.join(`.sys/users/${uid}`, false), 
-            user, 
-            [
-                "first_name",
-                "last_name",
-                "username",
-                "email",
-                "password",
-                "api_key",
-                "phone_number",
-            ],
-        );
-    }
-    _sys_load_detailed_user(uid) {
-        const path = this.database.join(`.sys/users/${uid}.detailed`, false);
-        if (path.exists() === false) {
-            const data = {
-                created: Date.now(),
-            };
-            path.save_sync(data);
-            return data;
-        }
-        return data.load_sync({type: "object"});
-    }
-    _sys_save_detailed_user(uid, data) {
-        this.database.join(`.sys/users/${uid}.detailed`, false).save_sync(data);
-    }
-
-    // @todo the parameter requires the full sys user object.
-    _sys_delete_user(user) {
-        if (typeof user === "number" || typeof user === "string") {
-            user = this.get_user(user);
-        }
-        this.database.join(`.sys/users/${user.uid}`, false).del_sync();
-        this.database.join(`.sys/users/${user.uid}.detailed`, false).del_sync();
-        this._sys_delete_uid_by_username(user.username);
-        this._sys_delete_uid_by_email(user.email);
-        this.database.join(`.sys/support_pin/${uid}`, false).del_sync();
-        this.database.join(`users/${uid}`, false).del_sync();
-        if (this.payments) {
-            this.payments._sys_delete_user(user);
-        }
-    }
-
-    /*  Save, load or delete a system user token object used for signin in.
-        An object has the following keys if the token exists:
-        {
-            expiration: number,
-            token: string,
-        }
-     */
-    _sys_load_user_token(uid) {
-        const obj = this._sys_load_data_into_obj(this.database.join(`.sys/tokens/${uid}`, false), {expiration: 0}, [
-            "expiration",
-            "token",
-        ]);
-        if (typeof obj.expiration === "string") {
-            obj.expiration = parseInt(obj.expiration);
-        }
-        return obj;
-    }
-    _sys_save_user_token(uid, token) {
-        return this._sys_save_data_into_obj(
-            this.database.join(`.sys/tokens/${uid}`, false), 
-            token,
-            [
-               "expiration",
-                "token",
-            ],
-        );
-    }
-    _sys_delete_user_token(uid) {
-        this.database.join(`.sys/tokens/${uid}`, false).del_sync();
-    }
-
-    /*  Save, load or delete a system user 2fa object used for two factor authentication.
-        An object has the following keys if the token exists:
-        {
-            expiration: number,
-            code: string,
-        }
-     */
-    _sys_load_user_2fa(uid) {
-        const obj = this._sys_load_data_into_obj(this.database.join(`.sys/2fa/${uid}`, false), {expiration: 0}, [
-            "expiration",
-            "code",
-        ]);
-        if (typeof obj.expiration === "string") {
-            obj.expiration = parseInt(obj.expiration);
-        }
-        return obj;
-    }
-    _sys_save_user_2fa(uid, token) {
-        return this._sys_save_data_into_obj(
-            this.database.join(`.sys/2fa/${uid}`, false), 
-            token,
-            [
-                "expiration",
-                "code",
-            ]
-        );
-    }
-    _sys_delete_user_2fa(uid) {
-        this.database.join(`.sys/2fa/${uid}`, false).del_sync();
-    }
-
-    // Load user data helper.
-    _sys_load_user_data(uid, subpath, def, privacy) {
-        // Check uid.
-        this._check_uid_within_range(uid);
-
-        // Check path.
-        if (subpath.indexOf("..") !== -1) {
-            throw Error(`Permission denied (path-injection).`);
-        }
-        const path = this.database.join(`users/${uid}/${privacy}/${subpath}`, false).abs();
-        if (path.str().eq_first(`${this.database}/users/${uid}/${privacy}/`) === false) {
-            throw Error(`Permission denied (path-injection).`);
-        }
-
-        // Does not exist.
-        if (!path.exists()) {
-            return def;
-        }
-
-        // Load data.
-        let data = path.load_sync();
-
-        // Cast data.
-        if (def == null || typeof def === "string") {
-            return data;
-        } else if (typeof def === "boolean") {
-            return data === "true" || data === "1" || data === "True" || data === "TRUE";
-        } else if (typeof def === "number") {
-            return parseFloat(data);
-        } else if (Array.isArray(def)) {
-            return JSON.parse(data);
-        } else if (typeof def === "object") {
-            data = JSON.parse(data);
-            Object.keys(def).iterate((key) => {
-                if (data[key] === undefined) {
-                    data[key] = def[key];
-                }
-            })
-            return data;
-        } else {
-            throw Error(`Invalid data type "${type}", the valid options are ["string", "array", "object"].`);
-        }
-    }
-
-    // Save user data helper.
-    _sys_save_user_data(uid, subpath, privacy) {
-
-        // Check uid.
-        this._check_uid_within_range(uid);
-
-        // Check path.
-        if (subpath.indexOf("..") !== -1) {
-            throw Error(`Permission denied (path-injection).`);
-        }
-        const path = this.database.join(`users/${uid}/${privacy}/${subpath}`, false).abs();
-        if (path.str().eq_first(`${this.database}/users/${uid}/${privacy}/`) === false) {
-            throw Error(`Permission denied (path-injection).`);
-        }
-
-        // Create base.
-        const base = path.base();
-        if (base.exists() === false) {
-            base.mkdir_sync();
-        }
-        return path;
-    }
-
-    // Load system data for the user, so not from the vweb ".sys" directory but from the "sys" directory.
-    _sys_load_sys_data(subpath, def) {
-        
-        // Check path.
-        const path = this.database.join(`sys/${subpath}`, false)
-
-        // Does not exist.
-        if (!path.exists()) {
-            return def;
-        }
-
-        // Load data.
-        let data = path.load_sync();
-
-        // Cast data.
-        if (def == null || typeof def === "string") {
-            return data;
-        } else if (typeof def === "boolean") {
-            return data === "true" || data === "1" || data === "True" || data === "TRUE";
-        } else if (typeof def === "number") {
-            return parseFloat(data);
-        } else if (Array.isArray(def)) {
-            return JSON.parse(data);
-        } else if (typeof def === "object") {
-            data = JSON.parse(data);
-            Object.keys(def).iterate((key) => {
-                if (data[key] === undefined) {
-                    data[key] = def[key];
-                }
-            })
-            return data;
-        } else {
-            throw Error(`Invalid data type "${type}", the valid options are ["string", "array", "object"].`);
-        }
-    }
-
-    // Create a sha hmac with the master key.
-    _hmac(data) {
-        const hmac = libcrypto.createHmac("sha256", this.hash_key);
-        hmac.update(data);
-        return hmac.digest("hex");
-    }
-
-    // Check a password and the verify password.
-    _verify_new_pass(pass, verify_pass) {
-        if (pass !== verify_pass) {
-            return "Passwords do not match.";
-        } else if (pass.length < 8) {
-            return "The password should at least include eight characters.";
-        } else if (pass.toLowerCase() === pass) {
-            return "The password should at least include one capital letter.";
-        } else if (pass.includes_numeric_char() === false && pass.includes_special_char() === false) {
-            return "The password should at least include one numeric or special character.";
-        }
-    }
-
-    // ---------------------------------------------------------
-    // Authentication (private).
-
-    // Generate a token by uid.
-    _generate_token(uid) {
-        this._check_uid_within_range(uid);
-        const token = `1${uid}:${this._sys_generate_key()}`;
-        this._sys_save_user_token(uid, {
-            expiration: Date.now() + this.token_expiration * 1000,
-            token: this._hmac(token),
-        });
-        return token;
-    }
-
-    // Perform authentication on a request.
-    // When the authentication has failed an args object for response.send will be returned.
-    // On a successfull authentication `null` will be returned.
-    async _authenticate(request) {
-
-        // // Get api key key from bearer.
-        const authorization = request.headers["authorization"];
-        if (authorization !== undefined) {
-            if (typeof authorization !== "string") {
-                return {
-                    status: 400, 
-                    data: "Bad Request: Invalid authorization header.",
-                };
-            }
-            if (!authorization.eq_first("Bearer ")) {
-                return {
-                    status: 400, 
-                    data: "Bad Request: Invalid authorization scheme, the authorization scheme must be \"Bearer\".",
-                };
-            }
-            let api_key = "";
-            for (let i = 7; i < authorization.length; i++) {
-                const c = authorization[i];
-                if (c == " ") {
-                    continue;
-                }
-                api_key += c;
-            }
-            const uid = await this.get_uid_by_api_key(api_key);
-            if (await this.verify_api_key_by_uid(uid, api_key) !== true) {
-                return {
-                    status: Status.unauthorized, 
-                    data: "Unauthorized.",
-                };
-
-            }
-            request.uid = uid;
-            return null;
-        }
-
-        // Get token from cookies.
-        else {
-            if (request.cookies.T == null || request.cookies.T.value == null) {
-                return {
-                    status: 302, 
-                    headers: {"Location": `/signin?next=${request.url}`},
-                    data: "Permission denied.",
-                };
-            }
-            const token = request.cookies.T.value;
-            const uid = await this.get_uid_by_api_key(token);
-            if (await this.verify_token_by_uid(uid, token) !== true) {
-                return {
-                    status: 302, 
-                    headers: {"Location": `/signin?next=${request.url}`},
-                    data: "Permission denied.",
-                };
-
-            }
-            request.uid = uid;
-            return null;
-        }
-
-        // Authentication failed.
-        return {
-            status: 302, 
-            headers: {"Location": `/signin?next=${request.url}`},
-            data: "Permission denied.",
-        };
-    }
-
-    // Sign a user in and return a response.
-    async _sign_in_response(response, uid) {
-
-        // Generate token.
-        const token = this._generate_token(uid);
-        
-        // Create headers.
-        this._create_token_cookie(response, token);
-        await this._create_user_cookie(response, uid);
-        await this._create_detailed_user_cookie(response, uid);
-            
-        // Response.
-        response.send({
-            status: 200,
-            data: {message: "Successfully signed in."}
-        });
-    }
-
-    // ---------------------------------------------------------
-    // Headers (private).
-
     // Add header defaults.
     _set_header_defaults(response) {
         response.set_headers(this.default_headers);
@@ -1210,58 +798,6 @@ class Server {
         //     response.set_header("Origin", this.domain);
         //     response.set_header("Access-Control-Allow-Origin", this.domain);
         // }
-    }
-    
-    // Create token headers.
-    //  - Should be called when generating a token.
-    _create_token_cookie(response, token) {
-        response.set_header("Cache-Control", "max-age=0, no-cache, no-store, must-revalidate, proxy-revalidate");
-        response.set_header("Access-Control-Allow-Credentials", "true");
-        let expires = new Date(new Date().getTime() + this.token_expiration * 1000);
-        if (typeof token === "object") {
-            token = token.token;
-        }
-        response.set_cookie(`T=${token}; Max-Age=86400; Path=/; Expires=${expires.toUTCString()}; SameSite=None; ${this.https === undefined ? "" : "Secure"}; HttpOnly;`);
-    }
-    
-    // Create user headers.
-    //  - Should be called when a user is authenticated.
-    async _create_user_cookie(response, uid) {
-        const secure = this.https === undefined ? "" : "Secure";
-        if (uid != null && uid >= 0 && uid <= this.max_uid) {
-            response.set_cookie(`UserID=${uid}; Path=/; SameSite=None; ${secure};`);
-            const is_activated = this.enable_account_activation ? await this.is_activated(uid) : true;
-            response.set_cookie(`UserActivated=${is_activated}; Path=/; SameSite=None; ${secure};`);
-        } else {
-            response.set_cookie(`UserID=-1; Path=/; SameSite=None; ${secure};`);
-            const is_activated = this.enable_account_activation ? false : true;
-            response.set_cookie(`UserActivated=${is_activated}; Path=/; SameSite=None; ${secure};`);
-        }
-    }
-    
-    // Create user headers.
-    //  - Should be called when a user has just signed in, signed up or changed their account.
-    async _create_detailed_user_cookie(response, uid) {
-        const secure = this.https === undefined ? "" : "Secure";
-        const user = await this.get_user(uid);
-        response.set_cookie(`UserName=${user.username}; Path=/; SameSite=None; ${secure};`);
-        response.set_cookie(`UserFirstName=${user.first_name}; Path=/; SameSite=None; ${secure};`);
-        response.set_cookie(`UserLastName=${user.last_name}; Path=/; SameSite=None; ${secure};`);
-        response.set_cookie(`UserEmail=${user.email}; Path=/; SameSite=None; ${secure};`);
-    }
-    
-    // Reset all default cookies.
-    // - Should be called when a user signs out.
-    _reset_cookies(response) {
-        const secure = this.https === undefined ? "" : "Secure";
-        response.set_cookie(`T=; Path=/; SameSite=None; ${secure}; HttpOnly;`);
-        response.set_cookie(`UserID=-1; Path=/; SameSite=None; ${secure};`);
-        response.set_cookie(`UserActivated=false; Path=/; SameSite=None; ${secure};`);
-        // response.set_cookie(`2FAUserID=-1; Path=/; SameSite=None; ${secure};`);
-        response.set_cookie(`UserName=; Path=/; SameSite=None; ${secure};`);
-        response.set_cookie(`UserFirstName=; Path=/; SameSite=None; ${secure};`);
-        response.set_cookie(`UserLastName=; Path=/; SameSite=None; ${secure};`);
-        response.set_cookie(`UserEmail=; Path=/; SameSite=None; ${secure};`);
     }
 
     // ---------------------------------------------------------
@@ -1318,7 +854,7 @@ class Server {
                     method: "GET",
                     endpoint: subpath,
                     data: data,
-                    content_type: this._sys_get_content_type(path.extension()),
+                    content_type: this._get_content_type(path.extension()),
                     compress: !Server.compressed_extensions.includes(path.extension()),
                     _path: path.str(),
                 }))
@@ -1343,7 +879,7 @@ class Server {
                 method: "GET",
                 endpoint: "/favicon.ico",
                 data: favicon.load_sync({type: null}),
-                content_type: this._sys_get_content_type(favicon.extension()),
+                content_type: this._get_content_type(favicon.extension()),
             }))
             additional_file_watcher_paths.push(favicon.str());
         }
@@ -1420,639 +956,6 @@ class Server {
             additional_file_watcher_paths.push(item.path.str());
         })
 
-
-        // ---------------------------------------------------------
-        // Default auth endpoints.
-        
-        this.endpoint(
-            
-            // Send 2fa.
-            {
-                method: "GET",
-                endpoint: "/vweb/auth/2fa",
-                content_type: "application/json",
-                rate_limit: 100,
-                rate_limit_duration: 60,
-                params: {
-                    email: "string",
-                },
-                callback: async (request, response, params) => {
-                    
-                    // Get uid.
-                    let uid;
-                    if ((uid = await this.get_uid_by_email(params.email)) == null) {
-                        return response.success({
-                            data: {message: "A 2FA code was sent if the specified email exists."},
-                        });
-                    }
-                    
-                    // Send.
-                    await this.send_2fa({uid:uid, request:request});
-                    return response.success({
-                        data: {message: "A 2FA code was sent if the specified email exists."},
-                    });
-                    
-                }
-            },
-        
-            // Sign in.
-            {
-                method: "POST",
-                endpoint: "/vweb/auth/signin",
-                content_type: "application/json",
-                rate_limit: 100,
-                rate_limit_duration: 60,
-                callback: async (request, response) => {
-
-                    // Get params.
-                    let email, email_err, username, username_err, password, uid, code;
-                    try {
-                        email = request.param("email")
-                    } catch (err) {
-                        email_err = err;
-                    }
-                    try {
-                        username = request.param("username")
-                    } catch (err) {
-                        username_err = err;
-                    }
-                    if (email_err && username_err) {
-                        return response.error({status: Status.bad_request, data: {error: email_err.message}});
-                    }
-                    try {
-                        password = request.param("password")
-                    } catch (err) {
-                        return response.error({status: Status.bad_request, data: {error: err.message}});
-                    }
-                    
-                    // Get uid.
-                    if (email) {
-                        if ((uid = await this.get_uid_by_email(email)) == null) {
-                            return response.error({
-                                status: Status.unauthorized,
-                                data: {
-                                    error: "Unauthorized.",
-                                    invalid_fields: {
-                                        "email": "Invalid or unrecognized email",
-                                        "password": "Invalid or unrecognized password",
-                                    },
-                                }
-                            });
-                        }
-                    } else {
-                        if ((uid = await this.get_uid(username)) == null) {
-                            return response.error({
-                                status: Status.unauthorized,
-                                data: {
-                                    error: "Unauthorized.",
-                                    invalid_fields: {
-                                        "username": "Invalid or unrecognized username",
-                                        "password": "Invalid or unrecognized password",
-                                    },
-                                }
-                            });
-                        }
-                    }
-                    
-                    // Verify password.
-                    if (await this.verify_password(uid, password)) {
-                        
-                        // Verify 2fa.
-                        if (this.enable_2fa) {
-
-                            // Get 2FA.
-                            try {
-                                code = request.param("2fa")
-                            } catch (err) {
-                                await this.send_2fa({uid:uid, request:request});
-                                return response.send({
-                                    status: Status.two_factor_auth_required,
-                                    data: {error: "2FA required."}
-                                });
-                            }
-
-                            // Verify 2FA.
-                            if (await this.verify_2fa(uid, code) !== true) {
-                                return response.send({
-                                    status: Status.unauthorized,
-                                    data: {
-                                        error: "Invalid 2FA code.",
-                                        invalid_fields: {
-                                            "2fa": "Invalid code",
-                                        },
-                                    }
-                                });
-                            }
-                        }
-                        
-                        // Sign in.
-                        return await this._sign_in_response(response, uid);
-                    }
-
-                    // Unauthorized.
-                    return response.send({
-                        status: Status.unauthorized,
-                        data: {
-                            error: "Unauthorized.",
-                            invalid_fields: {
-                                "username": "Invalid or unrecognized username",
-                                "password": "Invalid or unrecognized password",
-                            },
-                        }
-                    });
-                }
-            },
-        
-            // Sign out.
-            {
-                method: "POST",
-                endpoint: "/vweb/auth/signout",
-                content_type: "application/json",
-                authenticated: true,
-                rate_limit: 100,
-                rate_limit_duration: 60,
-                callback: (request, response) => {
-                    
-                    // Delete token.
-                    this._sys_delete_user_token(request.uid);
-                    
-                    // Create headers.
-                    this._reset_cookies(response);
-                    
-                    // Response.
-                    return response.success({
-                        data: {message: "Successfully signed out."},
-                    })
-                }
-            },
-        
-            // Sign up.
-            {
-                method: "POST",
-                endpoint: "/vweb/auth/signup",
-                content_type: "application/json",
-                rate_limit: 100,
-                rate_limit_duration: 60,
-                params: {
-                    username: "string",
-                    first_name: "string",
-                    last_name: "string",
-                    email: "string",
-                    password: "string",
-                    verify_password: "string",
-                    phone_number: {type: "string", default: ""},
-                },
-                callback: async (request, response, params) => {
-                    
-                    // Verify password.
-                    const error = this._verify_new_pass(params.password, params.verify_password);
-                    if (error) {
-                        return response.error({
-                            status: Status.bad_request,
-                            data: {
-                                error: error,
-                                invalid_fields: {"password": error},
-                            }
-                        });
-                    }
-                    
-                    // Create.
-                    let uid;
-                    try {
-                        uid = await this.create_user(params);
-                    } catch (err) {
-                        return response.error({status: Status.bad_request, data: {
-                            error: err.message,
-                            invalid_fields: err.invalid_fields || {},
-                        }});
-                    }
-                    
-                    // Send 2fa code for activation.
-                    if (this.enable_account_activation) {
-                        await this.send_2fa({uid:uid, request:request});
-                    }
-                    
-                    // Sign in.
-                    return await this._sign_in_response(response, uid);
-                    
-                }
-            },
-        
-            // Activate account.
-            {
-                method: "POST",
-                endpoint: "/vweb/auth/activate",
-                content_type: "application/json",
-                rate_limit: 100,
-                rate_limit_duration: 60,
-                params: {
-                    "2fa": "string",
-                },
-                callback: async (request, response, params) => {
-                    
-                    // Vars.
-                    let uid = request.uid;
-                    
-                    // Get uid by cookie.
-                    if (uid == null) {
-                        const value = request.cookies["UserID"].value;
-                        if (value != null && value != "-1") {
-                            uid = parseInt(value);
-                            if (isNaN(uid)) {
-                                uid = null;
-                            }
-                        }
-                    }
-                    
-                    // Check uid.
-                    if (uid == null) {
-                        return response.error({status: Status.forbidden, data: {error: "Permission denied."}});
-                    }
-
-                    // Verify.
-                    if (await this.verify_2fa(uid, params["2fa"])) {
-                        
-                        // Set activated.
-                        await this.set_activated(uid, true);
-                        
-                        // Response.
-                        await this._create_user_cookie(response, uid);
-                        return response.success({data: {message: "Successfully verified the 2FA code."}});
-                    }
-                    
-                    // Invalid code.
-                    else {
-                        return response.error({status: Status.forbidden, data: {
-                            error: "Permission denied.",
-                            invalid_fields: {
-                                "2fa": "Invalid code"
-                            },
-                        }});
-                    }
-                }
-            },
-        
-            // Forgot password.
-            {
-                method: "POST",
-                endpoint: "/vweb/auth/forgot_password",
-                content_type: "application/json",
-                rate_limit: 100,
-                rate_limit_duration: 60,
-                params: {
-                    email: "string",
-                    "2fa": "string",
-                    password: "string",
-                    verify_password: "string",
-                },
-                callback: async (request, response, params) => {
-                    
-                    // Verify password.
-                    const error = this._verify_new_pass(params.password, params.verify_password);
-                    if (error) {
-                        return response.error({status: Status.bad_request, data: {error: error}});
-                    }
-                    
-                    // Get uid.
-                    let uid;
-                    if ((uid = await this.get_uid_by_email(params.email)) == null) {
-                        return response.error({status: Status.forbidden, data: {error: "Permission denied."},});
-                    }
-                    
-                    // Verify 2fa.
-                    if (await this.verify_2fa(uid, params["2fa"]) !== true) {
-                        return response.error({status: Status.forbidden, data: {
-                            error: "Invalid 2FA code.",
-                            invalid_fields: {
-                                "2fa": "Invalid code"
-                            },
-                        }});
-                    }
-                    
-                    // Set password.
-                    await this.set_password(uid, params.password);
-                    
-                    // Sign in.
-                    return await this._sign_in_response(response, uid);
-                }
-            },
-        )
-        
-        // ---------------------------------------------------------
-        // Default user endpoints.
-
-        this.endpoint(
-        
-            // Get user.
-            {
-                method: "GET",
-                endpoint: "/vweb/user",
-                content_type: "application/json",
-                authenticated: true,
-                rate_limit: 100,
-                rate_limit_duration: 60,
-                params: {
-                    detailed: {type: "boolean", default: false},
-                },
-                callback: async (request, response, params) => {
-                    const user = await this.get_user(request.uid, params.detailed);
-                    return response.success({data: user});
-                }
-            },
-
-            // Set user.
-            {
-                method: "POST",
-                endpoint: "/vweb/user",
-                authenticated: true,
-                rate_limit: 100,
-                rate_limit_duration: 60,
-                callback: async (request, response) => {
-                    await this.set_user(request.uid, request.params);
-                    await this._create_detailed_user_cookie(response, request.uid);
-                    return response.success({data: {message: "Successfully updated your account."}});
-                }
-            },
-        
-            // Change password.
-            {
-                method: "POST",
-                endpoint: "/vweb/user/change_password",
-                authenticated: true,
-                rate_limit: 100,
-                rate_limit_duration: 60,
-                params: {
-                    current_password: "string",
-                    password: "string",
-                    verify_password: "string",
-                },
-                callback: async (request, response, params) => {
-                    
-                    // Verify old password.
-                    if (await this.verify_password(request.uid, params.current_password) !== true) {
-                        return response.error({
-                            status: Status.unauthorized,
-                            data: {error: "Incorrect password."},
-                        });
-                    }
-                    
-                    // Verify new password.
-                    const error = this._verify_new_pass(params.password, params.verify_password);
-                    if (error) {
-                        return response.error({
-                            status: Status.bad_request,
-                            data: {error: error},
-                        });
-                    }
-                    
-                    // Set password.
-                    await this.set_password(request.uid, pass);
-                    
-                    // Success.
-                    return response.success({
-                        status: Status.success,
-                        data: {message: "Successfully updated your password."},
-                    });
-                }
-            },
-
-            // Delete account.
-            {
-                method: "DELETE",
-                endpoint: "/vweb/user",
-                authenticated: true,
-                rate_limit: 100,
-                rate_limit_duration: 60,
-                callback: async (request, response) => {
-                    
-                    // Set password.
-                    await this.delete_user(request.uid);
-                    
-                    // Success.
-                    return response.success({
-                        status: Status.success,
-                        data: {message: "Successfully deleted your account."},
-                    });
-                }
-            },
-        
-            // Generate api key.
-            {
-                method: "POST",
-                endpoint: "/vweb/user/api_key",
-                authenticated: true,
-                rate_limit: 100,
-                rate_limit_duration: 60,
-                callback: async (request, response) => {
-                    return response.success({
-                        data: {
-                            "message": "Successfully generated an API key.",
-                            "api_key": await this.generate_api_key(request.uid),
-                        }
-                    });
-                }
-            },
-        
-            // Revoke api key.
-            {
-                method: "DELETE",
-                endpoint: "/vweb/user/api_key",
-                authenticated: true,
-                rate_limit: 100,
-                rate_limit_duration: 60,
-                callback: async (request, response) => {
-                    await this.revoke_api_key(request.uid);
-                    return response.send({
-                        status: Status.success,
-                        data: {message: "Successfully revoked your API key."},
-                    });
-                }
-            },
-            
-            // Load data.
-            {
-                method: "GET",
-                endpoint: "/vweb/user/data",
-                authenticated: true,
-                rate_limit: 100,
-                rate_limit_duration: 60,
-                params: {
-                    path: "string",
-                    default: {type: "string", default: null},
-                },
-                callback: async (request, response, params) => {
-                    return response.send({
-                        status: Status.success,
-                        data: await this.load_user_data(request.uid, params.path, params.default)
-                    });
-                }
-            },
-        
-            // Save data.
-            {
-                method: "POST",
-                endpoint: "/vweb/user/data",
-                authenticated: true,
-                rate_limit: 100,
-                rate_limit_duration: 60,
-                params: {
-                    path: "string",
-                    data: {type: undefined},
-                },
-                callback: async (request, response, params) => {
-                    await this.save_user_data(request.uid, params.path, params.data);
-                    return response.send({
-                        status: Status.success,
-                        data: {message: "Successfully saved."},
-                    });
-                }
-            },
-
-            // Load proteced data.
-            {
-                method: "GET",
-                endpoint: "/vweb/user/data/protected",
-                authenticated: true,
-                rate_limit: 100,
-                rate_limit_duration: 60,
-                params: {
-                    path: "string",
-                    default: {type: "string", default: null},
-                },
-                callback: async (request, response, params) => {
-                    return response.send({
-                        status: Status.success,
-                        data: await this.load_protected_user_data(request.uid, params.path, params.default)
-                    });
-                }
-            },
-        )
-
-        // ---------------------------------------------------------
-        // Default support endpoints.
-
-        this.endpoint(
-
-            // Get PIN.
-            {
-                method: "GET",
-                endpoint: "/vweb/support/pin",
-                content_type: "application/json",
-                authenticated: true,
-                rate_limit: 100,
-                rate_limit_duration: 60,
-                callback: async (request, response) => {
-
-                    // Sign in.
-                    return response.success({data: {
-                        message: "Successfully retrieved your support PIN.",
-                        pin: await this.get_support_pin(request.uid),
-                    }});
-                }
-            },
-
-            // Support.
-            // Supported params are: `support_pin`, `subject`, `summary`, `detailed`, `attachments`, `recipient` and `type`.
-            {
-                method: "POST",
-                endpoint: "/vweb/support/submit",
-                content_type: "application/json",
-                rate_limit: 100,
-                rate_limit_duration: 60,
-                callback: async (request, response) => {
-                    
-                    // Get params.
-                    let params = request.params;
-
-                    // When unauthenticated get contact params.
-                    let user = null, email, first_name, last_name;
-                    if (request.uid == null) {
-                        try {
-                            email = request.param("email");
-                            first_name = request.param("first_name");
-                            last_name = request.param("last_name");
-                        } catch (err) {
-                            return response.error({status: Status.bad_request, data: {error: err.message}});
-                        }
-                    } else {
-                        this._check_uid_within_range(request.uid);
-                        user = await this.get_user(request.uid);
-                        email = user.email;
-                        first_name = user.first_name;
-                        last_name = user.last_name;
-                    }
-
-                    // Create mail body.
-                    let body = "";
-                    const subject = params.subject || (params.type == null ? "Support" : `Support ${params.type}`);
-                    body += `<h1>${subject}</h1>`;
-                    if (params.subject) {
-                        delete params.subject;
-                    }
-                    if (params.type) {
-                        body += `<span style='font-weight: bold'>Type</span>: ${params.type}<br>`;
-                        delete params.type;
-                    }
-                    if (user) {
-                        body += `<span style='font-weight: bold'>UID</span>: ${request.uid}<br>`;
-                        body += `<span style='font-weight: bold'>User</span>: ${user.username}<br>`;
-                    }
-                    body += `<span style='font-weight: bold'>Email</span>: ${email}<br>`;
-                    body += `<span style='font-weight: bold'>First Name</span>: ${first_name}<br>`;
-                    body += `<span style='font-weight: bold'>Last Name</span>: ${last_name}<br>`;
-                    if (request.uid != null) {
-                        const support_pin = await this.get_support_pin(request.uid);
-                        body += `<span style='font-weight: bold'>Support PIN</span>: ${support_pin} <span style='color: green'>verified</span><br>`;
-                    } else if (params.support_pin) {
-                        body += `<span style='font-weight: bold'>Support PIN</span>: ${params.support_pin} <span style='color: red'>not yet verified</span><br>`;
-                        delete params.support_pin;
-                    } else {
-                        body += `<span style='font-weight: bold'>Support PIN</span>: Unknown<br>`;
-                    }
-                    if (params.summary) {
-                        body += `<br><span style='font-weight: bold'>Summary</span>:<br>${params.summary}<br>`;
-                        delete params.summary;
-                    }
-                    if (params.detailed) {
-                        body += `<br><span style='font-weight: bold'>Detailed</span>:<br>${params.detailed}<br>`;
-                        delete params.detailed;
-                    }
-                    Object.keys(params).iterate((key) => {
-                        if (key !== "attachments" && key !== "recipient") {
-                            body += `<br><span style='font-weight: bold'>${key}</span>: ${params[key]}<br>`;
-                        }
-                    })
-
-                    // Attachments.
-                    body += "<br>";
-                    let attachments = null;
-                    if (params.attachments) {
-                        attachments = [];
-                        Object.keys(params.attachments).iterate((key) => {
-                            attachments.append({
-                                filename: key,
-                                content: Buffer.from(params.attachments[key], 'utf-8'),
-                            })
-                        })
-                    }
-                    
-                    // Send email.
-                    await this.send_mail({
-                        recipients: [params.recipient || this.smtp_sender],
-                        subject: subject,
-                        body: body,
-                        attachments: attachments,
-                    })
-
-                    // Sign in.
-                    return response.success({data: {message: "Successfully sent your request."}});
-                }
-            },
-        )
-        
-        // ---------------------------------------------------------
-        // Payments endpoints.
-
         // Handler.
         return additional_file_watcher_paths;
     }
@@ -2069,7 +972,7 @@ class Server {
                 endpoint.endpoint != "robots.txt" &&
                 !endpoint.authenticated
             ) {
-                sitemap += `<url>\n   <loc>${new vlib.Path(this.full_domain).join(endpoint.endpoint).str()}</loc>\n</url>\n`;
+                sitemap += `<url>\n   <loc>${this.full_domain}/${endpoint.endpoint}</loc>\n</url>\n`;
             }
         })
         sitemap += "</urlset>\n";
@@ -2088,7 +991,7 @@ class Server {
             method: "GET",
             endpoint: "/robots.txt",
             content_type: "text/plain",
-            data: `User-agent: *\nDisallow: \n\nSitemap: /sitemap.xml`,
+            data: `User-agent: *\nDisallow: \n\nSitemap: ${this.full_domain}/sitemap.xml`,
             compress: false,
         }))
     }
@@ -2099,60 +1002,36 @@ class Server {
     // Initialize.
     async _initialize() {
 
-        // Is the file watcher.
-        if (this.file_watcher != null) {
-            await this.file_watcher.promise;
-        }
+        // Start the database.
+        await this.db.initialize();
+
+        // Database collections.
+        this._sys_db = this.db.create_collection("_sys"); // the vweb sys collection.
+
+        // Public collections.
+        this.storage = this.db.create_collection("_storage"); // the sys backend storage collection for the user's server.
 
         // No file watcher.
         const file_watcher_restart = process.argv.includes("--file-watcher-restart");
-
-        // Check & create database.
-        if (file_watcher_restart === false) {
-            if (this.database.exists()) {
-                this.database.mkdir_sync();
-            }
-            [
-                ".sys",
-                ".sys/users",
-                ".sys/tokens",
-                ".sys/usernames",
-                ".sys/emails",
-                ".sys/keys",
-                ".sys/unactivated",
-                ".sys/2fa",
-                ".sys/support_pin",
-                "users",
-            ].iterate((subpath) => {
-                this.database.join(subpath).mkdir_sync();
-            })
-        }
         
         // Load keys.
-        const path = this.database.join(".sys/keys/keys");
-        if (!path.exists()) {
-            this.hash_key = this._sys_generate_crypto_key(32);
-            path.save_sync(JSON.stringify({
+        const keys_document = await this._sys_db.load("keys");
+        if (keys_document == null) {
+            this.hash_key = this._generate_crypto_key(32);
+            await this._sys_db.save("keys", {
                 sha256: this.hash_key,
-            }));
+            });
         } else {
-            const data = JSON.parse(path.load_sync());
-            this.hash_key = data["sha256"];
+            this.hash_key = keys_document.sha256;
             if (this.hash_key === undefined) {
-                this.hash_key = this._sys_generate_crypto_key(32);
-                data["sha256"] = this.hash_key;
-                path.save_sync(JSON.stringify(data));
+                this.hash_key = this._generate_crypto_key(32);
+                keys_document.sha256 = this.hash_key;
+                await this._sys_db.save("keys", keys_document);
             }
         }
-        
-        // Get max user id.
-        this.max_uid = 0;
-        await this._iter_db_dir(".sys/users", (path) => {
-            const uid = parseInt(path.name());
-            if (uid > this.max_uid) {
-                this.max_uid = uid;
-            }
-        });
+
+        // Initialize default headers.
+        this._init_default_headers();
 
         // Create default endpoints.
         this._create_default_endpoints();
@@ -2161,7 +1040,7 @@ class Server {
         this.statics.iterate((path) => {
             this._create_static_endpoints(path.base(), path);
         });
-        
+
         // Create sitemap when it does not exist.
         if (this._find_endpoint("sitemap.xml") == null) {
             this._create_sitemap();
@@ -2170,6 +1049,17 @@ class Server {
         // Create robots.txt when it does not exist.
         if (this._find_endpoint("robots.txt") == null) {
             this._create_robots_txt();
+        }
+
+        // Initialize users.
+        this.users._initialize();
+
+        // Database preview endpoints (only when production mode is disabled).
+        this.db._initialize_db_preview();
+        
+        // Payments.
+        if (this.payments !== undefined) {
+            await this.payments._initialize();
         }
 
         // Set the caching of all endpoints.
@@ -2182,14 +1072,6 @@ class Server {
                 }
             }
         })
-        
-        // Payments.
-        if (this.payments !== undefined) {
-            await this.payments._initialize();
-        }
-
-        // Initialize default headers.
-        this._initialize_default_headers();
 
         // Get the icon and stroke icon file paths when defined.
         this.company.stroke_icon_path = null;
@@ -2214,6 +1096,7 @@ class Server {
 
     // Serve a client.
     // @todo implement rate limiting.
+    // @todo save internal server errors.
     async _serve(request, response) {
         return new Promise(async (resolve) => {
 
@@ -2224,6 +1107,7 @@ class Server {
 
             // Initialize the request and wait till all the data has come in.
             request = new Request(request);
+            response = new Response(response);
             await request.promise;
 
             // Parse the request parameters.
@@ -2238,9 +1122,6 @@ class Server {
                 log_endpoint_result();
                 return resolve();
             }
-
-            // Initialize the response.
-            response = new Response(response);
 
             // Set default headers.
             this._set_header_defaults(response);
@@ -2267,11 +1148,11 @@ class Server {
             // @todo.
 
             // Always perform authentication so the request.uid will also be assigned even when the endpoint is not authenticated.
-            const auth_result = await this._authenticate(request);
+            const auth_result = await this.users._authenticate(request);
 
             // Reset cookies when authentication has failed, so the UserID cookies etc will be reset.
             if (auth_result !== null) {
-                this._reset_cookies(response);
+                this.users._reset_cookies(response);
             }
 
             // When the endpoint is authenticated and the authentication has failed then send the error response.
@@ -2317,7 +1198,7 @@ class Server {
     // Server.
 
     // Start the server.
-	/*  @docs {
+	/*  @docs:
      *  @title: Start
      *  @description:
      *      Start the server.
@@ -2328,7 +1209,9 @@ class Server {
     async start() {
 
         // Inside file watcher process.
-        if (this.https === undefined && this.http === undefined) {
+        // Just hang till file watcher has ended so the user does not have to account for the current process being the file watcher or the actual server that is starting.
+        if (this.file_watcher) {
+            await this.file_watcher.promise;
             return null;
         }
 
@@ -2405,11 +1288,16 @@ class Server {
             process.on('SIGTERM', () => process.exit(0)); // the "this.https.close()" handler does not always get executed when run from vide build system, so use "process.exit()" instead.
             process.on('SIGINT', () => process.exit(0));
 
+            // Send running message.
+            if (process.env.VWEB_FILE_WATCHER === "1") {
+                new vlib.Path(process.env.VWEB_STARTED_FILE).save_sync("1")
+            }
+
         }
     }
 
     // Stop the server and exit the program.
-	/*  @docs {
+	/*  @docs:
      *  @title: Stop
      *  @description:
      *      Stop the server and exit the program by default.
@@ -2438,6 +1326,9 @@ class Server {
 			}
         });
     }
+
+    // ---------------------------------------------------------
+    // Content Security Policy.
 
     // Add a csp.
     /*  @docs:
@@ -2520,18 +1411,22 @@ class Server {
     /*  @docs:
         @title: Add endpoint(s)
         @description: Add one or multiple endpoints.
-        @parameter: {
+        @parameter:
             @name: ...endpoints
             @description:
                 The endpoint parameters.
 
                 An endpoint parameter can either be a `Endpoint` class or an `object` with the `Endpoint` arguments.
             @type: Endpoint, object
-        }
         */
     endpoint(...endpoints) {
         for (let i = 0; i < endpoints.length; i++) {
             let endpoint = endpoints[i];
+
+            // Skip.
+            if (endpoint == null) {
+                continue;
+            }
 
             // Initialize endpoint.
             if (endpoint instanceof Endpoint === false) {
@@ -2557,1276 +1452,13 @@ class Server {
     }
 
     // ---------------------------------------------------------
-    // Users.
-    
-    // Check if a username exists.
-    // Use async to keep it persistent with other functions.
-    /*  @docs:
-     *  @title: Username Exists
-     *  @description: Check if a username exists.
-	 *  @type: boolean
-     *  @return: Returns a boolean indicating whether the username exists or not.
-     *  @parameter:
-     *      @name: username
-     *      @description: The username to check.
-     *      @type: string
-     *  @usage:
-     *      ...
-     *      const exists = await server.username_exists("someusername");
-     */
-    async username_exists(username) {
-        return this.database.join(`.sys/usernames/${username}`, false).exists();
-    }
-    
-    // Check if an email exists.
-    // Use async to keep it persistent with other functions.
-    /*  @docs:
-     *  @title: Email Exists
-     *  @description: Check if a email exists.
-	 *  @type: boolean
-     *  @return: Returns a boolean indicating whether the email exists or not.
-     *  @parameter:
-     *      @name: email
-     *      @description: The email to check.
-     *      @type: string
-     *  @usage:
-     *      ...
-     *      const exists = await server.email_exists("some\@email.com");
-     */
-    async email_exists(email) {
-        return this.database.join(`.sys/emails/${email}`, false).exists();
-    }
-    
-    // Check if a user account is activated.
-    // Use async to keep it persistent with other functions.
-    /*  @docs:
-     *  @title: Is Activated
-     *  @description: Check if a user account is activated.
-     *  @return: Returns a boolean indicating whether the account is activated or not.
-     *  @parameter:
-     *      @name: uid
-     *      @description: The uid of the account to check.
-     *      @type: number
-     *  @usage:
-     *      ...
-     *      const activated = await server.is_activated(0);
-     */
-    async is_activated(uid) {
-        return !this.database.join(`.sys/unactivated/${uid}`, false).exists();
-    }
-    
-    // Set the activated status of a user account is activated.
-    // Use async to keep it persistent with other functions.
-    /*  @docs:
-     *  @title: Set Activated
-     *  @description: Set the activated status of a user account is activated.
-     *  @parameter:
-     *      @name: uid
-     *      @description: The uid of the account.
-     *      @type: number
-     *  @parameter:
-     *      @name: activated
-     *      @description: The boolean with the new activated status.
-     *      @type: boolean
-     *  @usage:
-     *      ...
-     *      await server.set_activated(1, true);
-     */
-    async set_activated(uid, activated) {
-        const path = this.database.join(`.sys/unactivated/${uid}`, false);
-        if (activated == true) {
-            path.del_sync();
-        } else {
-            path.save_sync("");
-        }
-    }
-    
-    // Create user.
-    /*  @docs:
-     *  @title: Create User
-     *  @description: 
-     *      Create a user account.
-     *
-     *      Only the hashed password will be saved.
-     *  @return: Returns the uid of the newly created user.
-     *  @parameter:
-     *      @name: first_name
-     *      @description: The user's first name.
-     *      @type: string
-     *      @required: true
-     *  @parameter:
-     *      @name: last_name
-     *      @description: The user's last name.
-     *      @type: string
-     *      @required: true
-     *  @parameter:
-     *      @name: username
-     *      @description: The username of the new account.
-     *      @type: string
-     *      @required: true
-     *  @parameter:
-     *      @name: email
-     *      @description: The email of the new account.
-     *      @type: string
-     *      @required: true
-     *  @parameter:
-     *      @name: password
-     *      @description: The password of the new account.
-     *      @type: string
-     *      @required: true
-     *  @parameter:
-     *      @name: phone_number
-     *      @description: The phone number of the user account.
-     *      @type: string
-     *  @usage:
-     *      ...
-     *      const uid = await server.create_user({
-     *          first_name: "John", 
-     *          last_name: "Doe", 
-     *          username: "johndoe", 
-     *          email: "johndoe\@email.com",
-     *          password: "HelloWorld!"
-     *      });
-     */
-    async create_user({
-        first_name,
-        last_name,
-        username,
-        email,
-        password,
-        phone_number = "",
-    }) {
-        
-        // Check if username & email already exist.
-        if (await this.username_exists(username)) {
-            const e = new Error(`Username "${username}" is already registered.`);
-            e.invalid_fields = {"username": "Username is already registered"};
-            throw e;
-        }
-        if (await this.email_exists(email)) {
-            const e = new Error(`Email "${email}" is already registered.`);
-            e.invalid_fields = {"email": "Email is already registered"};
-            throw e;
-        }
-        
-        // Get new uid.
-        // @todo check for deleted uids.
-        await this.edit_max_uid_mutex.lock();
-        ++this.max_uid;
-        const uid = this.max_uid;
-        this.edit_max_uid_mutex.unlock();
-        
-        // Save sys data.
-        this._sys_save_user(uid, {
-            first_name: first_name,
-            last_name: last_name,
-            username: username,
-            email: email,
-            password: this._hmac(password),
-            api_key: "",
-            phone_number: phone_number,
-        });
-        this._sys_save_uid_by_username(uid, username);
-        this._sys_save_uid_by_email(uid, email);
-        if (this.enable_account_activation) {
-            await this.set_activated(uid, false);
-        }
-        
-        // Create user dir.
-        this.database.join(`/users/${uid}/`).mkdir_sync();
-        this.database.join(`/users/${uid}/private`).mkdir_sync();
-        this.database.join(`/users/${uid}/protected`).mkdir_sync();
-        this.database.join(`/users/${uid}/public`).mkdir_sync();
-        
-        // Return uid.
-        return uid;
-    }
-    
-    // Delete user.
-    // The file paths should never be deleted.
-    /*  @docs:
-     *  @title: Delete User
-     *  @description: Delete a user account.
-     *  @parameter:
-     *      @name: uid
-     *      @description: The user id of the account to delete.
-     *      @type: number
-     *  @usage:
-     *      ...
-     *      await server.delete_user(0);
-     */
-    async delete_user(uid) {
-        this._check_uid_within_range(uid);
-        this._sys_delete_user(uid);
-    }
-    
-    // Set a user's first name.
-    /*  @docs:
-     *  @title: Set First Name
-     *  @description:
-     *      Set a user's first name
-     *
-     *      If the uid does not exist an `Error` will be thrown.
-     *  @parameter:
-     *      @name: uid
-     *      @description: The user id.
-     *      @type: number
-     *  @parameter:
-     *      @name: first_name
-     *      @description: The new first name.
-     *      @type: string
-     *  @usage:
-     *      ...
-     *      await server.set_first_name(1, "John");
-     */
-    async set_first_name(uid, first_name) {
-        const user = await this.get_user(uid);
-        user.first_name = first_name;
-        this._sys_save_user(uid, user);
-    }
-    
-    // Set a user's last name.
-    /*  @docs:
-     *  @title: Set Last Name
-     *  @description:
-     *      Set a user's last name
-     *
-     *      If the uid does not exist an `Error` will be thrown.
-     *  @parameter:
-     *      @name: uid
-     *      @description: The user id.
-     *      @type: number
-     *  @parameter:
-     *      @name: last_name
-     *      @description: The new last name.
-     *      @type: string
-     *  @usage:
-     *      ...
-     *      await server.set_last_name(1, "Doe");
-     */
-    async set_last_name(uid, last_name) {
-        const user = await this.get_user(uid);
-        user.last_name = last_name;
-        this._sys_save_user(uid, user);
-    }
-    
-    // Set a user's username.
-    /*  @docs:
-     *  @title: Set Username
-     *  @description:
-     *      Set a user's username
-     *
-     *      If the uid does not exist an `Error` will be thrown.
-     *  @parameter:
-     *      @name: uid
-     *      @description: The user id.
-     *      @type: number
-     *  @parameter:
-     *      @name: username
-     *      @description: The new username.
-     *      @type: string
-     *  @usage:
-     *      ...
-     *      await server.set_username(1, "newusername");
-     */
-    async set_username(uid, username) {
-        if (await this.username_exists(username)) {
-            throw Error(`Username "${username}" already exists.`);
-        }
-        const user = await this.get_user(uid);
-        user.username = username;
-        this._sys_save_user(uid, user);
-        this._sys_save_uid_by_username(uid, username);
-    }
-    
-    // Set a user's email.
-    /*  @docs:
-     *  @title: Set Email
-     *  @description:
-     *      Set a user's email
-     *
-     *      If the uid does not exist an `Error` will be thrown.
-     *  @parameter:
-     *      @name: uid
-     *      @description: The user id.
-     *      @type: number
-     *  @parameter:
-     *      @name: email
-     *      @description: The new email.
-     *      @type: string
-     *  @usage:
-     *      ...
-     *      await server.set_email(1, "new\@email.com");
-     */
-    async set_email(uid, email) {
-        if (await this.email_exists(email)) {
-            throw Error(`Email "${email}" already exists.`);
-        }
-        const user = await this.get_user(uid);
-        user.email = email;
-        this._sys_save_user(uid, user);
-        this._sys_save_uid_by_email(uid, email);
-    }
-    
-    // Set a user's password.
-    /*  @docs:
-     *  @title: Set Password
-     *  @description:
-     *      Set a user's password
-     *
-     *      If the uid does not exist an `Error` will be thrown.
-     *  @parameter:
-     *      @name: uid
-     *      @description: The user id.
-     *      @type: number
-     *  @parameter:
-     *      @name: password
-     *      @description: The new password.
-     *      @type: string
-     *  @usage:
-     *      ...
-     *      await server.set_password(1, "XXXXXX");
-     */
-    async set_password(uid, password) {
-        const user = await this.get_user(uid);
-        user.password = this._hmac(password);
-        this._sys_save_user(uid, user);
-    }
-    
-    // Set a user's data.
-    /*  @docs:
-     *  @title: Set user
-     *  @description:
-     *      Set a user's data
-     *
-     *      When a key does not exist in the new user object it will not be set.
-     *
-     *      Does not update the user's id, key and password data.
-     *      If the uid does not exist an `Error` will be thrown.
-     *
-     *      The user object may include additional data which will be saved as the user's detailed data.
-     *  @parameter:
-     *      @name: uid
-     *      @description: The user id.
-     *      @type: number
-     *  @parameter:
-     *      @name: user
-     *      @description: The new user object.
-     *      @type: object
-     *  @parameter:
-     *      @name: user
-     *      @description: The new user object.
-     *      @type: object
-     *  @usage:
-     *      ...
-     *      await server.set_user(1, {first_name: "John", last_name: "Doe"});
-     */
-    async set_user(uid, user) {
-        const current_user = await this.get_user(uid);
-        let old_username = null, old_email = null;
-        
-        // First name.
-        if (user.first_name != null && user.first_name != current_user.first_name) {
-            current_user.first_name = user.first_name;
-        }
-        
-        // Last name.
-        if (user.last_name != null && user.last_name != current_user.last_name) {
-            current_user.last_name = user.last_name;
-        }
-        
-        // Username.
-        if (user.username != null && user.username != current_user.username) {
-            if (await this.username_exists(user.username)) {
-                throw Error(`Username "${user.username}" already exists.`);
-            }
-            old_username = current_user.username;
-            current_user.username = user.username;
-        }
-        
-        // Email.
-        if (user.email != null && user.email != current_user.email) {
-            if (await this.email_exists(user.email)) {
-                throw Error(`Email "${user.email}" already exists.`);
-            }
-            old_email = current_user.email;
-            current_user.email = user.email;
-        }
-        
-        // Save.
-        this._sys_save_user(uid, current_user);
-        if (old_username !== null) {
-            this._sys_save_uid_by_username(uid, current_user.username);
-            this._sys_delete_uid_by_username(uid, old_username);
-        }
-        if (old_email !== null) {
-            this._sys_save_uid_by_email(uid, current_user.email);
-            this._sys_delete_uid_by_email(uid, old_email);
-        }
+    // Functions.
 
-        // Check if the item contains more than default data.
-        const keys = Object.keys(current_user);
-        if (keys.length > 8) {
-            const detailed = {};
-            for (let k = 0; k < keys.length; k++) {
-                switch (keys[k]) {
-                    case "uid":
-                    case "first_name":
-                    case "last_name":
-                    case "username":
-                    case "email":
-                    case "password":
-                    case "api_key":
-                    case "phone_number":
-                        break;
-                    default:
-                        detailed[keys[k]] = current_user[keys[k]];
-                        break;
-                }
-            }
-            this._sys_save_detailed_user(uid, detailed);
-        }
-    }
-    
-    // Get uid by username.
-    // Use async to keep it persistent with other functions.
-    /*  @docs:
-     *  @title: Get UID
-     *  @description: Get a uid by username.
-     *  @return:
-     *      Returns the uid of the username.
-     *
-     *      If the user does not exist `null` is returned.
-     *  @parameter:
-     *      @name: username
-     *      @description: The username of the uid to fetch.
-     *      @type: string
-     *  @usage:
-     *      ...
-     *      let uid;
-     *      if ((uid = await server.get_uid("myusername")) !== null) { ... }
-     */
-    async get_uid(username) {
-        if (username == null || username === "") {
-            return null;
-        }
-        const path = this.database.join(`.sys/usernames/${username}`, false);
-        if (path.exists()) {
-            const uid = parseInt(path.load_sync());
-            if (isNaN(uid)) {
-                return null;
-            }
-            return uid;
-        }
-        return null;
-    }
-    
-    // Get uid by email.
-    // Use async to keep it persistent with other functions.
-    /*  @docs:
-     *  @title: Get UID By Email
-     *  @description: Get a uid by email.
-     *  @return:
-     *      Returns the uid of the email.
-     *
-     *      If the user does not exist `null` is returned.
-     *  @parameter:
-     *      @name: email
-     *      @description: The email of the uid to fetch.
-     *      @type: string
-     *  @usage:
-     *      ...
-     *      let uid;
-     *      if ((uid = await server.get_uid_by_email("my\@email.com")) !== null) { ... }
-     */
-    async get_uid_by_email(email) {
-        if (email == null || email === "") {
-            return null;
-        }
-        const path = this.database.join(`.sys/emails/${email}`, false);
-        if (path.exists()) {
-            const uid = parseInt(path.load_sync());
-            if (isNaN(uid)) {
-                return null;
-            }
-            return uid;
-        }
-        return null;
-    }
-    
-    // Get uid by api key.
-    // Use async to keep it persistent with other functions.
-    /*  @docs:
-     *  @title: Get UID By API Key
-     *  @description: Get a uid by API key.
-     *  @return:
-     *      Returns the uid of the api key.
-     *
-     *      If the user does not exist `null` is returned.
-     *  @parameter:
-     *      @name: api_key
-     *      @description: The API key of the uid to fetch.
-     *      @type: string
-     *  @usage:
-     *      ...
-     *      let uid;
-     *      if ((uid = await server.get_uid_by_api_key("XXXXXXXXXX")) !== null) { ... }
-     */
-    async get_uid_by_api_key(api_key) {
-        let pos;
-        if ((pos = api_key.indexOf(':')) != -1) {
-            const uid = parseInt(api_key.substr(1, pos - 1));
-            if (isNaN(uid)) {
-                return null;
-            }
-            return uid;
-        }
-        return null;
-    }
-    
-    // Get uid by token.
-    // Use async to keep it persistent with other functions.
-    /*  @docs:
-     *  @title: Get UID By Token
-     *  @description: Get a uid by token.
-     *  @return:
-     *      Returns the uid of the token.
-     *
-     *      If the user does not exist `null` is returned.
-     *  @parameter:
-     *      @name: token
-     *      @description: The token of the uid to fetch.
-     *      @type: string
-     *  @usage:
-     *      ...
-     *      let uid;
-     *      if ((uid = await server.get_uid_by_token("XXXXXXXXXX")) !== null) { ... }
-     */
-    async get_uid_by_token(token) {
-        return await this.get_uid_by_api_key(token);
-    }
-    
-    // Get user info by uid.
-    // Use async to keep it persistent with other functions.
-    /*  @docs:
-     *  @title: Get User
-     *  @description:
-     *      Get a user by uid.
-     *
-     *      If the uid does not exist an `Error` will be thrown.
-     *  @return:
-     *      Returns a User object.
-     *  @parameter:
-     *      @name: uid
-     *      @description: The uid of the user to fetch.
-     *      @type: number
-     *  @parameter:
-     *      @name: detailed
-     *      @description: Also retrieve the detailed user data.
-     *      @type: boolean
-     *  @usage:
-     *      ...
-     *      const user = await server.get_user(0);
-     */
-    async get_user(uid, detailed = false) {
-        this._check_uid_within_range(uid);
-        let data = this._sys_load_user(uid);
-        if (detailed) {
-            data = {...this._sys_load_detailed_user(uid), ...data};
-        }
-        return data;
-    }
-    
-    // Get user info by username.
-    // Use async to keep it persistent with other functions.
-    /*  @docs:
-     *  @title: Get User By Username
-     *  @description:
-     *      Get a user by username.
-     *
-     *      If the username does not exist an `Error` will be thrown.
-     *  @return:
-     *      Returns a User object.
-     *  @parameter:
-     *      @name: username
-     *      @description: The username of the user to fetch.
-     *      @type: string
-     *  @usage:
-     *      ...
-     *      const user = await server.get_user_by_username("myusername");
-     */
-    async get_user_by_username(username) {
-        const uid = await this.get_uid(username);
-        if (uid === null) {
-            throw Error(`No user with username "${username}" exists.`);
-        }
-        return await this.get_user(uid);
-    }
-    
-    // Get user info by email.
-    // Use async to keep it persistent with other functions.
-    /*  @docs:
-     *  @title: Get User By Email
-     *  @description:
-     *      Get a user by email.
-     *
-     *      If the email does not exist an `Error` will be thrown.
-     *  @return:
-     *      Returns a User object.
-     *  @parameter:
-     *      @name: email
-     *      @description: The email of the user to fetch.
-     *      @type: string
-     *  @usage:
-     *      ...
-     *      const user = await server.get_user_by_email("my\@email.com");
-     */
-    async get_user_by_email(email) {
-        const uid = await this.get_uid_by_email(email);
-        if (uid === null) {
-            throw Error(`No user with email "${email}" exists.`);
-        }
-        return await this.get_user(uid);
-    }
-    
-    // Get user info by api key.
-    // Use async to keep it persistent with other functions.
-    /*  @docs:
-     *  @title: Get User By API Key
-     *  @description:
-     *      Get a user by API key.
-     *
-     *      If the API key does not exist an `Error` will be thrown.
-     *  @return:
-     *      Returns a User object.
-     *  @parameter:
-     *      @name: api_key
-     *      @description: The API key of the user to fetch.
-     *      @type: string
-     *  @usage:
-     *      ...
-     *      const user = await server.get_user_by_api_key("XXXXXX");
-     */
-    async get_user_by_api_key(api_key) {
-        const uid = await this.get_uid_by_api_key(api_key);
-        if (uid === null) {
-            throw Error(`No user with api key "${api_key}" exists.`);
-        }
-        return await this.get_user(uid);
-    }
-
-    // Get a user's support pin by uid.
-    // Use async to keep it persistent with other functions.
-    /*  @docs:
-     *  @title: Get Support PIN
-     *  @description:
-     *      Get a user's support pin by uid.
-     *  @return:
-     *      Returns a User object.
-     *  @parameter:
-     *      @name: uid
-     *      @description: The uid of the user.
-     *      @type: number
-     *  @usage:
-     *      ...
-     *      const pin = await server.get_support_pin(1);
-     */
-    async get_support_pin(uid) {
-        this._check_uid_within_range(uid);
-        const path = this.database.join(`.sys/support_pin/${uid}`, false);
-        if (path.exists()) {
-            return path.load_sync();
-        } else {
-            const pin = this._sys_generate_2fa();
-            path.save_sync(pin)
-            return pin;
-        }
-        return await this.get_user(uid);
-    }
-    
-    // Get user info by token.
-    // Use async to keep it persistent with other functions.
-    /*  @docs:
-     *  @title: Get User By Token
-     *  @description:
-     *      Get a user by token.
-     *
-     *      If the token does not exist an `Error` will be thrown.
-     *  @return:
-     *      Returns a User object.
-     *  @parameter:
-     *      @name: token
-     *      @description: The token of the user to fetch.
-     *      @type: string
-     *  @usage:
-     *      ...
-     *      const user = await server.get_user_by_token("XXXXXX");
-     */
-    async get_user_by_token(token) {
-        const uid = await this.get_uid_by_token(token);
-        if (uid === null) {
-            throw Error(`No user with token "${token}" exists.`);
-        }
-        return await this.get_user(uid);
-    }
-    
-    // Load user data.
-    // Use async to keep it persistent with other functions.
-    /*  @docs:
-     *  @title: Load Public User Data
-     *  @description:
-     *      Load public user data by subpath.
-     *
-     *      The subpath resides in the user's protected data directory.
-     *  @warning: The authenticated user always has read and write access to all data inside the user's protected directory through the backend rest api. Any other users or unauthenticated users do not have access to this data.
-     *  @return:
-     *      Returns the loaded data.
-     *
-     *      Returns the `def` parameter when the data does not exist, keep in mind that when parameter `def` is an object it could be a reference to a defined variable.
-     *  @parameter:
-     *      @name: uid
-     *      @description: The uid of the user.
-     *      @type: number
-     *  @parameter:
-     *      @name: subpath
-     *      @description: The subpath to the file.
-     *      @type: string
-     *  @parameter:
-     *      @name: def
-     *      @description:
-     *          The default data to be returned when the data does not exist. When the data does exist the data will parsed into the type of the `def` parameter.
-     *
-     *          When the type of parameter `def` is `object` then the keys that do not exist in the loaded object, but do exist in the default object will be inserted into the loaded object.
-     *      @type: boolean, number, string, array, object.
-     *  @usage:
-     *      ...
-     *      const data = await server.load_user_data(1, "mydata", {});
-     */
-    async load_user_data(uid, subpath, def = null) {
-        return this._sys_load_user_data(uid, subpath, def, "public");
-    }
-    
-    // Save user data.
-    // Use async to keep it persistent with other functions.
-    /*  @docs:
-     *  @title: Load Public User Data
-     *  @description:
-     *      Save user data by subpath.
-     *
-     *      The subpath resides in the user's protected data directory.
-     *  @warning: The authenticated user always has read and write access to all data inside the user's protected directory through the backend rest api. Any other users or unauthenticated users do not have access to this data.
-     *  @parameter:
-     *      @name: uid
-     *      @description: The uid of the user.
-     *      @type: number
-     *  @parameter:
-     *      @name: subpath
-     *      @description: The subpath to the file.
-     *      @type: string
-     *  @parameter:
-     *      @name: data
-     *      @description: The data to save.
-     *      @type: string, array, object
-     *  @usage:
-     *      ...
-     *      await server.save_user_data(1, "mydata", {"Hello": "World!"});
-     *      await server.save_user_data(1, "mystring", "Hello World!");
-     */
-    async save_user_data(uid, subpath, data) {
-
-        // Initialize path.
-        const path = this._sys_save_user_data(uid, subpath, "public");
-
-        // Save casted data.
-        if (data == null || typeof data === "string") {
-            path.save_sync(data);
-        } else if (typeof data === "boolean" || typeof data === "number") {
-            path.save_sync(data.toString());
-        } else if (Array.isArray(data) || typeof data === "object") {
-            path.save_sync(JSON.stringify(data));
-        } else {
-            throw Error(`Invalid data type "${type}", the valid options are ["boolean", "number", "string", "array", "object"].`);
-        }
-    }
-
-    // Load user data.
-    // Use async to keep it persistent with other functions.
-    /*  @docs:
-     *  @title: Load Protected User
-     *  @description:
-     *      Load protected user data by subpath.
-     *
-     *      The subpath resides in the user's protected data directory.
-     *  @warning: The authenticated user always has read access to all data inside the user's protected directory through the backend rest api. Any other users or unauthenticated users do not have access to this data.
-     *  @return:
-     *      Returns the loaded data.
-     *
-     *      Returns the `def` parameter when the data does not exist, keep in mind that when parameter `def` is an object it could be a reference to a defined variable.
-     *  @parameter:
-     *      @name: uid
-     *      @description: The uid of the user.
-     *      @type: number
-     *  @parameter:
-     *      @name: subpath
-     *      @description: The subpath to the file.
-     *      @type: string
-     *  @parameter:
-     *      @name: def
-     *      @description:
-     *          The default data to be returned when the data does not exist. When the data does exist the data will parsed into the type of the `def` parameter.
-     *
-     *          When the type of parameter `def` is `object` then the keys that do not exist in the loaded object, but do exist in the default object will be inserted into the loaded object.
-     *      @type: boolean, number, string, array, object.
-     *  @usage:
-     *      ...
-     *      const data = await server.load_protected_user_data(1, "mydata", {});
-     */
-    async load_protected_user_data(uid, subpath, def = null) {
-        return this._sys_load_user_data(uid, subpath, def, "protected");
-    }
-    
-    // Save user data.
-    // Use async to keep it persistent with other functions.
-    /*  @docs:
-     *  @title: Save Proteced User Data
-     *  @description:
-     *      Save protected user data by subpath.
-     *
-     *      The subpath resides in the user's protected data directory.
-     *  @warning: The authenticated user always has read access to all data inside the user's protected directory through the backend rest api. Any other users or unauthenticated users do not have access to this data.
-     *  @parameter:
-     *      @name: uid
-     *      @description: The uid of the user.
-     *      @type: number
-     *  @parameter:
-     *      @name: subpath
-     *      @description: The subpath to the file.
-     *      @type: string
-     *  @parameter:
-     *      @name: data
-     *      @description: The data to save.
-     *      @type: string, array, object
-     *  @usage:
-     *      ...
-     *      await server.save_protected_user_data(1, "mydata", {"Hello": "World!"});
-     *      await server.save_protected_user_data(1, "mystring", "Hello World!");
-     */
-    async save_protected_user_data(uid, subpath, data) {
-
-        // Initialize path.
-        const path = this._sys_save_user_data(uid, subpath, "protected");
-
-        // Save casted data.
-        if (data == null || typeof data === "string") {
-            path.save_sync(data);
-        } else if (typeof data === "boolean" || typeof data === "number") {
-            path.save_sync(data.toString());
-        } else if (Array.isArray(data) || typeof data === "object") {
-            path.save_sync(JSON.stringify(data));
-        } else {
-            throw Error(`Invalid data type "${type}", the valid options are ["boolean", "number", "string", "array", "object"].`);
-        }
-    }
-
-    // Load user data.
-    // Use async to keep it persistent with other functions.
-    /*  @docs:
-     *  @title: Load Private User Data
-     *  @description:
-     *      Load private user data by subpath.
-     *
-     *      The subpath resides in the user's private data directory.
-     *
-     *      The user has no read or write access to the private directory.
-     *  @return:
-     *      Returns the loaded data.
-     *
-     *      Returns the `def` parameter when the data does not exist, keep in mind that when parameter `def` is an object it could be a reference to a defined variable.
-     *  @parameter:
-     *      @name: uid
-     *      @description: The uid of the user.
-     *      @type: number
-     *  @parameter:
-     *      @name: subpath
-     *      @description: The subpath to the file.
-     *      @type: string
-     *  @parameter:
-     *      @name: def
-     *      @description:
-     *          The default data to be returned when the data does not exist. When the data does exist the data will parsed into the type of the `def` parameter.
-     *
-     *          When the type of parameter `def` is `object` then the keys that do not exist in the loaded object, but do exist in the default object will be inserted into the loaded object.
-     *      @type: boolean, number, string, array, object.
-     *  @usage:
-     *      ...
-     *      const data = await server.load_private_user_data(1, "mydata", {});
-     */
-    async load_private_user_data(uid, subpath, def = null) {
-        return this._sys_load_user_data(uid, subpath, def, "private");
-    }
-    
-    // Save user data.
-    // Use async to keep it persistent with other functions.
-    /*  @docs:
-     *  @title: Save Private User Data
-     *  @description:
-     *      Save private user data by subpath.
-     *
-     *      The subpath resides in the user's private data directory.
-     *
-     *      The user has no read or write access to the private directory.
-     *  @parameter:
-     *      @name: uid
-     *      @description: The uid of the user.
-     *      @type: number
-     *  @parameter:
-     *      @name: subpath
-     *      @description: The subpath to the file.
-     *      @type: string
-     *  @parameter:
-     *      @name: data
-     *      @description: The data to save.
-     *      @type: string, array, object
-     *  @usage:
-     *      ...
-     *      await server.save_private_user_data(1, "mydata", {"Hello": "World!"});
-     *      await server.save_private_user_data(1, "mystring", "Hello World!");
-     */
-    async save_private_user_data(uid, subpath, data) {
-
-        // Initialize path.
-        const path = this._sys_save_user_data(uid, subpath, "private");
-
-        // Save casted data.
-        if (data == null || typeof data === "string") {
-            path.save_sync(data);
-        } else if (typeof data === "boolean" || typeof data === "number") {
-            path.save_sync(data.toString());
-        } else if (Array.isArray(data) || typeof data === "object") {
-            path.save_sync(JSON.stringify(data));
-        } else {
-            throw Error(`Invalid data type "${type}", the valid options are ["boolean", "number", "string", "array", "object"].`);
-        }
-    }
-
-    // Load system data.
-    // Use async to keep it persistent with other functions.
-    /*  @docs:
-     *  @title: Load System Data
-     *  @description:
-     *      Load system data by subpath.
-     *
-     *      The subpath resides in the `{{database}}/sys/` directory.
-     *  @warning: The authenticated user always has read and write access to all data inside the user's protected directory through the backend rest api. Any other users or unauthenticated users do not have access to this data.
-     *  @return:
-     *      Returns the loaded data.
-     *
-     *      Returns the `def` parameter when the data does not exist, keep in mind that when parameter `def` is an object it could be a reference to a defined variable.
-     *  @parameter:
-     *      @name: subpath
-     *      @description: The subpath to the file.
-     *      @type: string
-     *  @parameter:
-     *      @name: def
-     *      @description:
-     *          The default data to be returned when the data does not exist. When the data does exist the data will parsed into the type of the `def` parameter.
-     *
-     *          When the type of parameter `def` is `object` then the keys that do not exist in the loaded object, but do exist in the default object will be inserted into the loaded object.
-     *      @type: boolean, number, string, array, object.
-     *  @usage:
-     *      ...
-     *      const data = await server.load_sys_data("mydata", {});
-     */
-    async load_sys_data(subpath, def = null) {
-        return this._sys_load_sys_data(subpath, def);
-    }
-    
-    // Save system data.
-    // Use async to keep it persistent with other functions.
-    /*  @docs:
-     *  @title: Load System Data
-     *  @description:
-     *      Save system data by subpath.
-     *
-     *      The subpath resides in the `{{database}}/sys/` directory.
-     *  @parameter:
-     *      @name: subpath
-     *      @description: The subpath to the file.
-     *      @type: string
-     *  @parameter:
-     *      @name: data
-     *      @description: The data to save.
-     *      @type: string, array, object
-     *  @usage:
-     *      ...
-     *      await server.save_sys_data("mydata", {"Hello": "World!"});
-     *      await server.save_sys_data("mystring", "Hello World!");
-     */
-    async save_sys_data(subpath, data) {
-
-        // Initialize path.
-        const path = this.database.join(`sys/${subpath}`, false);
-        const base = path.base();
-        if (base.exists() === false) {
-            base.mkdir_sync();
-        }
-
-        // Save casted data.
-        if (data == null || typeof data === "string") {
-            path.save_sync(data);
-        } else if (typeof data === "boolean" || typeof data === "number") {
-            path.save_sync(data.toString());
-        } else if (Array.isArray(data) || typeof data === "object") {
-            path.save_sync(JSON.stringify(data));
-        } else {
-            throw Error(`Invalid data type "${type}", the valid options are ["boolean", "number", "string", "array", "object"].`);
-        }
-    }
-    
-    // Generate an api key by uid.
-    // Use async to keep it persistent with other functions.
-    /*  @docs:
-     *  @title: Generate API Key
-     *  @description:
-     *      Generate an API key for a user.
-     *
-     *      Generating an API key overwrites all existing API keys.
-     *
-     *      If the uid does not exist an `Error` will be thrown.
-     *  @return:
-     *      Returns the API key string.
-     *  @parameter:
-     *      @name: uid
-     *      @description: The uid of the account to generate an API key for.
-     *      @type: number
-     *  @usage:
-     *      ...
-     *      const api_key = await server.generate_api_key(0);
-     */
-    async generate_api_key(uid) {
-        this._check_uid_within_range(uid);
-        const api_key = `0${uid}:${this._sys_generate_key()}`;
-        const user = this._sys_load_user(uid);
-        user.api_key = this._hmac(api_key);
-        this._sys_save_user(uid, user);
-        return api_key;
-    }
-    
-    // Revoke the API key of a user.
-    // Use async to keep it persistent with other functions.
-    /*  @docs:
-     *  @title: Revoke API Key
-     *  @description:
-     *      Revoke the API key of a user.
-     *
-     *      If the uid does not exist an `Error` will be thrown.
-     *  @parameter:
-     *      @name: uid
-     *      @description: The uid of the account to revoke the API key for.
-     *      @type: number
-     *  @usage:
-     *      ...
-     *      await server.revoke_api_key(0);
-     */
-    async revoke_api_key(uid) {
-        this._check_uid_within_range(uid);
-        const user = this._sys_load_user(uid);
-        user.api_key = "";
-        this._sys_save_user(uid, user);
-    }
-    
-    // Verify a plaintext password.
-    // Use async to keep it persistent with other functions.
-    /*  @docs:
-     *  @title: Verify Password
-     *  @description:
-     *      Verify a plaintext password.
-     *
-     *      If the uid does not exist an `Error` will be thrown.
-     *  @return:
-     *      Returns a boolean indicating whether the verification was successful.
-     *  @parameter:
-     *      @name: uid
-     *      @description: The uid of the account to verify.
-     *      @type: number
-     *  @parameter:
-     *      @name: password
-     *      @description: The plaintext password.
-     *      @type: string
-     *  @usage:
-     *      ...
-     *      const success = await server.verify_password(1, "XXXXXX");
-     */
-    async verify_password(uid, password) {
-        if (uid === null) {
-            return false;
-        }
-        try {
-            this._check_uid_within_range(uid);
-        } catch (err) {
-            return false;
-        }
-        const user = this._sys_load_user(uid);
-        return user.uid !== null && user.password === this._hmac(password);
-    }
-    
-    // Verify a plaintext api key.
-    // Use async to keep it persistent with other functions.
-    /*  @docs:
-     *  @title: Verify API Key
-     *  @description:
-     *      Verify an plaintext API key.
-     *
-     *      If the uid does not exist an `Error` will be thrown.
-     *  @return:
-     *      Returns a boolean indicating whether the verification was successful.
-     *  @parameter:
-     *      @name: api_key
-     *      @description: The api key to verify.
-     *      @type: string
-     *  @usage:
-     *      ...
-     *      const success = await server.verify_api_key("XXXXXX");
-     */
-    async verify_api_key(api_key) {
-        return await this.verify_api_key_by_uid(await this.get_uid_by_api_key(api_key), api_key);
-    }
-
-    // Verify a plaintext api key by uid.
-    // Use async to keep it persistent with other functions.
-    /*  @docs:
-     *  @title: Verify API Key By UID
-     *  @description:
-     *      Verify an plaintext API key by uid.
-     *
-     *      If the uid does not exist an `Error` will be thrown.
-     *  @return:
-     *      Returns a boolean indicating whether the verification was successful.
-     *  @parameter:
-     *      @name: uid
-     *      @description: The uid of the api key to verify.
-     *      @type: number
-     *  @parameter:
-     *      @name: api_key
-     *      @description: The api key to verify.
-     *      @type: string
-     *  @usage:
-     *      ...
-     *      const success = await server.verify_api_key_by_uid(1, "XXXXXX");
-     */
-    async verify_api_key_by_uid(uid, api_key) {
-        if (uid == null) {
-            return false;
-        }
-        try {
-            this._check_uid_within_range(uid);
-        } catch (err) {
-            return false;
-        }
-        const user = this._sys_load_user(uid);
-        return user.uid !== null && user.api_key.length > 0 && user.api_key == this._hmac(api_key);
-    }
-    
-    // Verify a token.
-    // Use async to keep it persistent with other functions.
-    /*  @docs:
-     *  @title: Verify Token
-     *  @description:
-     *      Verify an plaintext token.
-     *
-     *      If the uid does not exist an `Error` will be thrown.
-     *  @return:
-     *      Returns a boolean indicating whether the verification was successful.
-     *  @parameter:
-     *      @name: api_key
-     *      @description: The token to verify.
-     *      @type: string
-     *  @usage:
-     *      ...
-     *      const success = await server.verify_token("XXXXXX");
-     */
-    async verify_token(token) {
-        return await this.verify_token_by_uid(await this.get_uid_by_api_key(token), token);
-    }
-
-    // Verify a token by uid.
-    // Use async to keep it persistent with other functions.
-    /*  @docs:
-     *  @title: Verify Token By UID.
-     *  @description:
-     *      Verify an plaintext token by uid.
-     *
-     *      If the uid does not exist an `Error` will be thrown.
-     *  @return:
-     *      Returns a boolean indicating whether the verification was successful.
-     *  @parameter:
-     *      @name: uid
-     *      @description: The uid of the token to verify.
-     *      @type: number
-     *  @parameter:
-     *      @name: api_key
-     *      @description: The token to verify.
-     *      @type: string
-     *  @usage:
-     *      ...
-     *      const success = await server.verify_token_by_uid(1, "XXXXXX");
-     */
-    async verify_token_by_uid(uid, token) {
-        if (uid == null) {
-            return false;
-        }
-        try {
-            this._check_uid_within_range(uid);
-        } catch (err) {
-            return false;
-        }
-        const correct_token = this._sys_load_user_token(uid);
-        return correct_token.token != null && Date.now() < correct_token.expiration && correct_token.token == this._hmac(token);
-    }
-
-    // Verify a 2fa code.
-    // Use async to keep it persistent with other functions.
-    /*  @docs:
-     *  @title: Verify 2FA Code
-     *  @description:
-     *      Verify a 2FA code by user id.
-     *  @parameter:
-     *      @name: uid
-     *      @description: The user id.
-     *      @type: number
-     *  @parameter:
-     *      @name: code
-     *      @description: The 2FA code.
-     *      @type: string
-     *  @return: Returns a boolean indicating whether the verification was successful or not.
-     *  @usage:
-     *      ...
-     *      await server.verify_2fa(1, "123456");
-     */
-    async verify_2fa(uid, code) {
-        try {
-            this._check_uid_within_range(uid);
-        } catch (err) {
-            return false;
-        }
-        const auth = this._sys_load_user_2fa(uid);
-        const now = Date.now();
-        const status = auth.code != null && now < auth.expiration && auth.code == code;
-        if (status || now > auth.expiration) {
-            this._sys_delete_user_2fa(uid);
-        }
-        return status;
-    }
-    
     // Send a mail.
     /*  @docs:
      *  @title: Send Mail
-     *  @description:
-     *      Send one or multiple mails.
-     *
-     *      Make sure the domain's DNS records SPF and DKIM are properly configured when sending attachments.
-     *
-     *      See `vlib::smtp::Client` and `vlib::smtp::Mail` for more info.
+     *  @description: Send one or multiple mails.
+     *  @note: Make sure the domain's DNS records SPF and DKIM are properly configured when sending attachments.
      *  @return:
      *      Returns a promise that will be resolved or rejected when the mail has been sent.
      *  @parameter:
@@ -3888,14 +1520,13 @@ class Server {
         }
 
         // Check args.
-        if (sender === null) {
+        if (sender == null) {
             sender = this.smtp_sender;
-            // return new Error(`Parameter "sender" should be a defined value of type "string" or "array".`);
         }
         if (recipients.length === 0) {
             return new Error(`The mail has no recipients.`);
         }
-        if (sender === null) {
+        if (sender == null) {
             return new Error(`Parameter "sender" should be a defined value of type "string" or "array".`);
         }
 
@@ -3945,104 +1576,6 @@ class Server {
         } catch (error) {
             throw new Error(error.message); // to keep readable stacktrace.
         }
-            // try {
-            //     this.smtp.sendMail(
-            //         {
-            //             from: format_address(sender),
-            //             to: to,
-            //             subject: subject,
-            //             html: body,
-            //             attachments: attachments,
-            //         },
-            //         (error, info) => {
-            //             if (error) {
-            //                 reject(new Error(error.message)); // to keep readable stacktrace.
-            //             } else {
-            //                 resolve(info);
-            //             }
-            //         }
-            //     )
-            // } catch (error) {
-            //     reject(new Error(error.message)); // to keep readable stacktrace.
-            // }
-
-        // })
-    }
-    
-    // Send a 2fa code.
-    /*  @docs:
-     *  @title: Send 2FA Code
-     *  @description:
-     *      Send a 2FA code to a user by user id.
-     *
-     *      By default the 2FA code will be valid for 5 minutes.
-     *
-     *      The mail body will be generated using the `on_2fa_mail({code, username, email, date, ip, device})` callback. When the callback is not defined an error will be thrown.
-     *  @return:
-     *      Returns a promise that will be resolved or rejected when the 2fa mail has been sent.
-     *  @parameter:
-     *      @name: uid
-     *      @description: The user id.
-     *      @type: number
-     *  @parameter:
-     *      @name: request
-     *      @description: The request object from the client request.
-     *      @type: object
-     *  @parameter:
-     *      @name: expiration
-     *      @description: The amount of seconds in which the code will expire.
-     *      @type: number
-     *  @usage:
-     *      ...
-     *      await server.send_2fa({uid: 0, request: request});
-     */
-    async send_2fa({
-        uid, 
-        request,
-        expiration = 300,
-        _device = null,
-    }) {
-        this._check_uid_within_range(uid);
-        
-        // Generate 2fa.
-        const auth = {
-            expiration: Date.now() + expiration * 1000,
-            code: this._sys_generate_2fa(),
-        };
-        this._sys_save_user_2fa(uid, auth);
-        
-        // Get user email.
-        const user = await this.get_user(uid);
-        
-        // Get device.
-        let device;
-        if (_device === null) {
-            device = request.headers["user-agent"];
-        }
-        
-        // Replace body.
-        if (this.on_2fa_mail === undefined) {
-            throw Error("Define server callback \"on_2fa_mail\" to generate the HTML mail body.");
-        }
-        let body = this.on_2fa_mail({
-            code: auth.code,
-            username: user.username,
-            email: user.email,
-            date: new Date().toUTCString(),
-            ip: request.ip,
-            device: device ? device : "Unknown",
-        });
-        if (body instanceof Mail.MailElement) {
-            body = body.html();
-        }
-        
-        // Send mail.
-        return await this.send_mail({
-            sender: this.smtp_sender,
-            recipients: [user.email],
-            subject: "Two Factor Authentication Code",
-            body: body,
-        });   
     }
 
     // ---------------------------------------------------------
@@ -4094,12 +1627,12 @@ class Server {
         let header;
         if (this.company.stroke_icon != null) {
             header = [
-                Image(`${this.full_domain}${this.company.stroke_icon}`)
+                Image(`${this.full_domain}/${this.company.stroke_icon}`)
                     .height(16),
             ]
         } else if (this.company.icon != null) {
             header = [
-                Image(`${this.full_domain}${this.company.icon}`)
+                Image(`${this.full_domain}/${this.company.icon}`)
                     .frame(20, 40),
             ]
         }
@@ -4279,7 +1812,6 @@ class Server {
         return [
             render_divider(),
             line_items.iterate_append((item, index) => {
-                console.log(item)
                 return Table(
                     TableRow(
                         TableData(

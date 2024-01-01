@@ -17,7 +17,7 @@ const {FrontendError} = utils;
 // Endpoint.
 
 /*  @docs:
- *  @chapter: Backend
+ *  @nav: Backend
     @title: Endpoint
     @description: The endpoint class.
     @parameter:
@@ -71,6 +71,9 @@ const {FrontendError} = utils;
         @description: 
             Parameter cache can define the max age of the cached response in seconds or as a boolean `true`. Anything higher than zero enables caching. When server production mode is enabled caching is done automatically unless `cache` is `false`. When production mode is disabled responses are never cached, even though the parameter is assigned. The response of an endpoint that uses parameter `callback` is never cached.
         @type: boolean, number
+    @parameter:
+        @name: _path
+        @ignore: true
  */
 class Endpoint {
     constructor({
@@ -206,13 +209,21 @@ class Endpoint {
             // Callback.
             if (this.callback !== null) {
                 if (this.params != null) {
-                    try {
-                        vlib.utils.verify_params(request.params, this.params, false, this._verify_params_parent);
-                    } catch (err) {
+                    const {error, invalid_fields} = vlib.utils.verify_params({
+                        params: request.params, 
+                        info: this.params, 
+                        check_unknown: true, 
+                        parent: this._verify_params_parent, 
+                        throw_err: false,
+                    });
+                    if (error) {
                         response.send({
                             status: Status.bad_request, 
                             headers: {"Content-Type": "application/json"},
-                            data: {error: err.message}
+                            data: {
+                                error,
+                                invalid_fields,
+                            }
                         });
                         return resolve();
                     }
@@ -228,8 +239,9 @@ class Endpoint {
                         await promise;
                     }
                 } catch (err) {
+                    console.error(err)
                     response.send({
-                        status: Status.internal_server_error, 
+                        status: err instanceof FrontendError && err.status != null ? err.status : Status.internal_server_error, 
                         headers: {"Content-Type": "application/json"},
                         data: {error: err instanceof FrontendError ? err.message : "Internal Server Error"},
                     });

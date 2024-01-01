@@ -717,7 +717,7 @@ class ExtendedSelectElement extends VStackElement {
 		placeholder = "Placeholder",
 		id = null,
 		required = false,
-		items = [{id: "option", text: "Option", image: null}],
+		items = [{id: "option", text: "Option", image: null}], // may also be an array with strings which will be used as the item's id and text.
 	} = {}) {
 
 		// Initialize super.
@@ -828,6 +828,7 @@ class ExtendedSelectElement extends VStackElement {
 		// The hstack container.
 		this.container = HStack(this.image, this.input)
 			.parent(this)
+			.background(ExtendedSelectElement.default_style["background"])
 			.padding(ExtendedSelectElement.default_style["--input-padding"])
 			.border_radius(ExtendedSelectElement.default_style["--input-border-radius"])
 			.border_width(1)
@@ -871,6 +872,7 @@ class ExtendedSelectElement extends VStackElement {
 		// Styling.
 		this.position("relative")
 		this.overflow("visible");
+		super.background("none")
 
 		// Set id.
 		if (id != null) {
@@ -889,7 +891,6 @@ class ExtendedSelectElement extends VStackElement {
 			for (let i = 0; i < 4; i++) {
 				if (parent == null) { break; }
 				else if (parent === this.dropdown) {
-					console.log(parent)
 					stop = false; break;
 				}
 				parent = parent.parentElement;
@@ -1013,7 +1014,6 @@ class ExtendedSelectElement extends VStackElement {
 						allow_exceeding_chars: true,
 						key: ["id", "text"], 
 					});
-					console.log(results)
 					content.inner_html("");
 					results.iterate((item) => {
 						content.append(item.stack);
@@ -1066,7 +1066,7 @@ class ExtendedSelectElement extends VStackElement {
 					this._value = item.id;
 					this.input.value(item.text);
 					if (this._on_change_callback != null) {
-						this._on_change_callback(this, item.text);
+						this._on_change_callback(this, item.id);
 					}
 					window.removeEventListener("mousedown", this._on_dropdown_close)
 				})
@@ -1101,7 +1101,13 @@ class ExtendedSelectElement extends VStackElement {
 		this.dropdown.show();
 
 		// Set min height.
-		this.dropdown.min_height((this.dropdown.content.child(0).clientHeight + 10) * Math.min(this.items.length, 10) + 10)
+		if (this.items.length > 15) {
+			this.dropdown.fixed_height((this.dropdown.content.child(0).clientHeight) * Math.min(this.items.length, 10) + 10)
+		}
+		else {
+			this.dropdown.fixed_height((this.dropdown.content.child(0).child(0).clientHeight) * Math.min(this.items.length, 10) + 10)
+		}
+		// this.dropdown.min_height((this.dropdown.content.child(0).clientHeight + 10) * Math.min(this.items.length, 10) + 10) // old.
 
 		// Response.
 		return this;
@@ -1131,7 +1137,7 @@ class ExtendedSelectElement extends VStackElement {
 	}
 	background(val) {
 		if (val == null) { return this.background(); }
-		this.background(val)
+		this.container.background(val)
 		this.dropdown.background(val)
 		return this;
 	}

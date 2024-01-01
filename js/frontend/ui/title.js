@@ -34,7 +34,7 @@ class TitleElement extends CreateVElementClass({
 @register_element
 class SubtitleElement extends CreateVElementClass({
 	type: "Subtitle",
-	tag: "h2",
+	tag: "h1",
 	default_style: {
 		"margin": "0px 0px 0px 0px",
 		"color": "inherit",

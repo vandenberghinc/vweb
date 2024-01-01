@@ -8,7 +8,8 @@ vweb.user = {};
 
 // Get user id from cookie.
 /* 	@docs:
- * 	@chapter: Client
+ * 	@nav: Frontend
+ *	@chapter: User
  * 	@title: UID
  *	@description: Get the user id of the authenticated user.
  *	@type: null, number
@@ -19,18 +20,13 @@ vweb.user.uid = function() {
 	if (uid == "-1") {
 		return null;
 	}
-	else if (uid !== null) {
-		uid = parseInt(uid);
-		if (isNaN(uid)) {
-			return null;
-		}
-	}
 	return uid;
 }
 
 // Get username from cookie.
 /* 	@docs:
- * 	@chapter: Client
+ * 	@nav: Frontend
+ *	@chapter: User
  * 	@title: Username
  *	@description: Get the username of the authenticated user.
  *	@type: null, string
@@ -46,7 +42,8 @@ vweb.user.username = function() {
 
 // Get email from cookie.
 /* 	@docs:
- * 	@chapter: Client
+ * 	@nav: Frontend
+ *	@chapter: User
  * 	@title: Email
  *	@description: Get the email of the authenticated user.
  *	@type: null, string
@@ -62,7 +59,8 @@ vweb.user.email = function() {
 
 // Get first name from cookie.
 /* 	@docs:
- * 	@chapter: Client
+ * 	@nav: Frontend
+ *	@chapter: User
  * 	@title: First Name
  *	@description: Get the first name of the authenticated user.
  *	@type: null, string
@@ -78,7 +76,8 @@ vweb.user.first_name = function() {
 
 // Get last name from cookie.
 /* 	@docs:
- * 	@chapter: Client
+ * 	@nav: Frontend
+ *	@chapter: User
  * 	@title: Last Name
  *	@description: Get the last anme of the authenticated user.
  *	@type: null, string
@@ -94,7 +93,8 @@ vweb.user.last_name = function() {
 
 // Get the is authenticated boolean.
 /* 	@docs:
- * 	@chapter: Client
+ * 	@nav: Frontend
+ *	@chapter: User
  * 	@title: Is Authenticated
  *	@description: Check if the current user is authenticated.
  *	@type: boolean
@@ -106,7 +106,8 @@ vweb.user.is_authenticated = function() {
 
 // Get the is user activated boolean.
 /* 	@docs:
- * 	@chapter: Client
+ * 	@nav: Frontend
+ *	@chapter: User
  * 	@title: Is Activated
  *	@description: Check if the current user is activated.
  *	@type: boolean
@@ -118,7 +119,8 @@ vweb.user.is_activated = function() {
 
 // Get user.
 /* 	@docs:
- * 	@chapter: Client
+ * 	@nav: Frontend
+ *	@chapter: User
  * 	@title: Get
  *	@description: Get the authenticated user object.
  *	@type: Promise
@@ -140,7 +142,8 @@ vweb.user.get = async function(detailed = false) {
 
 // Update user.
 /* 	@docs:
- * 	@chapter: Client
+ * 	@nav: Frontend
+ *	@chapter: User
  * 	@title: Set
  *	@description: Update the authenticated user object.
  *	@type: Promise
@@ -156,7 +159,8 @@ vweb.user.set = async function(user) {
 
 // Activate account.
 /* 	@docs:
- * 	@chapter: Client
+ * 	@nav: Frontend
+ *	@chapter: User
  * 	@title: Activate
  *	@description: Activate the authenticated user.
  *	@type: Promise
@@ -167,14 +171,15 @@ vweb.user.activate = async function(code = "") {
 		method: "POST",
 		url: "/vweb/auth/activate",
 		data: {
-			"2fa": code,
+			"code": code,
 		},
 	});
 }
 
 // Change password.
 /* 	@docs:
- * 	@chapter: Client
+ * 	@nav: Frontend
+ *	@chapter: User
  * 	@title: Change Password
  *	@description: Change the password of the authenticated user.
  *	@type: Promise
@@ -198,7 +203,8 @@ vweb.user.change_password = async function({
 
 // Delete account.
 /* 	@docs:
- * 	@chapter: Client
+ * 	@nav: Frontend
+ *	@chapter: User
  * 	@title: Delete account
  *	@description: Delete the user account
  *	@type: Promise
@@ -213,7 +219,8 @@ vweb.user.delete_account = async function() {
 
 // Generate api key.
 /* 	@docs:
- * 	@chapter: Client
+ * 	@nav: Frontend
+ *	@chapter: User
  * 	@title: Generate API Key
  *	@description: Generate a new api key for the authenticated user.
  *	@type: Promise
@@ -228,7 +235,8 @@ vweb.user.generate_api_key = async function() {
 
 // Revoke api key.
 /* 	@docs:
- * 	@chapter: Client
+ * 	@nav: Frontend
+ *	@chapter: User
  * 	@title: Revoke API Key
  *	@description: Revoke the api key of the authenticated user.
  *	@type: Promise
@@ -243,7 +251,8 @@ vweb.user.revoke_api_key = async function() {
 
 // Load data from the users database.
 /* 	@docs:
- * 	@chapter: Client
+ * 	@nav: Frontend
+ *	@chapter: User
  * 	@title: Load Data
  *	@description: Load data from the authenticated user's database.
  *	@type: Promise
@@ -262,7 +271,8 @@ vweb.user.load = async function(path, def = "") {
 
 // Save data to the users database.
 /* 	@docs:
- * 	@chapter: Client
+ * 	@nav: Frontend
+ *	@chapter: User
  * 	@title: Save Data
  *	@description: Save data to the authenticated user's database.
  *	@type: Promise
@@ -281,7 +291,8 @@ vweb.user.save = async function(path = "", data = {}) {
 
 // Load protected data from the users database.
 /* 	@docs:
- * 	@chapter: Client
+ * 	@nav: Frontend
+ *	@chapter: User
  * 	@title: Load Protected Data
  *	@description: Load protected data from the authenticated user's database.
  *	@type: Promise

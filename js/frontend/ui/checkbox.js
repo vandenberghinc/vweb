@@ -17,11 +17,18 @@ class CheckBoxElement extends VStackElement {
 	};
 
 	// Constructor.
-	constructor({
-		text = "",
-		required = false,
-		id = null,
+	constructor(text_or_obj = {
+		text: "",
+		required: false,
+		id: null,
 	}) {
+
+		let text = text_or_obj, required = false, id = null;
+		if (typeof text_or_obj === "object" && text_or_obj !== null) {
+			text = text_or_obj.text;
+			required = text_or_obj.required == null ? false : text_or_obj.required;
+			id = text_or_obj.id == null ? null : text_or_obj.id;
+		}
 
 		// Initialize super.
 		super();
@@ -60,7 +67,7 @@ class CheckBoxElement extends VStackElement {
 			.transition("background 0.3s ease-in-out, box-shadow 0.2s ease-in-out")
 			.center()
 			.center_vertical()
-			.on_mouse_over((e) => e.box_shadow(`0 0 0 2px ${this._border_color}`))
+			.on_mouse_over((e) => e.box_shadow(`0 0 0 2px ${this._focus_color}`))
 			.on_mouse_out((e) => e.box_shadow(`0 0 0 0px transparent`))
 			.on_click((e) => e.toggle())
 			.extend({

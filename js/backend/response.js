@@ -12,7 +12,7 @@ const zlib = require('zlib');
 // Response object.
 
 /*  @docs 
- *  @chapter: Backend
+ *  @nav: Backend
  *  @title: Response
  *  @description: The response object.
  */
@@ -102,6 +102,13 @@ class Response {
             this.res.setHeader('Set-Cookie', this.cookies);
         }
 
+        // Convert data.
+        let is_json = false;
+        if (data != null && typeof data === 'object' && Buffer.isBuffer(data) === false && (data instanceof Uint8Array) === false) {
+            is_json = true;
+            data = JSON.stringify(data);
+        }
+
         // @todo compress.
         if (compress) {
             this.res.setHeader("Content-Encoding", "gzip");
@@ -111,12 +118,10 @@ class Response {
 
         // Set data.
         if (data !== null) {
-            if (typeof data === 'object' && Buffer.isBuffer(data) === false && (data instanceof Uint8Array) === false) {
+            if (is_json) {
                 this.res.setHeader("Content-Type", "application/json");
-                this.res.write(JSON.stringify(data));
-            } else {
-                this.res.write(data); // do not use toString() here or it will cause issues with writing binary data.
             }
+            this.res.write(data); // do not use toString() here or it will cause issues with writing binary data.
         }
 
         // End.
@@ -226,7 +231,7 @@ class Response {
      *      @type: ...string
      *  @usage:
      *      ...
-     *      response.set_cookies("MyCookie1=Hello World;", "MyCookie2=Hello Univsere;");
+     *      response.set_cookies("MyCookie1=Hello World;", "MyCookie2=Hello Universe;");
      */
     set_cookies(cookies) {
         for (let i = 0; i < cookies.length; i++) {

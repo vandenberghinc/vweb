@@ -45,7 +45,7 @@ class Payments {
     }) {
 
         // Verify args.
-        vlib.utils.verify_params(arguments[0], {
+        vlib.utils.verify_params({params: arguments[0], info: {
             api_key: "string",
             client_key: "string",
             webhook_key: {type: ["string", "array"]},
@@ -54,7 +54,7 @@ class Payments {
             products: "array",
             blocked_payment_methods: {type: "array", required: false},
             _server: "object",
-        });
+        }});
 
         // Attributes.
         this.client_key = client_key;
@@ -1261,7 +1261,7 @@ class Payments {
         }
 
         // Check args.
-        vlib.utils.verify_params({uid, cart, billing_details, ip}, {
+        vlib.utils.verify_params({params: {uid, cart, billing_details, ip}, info: {
             uid: {type: "number", required: false},
             cart: "array",
             billing_details: {
@@ -1281,7 +1281,7 @@ class Payments {
                 }
             },
             ip: "string",
-        })
+        }})
 
         // Vars.
         const id = `pym_${uid == null ? "unauth" : uid}_${Date.now()}${String.random(4)}`;

@@ -36,7 +36,7 @@ int main() {
 // #include "../files/hello_world/start.cpp"
 // #include "../main/vweb.cpp"
 
-// #include "/Volumes/persistance/private/vinc/vlib/include/vlib/types.h"
+// #include "/Volumes/persistance/private/dev/vinc/vlib/include/vlib/types.h"
 // void* read_thread(void*) {
 //     while (true) {
 //         vlib::String data = vlib::String::load("/tmp/test");

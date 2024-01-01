@@ -7,7 +7,7 @@
 // Meta information.
 
 /*  @docs:
- *  @chapter: Backend
+ *  @nav: Backend
     @title: Meta
     @description: The js view meta information class.
     @parameter:

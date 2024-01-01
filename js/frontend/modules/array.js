@@ -282,3 +282,15 @@ Array.prototype.eq = function(x = null, y = null) {
     return eq(x, y);
 }
 
+// Divide into nested arrays.
+Array.prototype.divide = function(x) {
+    if (typeof x !== 'number' || x <= 0) {
+        throw new Error('Number of nested arrays must be a positive number');
+    }
+    const result = [];
+    const nested_len = Math.ceil(this.length / x);
+    for (let i = 0; i < this.length; i += nested_len) {
+        result.push(this.slice(i, i + nested_len));
+    }
+    return result;
+}

@@ -12,7 +12,7 @@ const zlib = require('zlib');
 // Request object.
 
 /*  @docs 
- *  @chapter: Backend
+ *  @nav: Backend
  *  @title: Request
  *  @description: The request object.
  */
@@ -356,7 +356,7 @@ class Request {
 	/*  @docs:
      *  @title: Parameter
      *  @description: Get a single query or body parameter with an optional type cast.
-	 *  @warning: Throws an error when the parameter does not exist or when the type is different from the specified type(s).
+	 *  @warning: Throws an error when the parameter does not exist or when the type is different from the specified type(s), unless parameter `def` is defined.
 	 *  @param:
 	 *  	@name: name
 	 *  	@desc: The name of the parameter.

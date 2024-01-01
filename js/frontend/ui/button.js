@@ -8,10 +8,12 @@
 @register_element
 class ButtonElement extends CreateVElementClass({
 	type: "Button",
-	tag: "div",
+	tag: "button",
 	default_style: {
 		"margin": "0px 0px 0px",
 		"padding": "5px 10px 5px 10px",
+		"outline":"none",
+		"border":"none",
 		"border-radius": "10px",
 		"cursor": "pointer",
 		"text-decoration": "none",
@@ -49,7 +51,7 @@ class ButtonElement extends CreateVElementClass({
 @register_element
 class BorderButtonElement extends CreateVElementClass({
 	type: "BorderButton",
-	tag: "a",
+	tag: "button",
 	default_style: {
 		"margin": "0px 0px 0px 0px",
 		"display": "inline-block",
@@ -61,6 +63,8 @@ class BorderButtonElement extends CreateVElementClass({
 		"z-index": 0,
 		"background": "none",
 		"user-select": "none",
+		"outline":"none",
+		"border":"none",
 		// Custom.
 		"--child-color": "black",
 		"--child-background": "black",

@@ -37,6 +37,7 @@ vweb.elements.register = function(type, tag) {
 // When an input is not required no errors will be thrown.
 // An object will be returned with each input's id as the key and the input's value as value.
 // Only supported extended input elements like `ExtendedInput`.
+// @deprecated
 vweb.elements.submit = function(...elements) {
 	const params = {};
     let error;

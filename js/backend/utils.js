@@ -14,9 +14,22 @@ const {vlib} = require("./vinc.js");
 const utils = {};
 
 // An error that may be shown to the frontend user.
+/*  @docs:
+ *  @nav: Backend
+    @chapter: Exceptions
+    @title: Frontend Error
+    @description: 
+        The frontend error class can be used to throw an error that can be presented to the user. All other errors will result in an internal server error response without the error's message.
+    @usage:
+        throw new vweb.FrontendError("Some error occured.");
+        throw new vweb.FrontendError("Bad request.", vweb.Status.bad_request);
+    @show_code: true
+ */
 utils.FrontendError = class FrontendError extends Error {
-    constructor(...args) {
-        super(...args);
+    constructor(message, status = null) {
+        super(message);
+        this.name = "FrontendError";
+        this.status = status;
     }
 }
 

@@ -18,7 +18,7 @@ const Meta = require(`${__dirname}/meta.js`);
 // @todo add template vars for callback and css and js include files. 
 // @todo add optional background to default html body.
 /*  @docs:
- *  @chapter: Backend
+ *  @nav: Backend
  *  @title: View
  *  @description: The js view class.
  *  @parameter:
@@ -27,7 +27,7 @@ const Meta = require(`${__dirname}/meta.js`);
  *      @type: string
  *  @parameter:
  *      @name: callback
- *      @description: The client side callback function, this function will be executed at the client side.
+ *      @description: The client side callback function, this function will be executed at the client side. For this feature the `Content-Security-Policy:script-src` must be updated with for example `unsafe-inline`.
  *      @type: function
  *  @parameter:
  *      @name: includes
@@ -73,6 +73,9 @@ const Meta = require(`${__dirname}/meta.js`);
  *      @name: background
  *      @description: The background color of the body.
  *      @type: string
+ *  @parameter:
+ *      @name: _src
+ *      @ignore: true
  */
 class View {
 
@@ -93,6 +96,7 @@ class View {
         compression = false,
         payments = false,
         vhighlight = false,
+        lang = "en",
         background = null,
         body_style = null,
         splash_screen = null,
@@ -109,6 +113,7 @@ class View {
         this.compression = compression;
         this.payments = payments;
         this.vhighlight = vhighlight;
+        this.lang = lang;
         this.background = background || View.background;
         this.body_style = body_style || View.body_style;
         this.splash_screen = splash_screen;
@@ -132,7 +137,7 @@ class View {
         this.html = "";
 
         // Doctype.
-        this.html += "<!DOCTYPE html><html style='min-width:100%;min-height:100%;'>";
+        this.html += `<!DOCTYPE html><html style='min-width:100%;min-height:100%;' lang='${this.lang}'>`;
         
         // Headers.
         this.html += `<head>`;
@@ -163,9 +168,13 @@ class View {
         this.html += `<link rel='icon' href='${this.meta.favicon}' type='image/x-icon'/>`;
 
         // Stylesheets.
-        this.html += '<link rel="stylesheet" href="/vweb/vweb.css">';
+        this.html += `<link rel="preload" href="/vweb/vweb.css" as="style" onload="this.onload=null;this.rel='stylesheet'">`
+        this.html += `<noscript><link rel="stylesheet" href="/vweb/vweb.css"></noscript>`
         if (this.vhighlight) {
-            this.html += '<link rel="stylesheet" href="/vhighlight/vhighlight.css">';
+            // this.html += '<link async rel="stylesheet" href="/vhighlight/vhighlight.css">';
+            this.html += `<link rel="preload" href="/vhighlight/vhighlight.css" as="style" onload="this.onload=null;this.rel='stylesheet'">`
+            this.html += `<noscript><link rel="stylesheet" href="/vhighlight/vhighlight.css"></noscript>`
+
         }
         if (this.payments && server.payments) {
             if (server.payments.type === "adyen") {
@@ -281,7 +290,7 @@ class View {
             }
         }
         if (server.google_tag !== undefined) {
-            this.html += `<script async src="https://www.googletagmanager.com/gtag/js?id=${server.google_tag}"></script>`;
+            this.html += `<script defer src="https://www.googletagmanager.com/gtag/js?id=${server.google_tag}"></script>`;
         }
         this.includes.iterate((url) => {
             if (typeof url === "string") {

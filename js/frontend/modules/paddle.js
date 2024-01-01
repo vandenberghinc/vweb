@@ -11,255 +11,255 @@ vweb.payments.client_key = "{{PADDLE_CLIENT_KEY}}";
 vweb.payments.sandbox = {{PADDLE_SANDBOX}};
 vweb.payments.tax_inclusive = {{PADDLE_INCLUSIVE_TAX}};
 vweb.payments.countries = {
-	"AD": "🇦🇩  Andorra",
-    "AE": "🇦🇪  United Arab Emirates",
-    "AF": "🇦🇫  Afghanistan",
-    "AG": "🇦🇬  Antigua and Barbuda",
-    "AI": "🇦🇮  Anguilla",
-    "AL": "🇦🇱  Albania",
-    "AM": "🇦🇲  Armenia",
-    "AO": "🇦🇴  Angola",
-    "AQ": "🇦🇶  Antarctica",
-    "AR": "🇦🇷  Argentina",
-    "AS": "🇦🇸  American Samoa",
-    "AT": "🇦🇹  Austria",
-    "AU": "🇦🇺  Australia",
-    "AW": "🇦🇼  Aruba",
-    "AX": "🇦🇽  Åland Islands",
-    "AZ": "🇦🇿  Azerbaijan",
-    "BA": "🇧🇦  Bosnia and Herzegovina",
-    "BB": "🇧🇧  Barbados",
-    "BD": "🇧🇩  Bangladesh",
-    "BE": "🇧🇪  Belgium",
-    "BF": "🇧🇫  Burkina Faso",
-    "BG": "🇧🇬  Bulgaria",
-    "BH": "🇧🇭  Bahrain",
-    "BI": "🇧🇮  Burundi",
-    "BJ": "🇧🇯  Benin",
-    "BL": "🇧🇱  Saint Barthélemy",
-    "BM": "🇧🇲  Bermuda",
-    "BN": "🇧🇳  Brunei",
-    "BO": "🇧🇴  Bolivia",
-    "BQ": "🇧🇶  Caribbean Netherlands",
-    "BR": "🇧🇷  Brazil",
-    "BS": "🇧🇸  Bahamas",
-    "BT": "🇧🇹  Bhutan",
-    "BV": "🇧🇻  Bouvet Island",
-    "BW": "🇧🇼  Botswana",
-    "BY": "🇧🇾  Belarus",
-    "BZ": "🇧🇿  Belize",
-    "CA": "🇨🇦  Canada",
-    "CC": "🇨🇨  Cocos (Keeling) Islands",
-    "CD": "🇨🇩  Congo (DRC)",
-    "CF": "🇨🇫  Central African Republic",
-    "CG": "🇨🇬  Congo (Republic)",
-    "CH": "🇨🇭  Switzerland",
-    "CI": "🇨🇮  Côte d'Ivoire",
-    "CK": "🇨🇰  Cook Islands",
-    "CL": "🇨🇱  Chile",
-    "CM": "🇨🇲  Cameroon",
-    "CN": "🇨🇳  China",
-    "CO": "🇨🇴  Colombia",
-    "CR": "🇨🇷  Costa Rica",
-    "CU": "🇨🇺  Cuba",
-    "CV": "🇨🇻  Cape Verde",
-    "CW": "🇨🇼  Curaçao",
-    "CX": "🇨🇽  Christmas Island",
-    "CY": "🇨🇾  Cyprus",
-    "CZ": "🇨🇿  Czech Republic",
-    "DE": "🇩🇪  Germany",
-    "DJ": "🇩🇯  Djibouti",
-    "DK": "🇩🇰  Denmark",
-    "DM": "🇩🇲  Dominica",
-    "DO": "🇩🇴  Dominican Republic",
-    "DZ": "🇩🇿  Algeria",
-    "EC": "🇪🇨  Ecuador",
-    "EE": "🇪🇪  Estonia",
-    "EG": "🇪🇬  Egypt",
-    "EH": "🇪🇭  Western Sahara",
-    "ER": "🇪🇷  Eritrea",
-    "ES": "🇪🇸  Spain",
-    "ET": "🇪🇹  Ethiopia",
-    "FI": "🇫🇮  Finland",
-    "FJ": "🇫🇯  Fiji",
-    "FK": "🇫🇰  Falkland Islands (Malvinas)",
-    "FM": "🇫🇲  Micronesia",
-    "FO": "🇫🇴  Faroe Islands",
-    "FR": "🇫🇷  France",
-    "GA": "🇬🇦  Gabon",
-    "GB": "🇬🇧  United Kingdom",
-    "GD": "🇬🇩  Grenada",
-    "GE": "🇬🇪  Georgia",
-    "GF": "🇬🇫  French Guiana",
-    "GG": "🇬🇬  Guernsey",
-    "GH": "🇬🇭  Ghana",
-    "GI": "🇬🇮  Gibraltar",
-    "GL": "🇬🇱  Greenland",
-    "GM": "🇬🇲  Gambia",
-    "GN": "🇬🇳  Guinea",
-    "GP": "🇬🇵  Guadeloupe",
-    "GQ": "🇬🇶  Equatorial Guinea",
-    "GR": "🇬🇷  Greece",
-    "GS": "🇬🇸  South Georgia and the South Sandwich Islands",
-    "GT": "🇬🇹  Guatemala",
-    "GU": "🇬🇺  Guam",
-    "GW": "🇬🇼  Guinea-Bissau",
-    "GY": "🇬🇾  Guyana",
-    "HK": "🇭🇰  Hong Kong",
-    "HM": "🇭🇲  Heard Island and McDonald Islands",
-    "HN": "🇭🇳  Honduras",
-    "HR": "🇭🇷  Croatia",
-    "HT": "🇭🇹  Haiti",
-    "HU": "🇭🇺  Hungary",
-    "ID": "🇮🇩  Indonesia",
-    "IE": "🇮🇪  Ireland",
-    "IL": "🇮🇱  Israel",
-    "IM": "🇮🇲  Isle of Man",
-    "IN": "🇮🇳  India",
-    "IO": "🇮🇴  British Indian Ocean Territory",
-    "IQ": "🇮🇶  Iraq",
-    "IR": "🇮🇷  Iran",
-    "IS": "🇮🇸  Iceland",
-    "IT": "🇮🇹  Italy",
-    "JE": "🇯🇪  Jersey",
-    "JM": "🇯🇲  Jamaica",
-    "JO": "🇯🇴  Jordan",
-    "JP": "🇯🇵  Japan",
-    "KE": "🇰🇪  Kenya",
-    "KG": "🇰🇬  Kyrgyzstan",
-    "KH": "🇰🇭  Cambodia",
-    "KI": "🇰🇮  Kiribati",
-    "KM": "🇰🇲  Comoros",
-    "KN": "🇰🇳  Saint Kitts and Nevis",
-    "KP": "🇰🇵  North Korea",
-    "KR": "🇰🇷  South Korea",
-    "KW": "🇰🇼  Kuwait",
-    "KY": "🇰🇾  Cayman Islands",
-    "KZ": "🇰🇿  Kazakhstan",
-    "LA": "🇱🇦  Laos",
-    "LB": "🇱🇧  Lebanon",
-    "LC": "🇱🇨  Saint Lucia",
-    "LI": "🇱🇮  Liechtenstein",
-    "LK": "🇱🇰  Sri Lanka",
-    "LR": "🇱🇷  Liberia",
-    "LS": "🇱🇸  Lesotho",
-    "LT": "🇱🇹  Lithuania",
-    "LU": "🇱🇺  Luxembourg",
-    "LV": "🇱🇻  Latvia",
-    "LY": "🇱🇾  Libya",
-    "MA": "🇲🇦  Morocco",
-    "MC": "🇲🇨  Monaco",
-    "MD": "🇲🇩  Moldova",
-    "ME": "🇲🇪  Montenegro",
-    "MF": "🇲🇫  Saint Martin",
-    "MG": "🇲🇬  Madagascar",
-    "MH": "🇲🇭  Marshall Islands",
-    "MK": "🇲🇰  North Macedonia",
-    "ML": "🇲🇱  Mali",
-    "MM": "🇲🇲  Myanmar (Burma)",
-    "MN": "🇲🇳  Mongolia",
-    "MO": "🇲🇴  Macao",
-    "MP": "🇲🇵  Northern Mariana Islands",
-    "MQ": "🇲🇶  Martinique",
-    "MR": "🇲🇷  Mauritania",
-    "MS": "🇲🇸  Montserrat",
-    "MT": "🇲🇹  Malta",
-    "MU": "🇲🇺  Mauritius",
-    "MV": "🇲🇻  Maldives",
-    "MW": "🇲🇼  Malawi",
-    "MX": "🇲🇽  Mexico",
-    "MY": "🇲🇾  Malaysia",
-    "MZ": "🇲🇿  Mozambique",
-    "NA": "🇳🇦  Namibia",
-    "NC": "🇳🇨  New Caledonia",
-    "NE": "🇳🇪  Niger",
-    "NF": "🇳🇫  Norfolk Island",
-    "NG": "🇳🇬  Nigeria",
-    "NI": "🇳🇮  Nicaragua",
-    "NL": "🇳🇱  Netherlands",
-    "NO": "🇳🇴  Norway",
-    "NP": "🇳🇵  Nepal",
-    "NR": "🇳🇷  Nauru",
-    "NU": "🇳🇺  Niue",
-    "NZ": "🇳🇿  New Zealand",
-    "OM": "🇴🇲  Oman",
-    "PA": "🇵🇦  Panama",
-    "PE": "🇵🇪  Peru",
-    "PF": "🇵🇫  French Polynesia",
-    "PG": "🇵🇬  Papua New Guinea",
-    "PH": "🇵🇭  Philippines",
-    "PK": "🇵🇰  Pakistan",
-    "PL": "🇵🇱  Poland",
-    "PM": "🇵🇲  Saint Pierre and Miquelon",
-    "PN": "🇵🇳  Pitcairn Islands",
-    "PR": "🇵🇷  Puerto Rico",
-    "PS": "🇵🇸  Palestine",
-    "PT": "🇵🇹  Portugal",
-    "PW": "🇵🇼  Palau",
-    "PY": "🇵🇾  Paraguay",
-    "QA": "🇶🇦  Qatar",
-    "RE": "🇷🇪  Réunion",
-    "RO": "🇷🇴  Romania",
-    "RS": "🇷🇸  Serbia",
-    "RU": "🇷🇺  Russia",
-    "RW": "🇷🇼  Rwanda",
-    "SA": "🇸🇦  Saudi Arabia",
-    "SB": "🇸🇧  Solomon Islands",
-    "SC": "🇸🇨  Seychelles",
-    "SD": "🇸🇩  Sudan",
-    "SE": "🇸🇪  Sweden",
-    "SG": "🇸🇬  Singapore",
-    "SH": "🇸🇭  Saint Helena, Ascension and Tristan da Cunha",
-    "SI": "🇸🇮  Slovenia",
-    "SJ": "🇸🇯  Svalbard and Jan Mayen",
-    "SK": "🇸🇰  Slovakia",
-    "SL": "🇸🇱  Sierra Leone",
-    "SM": "🇸🇲  San Marino",
-    "SN": "🇸🇳  Senegal",
-    "SO": "🇸🇴  Somalia",
-    "SR": "🇸🇷  Suriname",
-    "SS": "🇸🇸  South Sudan",
-    "ST": "🇸🇹  São Tomé and Príncipe",
-    "SV": "🇸🇻  El Salvador",
-    "SX": "🇸🇽  Sint Maarten",
-    "SY": "🇸🇾  Syria",
-    "SZ": "🇸🇿  Eswatini",
-    "TC": "🇹🇨  Turks and Caicos Islands",
-    "TD": "🇹🇩  Chad",
-    "TF": "🇹🇫  French Southern and Antarctic Lands",
-    "TG": "🇹🇬  Togo",
-    "TH": "🇹🇭  Thailand",
-    "TJ": "🇹🇯  Tajikistan",
-    "TK": "🇹🇰  Tokelau",
-    "TL": "🇹🇱  Timor-Leste",
-    "TM": "🇹🇲  Turkmenistan",
-    "TN": "🇹🇳  Tunisia",
-    "TO": "🇹🇴  Tonga",
-    "TR": "🇹🇷  Turkey",
-    "TT": "🇹🇹  Trinidad and Tobago",
-    "TV": "🇹🇻  Tuvalu",
-    "TW": "🇹🇼  Taiwan",
-    "TZ": "🇹🇿  Tanzania",
-    "UA": "🇺🇦  Ukraine",
-    "UG": "🇺🇬  Uganda",
-    "UM": "🇺🇲  U.S. Minor Outlying Islands",
-    "US": "🇺🇸  United States",
-    "UY": "🇺🇾  Uruguay",
-    "UZ": "🇺🇿  Uzbekistan",
-    "VA": "🇻🇦  Vatican City",
-    "VC": "🇻🇨  Saint Vincent and the Grenadines",
-    "VE": "🇻🇪  Venezuela",
-    "VG": "🇻🇬  British Virgin Islands",
-    "VI": "🇻🇮  U.S. Virgin Islands",
-    "VN": "🇻🇳  Vietnam",
-    "VU": "🇻🇺  Vanuatu",
-    "WF": "🇼🇫  Wallis and Futuna",
-    "WS": "🇼🇸  Samoa",
-    "YE": "🇾🇪  Yemen",
-    "YT": "🇾🇹  Mayotte",
-    "ZA": "🇿🇦  South Africa",
-    "ZM": "🇿🇲  Zambia",
-    "ZW": "🇿🇼  Zimbabwe",
+	"AD": "🇦🇩 Andorra",
+    "AE": "🇦🇪 United Arab Emirates",
+    "AF": "🇦🇫 Afghanistan",
+    "AG": "🇦🇬 Antigua and Barbuda",
+    "AI": "🇦🇮 Anguilla",
+    "AL": "🇦🇱 Albania",
+    "AM": "🇦🇲 Armenia",
+    "AO": "🇦🇴 Angola",
+    "AQ": "🇦🇶 Antarctica",
+    "AR": "🇦🇷 Argentina",
+    "AS": "🇦🇸 American Samoa",
+    "AT": "🇦🇹 Austria",
+    "AU": "🇦🇺 Australia",
+    "AW": "🇦🇼 Aruba",
+    "AX": "🇦🇽 Åland Islands",
+    "AZ": "🇦🇿 Azerbaijan",
+    "BA": "🇧🇦 Bosnia and Herzegovina",
+    "BB": "🇧🇧 Barbados",
+    "BD": "🇧🇩 Bangladesh",
+    "BE": "🇧🇪 Belgium",
+    "BF": "🇧🇫 Burkina Faso",
+    "BG": "🇧🇬 Bulgaria",
+    "BH": "🇧🇭 Bahrain",
+    "BI": "🇧🇮 Burundi",
+    "BJ": "🇧🇯 Benin",
+    "BL": "🇧🇱 Saint Barthélemy",
+    "BM": "🇧🇲 Bermuda",
+    "BN": "🇧🇳 Brunei",
+    "BO": "🇧🇴 Bolivia",
+    "BQ": "🇧🇶 Caribbean Netherlands",
+    "BR": "🇧🇷 Brazil",
+    "BS": "🇧🇸 Bahamas",
+    "BT": "🇧🇹 Bhutan",
+    "BV": "🇧🇻 Bouvet Island",
+    "BW": "🇧🇼 Botswana",
+    "BY": "🇧🇾 Belarus",
+    "BZ": "🇧🇿 Belize",
+    "CA": "🇨🇦 Canada",
+    "CC": "🇨🇨 Cocos (Keeling) Islands",
+    "CD": "🇨🇩 Congo (DRC)",
+    "CF": "🇨🇫 Central African Republic",
+    "CG": "🇨🇬 Congo (Republic)",
+    "CH": "🇨🇭 Switzerland",
+    "CI": "🇨🇮 Côte d'Ivoire",
+    "CK": "🇨🇰 Cook Islands",
+    "CL": "🇨🇱 Chile",
+    "CM": "🇨🇲 Cameroon",
+    "CN": "🇨🇳 China",
+    "CO": "🇨🇴 Colombia",
+    "CR": "🇨🇷 Costa Rica",
+    "CU": "🇨🇺 Cuba",
+    "CV": "🇨🇻 Cape Verde",
+    "CW": "🇨🇼 Curaçao",
+    "CX": "🇨🇽 Christmas Island",
+    "CY": "🇨🇾 Cyprus",
+    "CZ": "🇨🇿 Czech Republic",
+    "DE": "🇩🇪 Germany",
+    "DJ": "🇩🇯 Djibouti",
+    "DK": "🇩🇰 Denmark",
+    "DM": "🇩🇲 Dominica",
+    "DO": "🇩🇴 Dominican Republic",
+    "DZ": "🇩🇿 Algeria",
+    "EC": "🇪🇨 Ecuador",
+    "EE": "🇪🇪 Estonia",
+    "EG": "🇪🇬 Egypt",
+    "EH": "🇪🇭 Western Sahara",
+    "ER": "🇪🇷 Eritrea",
+    "ES": "🇪🇸 Spain",
+    "ET": "🇪🇹 Ethiopia",
+    "FI": "🇫🇮 Finland",
+    "FJ": "🇫🇯 Fiji",
+    "FK": "🇫🇰 Falkland Islands (Malvinas)",
+    "FM": "🇫🇲 Micronesia",
+    "FO": "🇫🇴 Faroe Islands",
+    "FR": "🇫🇷 France",
+    "GA": "🇬🇦 Gabon",
+    "GB": "🇬🇧 United Kingdom",
+    "GD": "🇬🇩 Grenada",
+    "GE": "🇬🇪 Georgia",
+    "GF": "🇬🇫 French Guiana",
+    "GG": "🇬🇬 Guernsey",
+    "GH": "🇬🇭 Ghana",
+    "GI": "🇬🇮 Gibraltar",
+    "GL": "🇬🇱 Greenland",
+    "GM": "🇬🇲 Gambia",
+    "GN": "🇬🇳 Guinea",
+    "GP": "🇬🇵 Guadeloupe",
+    "GQ": "🇬🇶 Equatorial Guinea",
+    "GR": "🇬🇷 Greece",
+    "GS": "🇬🇸 South Georgia and the South Sandwich Islands",
+    "GT": "🇬🇹 Guatemala",
+    "GU": "🇬🇺 Guam",
+    "GW": "🇬🇼 Guinea-Bissau",
+    "GY": "🇬🇾 Guyana",
+    "HK": "🇭🇰 Hong Kong",
+    "HM": "🇭🇲 Heard Island and McDonald Islands",
+    "HN": "🇭🇳 Honduras",
+    "HR": "🇭🇷 Croatia",
+    "HT": "🇭🇹 Haiti",
+    "HU": "🇭🇺 Hungary",
+    "ID": "🇮🇩 Indonesia",
+    "IE": "🇮🇪 Ireland",
+    "IL": "🇮🇱 Israel",
+    "IM": "🇮🇲 Isle of Man",
+    "IN": "🇮🇳 India",
+    "IO": "🇮🇴 British Indian Ocean Territory",
+    "IQ": "🇮🇶 Iraq",
+    "IR": "🇮🇷 Iran",
+    "IS": "🇮🇸 Iceland",
+    "IT": "🇮🇹 Italy",
+    "JE": "🇯🇪 Jersey",
+    "JM": "🇯🇲 Jamaica",
+    "JO": "🇯🇴 Jordan",
+    "JP": "🇯🇵 Japan",
+    "KE": "🇰🇪 Kenya",
+    "KG": "🇰🇬 Kyrgyzstan",
+    "KH": "🇰🇭 Cambodia",
+    "KI": "🇰🇮 Kiribati",
+    "KM": "🇰🇲 Comoros",
+    "KN": "🇰🇳 Saint Kitts and Nevis",
+    "KP": "🇰🇵 North Korea",
+    "KR": "🇰🇷 South Korea",
+    "KW": "🇰🇼 Kuwait",
+    "KY": "🇰🇾 Cayman Islands",
+    "KZ": "🇰🇿 Kazakhstan",
+    "LA": "🇱🇦 Laos",
+    "LB": "🇱🇧 Lebanon",
+    "LC": "🇱🇨 Saint Lucia",
+    "LI": "🇱🇮 Liechtenstein",
+    "LK": "🇱🇰 Sri Lanka",
+    "LR": "🇱🇷 Liberia",
+    "LS": "🇱🇸 Lesotho",
+    "LT": "🇱🇹 Lithuania",
+    "LU": "🇱🇺 Luxembourg",
+    "LV": "🇱🇻 Latvia",
+    "LY": "🇱🇾 Libya",
+    "MA": "🇲🇦 Morocco",
+    "MC": "🇲🇨 Monaco",
+    "MD": "🇲🇩 Moldova",
+    "ME": "🇲🇪 Montenegro",
+    "MF": "🇲🇫 Saint Martin",
+    "MG": "🇲🇬 Madagascar",
+    "MH": "🇲🇭 Marshall Islands",
+    "MK": "🇲🇰 North Macedonia",
+    "ML": "🇲🇱 Mali",
+    "MM": "🇲🇲 Myanmar (Burma)",
+    "MN": "🇲🇳 Mongolia",
+    "MO": "🇲🇴 Macao",
+    "MP": "🇲🇵 Northern Mariana Islands",
+    "MQ": "🇲🇶 Martinique",
+    "MR": "🇲🇷 Mauritania",
+    "MS": "🇲🇸 Montserrat",
+    "MT": "🇲🇹 Malta",
+    "MU": "🇲🇺 Mauritius",
+    "MV": "🇲🇻 Maldives",
+    "MW": "🇲🇼 Malawi",
+    "MX": "🇲🇽 Mexico",
+    "MY": "🇲🇾 Malaysia",
+    "MZ": "🇲🇿 Mozambique",
+    "NA": "🇳🇦 Namibia",
+    "NC": "🇳🇨 New Caledonia",
+    "NE": "🇳🇪 Niger",
+    "NF": "🇳🇫 Norfolk Island",
+    "NG": "🇳🇬 Nigeria",
+    "NI": "🇳🇮 Nicaragua",
+    "NL": "🇳🇱 Netherlands",
+    "NO": "🇳🇴 Norway",
+    "NP": "🇳🇵 Nepal",
+    "NR": "🇳🇷 Nauru",
+    "NU": "🇳🇺 Niue",
+    "NZ": "🇳🇿 New Zealand",
+    "OM": "🇴🇲 Oman",
+    "PA": "🇵🇦 Panama",
+    "PE": "🇵🇪 Peru",
+    "PF": "🇵🇫 French Polynesia",
+    "PG": "🇵🇬 Papua New Guinea",
+    "PH": "🇵🇭 Philippines",
+    "PK": "🇵🇰 Pakistan",
+    "PL": "🇵🇱 Poland",
+    "PM": "🇵🇲 Saint Pierre and Miquelon",
+    "PN": "🇵🇳 Pitcairn Islands",
+    "PR": "🇵🇷 Puerto Rico",
+    "PS": "🇵🇸 Palestine",
+    "PT": "🇵🇹 Portugal",
+    "PW": "🇵🇼 Palau",
+    "PY": "🇵🇾 Paraguay",
+    "QA": "🇶🇦 Qatar",
+    "RE": "🇷🇪 Réunion",
+    "RO": "🇷🇴 Romania",
+    "RS": "🇷🇸 Serbia",
+    "RU": "🇷🇺 Russia",
+    "RW": "🇷🇼 Rwanda",
+    "SA": "🇸🇦 Saudi Arabia",
+    "SB": "🇸🇧 Solomon Islands",
+    "SC": "🇸🇨 Seychelles",
+    "SD": "🇸🇩 Sudan",
+    "SE": "🇸🇪 Sweden",
+    "SG": "🇸🇬 Singapore",
+    "SH": "🇸🇭 Saint Helena, Ascension and Tristan da Cunha",
+    "SI": "🇸🇮 Slovenia",
+    "SJ": "🇸🇯 Svalbard and Jan Mayen",
+    "SK": "🇸🇰 Slovakia",
+    "SL": "🇸🇱 Sierra Leone",
+    "SM": "🇸🇲 San Marino",
+    "SN": "🇸🇳 Senegal",
+    "SO": "🇸🇴 Somalia",
+    "SR": "🇸🇷 Suriname",
+    "SS": "🇸🇸 South Sudan",
+    "ST": "🇸🇹 São Tomé and Príncipe",
+    "SV": "🇸🇻 El Salvador",
+    "SX": "🇸🇽 Sint Maarten",
+    "SY": "🇸🇾 Syria",
+    "SZ": "🇸🇿 Eswatini",
+    "TC": "🇹🇨 Turks and Caicos Islands",
+    "TD": "🇹🇩 Chad",
+    "TF": "🇹🇫 French Southern and Antarctic Lands",
+    "TG": "🇹🇬 Togo",
+    "TH": "🇹🇭 Thailand",
+    "TJ": "🇹🇯 Tajikistan",
+    "TK": "🇹🇰 Tokelau",
+    "TL": "🇹🇱 Timor-Leste",
+    "TM": "🇹🇲 Turkmenistan",
+    "TN": "🇹🇳 Tunisia",
+    "TO": "🇹🇴 Tonga",
+    "TR": "🇹🇷 Turkey",
+    "TT": "🇹🇹 Trinidad and Tobago",
+    "TV": "🇹🇻 Tuvalu",
+    "TW": "🇹🇼 Taiwan",
+    "TZ": "🇹🇿 Tanzania",
+    "UA": "🇺🇦 Ukraine",
+    "UG": "🇺🇬 Uganda",
+    "UM": "🇺🇲 U.S. Minor Outlying Islands",
+    "US": "🇺🇸 United States",
+    "UY": "🇺🇾 Uruguay",
+    "UZ": "🇺🇿 Uzbekistan",
+    "VA": "🇻🇦 Vatican City",
+    "VC": "🇻🇨 Saint Vincent and the Grenadines",
+    "VE": "🇻🇪 Venezuela",
+    "VG": "🇻🇬 British Virgin Islands",
+    "VI": "🇻🇮 U.S. Virgin Islands",
+    "VN": "🇻🇳 Vietnam",
+    "VU": "🇻🇺 Vanuatu",
+    "WF": "🇼🇫 Wallis and Futuna",
+    "WS": "🇼🇸 Samoa",
+    "YE": "🇾🇪 Yemen",
+    "YT": "🇾🇹 Mayotte",
+    "ZA": "🇿🇦 South Africa",
+    "ZM": "🇿🇲 Zambia",
+    "ZW": "🇿🇼 Zimbabwe",
 };
 // vweb.payments.include_started = true; // will be set to true when the adyen js script has started loading. // @todo change to false.
 // vweb.payments.include_finished = false; // will be set to true when the adyen js script has been loaded.
@@ -789,7 +789,7 @@ vweb.payments._render_order_element = function() {
 							.center(),
 						ImageMask("/static/payments/shopping_cart.webp")
 							.frame(35, 35)
-							.margin_bottom(15)
+							.margin_top(20)
 							.mask_color(style.theme_fg),
 					)
 					.frame(100%, 100%)
@@ -1413,6 +1413,7 @@ vweb.payments._render_billing_element = function() {
 	}
 	const CreateSelect = (args) => {
 		return ExtendedSelect(args)
+			.background(this._style.bg)
 			.color(this._style.fg)
 			.font_size(this._style.font_size)
 			.missing_color(this._style.missing_fg)
@@ -1619,7 +1620,7 @@ vweb.payments._render_billing_element = function() {
 			CreateInput({
 				label: "Country Code",
 				placeholder: "+1",
-				type: PhoneNumberInput,
+				type: "tel",
 			})
 			.value("+31")
 			.max_width("fit-content")
@@ -1631,7 +1632,7 @@ vweb.payments._render_billing_element = function() {
 			CreateInput({
 				label: "Phone Number",
 				placeholder: "123-456-7890",
-				type: PhoneNumberInput,
+				type: "tel",
 			})
 			.value("681471789")
 			.margin_top(10)
@@ -1699,10 +1700,17 @@ vweb.payments._render_payment_element = async function() {
 			custom_data.uid = vweb.user.uid();
 		}
 		try {
+			let business = undefined;
+			if (this._billing_details.business !== "") {
+				business = {
+					name: this._billing_details.business,
+					taxIdentifier: this._billing_details.vat_id === "" ? undefined : this._billing_details.vat_id,
+				};
+			}
 			Paddle.Checkout.open({
 				settings: {
 					displayMode: "inline",
-					theme: "light",
+					// theme: "dark", //vweb.utils.hex_brightness(this._style.bg) >= 50 ? "dark" : "light",
 					locale: "en",
 					frameTarget: "checkout-container",
 					frameInitialHeight: "450",
@@ -1720,10 +1728,7 @@ vweb.payments._render_payment_element = async function() {
 						city: this._billing_details.city,
 						firstLine: `${this._billing_details.street} ${this._billing_details.house_number}`,
 					},
-					business: {
-						name: this._billing_details.business === "" ? undefined : this._billing_details.business,
-						taxIdentifier: this._billing_details.vat_id === "" ? undefined : this._billing_details.vat_id,
-					},
+					business,
 				},
 				customData: custom_data,
 			});
@@ -2087,7 +2092,8 @@ vweb.payments.create_refunds_dropin = function({
 // Get the currency symbol for a product currency.
 // Returns `null` when the currency is not supported.
 /* 	@docs:
- * 	@chapter: Client
+ * 	@nav: Frontend
+ * 	@chapter: Payments
  * 	@title: Get Currency Symbol
  *	@description: Get the currency symbol for a product currency.
  *	@type: string, null
@@ -2258,7 +2264,8 @@ vweb.payments.get_currency_symbol = function(currency) {
 
 // Fetch the payment products.
 /* 	@docs:
- * 	@chapter: Client
+ * 	@nav: Frontend
+ * 	@chapter: Payments
  * 	@title: Payment Products
  *	@description: Get the backend defined payment products asynchronously.
  *	@type: array[object]
@@ -2285,7 +2292,8 @@ vweb.payments.get_products = async function() {
 
 // Fetch a payment product by id.
 /* 	@docs:
- * 	@chapter: Client
+ * 	@nav: Frontend
+ * 	@chapter: Payments
  * 	@title: Get Payment Product
  *	@description: Get the backend defined payment product by id asynchronously.
  *	@type: object
@@ -2318,6 +2326,8 @@ vweb.payments.get_product = async function(id) {
 
 // Fetch a payment object by id.
 /*  @docs:
+	@nav: Frontend
+ 	@chapter: Payments
     @title: Get Payment.
     @desc: Get a payment by id.
     @param:
@@ -2338,6 +2348,8 @@ vweb.payments.get_payment = async function(id) {
 
 // Get all payments.
 /*  @docs:
+	@nav: Frontend
+ 	@chapter: Payments
     @title: Get Refunded Payments.
     @desc:
         Get all payments of the authenticated user
@@ -2380,6 +2392,8 @@ vweb.payments.get_payments = async function({
 
 // Get refundable payments.
 /*  @docs:
+	@nav: Frontend
+ 	@chapter: Payments
     @title: Get Refundable Payments.
     @desc: Get all payments that are refundable for the authenticated user.
     @param:
@@ -2407,6 +2421,8 @@ vweb.payments.get_refundable_payments = async function({
 
 // Get refunded payments.
 /*  @docs:
+	@nav: Frontend
+ 	@chapter: Payments
     @title: Get Refunded Payments.
     @desc: Get all successfully refunded payments of the authenticated user.
     @param:
@@ -2434,6 +2450,8 @@ vweb.payments.get_refunded_payments = async function({
 
 // Get refunding payments.
 /*  @docs:
+	@nav: Frontend
+ 	@chapter: Payments
     @title: Get Refunding Payments.
     @desc: Get all payments that are currently in the refunding process of the authenticated user.
     @param:
@@ -2461,6 +2479,8 @@ vweb.payments.get_refunding_payments = async function({
 
 // Create refund.
 /*  @docs:
+	@nav: Frontend
+ 	@chapter: Payments
     @title: Refund Payment.
     @desc: Refund a payment based on the payment id for the authenticated user.
     @warning: Refunding a subscription will also cancel all other subscriptions that were created by the same payment request.
@@ -2493,6 +2513,8 @@ vweb.payments.create_refund = async function(payment, line_items = null, reason 
 
 // Cancel subscription.
 /*  @docs:
+	@nav: Frontend
+ 	@chapter: Payments
     @title: Cancel Subscription.
     @desc: Cancel a subscription based on the product id.
     @warning: Cancelling a subscription will also cancel all other subscriptions that were created by the same payment request.
@@ -2514,6 +2536,8 @@ vweb.payments.cancel_subscription = async function(product) {
 
 // Cancel subscription.
 /*  @docs:
+	@nav: Frontend
+ 	@chapter: Payments
     @title: Cancel Subscription by Payment.
     @desc: Cancel a subscription based on the retrieved payment object or id.
     @warning: Cancelling a subscription will also cancel all other subscriptions that were created by the same payment request.
@@ -2535,6 +2559,8 @@ vweb.payments.cancel_subscription_by_payment = async function(payment) {
 
 // Is subscribed.
 /*  @docs:
+	@nav: Frontend
+ 	@chapter: Payments
     @title: Is Subscribed.
     @desc: Check if the authenticated user is subscribed to a product plan.
     @param:
@@ -2555,6 +2581,8 @@ vweb.payments.is_subscribed = async function(product) {
 
 // Get subscriptions.
 /*  @docs:
+	@nav: Frontend
+ 	@chapter: Payments
     @title: Get Subscriptions
     @desc: Get the active subscriptions of the authenticated user.
 */
@@ -2573,7 +2601,8 @@ vweb.payments.cart = {};
 
 // Refresh the shopping cart.
 /* 	@docs:
- * 	@chapter: Client
+ * 	@nav: Frontend
+ * 	@chapter: Payments
  * 	@title: Refresh Cart
  *	@description:
  *		Refresh the shopping cart.
@@ -2596,7 +2625,8 @@ vweb.payments.cart.refresh();
 
 // Get the shopping cart.
 /* 	@docs:
- * 	@chapter: Client
+ * 	@nav: Frontend
+ * 	@chapter: Payments
  * 	@title: Save Cart
  *	@description:
  *		Save the shopping cart in the local storage.
@@ -2614,7 +2644,8 @@ vweb.payments.cart.save = function(cart) {
 
 // Add a product to the shopping cart.
 /* 	@docs:
- * 	@chapter: Client
+ * 	@nav: Frontend
+ * 	@chapter: Payments
  * 	@title: Add to Cart
  *	@description: 
  *		Add a product to the shopping cart.
@@ -2653,7 +2684,8 @@ vweb.payments.cart.add = async function(id, quantity = 1) {
 
 // Remove a product from the shopping cart.
 /* 	@docs:
- * 	@chapter: Client
+ * 	@nav: Frontend
+ * 	@chapter: Payments
  * 	@title: Add to Cart
  *	@description: 
  *		Remove a product from the shopping cart.
@@ -2694,7 +2726,8 @@ vweb.payments.cart.remove = async function(id, quantity = 1) {
 
 // Clear the shopping cart.
 /* 	@docs:
- * 	@chapter: Client
+ * 	@nav: Frontend
+ * 	@chapter: Payments
  * 	@title: Clear Cart
  *	@description: 
  *		Clear the shopping cart.

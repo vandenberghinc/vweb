@@ -1,0 +1,984 @@
+<!DOCTYPE html>
+<html>
+    
+    <!--
+     Author: Daan van den Bergh
+     Copyright: © 2022 Daan van den Bergh.
+    -->
+
+    <!-- Header. -->
+    <head>
+        
+        <!-- Default meta data. -->
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        
+        <!-- Meta author. -->
+        <meta name="author" content="{{META_AUTHOR}}" />
+        
+        <!-- Meta title. -->
+        <title>{{META_TITLE}}</title>
+        <meta property="og::title" content="{{META_TITLE}}" />
+        <meta property="twitter::title" content="{{META_TITLE}}" />
+        
+        <!-- Meta description. -->
+        <meta name="description" content="{{META_DESCRIPTION}}" />
+        <meta property="og::description" content="{{META_DESCRIPTION}}" />
+            
+        <!-- Meta image. -->
+        <meta property="og::image" content="{{META_IMAGE}}" />
+        
+        <!-- Meta robots. -->
+        <meta name="robots" content="{{META_ROBOTS}}">
+        
+        <!-- Favicon. -->
+        <link rel="icon" href="/favicon.ico" type="image/x-icon" />
+        
+        <!-- JS Includes. -->
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.4/jquery.min.js"></script>
+        
+    </head>
+    
+    <!-- Style -->
+    <style>
+        
+        /* Box sizing on all elements. */
+        * {
+            box-sizing: border-box;
+            -webkit-box-sizing: border-box;
+            -mos-box-sizing: border-box;
+            -ms-box-sizing: border-box;
+        }
+        
+        /* HStack
+        .HStack {}
+        .HStack::after {
+            box-sizing: border-box;
+            content: "";
+        }
+         */
+        
+        /* Animation: Slide Right */
+        @keyframes SlideRight {
+            0% {
+                transform: translateX(-100%);
+            }
+        }
+        SlideRight {
+            animation-duration: 1s;
+            animation-name: SlideRight;
+        }
+        
+        /* Animation: Slide Left */
+        @keyframes SlideLeft {
+            100% {
+                transform: translateX(-100%);
+            }
+        }
+        SlideLeft {
+            animation-duration: 1s;
+            animation-name: SlideLeft;
+        }
+        
+        /* Syntax highlighting */
+        .token_comment {
+            color: #818C97;
+        }
+        .token_url {
+            color: #818C97;
+        }
+        .token_char, .token_string, .token_numeric {
+            /* color: #D6C986; */
+            /* color: #D3D968; */
+            /* color: #E2C930; */
+            color: #D6C986;
+        }
+        .token_bool {
+            color: #EE8378;
+            font-weight: bold;
+        }
+        .token_keyword {
+            color: #EE8378;
+            font-weight: bold;
+        }
+        .token_type_def { /* also for funcs */
+            color: #C78BF0;
+        }
+        .token_type { /* also for funcs */
+            color: #5795F3;
+        }
+        
+        
+        /* Loader. */
+        .Loader1 {
+            display: inline-block;
+            position: relative;
+            
+            width: 80px;
+            height: 80px;
+        }
+        .Loader1 div {
+            animation: Loader1 1.2s cubic-bezier(0.5, 0, 0.5, 1) infinite;
+            transform-origin: 40px 40px;
+        }
+        .Loader1 div:after {
+            content: " ";
+            display: block;
+            position: absolute;
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: black;
+            margin: -4px 0 0 -4px;
+        }
+        .Loader1 div:nth-child(1) {
+            animation-delay: -0.036s;
+        }
+        .Loader1 div:nth-child(1):after {
+            top: 63px;
+            left: 63px;
+        }
+        .Loader1 div:nth-child(2) {
+            animation-delay: -0.072s;
+        }
+        .Loader1 div:nth-child(2):after {
+            top: 68px;
+            left: 56px;
+        }
+        .Loader1 div:nth-child(3) {
+            animation-delay: -0.108s;
+        }
+        .Loader1 div:nth-child(3):after {
+            top: 71px;
+            left: 48px;
+        }
+        .Loader1 div:nth-child(4) {
+            animation-delay: -0.144s;
+        }
+        .Loader1 div:nth-child(4):after {
+            top: 72px;
+            left: 40px;
+        }
+        .Loader1 div:nth-child(5) {
+            animation-delay: -0.18s;
+        }
+        .Loader1 div:nth-child(5):after {
+            top: 71px;
+            left: 32px;
+        }
+        .Loader1 div:nth-child(6) {
+            animation-delay: -0.216s;
+        }
+        .Loader1 div:nth-child(6):after {
+            top: 68px;
+            left: 24px;
+        }
+        .Loader1 div:nth-child(7) {
+            animation-delay: -0.252s;
+        }
+        .Loader1 div:nth-child(7):after {
+            top: 63px;
+            left: 17px;
+        }
+        .Loader1 div:nth-child(8) {
+            animation-delay: -0.288s;
+        }
+        .Loader1 div:nth-child(8):after {
+            top: 56px;
+            left: 12px;
+        }
+        @keyframes Loader1 {
+            0% {
+                transform: rotate(0deg);
+            }
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+        /* call the load with html as:
+         <div class="Loader1" style="transform: scale(1.0); display: block; margin: 0 auto;"><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div></div>
+         */
+        
+    </style>
+    
+    <!-- Body. -->
+    <body id='body'>
+    </body>
+    
+    <!-- Js utils. -->
+    <script type='text/javascript'>
+        
+        // Vars.
+        var generated_ids = 0;
+        
+        // Is string.
+        function is_string(value) {
+            return typeof value === 'string' || value instanceof String;
+        }
+        
+        // Generate an id.
+        function generate_id() {
+            ++generated_ids;
+            return "e_" + generated_ids;
+        }
+        
+        // Get device width.
+        function get_device_width() {
+            return (window.innerWidth > 0) ? window.innerWidth : screen.width;
+        }
+        
+        // Get endpoint sub url.
+        function get_endpoint() {
+            endpoint = window.location.href.replace("https://", "").replace("http://", "");
+            endpoint = endpoint.substr(endpoint.indexOf('/'), endpoint.length);
+            return endpoint;
+        }
+        
+        // Get a cookie value by name.
+        function get_cookie(name) {
+            var index = document.cookie.indexOf(name + "=");
+            if (index == -1) {
+                return null;
+            }
+            index += name.length + 1;
+            var value = document.cookie.substr(index, document.cookie.length);
+            if (value == null) { return null; }
+            index = value.indexOf(';');
+            if (index == -1) {
+                return value;
+            }
+            return value.substr(0, index);
+        }
+        
+        // Get user id.
+        function get_uid() {
+            let uid = get_cookie("UserID");
+            if (uid == -1) {
+                return null;
+            }
+            return uid;
+        }
+        
+        // Get the is user activated boolean.
+        function get_user_activated() {
+            if (get_cookie("UserActivated") == "true") {
+                return true;
+            }
+            return false;
+        }
+        
+        // Request.
+        function request(method, url, data, success_handler, error_handler) {
+            if (!is_string(data)) {
+                data = JSON.stringify(data);
+            }
+            $.ajax({
+                url: url,
+                data: data,
+                type: method,
+                credentials: "true",
+                mimeType: "application/json",
+                contentType: "application/json",
+                dataType: "json",
+                success: function (response, status, xhr) {
+                    success_handler(response);
+                },
+                error: function(xhr, status, error) {
+                    var response;
+                    try {
+                        response = JSON.parse(xhr.responseText);
+                        console.log("JSON " + response.error);
+                    } catch (e) {
+                        response = {"status": status, "error": xhr.responseText};
+                        console.log("NOJSON " +response.error);
+                    }
+                    error_handler(response)
+                }
+            })
+        }
+        
+    </script>
+    
+    <!-- Js. -->
+    <script type='text/javascript'>
+        
+        // Variables.
+        var UI = {{UI}};
+        var variables = {};
+        var body = document.getElementById("body");
+        var UserID = -1;
+        
+        // Initialize.
+        function init() {
+            // document.cookie = 'dark_mode=false; Secure; HttpOnly; SameSite=Strict';
+        }
+
+        // Build the UI.
+        function build() {
+            body.innerHTML = "";
+            build_element(body, UI);
+        }
+        
+        // Is variable / device condition.
+        function is_variable_condition(type) {
+            return type == "IfVariableEq" ||
+            type == "IfVariableNotEq" ||
+            type == "IfVariableGreaterEq" ||
+            type == "IfVariableGreater" ||
+            type == "IfVariableLesserEq" ||
+            type == "IfVariableLesser" ||
+            type == "IfDeviceWidthEq" ||
+            type == "IfDeviceWidthNotEq" ||
+            type == "IfDeviceWidthGreaterEq" ||
+            type == "IfDeviceWidthGreater" ||
+            type == "IfDeviceWidthLesserEq" ||
+            type == "IfDeviceWidthLesser" ||
+            type == "IfEndpointEq" ||
+            type == "IfEndpointNotEq" ||
+            type == "IfAuthenticated" ||
+            type == "IfUnauthenticated" ||
+            type == "IfUserActivated" ||
+            type == "IfUserUnactivated";
+        }
+        
+        // Get the required visibily of an element by a variable / device condition.
+        function get_visibility_by_variable_condition(element, type) {
+            
+            // Variable conditions.
+            if (type == "IfVariableEq") {
+                if (variables[element["key"]] == element["value"]) {
+                    return true;
+                } else {
+                    return false;
+                }
+            }
+            else if (type == "IfVariableNotEq") {
+                if (variables[element["key"]] != element["value"]) {
+                    return true;
+                } else {
+                    return false;
+                }
+            }
+            else if (type == "IfVariableGreaterEq") {
+                if (variables[element["key"]] >= element["value"]) {
+                    return true;
+                } else {
+                    return false;
+                }
+            }
+            else if (type == "IfVariableGreater") {
+                if (variables[element["key"]] > element["value"]) {
+                    return true;
+                } else {
+                    return false;
+                }
+            }
+            else if (type == "IfVariableLesserEq") {
+                if (variables[element["key"]] <= element["value"]) {
+                    return true;
+                } else {
+                    return false;
+                }
+            }
+            else if (type == "IfVariableLesser") {
+                if (variables[element["key"]] < element["value"]) {
+                    return true;
+                } else {
+                    return false;
+                }
+            }
+            
+            // Device conditions.
+            else if (type == "IfDeviceWidthEq") {
+                if (get_device_width() == element["value"]) {
+                    return true;
+                } else {
+                    return false;
+                }
+            }
+            else if (type == "IfDeviceWidthNotEq") {
+                if (get_device_width() != element["value"]) {
+                    return true;
+                } else {
+                    return false;
+                }
+            }
+            else if (type == "IfDeviceWidthGreaterEq") {
+                if (get_device_width() >= element["value"]) {
+                    return true;
+                } else {
+                    return false;
+                }
+            }
+            else if (type == "IfDeviceWidthGreater") {
+                if (get_device_width() > element["value"]) {
+                    return true;
+                } else {
+                    return false;
+                }
+            }
+            else if (type == "IfDeviceWidthLesserEq") {
+                if (get_device_width() <= element["value"]) {
+                    return true;
+                } else {
+                    return false;
+                }
+            }
+            else if (type == "IfDeviceWidthLesser") {
+                if (get_device_width() < element["value"]) {
+                    return true;
+                } else {
+                    return false;
+                }
+            }
+            
+            // Endpoint conditions.
+            else if (type == "IfEndpointEq") {
+                if (get_endpoint() == element["value"]) {
+                    return true;
+                } else {
+                    return false;
+                }
+            }
+            else if (type == "IfEndpointNotEq") {
+                if (get_endpoint() != element["value"]) {
+                    return true;
+                } else {
+                    return false;
+                }
+            }
+            
+            // Authenticated conditions.
+            else if (type == "IfAuthenticated") {
+                if (get_uid() != null) {
+                    return true;
+                } else {
+                    return false;
+                }
+            }
+            else if (type == "IfUnauthenticated") {
+                if (get_uid() == null) {
+                    return true;
+                } else {
+                    return false;
+                }
+            }
+            
+            // User activated conditions.
+            else if (type == "IfUserActivated") {
+                if (get_uid() != null && get_user_activated() == true) {
+                    return true;
+                } else {
+                    return false;
+                }
+            }
+            else if (type == "IfUserUnactivated") {
+                if (get_uid() != null && get_user_activated() == false) {
+                    return true;
+                } else {
+                    return false;
+                }
+            }
+            
+            // Unknown.
+            else {
+                console.log("[get_visibility_by_variable_condition] ERROR: Unknown variable condition type \"" + type, "\".");
+            }
+            return false;
+        }
+        
+        // Build an element.
+        function build_element(parent, element, pre_style = null, hidden = false) {
+            
+            // Vars.
+            var type = element["type"];
+            var text = element["text"];
+            var style = element["style"];
+            var children = element["children"];
+            var on_click = element["on_click"];
+            var tag = element["tag"];
+            var id = element["id"];
+            var animations = element["animations"];
+            var e = null;
+            
+            // Variables.
+            if (type == "Variable" || type == "SetVariable") {
+                variables[element["key"]] = element["value"];
+            }
+            
+            // Variable / device conditions.
+            else if (is_variable_condition(type)) {
+                
+                // Create container.
+                e = document.createElement(tag);
+                // e.style["width"] = "100%";
+                // e.style["flex"] = 1;
+                
+                // Style.
+                if (pre_style != null) {
+                    apply_style(e, element, pre_style);
+                }
+                apply_style(e, element, style);
+                
+                // Get visibility.
+                var visible = get_visibility_by_variable_condition(element, type);
+                
+                // Build.
+                build_children(e, type, children, null, !visible);
+                
+                // Set visibility.
+                if (visible) {
+                    e.style.display = "block";
+                } else {
+                    e.style.display = "none";
+                }
+                
+                // Apply animation.
+                if (visible && animations != null) {
+                    apply_animation(e, "in", animations);
+                }
+                
+                // Append.
+                parent.appendChild(e);
+                element["element"] = e;
+            }
+            
+            // Redirect.
+            else if (type == "Redirect") {
+                if (!hidden && (element["forced"] == true || get_endpoint() != element["url"])) {
+                    window.location.href = element["url"];
+                }
+            }
+            
+            // Javascript.
+            else if (type == "JavaScript") {
+                e = document.createElement("script");
+                e.type = "text/javascript";
+                e.text = element["code"];
+                parent.appendChild(e);
+                element["element"] = e;
+            }
+            
+            // Get element.
+            else if (type == "GetElementById") {
+                if (!hidden) {
+                    build_get_element(element);
+                }
+            }
+            
+            // Element without tag.
+            else if (tag == null || tag == "") {
+                build_children(parent, type, children, pre_style, hidden);
+            }
+            
+            // Create element.
+            else {
+                e = document.createElement(tag);
+                var href = element["href"];
+                
+                // Style.
+                if (pre_style != null) {
+                    apply_style(e, element, pre_style);
+                }
+                apply_style(e, element, style);
+                
+                // Attributes.
+                var attr = element["attr"];
+                if (attr != null) {
+                    for (let [key, value] of Object.entries(attr)) {
+                        console.log("Set " + key + " to " + value);
+                        e.setAttribute(key, value);
+                    }
+                }
+                
+                // Id.
+                if (id != null && id.length > 0) {
+                    e.setAttribute("id", id);
+                }
+                
+                // Text.
+                if (text != null && text != "") {
+                    e.innerHTML = text;
+                }   
+                
+                // Href.
+                if (href != null && href != "") {
+                    e.href = href;
+                }
+                
+                // Input.
+                if (tag == "input") {
+                    e.setAttribute("type", element["input"]);
+                    e.setAttribute("placeholder", text);
+                }
+                
+                // Select option input.
+                else if (type == "SelectOptionInput") {
+                    var opt_index = 0;
+                    element["select_options"].forEach(function(opt) {
+                        var opt_e = document.createElement("option");
+                        if (opt_index == 0) {
+                            opt_e.selected = true;
+                            opt_e.disabled = true;
+                            opt_e.setAttribute("value", "");
+                        } else {
+                            opt_e.setAttribute("value", opt);
+                        }
+                        opt_e.innerHTML = opt;
+                        e.appendChild(opt_e);
+                        ++opt_index;
+                    });
+                }
+                
+                // Button.
+                else if (type == "Button") {
+                    if (e.href == null) {
+                        e.href = "#";
+                    }
+                    e.setAttribute("onmousedown", "this.style.filter = \"brightness(90%)\";");
+                    e.setAttribute("onmouseover", "this.style.filter = \"brightness(95%)\";");
+                    e.setAttribute("onmouseup", "this.style.filter = \"brightness(100%)\";");
+                    e.setAttribute("onmouseout", "this.style.filter = \"brightness(100%)\";");
+                }
+                
+                // Image.
+                else if (type == "Image") {
+                    e.src = element["image"];
+                }
+                
+                // Loader.
+                else if (type == "Loader") {
+                    // var id = generate_id();
+                    // e.id = id;
+                    e.classList.add("Loader1");
+                    // e.style.background = "none";
+                    e.style.display = "block";
+                    e.style.margin = "0 auto";
+                    // e.style.width = "25px";
+                    // e.style.height = "25px";
+                    e.innerHTML = "<div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div>";
+                    // e.innerHTML = "<div></div><div></div><div></div>";
+                    // const style_tag = document.createElement("style");
+                    // style_tag.innerHTML = "#" + id + " div:after { background: "
+                    // + (style["background"] == null ? "black" : style["background"]) +
+                    // "; }";
+                    // document.head.insertAdjacentElement('beforeend', style_tag);
+                }
+                
+                // Append.
+                parent.appendChild(e);
+                element["element"] = e;
+                
+                // Children.
+                build_children(e, type, children, null, hidden);
+                
+                // Apply animation.
+                if (animations != null) {
+                    apply_animation(e, "in", animations);
+                }
+                
+                // On click event.
+                if (on_click != null) {
+                    js_code = build_event(on_click);
+                    if (js_code != null) {
+                        e.setAttribute("onclick", js_code);
+                        e.setAttribute("onmousedown", "this.style.filter = \"brightness(90%)\";");
+                        e.setAttribute("onmouseover", "this.style.filter = \"brightness(95%)\";");
+                        e.setAttribute("onmouseup", "this.style.filter = \"brightness(100%)\";");
+                        e.setAttribute("onmouseout", "this.style.filter = \"brightness(100%)\";");
+                    }
+                }
+                
+            }
+        }
+        
+        // Build an elements children.
+        function build_children(parent, parent_type, children, pre_style = null, hidden = false) {
+            if (children != null && children.length > 0) {
+                
+                // ZStack.
+                if (parent_type == "ZStack") {
+                    pre_style = {
+                        "position": "absolute",
+                    }
+                }
+                
+                // Build.
+                children.forEach(function(child) {
+                    build_element(parent, child, pre_style, hidden);
+                });
+            }
+        }
+        
+        // Rebuild the UI after an variable change.
+        // Mainly checks the variable conditions.
+        function rebuild() {
+            rebuild_element(UI);
+        }
+        
+        // Rebuild an element.
+        // Mainly checks the variable conditions.
+        function rebuild_element(element, hidden = false) {
+            
+            // Vars.
+            var type = element["type"];
+            
+            // Variable conditions.
+            if (is_variable_condition(type)) {
+                
+                // Get element.
+                e = element["element"];
+                
+                // Set visibility.
+                var visible = get_visibility_by_variable_condition(element, type);
+                
+				// Apply animation.
+				// Should be called before rebuild_children, otherwise it might not show up.
+				var animations = element["animations"];
+				if (animations != null) {
+					apply_animation(e, visible ? "in" : "out", animations);
+				} else {
+					if (visible) {
+						e.style.display = "block";
+					} else {
+						e.style.display = "none";
+					}
+				}
+				
+                // Rebuild children.
+                rebuild_children(element["children"], !visible);
+                
+            }
+            
+            // Get element.
+            else if (type == "GetElementById") {
+                if (!hidden) {
+                    build_get_element(element);
+                }
+            }
+            
+            // Redirect.
+            else if (type == "Redirect") {
+                if (!hidden && (element["forced"] == true || get_endpoint() != element["url"])) {
+                    window.location.href = element["url"];
+                }
+            }
+            
+            // Other elements.
+            else {
+                rebuild_children(element["children"], hidden);
+            }
+            
+        }
+        
+        // Reuild an elements children.
+        function rebuild_children(children, hidden) {
+            if (!hidden && children != null && children.length > 0) {
+                children.forEach(function(child) {
+                    rebuild_element(child, hidden);
+                });
+            }
+        }
+        
+        // Apply style dict to an element.
+        function apply_style(e, element, style) {
+            for (let [key, value] of Object.entries(style)) {
+                
+                // Make margin calculations for the flex basis.
+                if (key == "flex-basis") {
+                    var margin_left = e.style["margin-left"];
+                    var margin_right = e.style["margin-right"];
+                    if (margin_left == null) {
+                        margin_left = "0px";
+                    }
+                    if (margin_right == null) {
+                        margin_right = "0px";
+                    }
+					
+					// V1.
+                    // e.style[key] = "calc(" + value + " - " + margin_left + " - " + margin_right + ")";
+					
+					// V2.
+					// var spacing = "calc(" +  + ")";
+					// var columns = element["columns"];
+					// if (columns == null) {
+					// 	columns = 1;
+					// }
+					// e.style[key] = "calc(100% / " + columns + " - (" + margin_left + " + " + margin_right + ") / " + columns + " * (" + columns + " - 1))"; // V2
+					
+					// V3.
+					var columns = element["columns"];
+					if (columns == null) {
+						columns = 1;
+					}
+					var spacing = margin_left + " + " + margin_right;
+					// var spacing = "20px";
+					e.style[key] = "calc(100% / " + columns + " - (" + spacing + "))";
+                }
+                
+                // Add style.
+                else {
+                    e.style[key] = value;
+                }
+            }
+        }
+        
+        // Build an event array.
+        function build_event(event) {
+            
+            // The function should be called upon the events children.
+            // So check if the function is called with the event json.
+            // To recall it upon the children.
+            if (event["type"] == "Event") {
+                return build_event(event["children"]);
+            }
+            
+            // String.
+            if (is_string(event) && event.length > 0) {
+                return event;
+            }
+            
+            // Array
+            if (event != null && event.length > 0) {
+                var js_code = "";
+                var do_rebuild = false;
+                
+                // Iterate children.
+                event.forEach(function(child) {
+                    var child_type = child["type"];
+                    var child_value = child["value"];
+                    
+                    // Set variable.
+                    if (child_type == "SetVariable") {
+                        do_rebuild = true;
+                        if (is_string(child_value)) {
+                            js_code += "variables[\"" + child["key"] + "\"] = \"" + child_value + "\";"
+                        } else {
+                            js_code += "variables[\"" + child["key"] + "\"] = " + child_value + ";"
+                        }
+                    }
+                    
+                    // Toggle variable.
+                    else if (child_type == "ToggleVariable") {
+                        do_rebuild = true;
+                        js_code += "variables[\"" + child["key"] + "\"] = !variables[\"" + child["key"] + "\"];"
+                    }
+                    
+                    // Redirect.
+                    else if (child_type == "Redirect") {
+                        js_code += "" +
+                        "if (" + child["forced"] + " == true || get_endpoint() != '" + child["url"] + "') {" +
+                        "window.location.href = '" + child["url"] + "';" +
+                        "}";
+                    }
+                    
+                    // Javascript.
+                    else if (child_type == "JavaScript") {
+                        js_code += child["code"] += ";";
+                    }
+                    
+                    // Request.
+                    else if (child_type == "Request") {
+                        js_code +=
+                        "request('" + child["method"] + "', '" + child["endpoint"] + "', " +
+                        JSON.stringify(child["body"]).replaceAll('"$', '').replaceAll('$"', '') + ", " +
+                        "function(response) {" +
+                        build_event(child["success_event"]) +
+                        "}, " +
+                        "function(response) {" +
+                        build_event(child["error_event"]) +
+                        "}" +
+                        ")";
+                    }
+                    
+                    // Invalid child type.
+                    else {
+                        console.log("Error: unsupported type for Event \"" + child_type + "\".");
+                    }
+                });
+                
+                // Assign.
+                if (do_rebuild) {
+                    js_code += " rebuild();"
+                }
+                return js_code;
+            }
+        }
+        
+        // Build an GetElement family element.
+        // Only when used outside events.
+        function build_get_element(element) {
+            if (element != null) {
+                
+                // Vars.
+                var id = element["id"];
+                var key = element["key"];
+                var value = element["value"];
+                var style = element["style"];
+                
+                // Get element.
+                var e = document.getElementById(id);
+                if (e == null) {
+                    console.log("[build_get_element] ERROR: Unable to get element \"" + id + "\".");
+                    return null;
+                }
+                
+                // Set value.
+                if (key != null && value != null) {
+                    e[key] = value;
+                }
+                
+                // Set style.
+                else if (style != null) {
+                    apply_style(e, element, style);
+                }
+                
+                // Error.
+                else {
+                    console.log("[build_get_element] ERROR: None of the element attributes are assigned.");
+                }
+                
+            }
+        }
+        
+        // Apply an animation from the animations array.
+        // When mode is "show" the first animation is applied.
+        // When mode is "hide" the second animation applied when present, otherwise the first.
+        function apply_animation(e, mode, animations) {
+            if (animations != null) {
+                var animation = animations[mode];
+                if (animation == null) {
+                    console.log("[apply_animation] ERROR: Unkown animation mode \"" + mode + "\".");
+                    return ;
+                }
+                if (mode == "in") {
+                    e.style.display = "block"
+                }
+                e.style["animation-duration"] = animation["duration"] + "s";
+                e.style["animation-name"] = animation["animation"];
+                if (mode == "out") {
+                    setTimeout(function() { e.style.display = "none" }, animation["duration"] * 1000);
+                }
+            }
+        }
+        
+        // Build.
+        init();
+        build();
+        
+        // Resize event.
+        body.onresize = (event) => {
+            rebuild();
+        }
+        
+        console.log("T:", get_cookie("T"));
+        console.log("UserID:", get_cookie("UserID"));
+        console.log("UserActivated:", get_cookie("UserActivated"));
+        console.log("UserName:", get_cookie("UserName"));
+        console.log("UserFirstName:", get_cookie("UserFirstName"));
+        console.log("UserLastName:", get_cookie("UserLastName"));
+        console.log("UserEmail:", get_cookie("UserEmail"));
+            
+    </script>
+
+</html>

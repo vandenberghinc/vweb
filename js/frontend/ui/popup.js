@@ -17,6 +17,9 @@ class PopupElement extends VStackElement {
 		image_color = "white",
 		content = [],
 		auto_hide = true,
+		auto_remove = false,
+		animation_duration = 0, // in ms.
+		blur = 0,
 		on_no = () => {},
 		on_yes = () => {},
 		on_popup = () => {},
@@ -33,6 +36,9 @@ class PopupElement extends VStackElement {
 
         // Args.
         this.auto_hide = auto_hide;
+        this.auto_remove = auto_remove;
+		this.animation_duration = animation_duration;
+		this.blur = blur;
         this.on_no_handler = on_no;
         this.on_yes_handler = on_yes;
         this.on_popup_handler = on_popup;
@@ -83,7 +89,7 @@ class PopupElement extends VStackElement {
             .parent(this)
             .on_click(async () => {
             	this.no_button.show_loader();
-            	await this.close(this.auto_hide);
+            	await this.close();
             	this.no_button.hide_loader();
             })
 
@@ -96,14 +102,25 @@ class PopupElement extends VStackElement {
             .parent(this)
             .on_click(async () => {
             	this.yes_button.show_loader();
-            	if (this.auto_hide) {
-            		this.hide();
-            	}
-	            document.body.removeEventListener("keydown", this.escape_handler);
+            	let removed_escape_handler = false;
+            	if (this.auto_remove || this.auto_hide) {
+					this.opacity(0);
+					if (this.blur != null) { this.background_blur(0); }
+					if (this.auto_remove) {
+						setTimeout(() => this.remove(), this.animation_duration);
+					} else if (this.auto_hide) {
+						setTimeout(() => this.hide(), this.animation_duration);
+					}
+					document.body.removeEventListener("keydown", this.escape_handler);
+					removed_escape_handler = true;
+				}
 	            const res = this.on_yes_handler(this);
 	            if (res instanceof Promise) {
 	            	try { await res; }
 	            	catch (err) { console.error(err); }
+	            }
+	            if (!removed_escape_handler && (this.display() === "none" || this.visibility() === "hidden" || this.parentElement == null)) {
+	            	document.body.removeEventListener("keydown", this.escape_handler);
 	            }
 	            this.mutex.unlock();
 	            this.yes_button.hide_loader();
@@ -144,12 +161,17 @@ class PopupElement extends VStackElement {
         this.append(this.widget)
 
 	    // Styling.
+	    this.opacity(1);
+	    this.transition(`opacity ${animation_duration*0.9}ms ease, backdrop-filter ${animation_duration}ms ease`)
 	    this.position(0, 0, 0, 0)
 	    // do not use background blur since that decreases the performance too much.
 	    this.background("#00000060")
 	    this.center()
 	    this.center_vertical()
 	    this.z_index(10000)
+	    if (blur != null && blur > 0) {
+	    	this.background_blur(blur);
+	    }
 	}
 
 	// Set default since it inherits HStackElement.
@@ -164,9 +186,16 @@ class PopupElement extends VStackElement {
 	}
 
 	// Close the popup.
-	async close(force_hide = true) {
-		if (force_hide) {
-			this.hide();
+	async close(force_hide = false) {
+		if (this.auto_remove || force_hide) {
+			this.opacity(0);
+			if (this.blur != null) { this.background_blur(0); }
+			setTimeout(() => this.remove(), this.animation_duration);
+			document.body.removeEventListener("keydown", this.escape_handler);
+		} else if (this.auto_hide || force_hide) {
+			this.opacity(0);
+			if (this.blur != null) { this.background_blur(0); }
+			setTimeout(() => this.hide(), this.animation_duration);
 			document.body.removeEventListener("keydown", this.escape_handler);
 		}
 		if (this._on_no_called !== true) { // since this could also be called from the on no handler.
@@ -203,6 +232,16 @@ class PopupElement extends VStackElement {
 
     	// Call on popup.
 		this.on_popup_handler(this);
+
+		this.opacity(0);
+		if (this.blur != null) { this.background_blur(0); }
+		this.show();
+		this.getBoundingClientRect();
+		this.opacity(1);
+		if (this.blur != null) { this.background_blur(this.blur); }
+
+		// Reset flags.
+		this._on_no_called = false;
 
     	// Set args.
     	this.auto_close = auto_close;

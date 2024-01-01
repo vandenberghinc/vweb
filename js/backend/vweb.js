@@ -7,14 +7,17 @@
 // Exports.
 
 // Create vweb lib.
+const {FrontendError} = require("./utils.js")
 const vweb = {
+    FrontendError,
     Meta: require("./meta.js"),
     View: require("./view.js"),
     Endpoint: require("./endpoint.js"),
     Server: require("./server.js"),
     Status: require("./status.js"),
-    Mail: require("./mail.js"),
     FileWatcher: require("./file_watcher.js"),
+    Mail: require("./plugins/mail.js"),
+    PDF: require("./plugins/PDF.js"),
     version: require("../.version.js"),
 }
 

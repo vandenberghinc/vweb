@@ -395,9 +395,9 @@ class CodeBlockElement extends CreateVElementClass({
 			.parent(this)
 			.padding(CodeBlockElement.default_style.padding)
 			.flex_wrap("nowrap")
-			.height("100%")
+			// .min_height("100%")
 			.overflow("auto visible")
-			.align_items("stretch"); // required for lines divider.
+			// .align_items("stretch"); // required for lines divider.
 
 		// Append code pre.
 		this.append(
@@ -554,6 +554,7 @@ class CodeBlockElement extends CreateVElementClass({
 					html += `${(i + 1)}\n`;
 				}
 				this.lines.innerHTML = html;
+				this.lines_divider.min_height(this.lines.offsetHeight - 6)
 
 			},
 		})
@@ -637,6 +638,19 @@ class CodePreElement extends CreateVElementClass({
 			// Reset content.
 			this.innerHTML = "";
 
+			// Check html entity.
+			const check_html_entity = (index) => {
+				let entity = "&", entity_last_index;
+				for (let i = index + 1; i < index + 1 + 5; i++) {
+					entity += code.charAt(i);
+					if (code.charAt(i) === ";") {
+						entity_last_index = i;
+						break;
+					}
+				}
+				return {entity, entity_last_index};
+			}
+
 			// Add char.
 			const add_char = (index) => {
 
@@ -652,9 +666,9 @@ class CodePreElement extends CreateVElementClass({
 
 				// Animate.
 				else {
-					
+
 					// Span opening.
-					if (code[index] == '<') {
+					if (code.charAt(index) === '<') {
 						
 						// Fins span open, close and code.
 						let span_index;
@@ -663,12 +677,23 @@ class CodePreElement extends CreateVElementClass({
 						let span_code = "";
 						let open = true;
 						let first = true;
-						let recusrive = false;
+						let recursive = false;
 						for (span_index = index; span_index < code.length; span_index++) {
 							if (this.allow_animation !== true) {
 								return ;
 							}
-							const char = code[span_index];
+							let char = code.charAt(span_index);
+
+							// Add html entities in one batch.
+							if (char === "&") {
+								let {entity, entity_last_index} = check_html_entity(span_index)
+								if (entity_last_index !== undefined) {
+									char = entity;
+									span_index = entity_last_index;
+								}
+							}
+
+							// Already open or start of opening.
 							if (char == '<' || open) {
 								open = true;
 								if (first) {
@@ -696,7 +721,7 @@ class CodePreElement extends CreateVElementClass({
 											this.innerHTML = add;
 											setTimeout(() => add_span_code(index + 1), delay);
 										} else {
-											recusrive = true;
+											recursive = true;
 											setTimeout(() => add_char(span_index + 1), delay);
 										}
 									}
@@ -713,14 +738,28 @@ class CodePreElement extends CreateVElementClass({
 							}
 							
 						}
-						if (recusrive === false && span_index === code.length) {
+						if (recursive === false && span_index === code.length) {
 							resolve()
 						}
 					}
 					
 					// Non span code.
 					else {
-						this.innerHTML += code.charAt(index);
+
+						// Set char.
+						let char = code.charAt(index);
+
+						// Add html entities in one batch.
+						if (char === "&") {
+							let {entity, entity_last_index} = check_html_entity(index)
+							if (entity_last_index !== undefined) {
+								char = entity;
+								index = entity_last_index;
+							}
+						}
+
+						// Default.
+						this.innerHTML += char;
 						setTimeout(() => add_char(index + 1), delay);
 					}
 				}
@@ -761,7 +800,8 @@ class CodePreElement extends CreateVElementClass({
 			while (this.code.length > 0 && this.code[this.code.length - 1] == "\n") {
 				this.code = this.code.slice(-this.code.length, -1);
 			}
-			this.text(code);
+			this.code = this.code.replaceAll("<", "&lt;").replaceAll(">", "&gt;")
+			this.innerHTML = code;
 		}
 		if (language != null) {
 			this.language = language;
@@ -828,13 +868,13 @@ class CodeLineElement extends CreateVElementClass({
 }) {
 	
 	// Constructor.
-	constructor(text, href) {
+	constructor(text) {
 		
 		// Initialize base class.
 		super();
 		
 		// Set text.
-		this.text(text);
+		this.inner_html(text);
 		
 	}
 		

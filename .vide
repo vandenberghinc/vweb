@@ -34,7 +34,7 @@
     "ssh_remotes": [
         {
             "alias": "dev.vinc",
-            "destination": "/Volumes/persistance/private/vinc/vweb/",
+            "destination": "/Volumes/persistance/private/dev/vinc/vweb/",
             "enabled": true
         },
         {
@@ -43,7 +43,14 @@
             "enabled": true
         }
     ],
-    "git_username": null,
-    "git_email": null,
-    "git_remotes": []
+    "git_username": "vandenberghinc",
+    "git_email": "admin@vandenberghinc.com",
+    "git_remotes": [
+        {
+            "remote": "origin",
+            "branch": "main",
+            "destination": "git@github.com:vandenberghinc/vweb.git",
+            "enabled": true
+        }
+    ]
 }

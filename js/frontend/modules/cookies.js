@@ -14,6 +14,16 @@ vweb.cookies.is_parse_required = function() {
 }
 
 // Get the cookies or a cookie by name.
+/*  @docs:
+    @nav: Frontend
+    @chapter: Cookies
+    @title: Get cookie
+    @desc: Get a cookie by name.
+    @experimental: true
+    @param: 
+        @name: name
+        @description The name of the cookie.
+ */
 vweb.cookies.get = function(name = null) {
     if (document.cookie === this._last_cookies) {
         if (name != null) {

@@ -17,7 +17,7 @@ class ImageElement extends CreateVElementClass({
 }) {
 	
 	// Constructor.
-	constructor(src) {
+	constructor(src, alt) {
 		
 		// Initialize base class.
 		super();
@@ -36,6 +36,11 @@ class ImageElement extends CreateVElementClass({
 	
 		// Set src.
 		this.src(src);
+
+		// Set alt.
+		if (alt != null) {
+			this.alt(alt);
+		}
 	}
 
 	// Source, purely for safari.

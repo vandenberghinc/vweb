@@ -30,7 +30,7 @@ vweb.themes.set = function(theme_id) {
 				e.update(e);
 			}
 			if (Array.isArray(e._on_theme_updates)) {
-				e._on_theme_updates.iterate((func) => func(e));
+				e._on_theme_updates.iterate((func) => func(e, theme.id));
 			}
 		}
 	})
@@ -41,7 +41,7 @@ vweb.themes.apply_theme_update = function() {
 	vweb.themes.theme_elements.iterate((theme) => {
 		const e = theme.element;
 		if (e !== undefined && Array.isArray(e._on_theme_updates)) {
-			e._on_theme_updates.iterate((func) => func(e));
+			e._on_theme_updates.iterate((func) => func(e, theme.id));
 		}
 	})
 }

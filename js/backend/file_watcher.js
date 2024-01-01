@@ -15,7 +15,7 @@ const {vlib} = require("./vinc.js");
 // Endpoint.
 
 /*  @docs:
- *  @chapter: Backend
+ *  @nav: Backend
     @title: FileWatcher
     @description: 
         Used to watch all included files and restart the server when any changes have been made.
@@ -69,7 +69,7 @@ class FileWatcher {
     }
 
     // Start.
-    start() {
+    async start() {
 
         // Drop all additional files that are part of the source directory.
         // let additional_paths = [];
@@ -99,16 +99,24 @@ class FileWatcher {
         this.args.push("--file-watcher-restart")
 
         // Start scan loop.
-        this.scan();
+        await this.scan();
     }
 
     // Scan.
-    scan() {
+    async scan() {
         this.scan_files()
+        let interval = this.interval;
         if (this.has_changed) {
-            this.restart_process();
+            interval += 250;
+            await new Promise((resolve) => {
+                setTimeout(async () => {
+                    this.scan_files(); // scan again so any subsequent file changes will be updated as well.
+                    await this.restart_process();
+                    resolve();
+                }, 250)
+            })
         }
-        setTimeout(() => this.scan(), this.interval);
+        setTimeout(() => this.scan(), interval);
     }
 
     // Scan files.
@@ -122,6 +130,7 @@ class FileWatcher {
             }
             const stat = libfs.statSync(path);
             if (this.mtimes[path] != stat.mtimeMs) {
+                // console.log("File",path,"has changed.");
                 this.has_changed = true;
             }
             this.mtimes[path] = stat.mtimeMs;
@@ -135,19 +144,23 @@ class FileWatcher {
 
     // Spawn process.
     spawn_process() {
+        if (this._com_file === undefined) {
+            this._com_file = new vlib.Path(`/tmp/${String.random(12)}`);
+        }
         this.proc = libproc.spawn(
             "node",
             this.args,
             {
                 cwd: this.source,
                 stdio: "inherit",
-                detached: true,
                 env: {
                      ...process.env,
                     "VWEB_FILE_WATCHER": "1",
+                    "VWEB_STARTED_FILE": this._com_file.str(),
                 },
             },
         )
+        this.proc.on("vweb_running", () => { this._started = true; })
         this.proc.on("exit", (code, signal) => {
             if (code == 0) {
                 this.spawn_process();
@@ -163,8 +176,18 @@ class FileWatcher {
     // Spawn process.
     async restart_process() {
         console.log(`${new vlib.Date().format("%d-%m-%y %H:%M:%S")} - Restarting server due to file changes.`); // @warning if you change this running on text you should update vide::BuildSystem since that depends on this log line.
+        this._com_file.save_sync("0");
         this.has_changed = false;
         this.proc.kill("SIGINT");
+        await new Promise ((resolve) => {
+            const loop = () => {
+                if (this._com_file.load_sync() === "1") {
+                    return resolve();
+                }
+                setTimeout(loop, 150)
+            }
+            loop();
+        })
     }
 }
 

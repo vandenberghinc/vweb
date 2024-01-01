@@ -38,7 +38,7 @@ vweb.utils.is_array = function(value) {
 
 // Is object.
 vweb.utils.is_obj = function(value) {
-	return typeof value === 'object';
+	return value != null && typeof value === 'object' && Array.isArray(value) == false;
 }
 
 // Is an even number.
@@ -46,12 +46,30 @@ vweb.utils.is_even = function(number) {
 	return number % 2 === 0;
 }
 
+// Is mobile device.
+/* 	@docs:
+ * 	@nav: Frontend
+ *	@title: Is Mobile
+ *	@desc: Check if the user agent is a mobile device.
+ */
+vweb.utils.is_mobile = function() {
+	return (
+		navigator.userAgent.match(/Android/i) ||
+		navigator.userAgent.match(/webOS/i) ||
+		navigator.userAgent.match(/iPhone/i) ||
+		navigator.userAgent.match(/iPad/i) ||
+		navigator.userAgent.match(/iPod/i) ||
+		navigator.userAgent.match(/BlackBerry/i) ||
+		navigator.userAgent.match(/Windows Phone/i)
+	);
+}
+
 // Make immutable.
 /* 	@docs:
- *	chapter: Client
+ * 	@nav: Frontend
  *	@title: Make Immutable
  *	@desc: 
- * 		Make all objects of an array or object immutable. All the nested objects of nested arrays or object will also be made immutable recursively.
+ * 		Make all objects of an array or object immutable. All nested objects will also be made immutable recursively.
  *	@param:
  *		@name: object
  *		@desc: The array or object to freeze.
@@ -218,6 +236,23 @@ vweb.utils.copy_to_clipboard = async function(text) {
 	});
 }
 
+// Get the brightness of a hex color (0.0 white 1.0 dark).
+vweb.utils.hex_brightness = function(color) {
+	
+	// Remove the hash symbol if present
+	color = color.replace(/^#/, '');
+
+	// Convert hex to RGB
+	const bigint = parseInt(color, 16);
+	const r = (bigint >> 16) & 255;
+	const g = (bigint >> 8) & 255;
+	const b = bigint & 255;
+
+	// Calculate perceived brightness using the relative luminance formula
+	const brightness = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+	return brightness;
+}
+
 // Request.
 vweb.utils.request = function({
 	method = "GET",			// method.
@@ -225,6 +260,7 @@ vweb.utils.request = function({
 	data = null,			// data or params.
 	json = true, 			// json response.
 	credentials = "true",
+	async = true,
 }) {
 	if (data != null && !vweb.utils.is_string(data)) {
 		data = JSON.stringify(data);
@@ -238,7 +274,7 @@ vweb.utils.request = function({
 			mimeType: json ? "application/json" : "text/plain",
 			contentType: "application/json",
 			credentials: credentials,
-			async: true,
+			async: async,
 			success: function (data, _, xhr) {
 				resolve(data, xhr.status, xhr);
 			},
@@ -344,6 +380,7 @@ vweb.utils.unix_to_date = function(unix, mseconds = false) {
 
 // Fuzzy search.
 /* 	@docs:
+ * 	@nav: Frontend
  * 	@title: Fuzzy Search
  * 	@description:
  *		Perform a fuzzy similairity match between a query and an array of targets.
@@ -495,6 +532,7 @@ vweb.utils.fuzzy_search = ({
 // Fuzzy match.
 // Inspired by https://github.com/farzher/fuzzysort/blob/master/fuzzysort.js#L450.
 /* 	@docs:
+ * 	@nav: Frontend
  * 	@title: Fuzzy Match
  * 	@description:
  *		Perform a fuzzy similairity match between a query and a target.

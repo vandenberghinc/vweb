@@ -8,7 +8,8 @@ vweb.support = {};
 
 // Submit a support contact form
 /* 	@docs:
- * 	@chapter: Client
+ *  @nav: Frontend
+ * 	@chapter: Support
  * 	@title: Submit Support
  *	@description: 
  *		Submit a support contact form. The server will send an email to your registered SMTP mail.
@@ -74,6 +75,9 @@ vweb.support = {};
  *		@desc: An object with attachments, assigned as `{file_name: raw_file_data}`.
  *		@required: false
  *		@type: object
+ *  @param:
+ *      @name: data
+ *      @ignore: true
  */
 vweb.support.submit = function(data = {}) {
 	return vweb.utils.request({
@@ -85,7 +89,8 @@ vweb.support.submit = function(data = {}) {
 
 // Get the support pin of an authenticated user.
 /* 	@docs:
- * 	@chapter: Client
+ *  @nav: Frontend
+ *  @chapter: Support
  * 	@title: Support PIN
  *	@description: 
  *		Get the support pin of an authenticated user.

@@ -11,11 +11,11 @@
 
 let vlib, vhighlight;
 if (require("fs").existsSync("/Volumes/persistance/")) {
-    vlib = require("/Volumes/persistance/private/vinc/vlib/js/vlib.js")
-    vhighlight = require("/Volumes/persistance/private/vinc/vhighlight/vhighlight.js")    
+    vlib = require("/Volumes/persistance/private/dev/vinc/vlib/js/vlib.js")
+    vhighlight = require("/Volumes/persistance/private/dev/vinc/vhighlight/vhighlight.js")    
 } else {
-    vlib = require("/Users/administrator/persistance/private/vinc/vlib/js/vlib.js")
-    vhighlight = require("/Users/administrator/persistance/private/vinc/vhighlight/vhighlight.js")
+    vlib = require("/Users/administrator/persistance/private/dev/vinc/vlib/js/vlib.js")
+    vhighlight = require("/Users/administrator/persistance/private/dev/vinc/vhighlight/vhighlight.js")
 }
 
 // ---------------------------------------------------------

@@ -6,6 +6,7 @@
 // Imports.
 const https = require("https");
 const fs = require("fs");
+// const blobstream = require('blob-stream');
 const PDFDocument = require("pdfkit");
 const libcrypto = require("crypto");
 const {vlib} = require("../vinc.js");
@@ -18,8 +19,9 @@ const {FrontendError} = utils;
 // @todo still need to manage the reactivation of a subscription after a chargeback has been reversed.
 // @todo still check if a subscription is automatically cancelled by paddle when it is refunded.
 /*  @docs:
-    @chapter: Backend
-    @title: Paddle Payments
+    @nav: Backend
+    @chapter: Payments
+    @title: Paddle
     @description: 
         The paddle payments class.
 
@@ -102,6 +104,9 @@ const {FrontendError} = utils;
             @name: plans
             @type: array[ProductObject]
             @desc: The plans for this subscription product. Every item is a product object. However, attributes `currency`, `frequency`, `interval`, `tax_category` and `icon` can either be defined in the subscription product or on each individual plan.
+    @parameter:
+        @name: _server
+        @ignore: true
 */
 
 class Paddle {
@@ -115,14 +120,15 @@ class Paddle {
     }) {
 
         // Verify args.
-        vlib.utils.verify_params(arguments[0], {
+        vlib.utils.verify_params({params: arguments[0], check_unknown: true, parent: "payments", info: {
+            type: {type: "string", default: "paddle"},
             api_key: "string",
             client_key: "string",
             sandbox: {type: "boolean", default: false},
             inclusive_tax: {type: "boolean", default: false},
             products: "array",
             _server: "object",
-        });
+        }});
 
         // Attributes.
         this.type = "paddle";
@@ -239,99 +245,65 @@ class Paddle {
     // Database (private).
 
     // Add or remove a subscription to the user's active subscriptions.
-    _sys_add_subscription(uid, prod_id, pay_id, sub_id) {
-        const dir = this.server.database.join(`.sys/pym_s/${uid}`, false);
-        if (dir.exists() === false) {
-            dir.mkdir_sync();
-        }
-        const path = dir.join(prod_id, false);
-        path.save_sync(`${pay_id}\n${sub_id}`);
+    async _add_subscription(uid, prod_id, pay_id, sub_id) {
+        await this._sub_db.update(uid, prod_id, {prod_id, pay_id, sub_id}, true);
     }
-    _sys_delete_subscription(uid, prod_id) {
-        const dir = this.server.database.join(`.sys/pym_s/${uid}`, false);
-        if (dir.exists() === false) {
-            return null;
-        }
-        const path = dir.join(prod_id, false);
-        if (path.exists() === false) {
-            return null;
-        }
-        path.del_sync();
+    async _delete_subscription(uid, prod_id) {
+        await this._sub_db.delete(uid, prod_id);
     }
-    _sys_check_subscription(uid, prod_id, load_data = true) {
-        const dir = this.server.database.join(`.sys/pym_s/${uid}`, false);
-        if (dir.exists() === false) {
-            dir.mkdir_sync();
-        }
-        const path = dir.join(prod_id, false);
-        let exists = true, data;
-        if (load_data) {
-            let pay_id, sub_id;
-            if (path.exists() === false)  {
-                exists = false;
+    async _check_subscription(uid, prod_id, load_data = true) {
+        const doc = await this._sub_db.load(uid, prod_id);
+        let exists = false, pay_id, sub_id;
+        if (doc == null) {
+            if (load_data) {
+                return {exists, sub_id, pay_id};
             } else {
-                data = path.load_sync();
-                const split = data.split("\n")
-                pay_id = split[0];
-                sub_id = split[1];
+                return exists;
             }
+        }
+        pay_id = doc.pay_id;
+        sub_id = doc.sub_id;
+        if (load_data) {
             return {exists, sub_id, pay_id};
         } else {
-            return path.exists();
+            return exists;
         }
     }
-    _sys_get_subscriptions(uid) {
-        const dir = this.server.database.join(`.sys/pym_s/${uid}`, false);
-        if (dir.exists() === false) {
-            dir.mkdir_sync();
-        }
+    async _get_subscriptions(uid, detailed = false) {
+        const list = await this._sub_db.list_query({_uid: uid});
+        if (detailed) { return list; }
         const products = [];
-        dir.paths_sync().iterate((path) => {
-            if (path.name().charAt(0) !== ".") {
-                products.push(path.name());
-            }
+        list.iterate((doc) => {
+            products.push(doc.prod_id);
         })
         return products;
     }
 
     // Save and delete payments, all failed payments should be deleted from the database.
-    _sys_save_payment(payment) {
-        const dir = this.server.database.join(`.sys/pym_p/${payment.uid == null ? "unauth" : payment.uid}/`, false);
-        if (dir.exists() === false) {
-            dir.mkdir_sync();
-        }
-        dir.join(payment.id, false).save_sync(JSON.stringify(payment));
+    async _save_payment(payment) {
+        await this._pay_db.update(payment.uid == null ? "unauth" : payment.uid, payment.id, payment, true);
     }
-    _sys_load_payment(id) {
+    async _load_payment(id) {
         const uid = id.split("_")[1];
-        const dir = this.server.database.join(`.sys/pym_p/${uid}/`, false);
-        if (dir.exists() === false) {
-            dir.mkdir_sync();
-        }
-        const path = dir.join(id, false);
-        if (path.exists() === false) {
+        const payment = await this._pay_db.load(uid, id);
+        if (payment == null) {
             throw Error(`Unable to find payment "${id}".`);
         }
-        const payment = path.load_sync({type: "object"});
         if (uid == null || uid == "unauth") {
             delete payment.billing_details;
         }
         return payment;
     }
-    _sys_delete_payment(id) {
+    async _delete_payment(id) {
         const uid = id.split("_")[1];
-        const dir = this.server.database.join(`.sys/pym_p/${uid}/`, false);
-        if (dir.exists() === false) {
-            dir.mkdir_sync();
-        }
-        dir.join(id, false).del_sync();
+        await this._pay_db.delete(uid, id);
     }
 
     // Delete all info of a user.
-    _sys_delete_user(user) {
-        this.server.database.join(`.sys/pym_p/${user.uid}/`, false).del_sync();
-        this.server.database.join(`.sys/pym_s/${user.uid}/`, false).del_sync();
-        this.server.database.join(`.sys/pym_i/${user.uid}/`, false).del_sync();
+    async _delete_user(uid) {
+        await this._sub_db.delete_all(uid);
+        await this._pay_db.delete_all(uid);
+        await this._inv_db.delete_all(uid);
     }
 
     // ---------------------------------------------------------
@@ -536,7 +508,7 @@ class Paddle {
     // The payment object should always be the unedited original payment since it will be updatd and saved to the database.
     async _cancel_subscription(payment) {
         if (typeof payment === "string") {
-            payment = this._sys_load_payment(payment);
+            payment = await this._load_payment(payment);
         }
         if (payment.cus_id == null) {
             throw Error(`Payment "${payment.id}" does not have an assigned customer id attribute.`);
@@ -568,10 +540,10 @@ class Paddle {
             }
         })
         if (all_cancelled) {
-            throw new FrontendError(`This subscription is already cancelled and will become inactive at the end of the billing period.`);
+            throw new FrontendError(`This subscription is already cancelled and will become inactive at the end of the billing period.`, Status.bad_request);
         }
         if (cancellable.length === 0) {
-            throw new FrontendError(`This subscription does not contain any cancellable items, the subscription is likely already cancelled or refunded.`);
+            throw new FrontendError(`This subscription does not contain any cancellable items, the subscription is likely already cancelled or refunded.`, Status.bad_request);
         }
         await this._req("POST", `/subscriptions/${payment.sub_id}/cancel`, {
             // effective_from: "immediately",
@@ -583,7 +555,7 @@ class Paddle {
                 item.status = "cancelling";
             }
         })
-        this._sys_save_payment(payment);
+        await this._save_payment(payment);
 
         /* V1 cancel per product but since the webhook subscription event does not show which sub items are cancelled, this is not possible.
 
@@ -674,7 +646,7 @@ class Paddle {
         cancelled_line_items.iterate((item) => {
             item.status = "cancelling";
         })
-        this._sys_save_payment(payment);
+        await this._save_payment(payment);
         */
     }
 
@@ -774,20 +746,50 @@ class Paddle {
         })
 
         // Check registered products.
-        if (file_watcher_restart === false) {
+        const last_products = await this._settings_db.load("last_products");
+        if (JSON.stringify(last_products) !== JSON.stringify(this.products)) {
+            const product_ids = await this._settings_db.load("product_ids");
+            product_ids.iterate((item) => {
+                const product = this.get_product_sync(item.id);
+                if (product != null) {
+                    product.paddle_prod_id = item.paddle_prod_id;
+                    product.price_id = item.price_id;
+                }
+            })
+        }
+        else if (this.server.offline === false && file_watcher_restart === false) {
 
             // Get all products and prices.
             const existing_products = await this._get_products();
             const existing_prices = await this._get_prices();
 
             // Check all products.
+            const product_ids = [];
             await this.products.iterate_async_await(async (product) => {
                 if (product.plans != null) {
-                    await product.plans.iterate_async_await(async (plan) => await this._check_product(plan, existing_products, existing_prices));
+                    await product.plans.iterate_async_await(async (plan) => {
+                        await this._check_product(plan, existing_products, existing_prices)
+                        product_ids.append({
+                            id: plan.id,
+                            paddle_prod_id: plan.paddle_prod_id,
+                            price_id: plan.price_id,
+                        })
+                    });
                 } else {
                     await this._check_product(product, existing_products, existing_prices)
+                    product_ids.append({
+                        id: product.id,
+                        paddle_prod_id: product.paddle_prod_id,
+                        price_id: product.price_id,
+                    })
                 }
             });
+
+            // Save last products.
+            await this._settings_db.update("last_products", this.products, true);
+
+            // Save price ids.
+            await this._settings_db.update("product_ids", product_ids, true);
         }
     }
 
@@ -795,17 +797,11 @@ class Paddle {
     async _initialize() {
         const file_watcher_restart = process.argv.includes("--file-watcher-restart");
 
-        // Create dirs.
-        if (file_watcher_restart === false) {
-            [
-                ".sys/pym_p", // payments.
-                ".sys/pym_i", // payment invoices.
-                ".sys/pym_s", // subscriptions.
-                ".sys/pym",   // payment settings.
-            ].iterate((subpath) => {
-                this.server.database.join(subpath).mkdir_sync();
-            })
-        }
+        // Create database collections.
+        this._settings_db = this.server.db.create_collection("_payment_settings");
+        this._sub_db = this.server.db.create_uid_collection("_subscriptions");
+        this._pay_db = this.server.db.create_uid_collection("_payments");
+        this._inv_db = this.server.db.create_uid_collection("_invoices");
 
         // Initialize products.
         await this._initialize_products();
@@ -823,14 +819,14 @@ class Paddle {
                 params: {
                     items: "array",
                 },
-                callback: (request, response, params) => {
+                callback: async (request, response, params) => {
 
                     // Check items.
                     if (params.items.length === 0) {
                         return response.error({status: Status.bad_request, data: {error: "Shopping cart is empty."}})
                     }
                     let sub_plan_count = {};
-                    const error = params.items.iterate((item) => {
+                    const error = await params.items.iterate_async_await(async (item) => {
                         if (item.product.is_subscription) {
                             if (request.uid == null) {
                                 return "You must be signed-in to purchase a subscription.";
@@ -843,7 +839,7 @@ class Paddle {
                             } else {
                                 return "You can not charge two different subscription plans from the same subscription product.";   
                             }
-                            if (this._sys_check_subscription(request.uid, item.product.id, false)) {
+                            if (await this._check_subscription(request.uid, item.product.id, false)) {
                                 return `You are already subscribed to product "${item.product.name}".`;
                             }
                         }
@@ -884,7 +880,7 @@ class Paddle {
                     id: "string",
                 },
                 callback: async (request, response, params) => {
-                    return response.success({data: this._sys_load_payment(params.id)});
+                    return response.success({data: (await this._load_payment(params.id))});
                 }
             },
 
@@ -1042,7 +1038,7 @@ class Paddle {
                 authenticated: true,
                 callback: async (request, response, params) => {
                     return response.success({
-                        data: {subscriptions: this.get_subscriptions_sync(request.uid)},
+                        data: {subscriptions: (await this.get_subscriptions(request.uid))},
                     });
                 }
             },
@@ -1060,13 +1056,13 @@ class Paddle {
                 },
                 callback: async (request, response, params) => {
                     return response.success({
-                        data: {is_subscribed: this.is_subscribed_sync(request.uid, params.product)}
+                        data: {is_subscribed: (await this.is_subscribed(request.uid, params.product))}
                     });
                 }
             },
 
             // Webhook.
-            await this._create_webhook(),
+            this.server.offline ? null : (await this._create_webhook()),
 
         );
     }
@@ -1114,7 +1110,8 @@ class Paddle {
             cus_id: obj.customer_id,        // customer id.
             tran_id: obj.id,                // transaction id.
             sub_id: obj.subscription_id,    // subscription id.
-            timestamp: obj.created_at,      // timestamp in ms.
+            timestamp: Date.now(),
+            // timestamp: obj.created_at,   // user friendly str timestamp.
             status: null,                   // payment status, possible values are "open" or "paid".
             line_items: [],                 // cart line items as {quantity: 1, product: "prod_xxx"}.
             billing_details: {
@@ -1232,7 +1229,7 @@ class Paddle {
         }
 
         // Save the payment object in the database.
-        this._sys_save_payment(payment);
+        await this._save_payment(payment);
 
         // ---------------------------------------------------------
         // Process the payment.
@@ -1261,7 +1258,7 @@ class Paddle {
                 const subscription = await this.get_product(product.subscription_id, true);
                 await subscription.plans.iterate_async_await(async (plan) => {
                     if (plan.id != product.id) {
-                        const {exists, pay_id} = this._sys_check_subscription(uid, plan.id);
+                        const {exists, pay_id} = await this._check_subscription(uid, plan.id);
                         if (exists) {
                             utils.log(`Cancelling subscription "${plan.id}" due too downgrade/upgrade to "${product.id}" of user "${payment.uid}".`)
                             // await this.cancel_subscription_by_payment(pay_id, [plan.id]);
@@ -1300,12 +1297,12 @@ class Paddle {
     async _subscription_webhook(data) {
 
         // Vars.
-        const payment = this._sys_load_payment(data.custom_data.pay_id);
+        const payment = await this._load_payment(data.custom_data.pay_id);
         const {uid, cus_id} = payment;
 
         // Assign payment id.
         payment.sub_id = data.id;
-        this._sys_save_payment(payment);
+        await this._save_payment(payment);
 
         // Check the payment line items.
         await payment.line_items.iterate_async_await(async (item) => {
@@ -1321,7 +1318,7 @@ class Paddle {
 
                 // Active the user's subscription in the database.
                 utils.log(`Activating subscription "${product.id}" of user "${payment.uid}".`)
-                this._sys_add_subscription(uid, product.id, payment.id, payment.sub_id);
+                await this._add_subscription(uid, product.id, payment.id, payment.sub_id);
 
                 // No need to cancel other subs, this is already handled by the payment webhook.
 
@@ -1337,17 +1334,17 @@ class Paddle {
     async _subscription_cancelled_webhook(data) {
 
         // Vars.
-        const payment = this._sys_load_payment(data.custom_data.pay_id);
+        const payment = await this._load_payment(data.custom_data.pay_id);
         const {uid, cus_id} = payment;
 
         // Delete subscriptions made by this payment.
         let line_items = [];
         if (payment.sub_id != null) {
-            payment.line_items.iterate((item) => {
+            await payment.line_items.iterate_async_await(async (item) => {
                 const product = this.get_product_sync(item.product, false);
                 if (product != null && product.is_subscription) {
                     item.status = "cancelled";
-                    this._sys_delete_subscription(uid, product.id);
+                    await this._delete_subscription(uid, product.id);
                     line_items.push(item);
                     utils.log(`Deactivating subscription "${product.id}" of user "${payment.uid}".`)
                 }
@@ -1356,7 +1353,7 @@ class Paddle {
 
         // Update database.
         if (line_items.length > 0) {
-            this._sys_save_payment(payment);
+            await this._save_payment(payment);
         }
 
         // Execute callback.
@@ -1387,7 +1384,7 @@ class Paddle {
             const is_approved = data.status === "approved";
 
             // Vars.
-            const payment = this._sys_load_payment(data.custom_data.pay_id);
+            const payment = await this._load_payment(data.custom_data.pay_id);
 
             // Get and update line items.
             const line_items = [], cancel_products = [];
@@ -1409,7 +1406,7 @@ class Paddle {
 
             // Update database.
             if (line_items.length > 0) {
-                this._sys_save_payment(payment);
+                await this._save_payment(payment);
             }
 
             // Execute callback.
@@ -1450,7 +1447,7 @@ class Paddle {
         if (data.action === "chargeback_reverse" && data.status === "reversed") {
 
             // Vars.
-            const payment = this._sys_load_payment(data.custom_data.pay_id);
+            const payment = await this._load_payment(data.custom_data.pay_id);
 
             // Reactivate subscriptions on chargeback reverse.
             if (payment.sub_id != null) {
@@ -1471,7 +1468,7 @@ class Paddle {
 
             // Update database.
             if (line_items.length > 0) {
-                this._sys_save_payment(payment);
+                await this._save_payment(payment);
             }
         }
     }
@@ -1481,8 +1478,7 @@ class Paddle {
         const file_watcher_restart = process.argv.includes("--file-watcher-restart");
 
         // Register the webhook.
-        const webhook_key_path = this.server.database.join(".sys/pym/webhook_key", false);
-        const webhook_id_path = this.server.database.join(".sys/pym/webhook_id", false);
+        const webhook_doc = await this._settings_db.load("webhook");
         const webhook_settings = {
             description: "vweb webhook",
             destination: `${this.server.full_domain}/vweb/payments/webhook`,
@@ -1509,9 +1505,17 @@ class Paddle {
                 "adjustment.updated",
             ],
         };
-        if (webhook_key_path.exists()) {
-            if (file_watcher_restart === false) {
-                const webhook_id = webhook_id_path.load_sync();
+
+        // Webhook registered.
+        if (webhook_doc != null) {
+            this.webhook_key = webhook_doc.key;
+
+            // Check update required.
+            const last_webhook = await this._settings_db.load("last_webhook");
+            if (JSON.stringify(last_webhook) !== JSON.stringify(webhook_settings) && file_watcher_restart === false) {
+
+                // Check update required.
+                const webhook_id = webhook_doc.id;
                 const registered = await this._req("GET", `/notification-settings/${webhook_id}`);
                 const item = registered.data;
                 const patch = (() => {
@@ -1535,18 +1539,27 @@ class Paddle {
                         }
                     })
                 })();
+
+                // Update.
                 if (patch === true) {
                     utils.log("Updating payments webhook.");
                     await this._req("PATCH", `/notification-settings/${webhook_id}`, {...webhook_settings, active: true});
                 }
+
+                // Save.
+                await this._settings_db.update("last_webhook", webhook_settings, true);
             }
-            this.webhook_key = webhook_key_path.load_sync();
-        } else {
+        }
+
+        // Register webhook.
+        else {
             utils.log("Registering payments webhook.");
             const response = await this._req("POST", "/notification-settings", webhook_settings)
             this.webhook_key = response.data.endpoint_secret_key;
-            webhook_key_path.save(this.webhook_key);
-            webhook_id_path.save(response.data.id);
+            await this._settings_db.save("webhook", {
+                id: response.data.id,
+                key: this.webhook_key,
+            });
         }
 
         // Ip whitelist.
@@ -1571,7 +1584,6 @@ class Paddle {
         return  {
             method: "POST",
             endpoint: "/vweb/payments/webhook",
-            // content_type: "application/json",
             rate_limit: 100000,
             rate_limit_duration: 60,
             callback: async (request, response) => {
@@ -1700,13 +1712,9 @@ class Paddle {
             @required: true
             @type: string
             @desc: The id of the payment.
-        @funcs: 2
     */
     async get_payment(id) {
-        return this._sys_load_payment(id);
-    }
-    get_payment_sync(id) {
-        return this._sys_load_payment(id);
+        return await this._load_payment(id);
     }
 
     // Get payments.
@@ -1718,9 +1726,7 @@ class Paddle {
             All failed payments are no longer stored in the database.
         @param:
             @name: uid
-            @required: true
-            @type: number
-            @desc: The uid of the user.
+            @cached: Users:uid:param
         @param:
             @name: days
             @type: number
@@ -1748,11 +1754,7 @@ class Paddle {
     }) {
 
         // Get path.
-        this.server._check_uid_within_range(uid);
-        const dir = this.server.database.join(`.sys/pym_p/${uid}/`, false);
-        if (dir.exists() === false) {
-            return [];
-        }
+        const list = await this._pay_db.list_query({_uid: uid});
 
         // Get the since time.
         let since = null;
@@ -1762,19 +1764,16 @@ class Paddle {
             since = Math.floor(since.getTime() - (3600 * 24 * 1000 * days));
         }
 
-        // Iterate dir.
+        // Iterate list.
         const payments = [];
         const status_is_array = Array.isArray(status);
-        dir.paths_sync().iterate((path) => {
-            if (path.name().charAt(0) !== "." && (since == null || path.ctime >= since)) {
-                const payment = path.load_sync({type: "object"});
+        list.iterate((payment) => {
+            if ((since == null || payment.timestamp >= since)) {
                 if (
                     status == null ||
                     (status_is_array === false && status === payment.status) ||
                     (status_is_array && status.includes(payment.status))
                 ) {
-                    let unix_timestamp = path.name().split("_")[2];
-                    payment.unix_timestamp = parseInt(unix_timestamp.substr(0, unix_timestamp.length - 4));
                     payments.append(payment);
                 }
             }
@@ -1784,7 +1783,7 @@ class Paddle {
         })
 
         // Sort.
-        payments.sort((a, b) => b.unix_timestamp - a.unix_timestamp);
+        payments.sort((a, b) => b.timestamp - a.timestamp);
 
         // Response.
         return payments;
@@ -1796,9 +1795,7 @@ class Paddle {
         @desc: Get all payments that are refundable.
         @param:
             @name: uid
-            @required: true
-            @type: number
-            @desc: The uid of the user.
+            @cached: Users:uid:param
         @param:
             @name: days
             @type: number
@@ -1836,9 +1833,7 @@ class Paddle {
         @desc: Get all payments that are successfully refunded.
         @param:
             @name: uid
-            @required: true
-            @type: number
-            @desc: The uid of the user.
+            @cached: Users:uid:param
         @param:
             @name: days
             @type: number
@@ -1876,9 +1871,7 @@ class Paddle {
         @desc: Get all payments that are currently in the refunding process.
         @param:
             @name: uid
-            @required: true
-            @type: number
-            @desc: The uid of the user.
+            @cached: Users:uid:param
         @param:
             @name: days
             @type: number
@@ -1921,11 +1914,6 @@ class Paddle {
             @type: number
             @desc: The id of the payment object or the payment object itself.
         @param:
-            @name: payment
-            @required: true
-            @type: number
-            @desc: The id of the payment object or the payment object itself.
-        @param:
             @name: line_items
             @type: array[object]
             @desc: The line items to refund, these must be retrieved from the original payment line items otherwise it may cause undefined behaviour. When undefined the entire payment will be refunded.
@@ -1939,9 +1927,9 @@ class Paddle {
         // Load payment.
         // The payment must be loaded from the database in case the line items or anything were edited by the user, such as dropping all non refundable line items.
         if (typeof payment === "string") {
-            payment = this._sys_load_payment(payment);
+            payment = await this._load_payment(payment);
         } else {
-            payment = this._sys_load_payment(payment.id);
+            payment = await this._load_payment(payment.id);
         }
 
         // When no line items are defined than refund everything.
@@ -2005,7 +1993,7 @@ class Paddle {
         }
 
         // Update the payment object.
-        this._sys_save_payment(payment);
+        await this._save_payment(payment);
     }
 
     // Cancel a subscription.
@@ -2015,9 +2003,7 @@ class Paddle {
         @warning: Cancelling a subscription will also cancel all other subscriptions that were created by the same payment request.
         @param:
             @name: uid
-            @required: true
-            @type: number
-            @desc: The uid of the user.
+            @cached: Users:uid:param
         @param:
             @name: products
             @required: true
@@ -2025,7 +2011,6 @@ class Paddle {
             @desc: The product to cancel, the product ids to cancel or the product objects to cancel.
     */
     async cancel_subscription(uid, products) {
-        this.server._check_uid_within_range(uid);
         if (products == null) {
             throw new Error("Parameter \"products\" should be a defined value of type \"array[string, object]\".");
         }
@@ -2037,7 +2022,7 @@ class Paddle {
             if (typeof product === "object") {
                 product = product.id;
             }
-            const {exists, pay_id} = this._sys_check_subscription(uid, product);
+            const {exists, pay_id} = await this._check_subscription(uid, product);
             if (exists && cancelled.includes(pay_id) === false) {
                 await this.cancel_subscription_by_payment(pay_id);
                 cancelled.push(pay_id)
@@ -2061,9 +2046,9 @@ class Paddle {
     */
     async cancel_subscription_by_payment(payment) {
         if (typeof payment === "string") {
-            payment = this._sys_load_payment(payment);
+            payment = await this._load_payment(payment);
         } else {
-            payment = this._sys_load_payment(payment.id); // since it needs to be the unaltered payment obj for `_cancel_subscription`.
+            payment = await this._load_payment(payment.id); // since it needs to be the unaltered payment obj for `_cancel_subscription`.
         }
         return await this._cancel_subscription(payment);
     }
@@ -2074,18 +2059,10 @@ class Paddle {
         @desc: Get the active subscriptions of a user.
         @param:
             @name: uid
-            @required: true
-            @type: number
-            @desc: The uid of the user.
-        @funcs: 2
+            @cached: Users:uid:param
     */
     async get_subscriptions(uid) {
-        this.server._check_uid_within_range(uid);
-        return this._sys_get_subscriptions(uid);
-    }
-    get_subscriptions_sync(uid, product) {
-        this.server._check_uid_within_range(uid);
-        return this._sys_get_subscriptions(uid);
+        return await this._get_subscriptions(uid);
     }
 
     // Is subscribed.
@@ -2094,58 +2071,15 @@ class Paddle {
         @desc: Check if a user is subscribed to a product.
         @param:
             @name: uid
-            @required: true
-            @type: number
-            @desc: The uid of the user.
+            @cached: Users:uid:param
         @param:
             @name: product
             @required: true
             @type: string
             @desc: The product id.
-        @funcs: 2
     */
     async is_subscribed(uid, product) {
-        this.server._check_uid_within_range(uid);
-        return this._sys_check_subscription(uid, product, false);
-    }
-    is_subscribed_sync(uid, product) {
-        this.server._check_uid_within_range(uid);
-        return this._sys_check_subscription(uid, product, false);
-    }
-
-    // Get the invoice path of a payment.
-    /*  @docs:
-        @title: Get Invoice Path
-        @desc:
-            Get the invoice path of a paid payment.
-
-            When no invoice exists, one will be created.
-        @param:
-            @name: payment
-            @required: true
-            @type: object
-            @desc: The payment object.
-        @return:
-            @type: Promise
-            @desc: This function returns a promise to the invoice path with type `vlib.Path`.
-        @funcs: 2
-    */
-    async get_invoice(payment) {
-        return this.get_invoice_sync(payment);
-    }
-    get_invoice_sync(payment) {
-        if (payment == null || typeof payment !== "object") {
-            throw Error(`Parameter "payment" should be a defined value of type "object".`);
-        }
-        const dir = this.server.database.join(`.sys/pym_i/${payment.uid == null ? "unauth" : payment.uid}/`, false);
-        if (dir.exists() === false) {
-            dir.mkdir_sync();
-        }
-        const path = dir.join(`${payment.id}.pdf`, false);
-        if (path.exists() === false) {
-            return this.generate_invoice_sync(payment);
-        }
-        return path;
+        return await this._check_subscription(uid, product, false);
     }
 
     // Generate an invoice.
@@ -2162,25 +2096,14 @@ class Paddle {
             @desc: The payment object.
         @return:
             @type: Promise
-            @desc: This function returns a promise to the invoice export path with type `vlib.Path`.
-        @funcs: 2
+            @desc: This function returns a promise to the invoice pdf in bytes.
     */
     async generate_invoice(payment) {
-        return this.generate_invoice_sync(payment);
-    }
-    generate_invoice_sync(payment) {
 
         // Check arg..
         if (payment == null || typeof payment !== "object") {
             throw Error(`Parameter "payment" should be a defined value of type "object".`);
         }
-
-        // Vars.
-        const dir = this.server.database.join(`.sys/pym_i/${payment.uid == null ? "unauth" : payment.uid}/`, false);
-        if (dir.exists() === false) {
-            dir.mkdir_sync();
-        }
-        const path = dir.join(`${payment.id}.pdf`, false);
 
         // Vars.
         let currency = null;
@@ -2372,12 +2295,23 @@ class Paddle {
         gen_line_item({unit_cost: "Total Due:", total_cost: `${currency} ${total_due.toFixed(2)}`});
         top_offset -= (spacing - 3);
 
-        // Create invoice.
-        doc.end();
-        doc.pipe(fs.createWriteStream(path.str()));
+        // Write to file.
+        // doc.end();
+        // doc.pipe(fs.createWriteStream(path.str()));
+        // return path;
 
-        // Return the path.
-        return path;
+        // Get as bytes.
+        const stream = doc.pipe(blobstream());
+        doc.end();
+        return new Promise((resolve, reject) => {
+            stream.on('finish', () => {
+                const bytes = stream.toBuffer();
+                resolve(bytes);
+            });
+            stream.on('error', (error) => {
+                reject(error);
+            });
+        });
     }
     
 }

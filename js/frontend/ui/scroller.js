@@ -21,8 +21,8 @@ class ScrollerElement extends CreateVElementClass({
         "align-content": "flex-start", // align items at start, do not stretch / space when inside HStack.
         "flex-direction": "column",
         // "text-align": "start",
-        "scroll-behavior": "smooth",
-        "overscroll-behavior": "none", // disable bounces.
+        "scroll-behavior": "auto",
+        "overscroll-behavior": "auto", // relay to parent to resume scroll when local scroll has ended.
         "height": "fit-content", // set height to max compared to parents non overflow, so scrolling can take effect.
         "content-visibility": "auto", // improve rendering.
         // "align-content": "flex-start", // align items at start, do not stretch / space when inside HStack.
@@ -54,7 +54,7 @@ class ScrollerElement extends CreateVElementClass({
             .frame("100%", "100%")
             .flex("1 1 0") // flex-basis 0 otherwise it expands its parent.
             .overflow("scroll")
-            .overscroll_behavior("none")
+            .overscroll_behavior(ScrollerElement.default_style["overscroll-behavior"])
             .styles({
                 "content-visibility": "auto",
             })
@@ -525,8 +525,11 @@ class ScrollerElement extends CreateVElementClass({
 
 // Scroller.
 /*  @docs:
+    @nav: Frontend
+    @chapter: Elements
     @title: Virtual Scroller
     @experimental: true
+    @note: The `VirtualScrollerElement` is also initializable under function `VirtualScroller`.
     @description: 
         The virtual scroller element.
 
@@ -815,8 +818,11 @@ class VirtualScrollerElement extends ScrollerElement {
 }
 
 /*  @docs:
+    @nav: Frontend
+    @chapter: Elements
     @title: Snap Scroller
     @experimental: true
+    @note: The `SnapScrollerElement` is also initializable under function `SnapScroller`.
     @description: 
         Scrolls the windows per window (snap scrolling).
 

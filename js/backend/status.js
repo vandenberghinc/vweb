@@ -5,8 +5,9 @@
 
 // HTTP response status.
 // - Does not include all status codes.
-/* 	@docs: {
- * 	@chapter: HTTP
+/* 	@docs:
+ *	@nav: Backend
+ * 	@chapter: Server
  * 	@title: Status
  * 	@description: HTTP status codes.
  * 	@usage:
