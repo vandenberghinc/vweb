@@ -15,8 +15,8 @@ const client = new Client({
 	config: {
 		name: "VWeb",
 		icon: {
-			dark: "https://raw.githubusercontent.com/vandenberghinc/vweb/master/dev/media/icon/icon.light.png",
-			light: "https://raw.githubusercontent.com/vandenberghinc/vweb/master/dev/media/icon/icon.dark.png",
+			dark: "https://raw.githubusercontent.com/vandenberghinc/vweb/master/dev/media/icon/icon.light.0.25.webp",
+			light: "https://raw.githubusercontent.com/vandenberghinc/vweb/master/dev/media/icon/icon.dark.0.25.webp",
 			height: 20,
 		},
 		meta: new Meta({
