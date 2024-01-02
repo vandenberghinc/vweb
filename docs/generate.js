@@ -8,7 +8,10 @@ const vlib = require(`${process.env.PERSISTANCE}/private/dev/vinc/vlib/js/vlib.j
 const client = new Client({
 	config: {
 		name: "VWeb",
-		icon: "https://raw.githubusercontent.com/vandenberghinc/public-storage/master/vandenberghinc/icon/triangle.small.png",
+		icon: {
+			dark: "https://raw.githubusercontent.com/vandenberghinc/vweb/master/media/icon/icon.light.png",
+			light: "https://raw.githubusercontent.com/vandenberghinc/vweb/master/media/icon/icon.dark.png",
+		},
 		meta: new Meta({
 			author: "VWeb",
 			title: "VWeb - Documenation",
