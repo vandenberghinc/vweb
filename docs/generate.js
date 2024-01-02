@@ -4,13 +4,20 @@ const {Client, Meta, Config, LIGHT_THEME, DARK_THEME, BLUE_THEME, GREEN_THEME} =
 const {Generator} = require(`${process.env.PERSISTANCE}/private/dev/libris/libris/api/server/libris.js`);
 const vlib = require(`${process.env.PERSISTANCE}/private/dev/vinc/vlib/js/vlib.js`);
 
+LIGHT_THEME.tint_fg = "#58B684";
+LIGHT_THEME.anchor_fg = "#53AC7D";
+LIGHT_THEME.token_type = "#58B684";
+LIGHT_THEME.method_get = "#58B684";
+LIGHT_THEME.note_bg = "#58B684";
+
 // Initialize client.
 const client = new Client({
 	config: {
 		name: "VWeb",
 		icon: {
-			dark: "https://raw.githubusercontent.com/vandenberghinc/vweb/master/media/icon/icon.light.png",
-			light: "https://raw.githubusercontent.com/vandenberghinc/vweb/master/media/icon/icon.dark.png",
+			dark: "https://raw.githubusercontent.com/vandenberghinc/vweb/master/dev/media/icon/icon.light.png",
+			light: "https://raw.githubusercontent.com/vandenberghinc/vweb/master/dev/media/icon/icon.dark.png",
+			height: 20,
 		},
 		meta: new Meta({
 			author: "VWeb",
