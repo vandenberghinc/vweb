@@ -17,7 +17,6 @@ class Mutex {
     async lock() {
         if (!this.locked) {
             this.locked = true;
-            return Promise.resolve();
         } else {
             return new Promise((resolve) => {
                 this.queue.push(resolve);
@@ -28,8 +27,8 @@ class Mutex {
     // Unlock the mutex.
     unlock() {
         if (this.queue.length > 0) {
-            const nextResolve = this.queue.shift();
-            nextResolve();
+            const next_resolve = this.queue.shift();
+            next_resolve();
         } else {
             this.locked = false;
         }

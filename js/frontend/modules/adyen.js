@@ -418,7 +418,7 @@ vweb.payments._render_steps_element = function() {
 
 	// The previous step button.
 	this._prev_step_button = HStack(
-			ImageMask("/static/payments/arrow.long.png")
+			ImageMask("/vweb_static/payments/arrow.long.png")
 				.frame(15, 15)
 				.mask_color(this._style.subtext_fg)
 				.transform("rotate(180deg)")
@@ -638,7 +638,7 @@ vweb.payments._render_order_element = function() {
 				this.height(160)
 				this.append(
 					VStack(
-						ImageMask("/static/payments/shopping_cart.png")
+						ImageMask("/vweb_static/payments/shopping_cart.png")
 							.frame(35, 35)
 							.margin_bottom(15)
 							.mask_color(style.theme_fg),
@@ -723,7 +723,7 @@ vweb.payments._render_order_element = function() {
 										.padding(0)
 										.flex_shrink(0),
 									quantity_input,
-									ImageMask("/static/payments/minus.png")
+									ImageMask("/vweb_static/payments/minus.png")
 										.frame(20, 20)
 										.padding(5)
 										.margin_right(5)
@@ -741,7 +741,7 @@ vweb.payments._render_order_element = function() {
 												this.refresh()
 											}
 										}),
-									ImageMask("/static/payments/plus.png")
+									ImageMask("/vweb_static/payments/plus.png")
 										.frame(20, 20)
 										.padding(5)
 										.margin_right(5)
@@ -754,7 +754,7 @@ vweb.payments._render_order_element = function() {
 											await cart.add(item.product.id, 1)
 											this.refresh()
 										}),
-									ImageMask("/static/payments/trash.png")
+									ImageMask("/vweb_static/payments/trash.png")
 										.frame(20, 20)
 										.padding(5)
 										.margin_right(5)
@@ -984,7 +984,7 @@ vweb.payments._render_payment_element = async function() {
 				if (this.include_finished === true) {
 					resolve();
 				} else if (elapsed >= 10000) {
-					reject("Failed to include the external payments module.");
+					reject(new Error("Failed to include the external payments module."));
 				} else {
 					setTimeout(() => wait(elapsed + 250), 250);
 				}
@@ -1154,14 +1154,14 @@ vweb.payments._render_processing_element = function() {
 			.white_space("pre")
 			.line_height("1.4em")
 			.center(),
-		ImageMask("/static/payments/error.png")
+		ImageMask("/vweb_static/payments/error.png")
 			.hide()
 			.frame(40, 40)
 			.padding(5)
 			.mask_color(this._style.missing_fg)
 			.margin_top(15)
 			.assign_to_parent_as("error_image_e"),
-		Image("/static/payments/party.png")
+		Image("/vweb_static/payments/party.png")
 			.hide()
 			.frame(40, 40)
 			.margin_top(15)
@@ -1185,7 +1185,7 @@ vweb.payments._render_processing_element = function() {
 				}, Date.now() - this.timestamp + 1)
 			} 
 			this.loader_e.hide();
-			this.error_image_e.src("/static/payments/error.png");
+			this.error_image_e.src("/vweb_static/payments/error.png");
 			this.error_image_e.show();
 			this.success_image_e.hide();
 			this.title_e.text("Error")
@@ -1198,7 +1198,7 @@ vweb.payments._render_processing_element = function() {
 				}, Date.now() - this.timestamp + 1)
 			} 
 			this.loader_e.hide();
-			this.error_image_e.src("/static/payments/cancelled.png");
+			this.error_image_e.src("/vweb_static/payments/cancelled.png");
 			this.error_image_e.show();
 			this.success_image_e.hide();
 			this.title_e.text("Cancelled")
@@ -1697,7 +1697,7 @@ vweb.payments.get_product = async function(id) {
 			}
 		})
 		if (product == null) {
-			return reject(`Product "${id}" does not exist.`);
+			return reject(new Error(`Product "${id}" does not exist.`));
 		}
 		resolve(product);
 	})

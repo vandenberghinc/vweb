@@ -126,7 +126,7 @@ class StripeError extends Error {
  *      @name: smtp
  *      @description:
  *          The smpt arguments object.
- *          More information about the arguments can be found at the nodemailer <link https://nodemailer.com/smtp/>documentation<link>.
+ *          More information about the arguments can be found at the nodemailer <Link https://nodemailer.com/smtp/>documentation</Link>.
  *      @type: object
  *  }
  *  @parameter: {
@@ -4770,19 +4770,19 @@ class Server {
 
             // Not enabled.
             if (this.smtp_enabled === false) {
-                return reject("SMTP is not enabled, define the required server argument on initialization to enable smtp.");
+                return reject(new Error("SMTP is not enabled, define the required server argument on initialization to enable smtp."));
             }
 
             // Check args.
             if (sender === null) {
                 sender = this.smtp_sender;
-                // return reject(`Parameter "sender" should be a defined value of type "string" or "array".`);
+                // return reject(new Error(`Parameter "sender" should be a defined value of type "string" or "array".`));
             }
             if (recipients.length === 0) {
-                return reject(`The mail has no recipients.`);
+                return reject(new Error(`The mail has no recipients.`));
             }
             if (sender === null) {
-                return reject(`Parameter "sender" should be a defined value of type "string" or "array".`);
+                return reject(new Error(`Parameter "sender" should be a defined value of type "string" or "array".`));
             }
 
             // Format address wrapper.

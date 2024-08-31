@@ -44,7 +44,7 @@ class PopupElement extends VStackElement {
         this.on_popup_handler = on_popup;
         this.escape_handler = (event) => {
             if (event.key == "Escape") {
-                this.close(true);
+                this.close();
             }
         };
 
@@ -169,6 +169,12 @@ class PopupElement extends VStackElement {
 	    this.center()
 	    this.center_vertical()
 	    this.z_index(10000)
+	    this.on_click((_, event) => {
+	    	if (event.target === this.widget || this.widget.is_nested_child(event.target)) {
+	    		return null;
+	    	}
+	    	this.close(true)
+	    })
 	    if (blur != null && blur > 0) {
 	    	this.background_blur(blur);
 	    }
@@ -185,19 +191,36 @@ class PopupElement extends VStackElement {
 		this.mutex.unlock();
 	}
 
+	// Remove with animation.
+	async remove_animation() {
+		return new Promise((resolve) => {
+			this.opacity(0);
+			if (this.blur != null) { this.background_blur(0); }
+			document.body.removeEventListener("keydown", this.escape_handler);
+			setTimeout(() => {this.remove(); resolve()}, this.animation_duration);
+		});
+	}
+
+	// Hide with animation.
+	async hide_animation() {
+		return new Promise((resolve) => {
+			this.opacity(0);
+			if (this.blur != null) { this.background_blur(0); }
+			document.body.removeEventListener("keydown", this.escape_handler);
+			setTimeout(() => {this.hide(); resolve()}, this.animation_duration);
+		});
+	}
+
 	// Close the popup.
-	async close(force_hide = false) {
-		if (this.auto_remove || force_hide) {
-			this.opacity(0);
-			if (this.blur != null) { this.background_blur(0); }
-			setTimeout(() => this.remove(), this.animation_duration);
-			document.body.removeEventListener("keydown", this.escape_handler);
-		} else if (this.auto_hide || force_hide) {
-			this.opacity(0);
-			if (this.blur != null) { this.background_blur(0); }
-			setTimeout(() => this.hide(), this.animation_duration);
-			document.body.removeEventListener("keydown", this.escape_handler);
-		}
+	async close() {
+		const promise = new Promise(async (resolve) => {
+			if (this.auto_remove) {
+				await this.remove_animation();
+			} else if (this.auto_hide) {
+				await this.hide_animation();
+			}
+			resolve()
+		})
 		if (this._on_no_called !== true) { // since this could also be called from the on no handler.
 			this._on_no_called = true;
 			const res = this.on_no_handler(this);
@@ -207,6 +230,7 @@ class PopupElement extends VStackElement {
             }
 		}
         this.mutex.unlock();
+        await promise;
 	}
 
 	// Set image color.

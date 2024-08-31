@@ -39,7 +39,7 @@ class CodeBlockElement extends CreateVElementClass({
 	
 	// Constructor.
 	constructor(code_or_opts = {
-		code: "",						// the code, or an object with code per language.
+		code: "",						// the code or @deprecated: an object with code per language
 		language: null,					// the language.
 		line_numbers: false,			// enable line numbers.
 		line_divider: true,				// enable the line divider, only an option when line numbers are enabled.
@@ -800,7 +800,7 @@ class CodePreElement extends CreateVElementClass({
 			while (this.code.length > 0 && this.code[this.code.length - 1] == "\n") {
 				this.code = this.code.slice(-this.code.length, -1);
 			}
-			this.code = this.code.replaceAll("<", "&lt;").replaceAll(">", "&gt;")
+			// this.code = this.code.replaceAll("<", "&lt;").replaceAll(">", "&gt;") // this causees errors when the CodeBlock uses multi languages for a single block.
 			this.innerHTML = code;
 		}
 		if (language != null) {
@@ -851,6 +851,16 @@ class CodePreElement extends CreateVElementClass({
 }
 
 // CodeLine.
+/*	@docs:
+	@nav: Frontend
+	@chapter: Elements
+	@title: Code Line
+	@description: Create an inline code line element.
+	@param:
+		@name: text
+		@type: string
+		@descr: The code line content.
+ */
 @constructor_wrapper
 @register_element
 class CodeLineElement extends CreateVElementClass({
@@ -863,6 +873,7 @@ class CodeLineElement extends CreateVElementClass({
 		"background": "#000000",
 		"color": "#FFFFFF",
 		"border-radius": "10px",
+		"white-space": "pre",
 		"padding": "2.5px 7.5px 2.5px 7.5px",
 	},
 }) {
@@ -877,5 +888,381 @@ class CodeLineElement extends CreateVElementClass({
 		this.inner_html(text);
 		
 	}
+
+	/*	@docs:
+		@title: Fill
+		@descr: Fill a string with markdown style codeline elements.
+	 */
+	static fill(text, codeline_callback = () => CodeLine()) {
+		// Fill code line's.
+		if (text.indexOf("`") !== -1) {
+			const split = text.split("`");
+			let is_code = false;
+			let filled = "";
+			for (let i = 0; i < split.length; i++) {
+				if (is_code) {
+					filled += codeline_callback().text(split[i]);
+				} else {
+					filled += split[i];
+				}
+				is_code = !is_code;
+			}
+			text = filled;
+		}
+		return text;
+	}
 		
+}
+
+
+// Build a code pre that optionally has different code per navigation.
+/*	@docs:
+	@nav: Frontend
+	@chapter: Elements
+	@title: Multi Language Code Block
+	@description: Build a code pre that optionally has different code per navigation.
+	@param:
+		@name: code
+		@type: CodeObject
+		@descr: The array of code objects.
+		@attr:
+			@name: language
+			@descr: The language name.
+		@attr:
+			@name: title
+			@descr: The code title, when left undefined the language name will be used as title.
+		@attr:
+			@name: data
+			@descr: The code data.
+			@required: true
+	@param:
+		@name: highlight
+		@type: boolean
+		@descr: Highlight the code content.
+ */
+@constructor_wrapper
+@register_element
+class MultiLanguageCodeBlockElement extends VStackElement {
+
+	// Default styling.
+	static default_style = {
+		...VStackElement.default_style,
+
+		"font-family": "'Menlo', 'Consolas', monospace",
+		"background": "black",
+		"color": "white",
+		"box-shadow": "0px 0px 5px #00000005",
+		"font-size": "13px",
+		"line-height": "18px",
+		"border-radius": "10px",
+		"tab-size": 4,
+
+		"--mlcb-tint": "white",
+		"--mlcb-div-bg": "grey",
+		"--mlcb-title-opac": 0.7,
+	};
+
+
+	// Constructor.
+	constructor({content, highlight = true}) {
+
+		// Inherit.
+		super();
+        this.element_type = "Steps";
+		this.styles(StepsElement.default_style);
+
+		// Assigned content from non obj params.
+		if (content === undefined && arguments.length === 1) {
+			content = arguments[0];
+		}
+
+		// Check code.
+		let code = content;
+		if (typeof code === "string") {
+			code = {language: "__unknown__", title: null, data: code};
+		}
+		else if (typeof code === "object" && !Array.isArray(code)) {
+			code = [code];
+		} else if (!Array.isArray(code)) {
+			console.error(`Invalid value type of code block "${typeof code}".`)
+		}
+
+		// Vars.
+		const main_this = this;
+		this._fg = MultiLanguageCodeBlockElement.default_style.color;
+		this._tint = MultiLanguageCodeBlockElement.default_style["--mlcb-tint"];
+		this._div_bg = MultiLanguageCodeBlockElement.default_style["--mlcb-div-bg"];
+		this._title_opac = MultiLanguageCodeBlockElement.default_style["--mlcb-title-opac"];
+		this._pre_nodes = [];
+		this._title_nodes = [];
+
+		// The header element.
+		this.header = HStack(
+
+			// Titles.
+			HStack(
+				ForEach(code, (item, index) => {
+					const title = VStack(
+						Span(item.title || item.language || "")
+							.font_size(12)
+							.line_height(12 + 2)
+							.font_weight(500)
+							.ellipsis_overflow(true),
+						VStack()
+							.width(100%)
+							.height(2)
+							.border_radius(2)
+							.transition("background 300ms ease-in-out")
+							.background("transparent")
+							.assign_to_parent_as("divider")
+							.position(null, null, 0, null)
+					)
+					.transition("opacity 300ms ease-in-out")
+					.opacity(this._title_opac)
+					.padding(0, 2)
+					.flex_shrink(0)
+					.center_vertical()
+					.height(100%)
+					.position("relative")
+					.margin_right(20)
+					.on_mouse_over(() => {
+						if (this.header.selected !== index) {
+							title.opacity(1);
+							title.divider.opacity(this._title_opac).background(this._fg);
+						}
+					})
+					.on_mouse_out(() => {
+						if (this.header.selected !== index) {
+							title.opacity(this._title_opac);
+							title.divider.opacity(1).background("transparent");
+						}
+					})
+					if (code.length > 1) {
+						title.on_click(() => this.header.select(index))
+					}
+					this._title_nodes.append(title);
+					return title;
+				}),
+			)
+			.parent(this)
+			.height(100%)
+			.class("hide_scrollbar")
+			.wrap(false)
+			.overflow("visible")
+			// .flex("1 1 0"),
+			.width(100%),
+
+			// Spacer.
+			code.length > 1 ? null : Spacer(),
+
+			// Copy image.
+			this._copy_img = ImageMask("/vweb_static/icons/copy.webp")
+				.frame(15, 15)
+				.flex_shrink(0)
+				.margin(null, null, null, 10)
+				.mask_color(this._fg)
+				.transform("rotate(90deg)")
+				.opacity(this._title_opac)
+				.transition("opacity 250ms ease-in-out")
+				.on_mouse_over(e => e.opacity(1))
+				.on_mouse_out(e => e.opacity(this._title_opac))
+				.on_click(async () => {
+					vweb.utils.copy_to_clipboard(this.header.selected_code_pre.textContent)
+					.then(() => {
+						if (typeof RESPONSE_STATUS !== "undefined") {
+							RESPONSE_STATUS.message("Copied to clipboard");
+						}
+					})
+					.catch((error) => {
+						console.error(error);
+						if (typeof RESPONSE_STATUS !== "undefined") {
+							RESPONSE_STATUS.error("Failed to the code to the clipboard");
+						}
+					})
+				}),
+		)
+		.width(100%)
+		.overflow("hidden")
+		.height(42.5)
+		.padding(0, 15, 0, 15)
+		.center_vertical()
+		.z_index(2)
+		.extend({
+			selected: null,
+			selected_lang: null,
+			selected_code_pre: null,
+			set_selected: function(index) {
+				// Do not check for already selected since it is used in func tint() to set divider tint.
+
+				// Set selected index.
+				this.selected = index;
+				this.selected_lang = code[index].language || "__unknown__";
+				this.selected_code_pre = main_this._pre_nodes[index];
+
+				// Set title.
+				main_this._title_nodes.iterate((i) => {
+					i.opacity(main_this._title_opac)
+					if (code.length > 1) {
+						i.divider
+							.opacity(1)
+							.background("transparent")
+							.remove_on_theme_updates()
+					}
+				});
+				main_this._title_nodes[index].opacity(1)
+				if (code.length > 1) {
+					main_this._title_nodes[index].divider.background(main_this._tint)
+				}
+
+			},
+			select: function (lang_or_index, recursive = true) {
+
+				// Extract lang and index.
+				let lang;
+				let index;
+				if (typeof lang_or_index === "string") {
+					for (let i = 0; i < code.length; i++) {
+						if (code[i].language === lang_or_index) {
+							lang = lang_or_index;
+							index = i;
+							break;
+						}
+					}
+					// Nothing found.
+					if (index === undefined) {
+						return ;
+					}
+				} else {
+					if (lang_or_index >= code.length) { return ; }
+					index = lang_or_index;
+					lang = code[index].language || "__unknown__";
+				}
+
+				// Toggle code pre's.
+				if (recursive && lang !== "__unknown__") {
+					// localStorage.setItem("__ldoc_code_lang", lang);
+					this.select(index, false);
+					// LibrisUI.codeblock_lang_headers.iterate((h) => {
+					// 	if (h !== header) {
+					// 		h.select(lang, false)
+					// 	}
+					// })
+				} else {
+					this.set_selected(index);
+					for (let i = 0; i < main_this._pre_nodes.length; i++) {
+						if (i === index) {
+							main_this._pre_nodes[i].show();
+						} else {
+							main_this._pre_nodes[i].hide();
+						}
+					}
+				}
+			}
+		})
+		// LibrisUI.codeblock_lang_headers.push(header);
+
+		// Add the code items.
+		this.content = HStack() // keep as hstack, for some reason the right side of the pre's will have padding as well then.
+			.width(100%)
+			.overflow("scroll")
+		let index = 0;
+		code.iterate((item) => {
+			if (item.data == null) {
+				console.error("Undefined codeblock data" + (item.language === "__unknown__" ? "" : ` for language ${item.language}`) + ".");
+				return null;
+			}
+			if (highlight) {
+				const tokenizer = vhighlight.init_tokenizer(item.language);
+				if (tokenizer) {
+					item.data = tokenizer.tokenize({code: item.data, build_html: true});
+				}
+			}
+			const pre = CodePre()
+				.padding(20, 20)
+				.margin(0)
+				.inner_html(item.data)
+				.overflow("visible")
+				.background("transparent")
+				.border_radius(0)
+				.stretch(true);  // keep stretch, for some reason the right side of the pre's will have padding as well then.
+			pre.hide();
+			this._pre_nodes.append(pre);
+			this.content.append(pre);
+			++index;
+		})
+
+		// Main container (this).
+		this
+			.display("block")
+			.white_space("pre")
+			.class("hide_scrollbar")
+			.max_width(100%)
+			.border(1, this._div_bg)
+			.position("relative")
+			.append(
+				this.header,
+				this.divider = Divider()
+					.parent(this)
+					.background(this._div_bg)
+					.margin(0, 0, 0, 0),
+				this.content,
+			)
+
+		// Select first item.
+		this.header.select(0, false);
+
+	}
+
+
+	// Set default since it inherits another element.
+	set_default() {
+		return super.set_default(TabsElement);
+	}
+
+	// Get the styling attributes.
+	styles(style_dict) {
+		if (style_dict == null) {
+			let styles = super.styles();
+			styles["--mlcb-tint"] = this._tint;
+			styles["--mlcb-div-bg"] = this._div_bg;
+			styles["--mlcb-title-opac"] = this._title_opac;
+			return styles;
+		} else {
+			return super.styles(style_dict);
+		}
+	}
+
+	/*	@docs:
+		@title: Set color
+		@description: Set or get foreground tint color.
+	 */
+	color(value) {
+		if (value == null) { return this._fg; }
+		this._fg = value;
+		super.color(value);
+		this._copy_img.mask_color(value);
+		return this;
+	}
+
+	/*	@docs:
+		@title: Set tint color
+		@description: Set or get the tint color, mainly used for the divider below the active tab.
+	 */
+	tint(value) {
+		if (value == null) { return this._tint; }
+		this._tint = value;
+		this.header.set_selected(this.header.selected); // set tint again.
+		return this;
+	}
+
+	/*	@docs:
+		@title: Set divider background
+		@description: Set the background of the divider.
+	 */
+	divider_background(value) {
+		if (value == null) { return this._div_bg; }
+		this._div_bg = value;
+		this.divider.background(value);
+		return this;
+	}
 }

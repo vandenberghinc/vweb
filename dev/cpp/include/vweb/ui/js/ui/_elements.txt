@@ -32,7 +32,7 @@ HTMLModElement - <ins>, <del>
 HTMLLabelElement - <label>
 HTMLLegendElement - <legend>
 HTMLLIElement - <li>
-HTMLLinkElement - <link>
+HTMLLinkElement - <Link>
 HTMLMapElement - <map>
 HTMLMetaElement - <meta>
 HTMLMeterElement - <meter>

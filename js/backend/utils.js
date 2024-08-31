@@ -6,6 +6,7 @@
 // ---------------------------------------------------------
 // Imports.
 
+const libcrypto = require("crypto");
 const {vlib} = require("./vinc.js");
 
 // ---------------------------------------------------------
@@ -19,49 +20,106 @@ const utils = {};
     @chapter: Exceptions
     @title: Frontend Error
     @description: 
-        The frontend error class can be used to throw an error that can be presented to the user. All other errors will result in an internal server error response without the error's message.
+        The frontend error class can be used to throw an error that will be presented to the user. All other errors will result in an internal server error response without the error's message.
     @usage:
         throw new vweb.FrontendError("Some error occured.");
-        throw new vweb.FrontendError("Bad request.", vweb.Status.bad_request);
-    @show_code: true
+        throw new vweb.FrontendError("Bad request.", vweb.status.bad_request);
+    @param:
+        @name: message
+        @descr: The error message.
+        @type: string
+    @param:
+        @name: status
+        @descr: The http error status.
+        @type: number
+    @param:
+        @name: data
+        @descr: The error body data.
+        @type: any
  */
 utils.FrontendError = class FrontendError extends Error {
-    constructor(message, status = null) {
+    constructor(message, status = null, data = null) {
         super(message);
         this.name = "FrontendError";
         this.status = status;
+        this.data = data;
     }
 }
 
-// Log.
-utils.log = function(...args) {
-    let msg = new vlib.Date().format("%d-%m-%y %H:%M:%S");
-    msg += " - ";
-    for (let i = 0; i < args.length; i++) {
-        msg += args[0];
+// An error that may be shown to the frontend user.
+/*  @docs:
+ *  @nav: Backend
+    @chapter: Exceptions
+    @title: API Error
+    @description: 
+        The api error class can be used to throw an error that will be presented to the user. All other errors will result in an internal server error response without the error's message.
+    @usage:
+        throw new vweb.APIError("Some error occured.");
+        throw new vweb.APIError("Bad request.", vweb.status.bad_request);
+    @param:
+        @name: message
+        @descr: The error message.
+        @type: string
+    @param:
+        @name: status
+        @descr: The http error status.
+        @type: number
+    @param:
+        @name: data
+        @descr: The error body data.
+        @type: any
+ */
+utils.APIError = class APIError extends utils.FrontendError {
+    constructor(message, status = null, data = null) {
+        super(message, status, data);
+        this.name = "APIError";
     }
-    console.log(msg);
 }
 
-// Log.
-utils.error = function(prefix, err) {
-    if (typeof err === "string") {
-        err = `${new vlib.Date().format("%d-%m-%y %H:%M:%S")} - ${prefix}${err}`;
-    } else {
-        err.message = `${new vlib.Date().format("%d-%m-%y %H:%M:%S")} - ${prefix}${err.message}`;
+// Clean an endpoint url.
+utils.clean_endpoint = (endpoint) => {
+    if (endpoint == null || endpoint instanceof RegExp) { return endpoint; }
+    if (endpoint.charAt(0) != "/") {
+        endpoint = "/" + endpoint;
     }
-    console.error(err);
+    endpoint = endpoint.replaceAll("//", "/");
+    if (endpoint.length > 1 && endpoint.charAt(endpoint.length - 1) === "/") {
+        endpoint = endpoint.substr(0, endpoint.length - 1);
+    }
+    return endpoint;
 }
+
+// // Log.
+// utils.log = function(...args) {
+//     let msg = new vlib.Date().format("%d-%m-%y %H:%M:%S");
+//     msg += " - ";
+//     for (let i = 0; i < args.length; i++) {
+//         msg += args[0];
+//     }
+//     console.log(msg);
+// }
+
+// // Log.
+// utils.error = function(prefix, err) {
+//     if (typeof err === "string") {
+//         err = `${new vlib.Date().format("%d-%m-%y %H:%M:%S")} - ${prefix}${err}`;
+//     } else {
+//         err.message = `${new vlib.Date().format("%d-%m-%y %H:%M:%S")} - ${prefix}${err.message}`;
+//     }
+//     console.error(err);
+// }
 
 // Fill templates {{TEMPLATE}}
-utils.fill_templates = function(data, templates) {
+utils.fill_templates = function(data, templates, curly_style = true) {
     if (templates == null) { return data; }
     const keys = Object.keys(templates);
 
     // Iterate data.
     if (keys.length > 0) {
         for (let i = 0; i < data.length; i++) {
-            if (data.charAt(i) === "{" && data.charAt(i + 1) === "{") {
+
+            // {{TEMPLATE}} Curly style.
+            if (curly_style && data.charAt(i) === "{" && data.charAt(i + 1) === "{") {
 
                 // Iterate all templates.  
                 for (let k = 0; k < keys.length; k++) {
@@ -71,6 +129,25 @@ utils.fill_templates = function(data, templates) {
                         data.eq_first(keys[k], i + 2)
                     ) {
                         const end_index = i + keys[k].length + 4;
+                        if (templates[keys[k]] != null && typeof templates[keys[k]] === "object") {
+                            data = data.replace_indices(JSON.stringify(templates[keys[k]]), i, end_index);
+                        } else {
+                            data = data.replace_indices(templates[keys[k]], i, end_index);
+                        }
+                        i = end_index - 1;
+                    }
+                }
+            }
+
+            // $TEMPLATE dollar style.
+            else if (!curly_style && data.charAt(i) === "$") {
+
+                // Iterate all templates.  
+                for (let k = 0; k < keys.length; k++) {
+                    if (
+                        data.eq_first(keys[k], i + 1)
+                    ) {
+                        const end_index = i + keys[k].length + 1;
                         if (templates[keys[k]] != null && typeof templates[keys[k]] === "object") {
                             data = data.replace_indices(JSON.stringify(templates[keys[k]]), i, end_index);
                         } else {
@@ -246,6 +323,21 @@ utils.get_currency_symbol = function(currency) {
         case "zmw": return "ZK";
     }
     return null;
+}
+
+// Try a compiled js cache using the /tmp/
+utils.get_compiled_cache = function(domain, method, endpoint) {
+    const cache_path = new vlib.Path(`/tmp/${domain.replaceAll("/", "")}:${method}:${endpoint.replaceAll("/", "_")}`);
+    let cache_data, cache_hash;
+    if (cache_path.exists()) {
+        cache_data = cache_path.load_sync();
+        cache_hash = new vlib.Path(cache_path.str() + '.hash').load_sync();
+    }
+    return {cache_path, cache_hash, cache_data};
+}
+utils.set_compiled_cache = function(path, data, hash) {
+    path.save_sync(data);
+    new vlib.Path(path.str() + '.hash').save_sync(hash);
 }
 
 // ---------------------------------------------------------

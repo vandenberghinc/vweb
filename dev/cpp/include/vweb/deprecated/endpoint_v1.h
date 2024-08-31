@@ -138,7 +138,7 @@ struct EndpointTemplate {
      *  @description:
      *      Endpoint Options.
      *
-     *      See <link #vweb::EndpointTemplate::Auth>Endpoint::Auth</link> for more info.
+     *      See <Link #vweb::EndpointTemplate::Auth>Endpoint::Auth</Link> for more info.
      *  @show_code: true
      } */
     struct Options {
@@ -246,7 +246,7 @@ struct EndpointTemplate {
      *      @description:
      *          The endpoint options for rate limiting and authentication.
      *
-     *          See <link #vweb::EndpointTemplate::Options>Endpoint::Options</link> for more info.
+     *          See <Link #vweb::EndpointTemplate::Options>Endpoint::Options</Link> for more info.
      *  }
      *  @parameter: {
      *      @name: data
@@ -381,7 +381,7 @@ struct EndpointTemplate {
 	 *      @description:
 	 *          The endpoint options for rate limiting and authentication.
 	 *
-	 *          See <link #vweb::EndpointTemplate::Options>Endpoint::Options</link> for more info.
+	 *          See <Link #vweb::EndpointTemplate::Options>Endpoint::Options</Link> for more info.
 	 *  }
 	 *  @parameter: {
 	 *      @name: view
@@ -561,7 +561,7 @@ struct EndpointTemplate {
      *      @description:
      *          The endpoint options for rate limiting and authentication.
      *
-     *          See <link #vweb::EndpointTemplate::Options>Endpoint::Options</link> for more info.
+     *          See <Link #vweb::EndpointTemplate::Options>Endpoint::Options</Link> for more info.
      *  }
      *  @parameter: {
      *      @name: view
@@ -760,7 +760,7 @@ struct EndpointTemplate {
      *      @description:
      *          The endpoint options for rate limiting and authentication.
      *
-     *          See <link #vweb::EndpointTemplate::Options>Endpoint::Options</link> for more info.
+     *          See <Link #vweb::EndpointTemplate::Options>Endpoint::Options</Link> for more info.
      *  }
      *  @parameter: {
      *      @name: func

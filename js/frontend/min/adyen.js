@@ -1,3 +1,8 @@
+/*
+ * Author: VInc.
+ * Copyright: © 2023 - 2024 VInc.
+ * Version: v1.2.7
+ */
 vweb.payments={};
 vweb.payments.client_key="{{ADYEN_CLIENT_KEY}}";
 vweb.payments.environment="{{ADYEN_ENV}}";
@@ -296,7 +301,7 @@ try {
 this._billing_details=this._billing_element.data()
 this._billing_details.phone_number=this._billing_details.phone_country_code+this._billing_details.phone_number;
 delete this._billing_details.phone_country_code;
-} catch (error){
+}catch (error){
 --this._step;
 console.error(error);
 this.on_error(error);
@@ -304,7 +309,7 @@ return null;
 }
 try {
 await this._render_payment_element()
-} catch (error){
+}catch (error){
 --this._step;
 console.error(error);
 this.on_error(error);
@@ -323,7 +328,7 @@ break;
 case 3:{
 try {
 this._policy_checkbox.submit();
-} catch (error){
+}catch (error){
 console.error(error);
 this.on_error(error);
 return null;
@@ -342,7 +347,7 @@ vweb.payments._next=async function(){
 if (this._step<3){
 ++this._step;
 await this._set_step();
-} else if (this._step===3){
+}else if (this._step===3){
 await this._set_step();
 }
 }
@@ -355,7 +360,7 @@ await this._set_step();
 vweb.payments._render_steps_element=function(){
 const style=this._style;
 this._prev_step_button=HStack(
-ImageMask("/static/payments/arrow.long.png")
+ImageMask("/vweb_static/payments/arrow.long.png")
 .frame(15,15)
 .mask_color(this._style.subtext_fg)
 .transform("rotate(180deg)")
@@ -542,7 +547,7 @@ if (cart_items.length===0){
 this.height(160)
 this.append(
 VStack(
-ImageMask("/static/payments/shopping_cart.png")
+ImageMask("/vweb_static/payments/shopping_cart.png")
 .frame(35,35)
 .margin_bottom(15)
 .mask_color(style.theme_fg),
@@ -553,7 +558,7 @@ Text("Shopping cart is empty.")
 .center()
 .center_vertical()
 );
-} else {
+}else {
 this.append(
 Title("Order Details")
 .color(style.title_fg)
@@ -622,7 +627,7 @@ Text("Quantity")
 .padding(0)
 .flex_shrink(0),
 quantity_input,
-ImageMask("/static/payments/minus.png")
+ImageMask("/vweb_static/payments/minus.png")
 .frame(20,20)
 .padding(5)
 .margin_right(5)
@@ -635,12 +640,12 @@ ImageMask("/static/payments/minus.png")
 if (item.quantity===1){
 await cart.remove(item.product.id,"all")
 this.refresh()
-} else {
+}else {
 await cart.remove(item.product.id,1)
 this.refresh()
 }
 }),
-ImageMask("/static/payments/plus.png")
+ImageMask("/vweb_static/payments/plus.png")
 .frame(20,20)
 .padding(5)
 .margin_right(5)
@@ -653,7 +658,7 @@ ImageMask("/static/payments/plus.png")
 await cart.add(item.product.id,1)
 this.refresh()
 }),
-ImageMask("/static/payments/trash.png")
+ImageMask("/vweb_static/payments/trash.png")
 .frame(20,20)
 .padding(5)
 .margin_right(5)
@@ -708,7 +713,7 @@ return this;
 this._order_container.append(this._order_element.refresh());
 }
 vweb.payments._render_billing_element=async function(){
-if (this._billing_element!==undefined){ return ;}
+if (this._billing_element!==undefined){return ;}
 const CreateInput=(args)=>{
 return ExtendedInput(args)
 .color(this._style.fg)
@@ -848,14 +853,14 @@ this._billing_container.append(this._billing_element);
 vweb.payments._render_payment_element=async function(){
 if (this.include_started!==true){
 throw Error("The payments module is not included, make sure you enable the \"payments\" flag on the JavaScript view.");
-} else if (this.include_finished!==true){
+}else if (this.include_finished!==true){
 await new Promise((resolve,reject)=>{
 const wait=async (elapsed=0)=>{
 if (this.include_finished===true){
 resolve();
-} else if (elapsed>=10000){
-reject("Failed to include the external payments module.");
-} else {
+}else if (elapsed>=10000){
+reject(new Error("Failed to include the external payments module."));
+}else {
 setTimeout(()=>wait(elapsed+250),250);
 }
 }
@@ -973,14 +978,14 @@ Text("Processing your payment, please wait.")
 .white_space("pre")
 .line_height("1.4em")
 .center(),
-ImageMask("/static/payments/error.png")
+ImageMask("/vweb_static/payments/error.png")
 .hide()
 .frame(40,40)
 .padding(5)
 .mask_color(this._style.missing_fg)
 .margin_top(15)
 .assign_to_parent_as("error_image_e"),
-Image("/static/payments/party.png")
+Image("/vweb_static/payments/party.png")
 .hide()
 .frame(40,40)
 .margin_top(15)
@@ -1004,7 +1009,7 @@ this.set_error(message);
 },Date.now()-this.timestamp+1)
 }
 this.loader_e.hide();
-this.error_image_e.src("/static/payments/error.png");
+this.error_image_e.src("/vweb_static/payments/error.png");
 this.error_image_e.show();
 this.success_image_e.hide();
 this.title_e.text("Error")
@@ -1017,7 +1022,7 @@ this.set_cancelled(message);
 },Date.now()-this.timestamp+1)
 }
 this.loader_e.hide();
-this.error_image_e.src("/static/payments/cancelled.png");
+this.error_image_e.src("/vweb_static/payments/cancelled.png");
 this.error_image_e.show();
 this.success_image_e.hide();
 this.title_e.text("Cancelled")
@@ -1099,7 +1104,7 @@ data:{
 details:details,
 },
 });
-} catch (error){
+}catch (error){
 console.error(error);
 this._processing_element.set_error("An unknown error has occurred.");
 return ;
@@ -1202,7 +1207,7 @@ this._style.button_brightness=button_brightness;
 Object.keys(this._style).iterate((key)=>{
 if (typeof this._style[key]==="number"){
 document.documentElement.style.setProperty(`--vpayments_${key}`, this._style[key]+"px");
-} else {
+}else {
 document.documentElement.style.setProperty(`--vpayments_${key}`, this._style[key]);
 }
 });
@@ -1417,7 +1422,7 @@ return true;
 }
 })
 if (product==null){
-return reject(`Product "${id}" does not exist.`);
+return reject(new Error(`Product "${id}" does not exist.`));
 }
 resolve(product);
 })
@@ -1508,7 +1513,7 @@ vweb.payments.cart={};
 vweb.payments.cart.refresh=function(){
 try {
 this.items=JSON.parse(localStorage.getItem("vweb_shopping_cart"))||[];
-} catch(err){
+}catch(err){
 this.items=[];
 }
 vweb.payments._reset();
@@ -1542,7 +1547,7 @@ this.items.iterate((item)=>{
 if (item.product.id===id){
 if (quantity==="all"){
 item.quantity=0;
-} else {
+}else {
 item.quantity-=quantity;
 }
 }

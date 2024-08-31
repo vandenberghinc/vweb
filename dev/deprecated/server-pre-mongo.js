@@ -183,7 +183,7 @@ const {FrontendError} = utils;
         @name: smtp
         @description:
             The smpt arguments object.
-            More information about the arguments can be found at the nodemailer <link https://nodemailer.com/smtp/>documentation<link>.
+            More information about the arguments can be found at the nodemailer <Link https://nodemailer.com/smtp/>documentation</Link>.
         @type: object
         @attribute:
             @name: sender
@@ -465,7 +465,7 @@ class Server {
     }) {
 
         // Verify args.
-        vlib.utils.verify_params({params: arguments[0], info: {
+        vlib.scheme.verify({object: arguments[0], scheme: {
             ip: "string",
             domain: "string",
             statics: "array",
@@ -473,7 +473,7 @@ class Server {
             favicon: {type: "string", required: false},
             company: {
                 type: "object",
-                attrs: {
+                scheme: {
                     name: "string",
                     legal_name: "string",
                     street: "string",
@@ -491,7 +491,7 @@ class Server {
             tls: {
                 type: ["null", "object"],
                 required: false,
-                attrs: {
+                scheme: {
                     certificate: "string",
                     private_key: "string",
                 }
@@ -499,7 +499,7 @@ class Server {
             smtp: {type: ["null", "object"], required: false},
             mail_style: {
                 type: "object",
-                attrs: {
+                scheme: {
                     font: {type: "string", default: '"Helvetica", sans-serif'},
                     title_fg: {type: "string", default: "#121B23"},
                     text_fg: {type: "string", default: "#1F2F3D"},
@@ -4518,7 +4518,7 @@ class Server {
 
                 // Image.
                 TableRow(
-                    Image(`${this.full_domain}/static/payments/party.png`)
+                    Image(`${this.full_domain}/vweb_static/payments/party.png`)
                         .frame(60, 60)
                         .margin(0, 0, 30, 0)
                 )
@@ -4581,7 +4581,7 @@ class Server {
 
                 // Image.
                 TableRow(
-                    ImageMask(`${this.full_domain}/static/payments/error.png`)
+                    ImageMask(`${this.full_domain}/vweb_static/payments/error.png`)
                         .frame(40, 40)
                         .mask_color("#E8454E")
                         .margin(0, 0, 30, 0)
@@ -4644,7 +4644,7 @@ class Server {
 
                 // Image.
                 TableRow(
-                    Image(`${this.full_domain}/static/payments/check.png`)
+                    Image(`${this.full_domain}/vweb_static/payments/check.png`)
                         .frame(40, 40)
                         .margin(0, 0, 30, 0)
                 )
@@ -4707,7 +4707,7 @@ class Server {
 
                 // Image.
                 TableRow(
-                    ImageMask(`${this.full_domain}/static/payments/error.png`)
+                    ImageMask(`${this.full_domain}/vweb_static/payments/error.png`)
                         .frame(40, 40)
                         .mask_color("#E8454E")
                         .margin(0, 0, 30, 0)
@@ -4770,7 +4770,7 @@ class Server {
 
                 // Image.
                 TableRow(
-                    Image(`${this.full_domain}/static/payments/party.png`)
+                    Image(`${this.full_domain}/vweb_static/payments/party.png`)
                         .frame(60, 60)
                         .margin(0, 0, 30, 0)
                 )
@@ -4833,7 +4833,7 @@ class Server {
 
                 // Image.
                 TableRow(
-                    ImageMask(`${this.full_domain}/static/payments/error.png`)
+                    ImageMask(`${this.full_domain}/vweb_static/payments/error.png`)
                         .frame(40, 40)
                         .mask_color("#E8454E")
                         .margin(0, 0, 30, 0)
@@ -4896,7 +4896,7 @@ class Server {
 
                 // Image.
                 TableRow(
-                    Image(`${this.full_domain}/static/payments/party.png`)
+                    Image(`${this.full_domain}/vweb_static/payments/party.png`)
                         .frame(60, 60)
                         .margin(0, 0, 30, 0)
                 )
@@ -4959,7 +4959,7 @@ class Server {
 
                 // Image.
                 TableRow(
-                    ImageMask(`${this.full_domain}/static/payments/error.png`)
+                    ImageMask(`${this.full_domain}/vweb_static/payments/error.png`)
                         .frame(40, 40)
                         .mask_color("#E8454E")
                         .margin(0, 0, 30, 0)

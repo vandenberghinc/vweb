@@ -66,3 +66,58 @@ class GradientType {
 	}
 	
 };
+
+// Gradient border.
+@constructor_wrapper
+@register_element
+class GradientBorderElement extends CreateVElementClass({
+	type: "GradientBorder",
+	tag: "div",
+	default_style: {
+		"border-width": "1px",
+		"border-radius": "10px",
+		// "border-color": "black",
+	},
+}) {
+
+	// Constructor.
+	constructor(text) {
+		
+		// Initialize base classes.
+		super();
+			
+		// Styling.
+		this
+		.content("")
+		.position("absolute")
+		// .z_index(-1)
+		.inset(0)
+		.padding(BorderButtonElement.default_style["--child-border-width"])
+		.border_radius(BorderButtonElement.default_style["--child-border-radius"])
+		.background(BorderButtonElement.default_style["--child-background"])
+		.mask("linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)")
+		.mask_composite("exclude")
+		// .mask_composite((navigator.userAgent.includes("Firefox") || navigator.userAgent.includes("Mozilla")) ? "exclude" : "xor")
+		.styles({
+			"-webkit-mask": "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
+			"-webkit-mask-composite": (navigator.userAgent.includes("Firefox") || navigator.userAgent.includes("Mozilla")) ? "exclude" : "xor",
+		})
+	}
+
+	// Border color.
+	border_color(val) {
+		if (val === undefined) { return this.style.background; }
+		this.style.background = val;
+		return this;
+	}
+
+	// Set the border width.
+	border_width(value) {
+		if (value == null) {
+			return this.padding();
+		}
+		this.padding(value);
+		return this;
+	}
+		
+}

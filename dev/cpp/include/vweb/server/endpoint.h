@@ -175,7 +175,7 @@ struct EndpointTemplate {
      *  @description:
      *      Endpoint Options.
      *
-     *      See <link #vweb::EndpointTemplate::Auth>Endpoint::Auth</link> for more info.
+     *      See <Link #vweb::EndpointTemplate::Auth>Endpoint::Auth</Link> for more info.
      *  @show_code: true
      } */
     struct Options {

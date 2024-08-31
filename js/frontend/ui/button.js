@@ -8,7 +8,8 @@
 @register_element
 class ButtonElement extends CreateVElementClass({
 	type: "Button",
-	tag: "button",
+	tag: "a",
+	// tag: "button",
 	default_style: {
 		"margin": "0px 0px 0px",
 		"padding": "5px 10px 5px 10px",
@@ -23,6 +24,7 @@ class ButtonElement extends CreateVElementClass({
 		"align-items": "center",
 		"white-space": "nowrap",
 		"user-select": "none",
+		"text-decoration": "none",
 	},
 	default_events: {
 		"onmousedown": function() { this.style.filter = "brightness(80%)"; },
@@ -51,7 +53,8 @@ class ButtonElement extends CreateVElementClass({
 @register_element
 class BorderButtonElement extends CreateVElementClass({
 	type: "BorderButton",
-	tag: "button",
+	tag: "a",
+	// tag: "button",
 	default_style: {
 		"margin": "0px 0px 0px 0px",
 		"display": "inline-block",
@@ -65,6 +68,7 @@ class BorderButtonElement extends CreateVElementClass({
 		"user-select": "none",
 		"outline":"none",
 		"border":"none",
+		"text-decoration": "none",
 		// Custom.
 		"--child-color": "black",
 		"--child-background": "black",
@@ -108,6 +112,7 @@ class BorderButtonElement extends CreateVElementClass({
 			.background(BorderButtonElement.default_style["--child-background"])
 			.mask("linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)")
 			.mask_composite("exclude")
+			// .mask_composite((navigator.userAgent.includes("Firefox") || navigator.userAgent.includes("Mozilla")) ? "exclude" : "xor")
 			.styles({
 				"-webkit-mask": "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
 				"-webkit-mask-composite": (navigator.userAgent.includes("Firefox") || navigator.userAgent.includes("Mozilla")) ? "exclude" : "xor",
@@ -150,7 +155,7 @@ class BorderButtonElement extends CreateVElementClass({
 	// Set the border width.
 	border_width(value) {
 		if (value == null) {
-			return this.border_e.border_radius();
+			return this.border_e.padding();
 		}
 		this.border_e.padding(value);
 		return this;
@@ -207,12 +212,12 @@ class BorderButtonElement extends CreateVElementClass({
 // Warning: This class is still experimental and may be subject to future change.
 @constructor_wrapper
 @register_element
-class LoaderButtonElement extends VStackElement {
+class LoaderButtonElement extends AnchorHStackElement {
 
 	// Default styling.
-	// static default_style = Object.assign({}, HStackElement.default_style, {
+	// static default_style = Object.assign({}, AnchorHStackElement.default_style, {
 	static default_style = {
-		...HStackElement.default_style,
+		...AnchorHStackElement.default_style,
 		"margin": "0px",
 		"padding": "12.5px 10px 12.5px 10px",
 		"border-radius": "25px",
@@ -221,6 +226,7 @@ class LoaderButtonElement extends VStackElement {
 		"color": "inherit",
 		"font-size": "16px",
 		"user-select": "none",
+		"text-decoration": "none",
 		// Custom.
 		"--loader-width": "20px",
 		"--loader-height": "20px",
@@ -274,7 +280,7 @@ class LoaderButtonElement extends VStackElement {
 		}
 	}
 
-	// Set default since it inherits HStackElement.
+	// Set default since it inherits AnchorHStackElement.
 	set_default() {
 		return super.set_default(LoaderButtonElement);
 	}
@@ -287,6 +293,7 @@ class LoaderButtonElement extends VStackElement {
 		this.loader.show();
 		return this;
 	}
+	start() { return this.show_loader(); }
 
 	// Hide the loader and enable the button on click event.
 	hide_loader() {
@@ -295,5 +302,6 @@ class LoaderButtonElement extends VStackElement {
 		this.text.show();
 		return this;
 	}
+	stop() { return this.hide_loader(); }
 
 }

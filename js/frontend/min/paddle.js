@@ -1,3 +1,8 @@
+/*
+ * Author: VInc.
+ * Copyright: © 2023 - 2024 VInc.
+ * Version: v1.2.7
+ */
 vweb.payments={};
 vweb.payments.client_key="{{PADDLE_CLIENT_KEY}}";
 vweb.payments.sandbox={{PADDLE_SANDBOX}};
@@ -261,10 +266,6 @@ Paddle.Environment.set("sandbox");
 Paddle.Setup({
 token:this.client_key,
 eventCallback:function(data){
-if (this.sandbox){
-console.log(data.name||data.type)
-console.log(data);
-}
 if (data.name==="checkout.loaded"){
 vweb.payments._render_payment_element_resolve();
 }
@@ -286,9 +287,6 @@ console.log("Checkout warning:",data);
 }
 }
 else {
-if (vweb.payments.sandbox){
-console.log("Event",data);
-}
 }
 }
 });
@@ -300,10 +298,12 @@ if (this._payment_element!==undefined){
 this._payment_element.remove();
 }
 this._payment_element=undefined;
-this._pay_id=undefined;
 }
 vweb.payments._init_order=async function (){
 try {
+if (this._sign_in_redirect!=null&&!vweb.user.is_authenticated()){
+vweb.utils.redirect(this._sign_in_redirect)
+}
 const response=await vweb.utils.request({
 method:"POST",
 url:"/vweb/payments/init",
@@ -311,8 +311,7 @@ data:{
 items:this.cart.items,
 }
 })
-this._pay_id=response.pay_id;
-} catch (err){
+}catch (err){
 if (typeof err==="object"&&err.error!=null){
 err=err.error;
 }
@@ -335,7 +334,7 @@ break;
 case 1:{
 try {
 await this._init_order();
-} catch (err){
+}catch (err){
 --this._step;
 console.error(err);
 this.on_error(err);
@@ -357,7 +356,7 @@ try {
 this._billing_details=this._billing_element.data()
 this._billing_details.phone_number=this._billing_details.phone_country_code+this._billing_details.phone_number;
 delete this._billing_details.phone_country_code;
-} catch (error){
+}catch (error){
 --this._step;
 console.error(error);
 this.on_error(error);
@@ -365,7 +364,7 @@ return null;
 }
 try {
 await this._render_payment_element()
-} catch (error){
+}catch (error){
 --this._step;
 console.error(error);
 this.on_error(error);
@@ -387,7 +386,7 @@ vweb.payments._next=async function(){
 if (this._step<3){
 ++this._step;
 return this._set_step();
-} else if (this._step===3){
+}else if (this._step===3){
 return this._set_step();
 }
 }
@@ -400,7 +399,7 @@ return this._set_step();
 vweb.payments._render_steps_element=function(){
 const style=this._style;
 this._prev_step_button=HStack(
-ImageMask("/static/payments/arrow.long.webp")
+ImageMask("/vweb_static/payments/arrow.long.webp")
 .frame(15,15)
 .mask_color(this._style.subtext_fg)
 .transform("rotate(180deg)")
@@ -433,7 +432,8 @@ VStack((index+1).toString())
 .margin_right(15)
 .flex_shrink(0)
 .center()
-.center_vertical(),
+.center_vertical()
+.border(1, this._style.border_bg),
 Text(item)
 .color(this._style.fg)
 .padding(0)
@@ -596,7 +596,7 @@ this._overview_tax_container.show();
 this._overview_incl_excl_tax.text("incl. tax");
 this._overview_subtotal_tax.text(`${this._currency_symbol} ${this._overview_element.tax.toFixed(2)}`);
 this._overview_total.text(`${this._currency_symbol} ${(this._overview_element.total+this._overview_element.tax).toFixed(2)}`);
-} catch (error){
+}catch (error){
 console.error(error)
 this._overview_element.unknown_tax();
 }
@@ -652,7 +652,7 @@ Text(`Your shopping cart is empty.`)
 .white_space("pre")
 .line_height("1.4em")
 .center(),
-ImageMask("/static/payments/shopping_cart.webp")
+ImageMask("/vweb_static/payments/shopping_cart.webp")
 .frame(35,35)
 .margin_top(20)
 .mask_color(style.theme_fg),
@@ -661,7 +661,7 @@ ImageMask("/static/payments/shopping_cart.webp")
 .center()
 .center_vertical()
 );
-} else {
+}else {
 this.append(
 Title("Order Details")
 .color(style.title_fg)
@@ -682,14 +682,14 @@ const quantity_input=Input("Quantity")
 .color(style.input_fg)
 .font_size(style.font_size-2)
 .border(1,style.border_bg)
-.padding(12.5,10,12.5,10)
+.padding(2.5,7.5)
 .margin_right(10)
 .flex_shrink(0)
-.width(`calc(${item.quantity.toString().length}ch + 20px)`)
+.width(`calc(${item.quantity.toString().length}ch + 17.5px)`)
 .display("inline")
 .on_input((_,event)=>{
 const value=quantity_input.value();
-quantity_input.width(`calc(${value.length}ch + 20px)`)
+quantity_input.width(`calc(${value.length}ch + 17.5px)`)
 clearTimeout(quantity_input.timeout);
 quantity_input.timeout=setTimeout(()=>{
 const quantity=parseInt(value);
@@ -704,13 +704,21 @@ cart.save();
 this.refresh();
 },500)
 })
-let per_item="per item"+(vweb.payments.tax_inclusive?" incl. tax":" excl. tax")+".";
+let per_item="per item"+(vweb.payments.tax_inclusive?" incl. tax":" excl. tax")+",";
 let renews_every=null;
 if (item.product.interval){
 if (item.product.frequency===1){
 renews_every=`renews ${item.product.interval}ly.`;
-} else {
+}else {
 renews_every=`renews every ${item.product.frequency} ${item.product.interval}s.`;
+}
+}
+let trial_text=null;
+if (item.product.trial){
+if (item.product.trial.frequency===1){
+trial_text=`${item.product.trial.frequency} ${item.product.trial.interval} free`;
+}else {
+trial_text=`${item.product.trial.frequency} ${item.product.trial.interval}s free`;
 }
 }
 const stack=HStack(
@@ -743,7 +751,7 @@ Text("Quantity:")
 .padding(0)
 .flex_shrink(0),
 quantity_input,
-ImageMask("/static/payments/minus.webp")
+ImageMask("/vweb_static/payments/minus.webp")
 .frame(20,20)
 .padding(5)
 .margin_right(5)
@@ -756,12 +764,12 @@ ImageMask("/static/payments/minus.webp")
 if (item.quantity===1){
 await cart.remove(item.product.id,"all")
 this.refresh()
-} else {
+}else {
 await cart.remove(item.product.id,1)
 this.refresh()
 }
 }),
-ImageMask("/static/payments/plus.webp")
+ImageMask("/vweb_static/payments/plus.webp")
 .frame(20,20)
 .padding(5)
 .margin_right(5)
@@ -774,7 +782,7 @@ ImageMask("/static/payments/plus.webp")
 await cart.add(item.product.id,1)
 this.refresh()
 }),
-ImageMask("/static/payments/trash.webp")
+ImageMask("/vweb_static/payments/trash.webp")
 .frame(20,20)
 .padding(5)
 .margin_right(5)
@@ -794,7 +802,7 @@ this.refresh()
 )
 .stretch(true),
 VStack(
-Title(`${currency_symbol} ${(item.product.price*item.quantity).toFixed(2)}`)
+Title(trial_text?trial_text:`${currency_symbol} ${(item.product.price*item.quantity).toFixed(2)}`)
 .color(style.fg)
 .font_size(style.font_size)
 .margin(0)
@@ -803,7 +811,7 @@ Title(`${currency_symbol} ${(item.product.price*item.quantity).toFixed(2)}`)
 .wrap(false)
 .overflow("hidden")
 .text_overflow("ellipsis"),
-Text(`${currency_symbol} ${item.product.price} ${per_item}`)
+Text(`${trial_text?"Then ":""} ${currency_symbol} ${item.product.price} ${per_item}`)
 .color(style.subtext_fg)
 .font_size(style.font_size-6)
 .margin(5,0,0,0)
@@ -1010,7 +1018,7 @@ Text(`There are no ${container.title.toLowerCase()}.`)
 .white_space("pre")
 .line_height("1.4em")
 .center(),
-Image("/static/payments/check.webp")
+Image("/vweb_static/payments/check.webp")
 .frame(30,30)
 .margin_top(15)
 .assign_to_parent_as("success_image_e"),
@@ -1020,7 +1028,7 @@ Image("/static/payments/check.webp")
 .center()
 .center_vertical()
 );
-} else {
+}else {
 await container.payments.iterate_async_await(async (payment)=>{
 await payment.line_items.iterate_async_await(async (item)=>{
 item.product=await vweb.payments.get_product(item.product);
@@ -1118,11 +1126,13 @@ title:"Request Refund",
 text:`You are about to request a refund for payment <span style='border-radius: 7px; background: ${style.widget_bg}; padding: 1px 4px; font-size: 0.9em;'>${payment.id}</span>, do you wish to proceed?`,
 no:"No",
 yes:"Yes",
-image:"/static/payments/error.webp",
+image:"/vweb_static/payments/error.webp",
+blur:5,
+animation_duration:300,
 on_yes:async ()=>{
 try {
 await vweb.payments.create_refund(payment);
-} catch(err){
+}catch(err){
 console.error(err);
 vweb.payments.on_error(err);
 return null;
@@ -1140,19 +1150,15 @@ this.refunding_option.click();
 .parent()
 .title
 .color(style.title_fg)
-.width("fit-content")
-.font_size(style.font_size)
+.font_size(style.font_size+2)
 .flex_shrink(0)
 .margin(0,0,0,10)
-.letter_spacing("1px")
-.text_transform("uppercase")
-.ellipsis_overflow(true)
 .color(style.fg)
 .center()
 .parent()
 .text
 .color(style.fg)
-.font_size(style.font_size-2)
+.font_size(style.font_size)
 .margin_left(10)
 .center()
 .parent()
@@ -1189,12 +1195,13 @@ this.refunding_option.click();
 .background(style.theme_fg)
 .margin(0,5,0,0)
 .update(),
-!container.is_refunded?null :Image("/static/payments/check.webp")
+!container.is_refunded?null :Image("/vweb_static/payments/check.webp")
 .frame(20,20)
 .margin(0,5,0,0),
 )
 .min_height(30),
-Text(`Purchased at ${payment.timestamp.substr(0,payment.timestamp.indexOf("T"))} (${payment.id}).`)
+Text()
+.inner_html(`Purchased at ${vweb.utils.unix_to_date(payment.timestamp/1000)} <span style='font-size: 0.8em'>${payment.id}<span>.`)
 .color(style.subtext_fg)
 .font_size(style.font_size-6)
 .line_height(style.font_size-4)
@@ -1221,7 +1228,7 @@ this._refunds_element.refresh()
 this._refunds_container.append(this._refunds_element);
 }
 vweb.payments._render_billing_element=function(){
-if (this._billing_element!==undefined){ return ;}
+if (this._billing_element!==undefined){return ;}
 const CreateInput=(args)=>{
 return ExtendedInput(args)
 .color(this._style.fg)
@@ -1243,6 +1250,12 @@ return ExtendedSelect(args)
 .focus_color(this._style.theme_fg)
 .border_color(this._style.border_bg)
 .border_radius(this._style.border_radius)
+.dropdown_height(150)
+.background("transparent")
+.dropdown
+.background(this._style.widget_bg)
+.background_blur(20)
+.parent()
 .input
 .white_space("pre")
 .color(this._style.input_fg)
@@ -1337,7 +1350,6 @@ label:"Full Name",
 placeholder:"John Doe",
 })
 .value(vweb.user.first_name()==null?"":(vweb.user.first_name()+" "+vweb.user.last_name()))
-.value("Daan van den Bergh")
 .margin_top(15)
 .required(true)
 .id("name")
@@ -1364,7 +1376,7 @@ CreateInput({
 label:"Email",
 placeholder:"my@email.com",
 })
-.value("d.vandenbergh2@gmail.com")
+.value(vweb.user.email()||"")
 .margin_top(10)
 .required(true)
 .id("email"),
@@ -1372,7 +1384,6 @@ CreateInput({
 label:"Street",
 placeholder:"123 Park Avenue",
 })
-.value("Ensahlaan")
 .margin_top(10)
 .required(true)
 .id("street"),
@@ -1380,7 +1391,6 @@ CreateInput({
 label:"House Number",
 placeholder:"Suite 405",
 })
-.value("25")
 .margin_top(10)
 .required(true)
 .id("house_number"),
@@ -1388,7 +1398,6 @@ CreateInput({
 label:"Postal Code",
 placeholder:"10001",
 })
-.value("3723HT")
 .margin_top(10)
 .required(true)
 .id("postal_code"),
@@ -1396,7 +1405,6 @@ CreateInput({
 label:"City",
 placeholder:"New York",
 })
-.value("Bilthoven")
 .margin_top(10)
 .required(true)
 .id("city"),
@@ -1404,7 +1412,6 @@ CreateInput({
 label:"Province",
 placeholder:"New York",
 })
-.value("Utrecht")
 .margin_top(10)
 .required(true)
 .id("province"),
@@ -1414,7 +1421,6 @@ placeholder:"United States",
 items:vweb.payments.countries,
 })
 .on_change((_,country)=>this._overview_element.calc_tax(country))
-.value("NL")
 .margin_top(10)
 .required(true)
 .id("country"),
@@ -1424,7 +1430,6 @@ label:"Country Code",
 placeholder:"+1",
 type:"tel",
 })
-.value("+31")
 .max_width("fit-content")
 .margin_top(10)
 .margin_right(10)
@@ -1432,10 +1437,9 @@ type:"tel",
 .id("phone_country_code"),
 CreateInput({
 label:"Phone Number",
-placeholder:"123-456-7890",
+placeholder:"1234567890",
 type:"tel",
 })
-.value("681471789")
 .margin_top(10)
 .stretch(true)
 .required(true)
@@ -1458,9 +1462,6 @@ return reject(new Error(`No client key has been assigned to "vweb.payments.clien
 if (this.cart.items.length===0){
 return reject(new Error("Shopping cart is empty."));
 }
-if (this._pay_id===undefined){
-return reject(new Error(`Order is not verfied with "vweb.payments._init_order()".`));
-}
 let is_subscription=false;
 this.cart.items.iterate((item)=>{
 if (item.is_subscription===true){
@@ -1473,7 +1474,6 @@ this._payment_element=VStack()
 .class("checkout-container");
 this._payment_container.append(this._payment_element);
 let custom_data={
-pay_id:this._pay_id,
 customer_name:this._billing_details.name,
 };
 if (vweb.user.is_authenticated()){
@@ -1490,7 +1490,7 @@ taxIdentifier:this._billing_details.vat_id===""?undefined :this._billing_details
 Paddle.Checkout.open({
 settings:{
 displayMode:"inline",
-theme:"dark",
+theme:this._theme,
 locale:"en",
 frameTarget:"checkout-container",
 frameInitialHeight:"450",
@@ -1510,7 +1510,7 @@ business,
 },
 customData:custom_data,
 });
-} catch (err){
+}catch (err){
 return reject(err);
 }
 })
@@ -1541,14 +1541,14 @@ Text("Processing your payment, please wait.")
 .white_space("pre")
 .line_height("1.4em")
 .center(),
-ImageMask("/static/payments/error.webp")
+ImageMask("/vweb_static/payments/error.webp")
 .hide()
 .frame(40,40)
 .padding(5)
 .mask_color(this._style.missing_fg)
 .margin_top(15)
 .assign_to_parent_as("error_image_e"),
-Image("/static/payments/party.webp")
+Image("/vweb_static/payments/party.webp")
 .hide()
 .frame(40,40)
 .margin_top(15)
@@ -1567,7 +1567,7 @@ RingLoader()
 timestamp:Date.now(),
 set_error:function (message="The payment has failed, please check your information and try again.\n If the problem persists, contact support for assistance."){
 this.loader_e.hide();
-this.error_image_e.src("/static/payments/error.webp");
+this.error_image_e.src("/vweb_static/payments/error.webp");
 this.error_image_e.show();
 this.success_image_e.hide();
 this.title_e.text("Error")
@@ -1575,7 +1575,7 @@ this.text_e.text(message);
 },
 set_cancelled:function (message="The payment has been cancelled."){
 this.loader_e.hide();
-this.error_image_e.src("/static/payments/cancelled.webp");
+this.error_image_e.src("/vweb_static/payments/cancelled.webp");
 this.error_image_e.show();
 this.success_image_e.hide();
 this.title_e.text("Cancelled")
@@ -1651,6 +1651,7 @@ button_border_radius=30,
 button_brightness=[1.1,1.2],
 border_bg="gray",
 border_radius=10,
+theme="light",
 }={}){
 if (widget_fg==null){
 widget_fg=fg;
@@ -1683,10 +1684,11 @@ this._style.button_fg=button_fg;
 this._style.button_bg=button_bg;
 this._style.button_border_radius=button_border_radius;
 this._style.button_brightness=button_brightness;
+this._theme=theme;
 Object.keys(this._style).iterate((key)=>{
 if (typeof this._style[key]==="number"){
 document.documentElement.style.setProperty(`--vpayments_${key}`, this._style[key]+"px");
-} else {
+}else {
 document.documentElement.style.setProperty(`--vpayments_${key}`, this._style[key]);
 }
 });
@@ -1700,6 +1702,7 @@ billing_container=null,
 payment_container=null,
 processing_container=null,
 overview_container=null,
+sign_in_redirect=null,
 on_error=(error)=>{},
 }={}){
 if (steps_container instanceof Node===false){
@@ -1726,6 +1729,7 @@ this._billing_container=billing_container.hide();
 this._payment_container=payment_container.hide();
 this._processing_container=processing_container.hide();
 this._overview_container=overview_container;
+this._sign_in_redirect=sign_in_redirect;
 this.on_error=on_error;
 if (this._style===undefined){
 this.style();
@@ -1953,7 +1957,7 @@ return true;
 }
 })
 if (product==null){
-return reject(`Product "${id}" does not exist.`);
+return reject(new Error(`Product "${id}" does not exist.`));
 }
 resolve(product);
 })
@@ -2041,15 +2045,6 @@ product,
 }
 })
 }
-vweb.payments.cancel_subscription_by_payment=async function(payment){
-return vweb.utils.request({
-method:"DELETE",
-url:"/vweb/payments/subscription_by_payment",
-data:{
-payment,
-}
-})
-}
 vweb.payments.is_subscribed=async function(product){
 return vweb.utils.request({
 method:"GET",
@@ -2059,17 +2054,17 @@ product,
 }
 })
 }
-vweb.payments.get_subscriptions=async function(product){
+vweb.payments.get_active_subscriptions=async function(product){
 return vweb.utils.request({
 method:"GET",
-url:"/vweb/payments/subscriptions",
+url:"/vweb/payments/active_subscriptions",
 })
 }
 vweb.payments.cart={};
 vweb.payments.cart.refresh=function(){
 try {
 this.items=JSON.parse(localStorage.getItem("vweb_shopping_cart"))||[];
-} catch(err){
+}catch(err){
 this.items=[];
 }
 vweb.payments._reset();
@@ -2103,7 +2098,7 @@ this.items.iterate((item)=>{
 if (item.product.id===id){
 if (quantity==="all"){
 item.quantity=0;
-} else {
+}else {
 item.quantity-=quantity;
 }
 }

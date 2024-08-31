@@ -165,7 +165,7 @@ Array.prototype.iterate_reversed_async_await = async function(start, end, handle
 Array.prototype.drop = function(item) {
     const dropped = new this.constructor(); // for when a class extends Array.
     for (let i = 0; i < this.length; i++) {    
-        if (this[i] != item) {
+        if (this[i] !== item) {
             dropped.push(this[i])
         }
     }

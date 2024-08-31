@@ -276,10 +276,10 @@ vweb.payments._initialize_paddle = function() {
 		Paddle.Setup({ 
 			token: this.client_key,
 			eventCallback: function(data) {
-				if (this.sandbox) {
-					console.log(data.name || data.type)
-					console.log(data);
-				}
+				// if (this.sandbox) {
+				// 	console.log(data.name || data.type)
+				// 	console.log(data);
+				// }
 				if (data.name === "checkout.loaded") {
 					vweb.payments._render_payment_element_resolve();
 				}
@@ -302,9 +302,9 @@ vweb.payments._initialize_paddle = function() {
 					}
 				}
 				else {
-					if (vweb.payments.sandbox) {
-						console.log("Event", data);
-					}
+					// if (vweb.payments.sandbox) {
+					// 	console.log("Event", data);
+					// }
 				}
 			}
 		});
@@ -318,13 +318,15 @@ vweb.payments._reset = function() {
 		this._payment_element.remove();
 	}
 	this._payment_element = undefined;
-	this._pay_id = undefined;
 }
 
 // Verify the order.
 // Makes some checks and generates a payment id which will be attached to the transaction for the backend management.
 vweb.payments._init_order = async function () {
 	try {
+		if (this._sign_in_redirect != null && !vweb.user.is_authenticated()) {
+			vweb.utils.redirect(this._sign_in_redirect)
+		}
 		const response = await vweb.utils.request({
 			method: "POST",
 			url: "/vweb/payments/init",
@@ -332,7 +334,6 @@ vweb.payments._init_order = async function () {
 				items: this.cart.items,
 			}
 		})
-		this._pay_id = response.pay_id;
 	} catch (err) {
 		if (typeof err === "object" && err.error != null) {
 			err = err.error;
@@ -462,7 +463,7 @@ vweb.payments._render_steps_element = function() {
 
 	// The previous step button.
 	this._prev_step_button = HStack(
-			ImageMask("/static/payments/arrow.long.webp")
+			ImageMask("/vweb_static/payments/arrow.long.webp")
 				.frame(15, 15)
 				.mask_color(this._style.subtext_fg)
 				.transform("rotate(180deg)")
@@ -497,7 +498,8 @@ vweb.payments._render_steps_element = function() {
 						.margin_right(15)
 						.flex_shrink(0)
 						.center()
-						.center_vertical(),
+						.center_vertical()
+						.border(1, this._style.border_bg),
 					Text(item)
 						.color(this._style.fg)
 						.padding(0)
@@ -787,7 +789,7 @@ vweb.payments._render_order_element = function() {
 							.white_space("pre")
 							.line_height("1.4em")
 							.center(),
-						ImageMask("/static/payments/shopping_cart.webp")
+						ImageMask("/vweb_static/payments/shopping_cart.webp")
 							.frame(35, 35)
 							.margin_top(20)
 							.mask_color(style.theme_fg),
@@ -820,14 +822,15 @@ vweb.payments._render_order_element = function() {
 							.color(style.input_fg)
 							.font_size(style.font_size - 2)
 							.border(1, style.border_bg)
-							.padding(12.5, 10, 12.5, 10)
+							// .padding(12.5, 10, 12.5, 10)
+							.padding(2.5, 7.5)
 							.margin_right(10)
 							.flex_shrink(0)
-							.width(`calc(${item.quantity.toString().length}ch + 20px)`)
+							.width(`calc(${item.quantity.toString().length}ch + 17.5px)`) // add padding.
 							.display("inline")
 							.on_input((_, event) => {
 								const value = quantity_input.value();
-								quantity_input.width(`calc(${value.length}ch + 20px)`)
+								quantity_input.width(`calc(${value.length}ch + 17.5px)`) // add padding.
 								clearTimeout(quantity_input.timeout);
 								quantity_input.timeout = setTimeout(() => {
 									const quantity = parseInt(value);
@@ -843,13 +846,21 @@ vweb.payments._render_order_element = function() {
 								}, 500)
 							})
 						
-						let per_item = "per item" + (vweb.payments.tax_inclusive ? " incl. tax" : " excl. tax") + ".";
+						let per_item = "per item" + (vweb.payments.tax_inclusive ? " incl. tax" : " excl. tax") + ",";
 						let renews_every = null;
 						if (item.product.interval) {
 							if (item.product.frequency === 1) {
 								renews_every = `renews ${item.product.interval}ly.`;
 							} else {
 								renews_every = `renews every ${item.product.frequency} ${item.product.interval}s.`;
+							}
+						}
+						let trial_text = null;
+						if (item.product.trial) {
+							if (item.product.trial.frequency === 1) {
+								trial_text = `${item.product.trial.frequency} ${item.product.trial.interval} free`;
+							} else {
+								trial_text = `${item.product.trial.frequency} ${item.product.trial.interval}s free`;
 							}
 						}
 						const stack = HStack(
@@ -883,7 +894,7 @@ vweb.payments._render_order_element = function() {
 										.padding(0)
 										.flex_shrink(0),
 									quantity_input,
-									ImageMask("/static/payments/minus.webp")
+									ImageMask("/vweb_static/payments/minus.webp")
 										.frame(20, 20)
 										.padding(5)
 										.margin_right(5)
@@ -901,7 +912,7 @@ vweb.payments._render_order_element = function() {
 												this.refresh()
 											}
 										}),
-									ImageMask("/static/payments/plus.webp")
+									ImageMask("/vweb_static/payments/plus.webp")
 										.frame(20, 20)
 										.padding(5)
 										.margin_right(5)
@@ -914,7 +925,7 @@ vweb.payments._render_order_element = function() {
 											await cart.add(item.product.id, 1)
 											this.refresh()
 										}),
-									ImageMask("/static/payments/trash.webp")
+									ImageMask("/vweb_static/payments/trash.webp")
 										.frame(20, 20)
 										.padding(5)
 										.margin_right(5)
@@ -934,7 +945,7 @@ vweb.payments._render_order_element = function() {
 							)
 							.stretch(true),
 							VStack(
-								Title(`${currency_symbol} ${(item.product.price * item.quantity).toFixed(2)}`)
+								Title(trial_text ? trial_text : `${currency_symbol} ${(item.product.price * item.quantity).toFixed(2)}`)
 									.color(style.fg)
 									.font_size(style.font_size)
 									.margin(0)
@@ -943,7 +954,7 @@ vweb.payments._render_order_element = function() {
 									.wrap(false)
 									.overflow("hidden")
 									.text_overflow("ellipsis"),
-								Text(`${currency_symbol} ${item.product.price} ${per_item}`)
+								Text(`${trial_text ? "Then " : ""} ${currency_symbol} ${item.product.price} ${per_item}`)
 									.color(style.subtext_fg)
 									.font_size(style.font_size - 6)
 									.margin(5, 0, 0, 0)
@@ -1172,7 +1183,7 @@ vweb.payments._render_refunds_element = function() {
 								.white_space("pre")
 								.line_height("1.4em")
 								.center(),
-							Image("/static/payments/check.webp")
+							Image("/vweb_static/payments/check.webp")
 								.frame(30, 30)
 								.margin_top(15)
 								.assign_to_parent_as("success_image_e"),
@@ -1286,7 +1297,9 @@ vweb.payments._render_refunds_element = function() {
 													text: `You are about to request a refund for payment <span style='border-radius: 7px; background: ${style.widget_bg}; padding: 1px 4px; font-size: 0.9em;'>${payment.id}</span>, do you wish to proceed?`,
 													no: "No",
 													yes: "Yes",
-													image: "/static/payments/error.webp",
+													image: "/vweb_static/payments/error.webp",
+													blur: 5,
+													animation_duration: 300,
 													on_yes: async () => {
 														try {
 															await vweb.payments.create_refund(payment);
@@ -1309,19 +1322,19 @@ vweb.payments._render_refunds_element = function() {
 													.parent()
 												.title
 													.color(style.title_fg)
-													.width("fit-content")
-													.font_size(style.font_size)
+													// .width("fit-content")
+													.font_size(style.font_size + 2)
 													.flex_shrink(0)
 													.margin(0, 0, 0, 10)
-													.letter_spacing("1px")
-													.text_transform("uppercase")
-													.ellipsis_overflow(true)
+													// .letter_spacing("1px")
+													// .text_transform("uppercase")
+													// .ellipsis_overflow(true)
 													.color(style.fg)
 													.center()
 													.parent()
 												.text
 													.color(style.fg)
-													.font_size(style.font_size - 2)
+													.font_size(style.font_size)
 													.margin_left(10)
 													.center()
 													.parent()
@@ -1358,12 +1371,13 @@ vweb.payments._render_refunds_element = function() {
 										.background(style.theme_fg)
 										.margin(0, 5, 0, 0)
 										.update(),
-									!container.is_refunded ? null : Image("/static/payments/check.webp")
+									!container.is_refunded ? null : Image("/vweb_static/payments/check.webp")
 										.frame(20, 20)
 										.margin(0, 5, 0, 0),
 								)
 								.min_height(30),
-								Text(`Purchased at ${payment.timestamp.substr(0, payment.timestamp.indexOf("T"))} (${payment.id}).`)
+								Text()
+									.inner_html(`Purchased at ${vweb.utils.unix_to_date(payment.timestamp/1000)} <span style='font-size: 0.8em'>${payment.id}<span>.`)
 									.color(style.subtext_fg)
 									.font_size(style.font_size - 6)
 									.line_height(style.font_size - 4)
@@ -1420,6 +1434,12 @@ vweb.payments._render_billing_element = function() {
 			.focus_color(this._style.theme_fg)
 			.border_color(this._style.border_bg)
 			.border_radius(this._style.border_radius)
+			.dropdown_height(150)
+			.background("transparent")
+			.dropdown
+				.background(this._style.widget_bg)
+				.background_blur(20)
+				.parent()
 			.input
 				.white_space("pre")
 				.color(this._style.input_fg)
@@ -1524,7 +1544,6 @@ vweb.payments._render_billing_element = function() {
 			placeholder: "John Doe",
 		})
 		.value(vweb.user.first_name() == null ? "" : (vweb.user.first_name() + " " + vweb.user.last_name()))
-		.value("Daan van den Bergh")
 		.margin_top(15)
 		.required(true)
 		.id("name")
@@ -1554,8 +1573,7 @@ vweb.payments._render_billing_element = function() {
 			label: "Email",
 			placeholder: "my@email.com",
 		})
-		// .value(vweb.user.email() || "")
-		.value("d.vandenbergh2@gmail.com")
+		.value(vweb.user.email() || "")
 		.margin_top(10)
 		.required(true)
 		.id("email"),
@@ -1564,7 +1582,6 @@ vweb.payments._render_billing_element = function() {
 			label: "Street",
 			placeholder: "123 Park Avenue",
 		})
-		.value("Ensahlaan")
 		.margin_top(10)
 		.required(true)
 		.id("street"),
@@ -1573,7 +1590,6 @@ vweb.payments._render_billing_element = function() {
 			label: "House Number",
 			placeholder: "Suite 405",
 		})
-		.value("25")
 		.margin_top(10)
 		.required(true)
 		.id("house_number"),
@@ -1582,7 +1598,6 @@ vweb.payments._render_billing_element = function() {
 			label: "Postal Code",
 			placeholder: "10001",
 		})
-		.value("3723HT")
 		.margin_top(10)
 		.required(true)
 		.id("postal_code"),
@@ -1591,7 +1606,6 @@ vweb.payments._render_billing_element = function() {
 			label: "City",
 			placeholder: "New York",
 		})
-		.value("Bilthoven")
 		.margin_top(10)
 		.required(true)
 		.id("city"),
@@ -1600,7 +1614,6 @@ vweb.payments._render_billing_element = function() {
 			label: "Province",
 			placeholder: "New York",
 		})
-		.value("Utrecht")
 		.margin_top(10)
 		.required(true)
 		.id("province"),
@@ -1611,7 +1624,6 @@ vweb.payments._render_billing_element = function() {
 			items: vweb.payments.countries,
 		})
 		.on_change((_, country) => this._overview_element.calc_tax(country))
-		.value("NL")
 		.margin_top(10)
 		.required(true)
 		.id("country"),
@@ -1622,7 +1634,6 @@ vweb.payments._render_billing_element = function() {
 				placeholder: "+1",
 				type: "tel",
 			})
-			.value("+31")
 			.max_width("fit-content")
 			.margin_top(10)
 			.margin_right(10)
@@ -1631,10 +1642,9 @@ vweb.payments._render_billing_element = function() {
 
 			CreateInput({
 				label: "Phone Number",
-				placeholder: "123-456-7890",
+				placeholder: "1234567890",
 				type: "tel",
 			})
-			.value("681471789")
 			.margin_top(10)
 			.stretch(true)
 			.required(true)
@@ -1668,9 +1678,6 @@ vweb.payments._render_payment_element = async function() {
 		if (this.cart.items.length === 0) {
 			return reject(new Error("Shopping cart is empty."));
 		}
-		if (this._pay_id === undefined) {
-			return reject(new Error(`Order is not verfied with "vweb.payments._init_order()".`));
-		}
 
 		// Check subscription or one time payment.
 		let is_subscription = false;
@@ -1693,7 +1700,6 @@ vweb.payments._render_payment_element = async function() {
 
 		// Initialize.
 		let custom_data = {
-			pay_id: this._pay_id,
 			customer_name: this._billing_details.name,
 		};
 		if (vweb.user.is_authenticated()) {
@@ -1710,7 +1716,7 @@ vweb.payments._render_payment_element = async function() {
 			Paddle.Checkout.open({
 				settings: {
 					displayMode: "inline",
-					// theme: "dark", //vweb.utils.hex_brightness(this._style.bg) >= 50 ? "dark" : "light",
+					theme: this._theme,
 					locale: "en",
 					frameTarget: "checkout-container",
 					frameInitialHeight: "450",
@@ -1735,6 +1741,14 @@ vweb.payments._render_payment_element = async function() {
 		} catch (err) {
 			return reject(err);
 		}
+
+		// const iframe = this._payment_element.children[0];
+		// iframe.onload = () => {
+		// 	console.log("ON LOAD");
+		// 	let doc = iframe.contentDocument || iframe.contentWindow.document;
+		// 	let elementInsideIframe = doc.getElementById('cardNumber');
+		// 	elementInsideIframe.style.background = 'red'; // Example of editing an element
+		// }
 
 	})
 }
@@ -1770,14 +1784,14 @@ vweb.payments._render_processing_element = function() {
 			.white_space("pre")
 			.line_height("1.4em")
 			.center(),
-		ImageMask("/static/payments/error.webp")
+		ImageMask("/vweb_static/payments/error.webp")
 			.hide()
 			.frame(40, 40)
 			.padding(5)
 			.mask_color(this._style.missing_fg)
 			.margin_top(15)
 			.assign_to_parent_as("error_image_e"),
-		Image("/static/payments/party.webp")
+		Image("/vweb_static/payments/party.webp")
 			.hide()
 			.frame(40, 40)
 			.margin_top(15)
@@ -1801,7 +1815,7 @@ vweb.payments._render_processing_element = function() {
 			// 	}, Date.now() - this.timestamp + 1)
 			// } 
 			this.loader_e.hide();
-			this.error_image_e.src("/static/payments/error.webp");
+			this.error_image_e.src("/vweb_static/payments/error.webp");
 			this.error_image_e.show();
 			this.success_image_e.hide();
 			this.title_e.text("Error")
@@ -1814,7 +1828,7 @@ vweb.payments._render_processing_element = function() {
 			// 	}, Date.now() - this.timestamp + 1)
 			// } 
 			this.loader_e.hide();
-			this.error_image_e.src("/static/payments/cancelled.webp");
+			this.error_image_e.src("/vweb_static/payments/cancelled.webp");
 			this.error_image_e.show();
 			this.success_image_e.hide();
 			this.title_e.text("Cancelled")
@@ -1917,6 +1931,7 @@ vweb.payments.style = function({
 	button_brightness = [1.1, 1.2],
 	border_bg = "gray",
 	border_radius = 10,
+	theme = "light", // light or dark
 } = {}) {
 
 	// Default styles.
@@ -1953,6 +1968,7 @@ vweb.payments.style = function({
 	this._style.button_bg = button_bg;
 	this._style.button_border_radius = button_border_radius;
 	this._style.button_brightness = button_brightness;
+	this._theme = theme;
 
 	// Set css variables.
 	Object.keys(this._style).iterate((key) => {
@@ -1976,6 +1992,9 @@ vweb.payments.create_checkout_dropin = function({
 	payment_container = null,
 	processing_container = null,
 	overview_container = null,
+
+	// Redirect sign in required.
+	sign_in_redirect = null,
 
 	// Events.
 	on_error = (error) => {},
@@ -2016,6 +2035,9 @@ vweb.payments.create_checkout_dropin = function({
 	this._overview_container = overview_container;
 	// this._refund_policy = refund_policy;
 	// this._cancellation_policy = cancellation_policy;
+
+	// Settings.
+	this._sign_in_redirect = sign_in_redirect;
 
 	// Events.
 	this.on_error = on_error;
@@ -2318,7 +2340,7 @@ vweb.payments.get_product = async function(id) {
 			}
 		})
 		if (product == null) {
-			return reject(`Product "${id}" does not exist.`);
+			return reject(new Error(`Product "${id}" does not exist.`));
 		}
 		resolve(product);
 	})
@@ -2535,7 +2557,7 @@ vweb.payments.cancel_subscription = async function(product) {
 }
 
 // Cancel subscription.
-/*  @docs:
+/*  DEPRECATED docs:
 	@nav: Frontend
  	@chapter: Payments
     @title: Cancel Subscription by Payment.
@@ -2547,15 +2569,15 @@ vweb.payments.cancel_subscription = async function(product) {
         @type: string, object
         @desc: The payment id or the retrieved payment object.
 */
-vweb.payments.cancel_subscription_by_payment = async function(payment) {
-	return vweb.utils.request({
-		method: "DELETE",
-		url: "/vweb/payments/subscription_by_payment",
-		data: {
-			payment,
-		}
-	})
-}
+// vweb.payments.cancel_subscription_by_payment = async function(payment) {
+// 	return vweb.utils.request({
+// 		method: "DELETE",
+// 		url: "/vweb/payments/subscription_by_payment",
+// 		data: {
+// 			payment,
+// 		}
+// 	})
+// }
 
 // Is subscribed.
 /*  @docs:
@@ -2583,13 +2605,13 @@ vweb.payments.is_subscribed = async function(product) {
 /*  @docs:
 	@nav: Frontend
  	@chapter: Payments
-    @title: Get Subscriptions
+    @title: Get active subscriptions
     @desc: Get the active subscriptions of the authenticated user.
 */
-vweb.payments.get_subscriptions = async function(product) {
+vweb.payments.get_active_subscriptions = async function(product) {
 	return vweb.utils.request({
 		method: "GET",
-		url: "/vweb/payments/subscriptions",
+		url: "/vweb/payments/active_subscriptions",
 	})
 }
 

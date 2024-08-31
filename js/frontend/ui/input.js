@@ -29,7 +29,7 @@ class InputElement extends CreateVElementClass({
 }) {
 	
 	// Constructor.
-	constructor(placeholder, type = "text") {
+	constructor(placeholder, type = "text", value = null) {
 		
 		// Initialize base class.
 		super();
@@ -52,7 +52,8 @@ class InputElement extends CreateVElementClass({
 	
 		// Set src.
 		this.placeholder(placeholder);
-		this.type(type);
+		this.type(type || "text");
+		this.value(value);
 	}
 
 	// Alias functions.
@@ -62,7 +63,7 @@ class InputElement extends CreateVElementClass({
 	placeholder(val) { if (this._e === undefined) { return super.placeholder(val); } if (val == null) { return this._e.placeholder; } this._e.placeholder = val; return this; }
 	resize(val) { if (this._e === undefined) { return super.resize(val); } if (val == null) { return this._e.resize; } this._e.resize = val; return this; }
 	padding(...values) {
-		if (this._e === undefined) { return super.padding(values); }
+		if (this._e === undefined) { return super.padding(...values); }
 		if (values.length === 0) {
 			return this._e.style.padding;
 		} else if (values.length === 1) {
@@ -447,6 +448,7 @@ class ExtendedInputElement extends VStackElement {
 		"--input-padding": "12px 6px",
 		"--input-border-radius": "5px",
 		"--input-border-color": "gray",
+		"--input-background": "transparent",
 		"--image-mask-color": "#000",
 		"--image-size": "20px",
 		"--image-margin-right": "10px",
@@ -466,6 +468,7 @@ class ExtendedInputElement extends VStackElement {
 		readonly = false,
 		required = false,
 		type = "text",
+		value = null,
 	} = {}) {
 
 		// Initialize super.
@@ -522,11 +525,13 @@ class ExtendedInputElement extends VStackElement {
 			.color("inherit")
 			.readonly(readonly)
 			.font_size("inherit")
+			.font_weight("normal")
 			.margin(0)
 			.width("100%")
 			.stretch(true)
 			.outline("none")
-			.line_height("1.0em")
+			.padding(0, 5)
+			.line_height("1.6em")
 			.box_shadow("none")
 			.on_focus(() => {
 				if (this._missing !== true) {
@@ -542,24 +547,33 @@ class ExtendedInputElement extends VStackElement {
 			})
 
 		// The hstack container.
-		this.container = HStack(this.image, this.input)
-			.parent(this)
-			.padding(ExtendedInputElement.default_style["--input-padding"])
-			.border_radius(ExtendedInputElement.default_style["--input-border-radius"])
-			.border_width(1)
-			.border_style("solid")
-			.border_color(ExtendedInputElement.default_style["--input-border-color"])
-			.transition("outline 0.2s ease-in-out, box-shadow 0.2s ease-in-out")
-			.outline("0px solid transparent")
-			.box_shadow(`0 0 0 0px transparent`)
-			.width(100%)
+		this.container = HStack(
+			VStack(
+				this.image,
+			)
+			.height("1.6em")
+			.center_vertical(),
+			this.input
+		)
+		.parent(this)
+		.background(ExtendedInputElement.default_style["--input-background"])
+		.padding(ExtendedInputElement.default_style["--input-padding"])
+		.border_radius(ExtendedInputElement.default_style["--input-border-radius"])
+		.border_width(1)
+		.border_style("solid")
+		.border_color(ExtendedInputElement.default_style["--input-border-color"])
+		.transition("outline 0.2s ease-in-out, box-shadow 0.2s ease-in-out")
+		.outline("0px solid transparent")
+		.box_shadow(`0 0 0 0px transparent`)
+		.width(100%)
 
 		// The error message.
 		this.error = Text("Incomplete field")
 			.color(this._missing_color)
 			.font_size("0.8em")
-			.margin(5, 0, 0, 2.5)
+			.margin(7.5, 0, 0, 2.5)
 			.padding(0)
+			.leading()
 			.hide()
 
 		// Set id.
@@ -574,6 +588,11 @@ class ExtendedInputElement extends VStackElement {
 
 		// Append.
 		this.append(this.label, this.container, this.error);
+
+		// Set value.
+		if (value) {
+			this.value(value)
+		}
 	}
 
 	// Get the styling attributes.
@@ -581,9 +600,10 @@ class ExtendedInputElement extends VStackElement {
 	styles(style_dict) {
 		if (style_dict == null) {
 			let styles = super.styles();
-			styles["--input-padding"] = this.input.padding();
-			styles["--input-border-radius"] = this.input.border_radius();
-			styles["--input-border-color"] = this.input.border_color();
+			styles["--input-background"] = this.container.background();
+			styles["--input-padding"] = this.container.padding();
+			styles["--input-border-radius"] = this.container.border_radius();
+			styles["--input-border-color"] = this.container.border_color();
 			styles["--image-mask-color"] = this._mask_color;
 			styles["--image-size"] = this.image.width();
 			styles["--image-margin-right"] = this.image.margin_right();
@@ -638,6 +658,9 @@ class ExtendedInputElement extends VStackElement {
 		}
 		return this;
 	}
+	set_error(err = "Incomplete field") {
+		return this.missing(true, err);
+	}
 
 	// Submit the item, throws an error when the item is not defined.
 	submit() {
@@ -658,6 +681,18 @@ class ExtendedInputElement extends VStackElement {
 		return this;
 	}
 
+	// Show error.
+	show_error(err = "Incomplete field") {
+		this.missing(true, err);
+		return this;
+	}
+
+	// Hide error.
+	hide_error() {
+		this.missing(false);
+		return this;
+	}
+
 	// ---------------------------------------------------------
 	// Relay functions.
 
@@ -670,6 +705,7 @@ class ExtendedInputElement extends VStackElement {
 	border_color(val) { if (val == null) { return this.container.border_color(); } this.container.border_color(val); return this; }
 	border_width(val) { if (val == null) { return this.container.border_width(); } this.container.border_width(val); return this; }
 	border_style(val) { if (val == null) { return this.container.border_style(); } this.container.border_style(val); return this; }
+	background(val) { if (val == null) { return this.container.background(); } this.container.background(val); return this; }
 	padding(...args) {
 		if (args.length === 0 || (args.length === 1 && args[0] == null)) { return this.container.padding(); }
 		this.container.padding(...args);
@@ -809,7 +845,8 @@ class ExtendedSelectElement extends VStackElement {
 			.width("100%")
 			.stretch(true)
 			.outline("none")
-			.line_height("1.0em")
+			.padding(0, 5)
+			.line_height("1.6em")
 			.box_shadow("none")
 			.cursor("pointer")
 			// .on_focus(() => {
@@ -826,30 +863,38 @@ class ExtendedSelectElement extends VStackElement {
 			// })
 
 		// The hstack container.
-		this.container = HStack(this.image, this.input)
-			.parent(this)
-			.background(ExtendedSelectElement.default_style["background"])
-			.padding(ExtendedSelectElement.default_style["--input-padding"])
-			.border_radius(ExtendedSelectElement.default_style["--input-border-radius"])
-			.border_width(1)
-			.border_style("solid")
-			.border_color(this._border_color)
-			.transition("outline 0.2s ease-in-out, box-shadow 0.2s ease-in-out")
-			.outline("0px solid transparent")
-			.box_shadow(`0 0 0 0px transparent`)
-			.width(100%)
-			.on_click(() => {
-				if (this.dropdown.is_hidden()) {
-					this.expand();
-				}
-			})
+		this.container = HStack(
+			VStack(
+				this.image,
+			)
+			.height("1.6em")
+			.center_vertical(),
+			this.input,
+		)
+		.parent(this)
+		.background(ExtendedSelectElement.default_style["background"])
+		.padding(ExtendedSelectElement.default_style["--input-padding"])
+		.border_radius(ExtendedSelectElement.default_style["--input-border-radius"])
+		.border_width(1)
+		.border_style("solid")
+		.border_color(this._border_color)
+		.transition("outline 0.2s ease-in-out, box-shadow 0.2s ease-in-out")
+		.outline("0px solid transparent")
+		.box_shadow(`0 0 0 0px transparent`)
+		.width(100%)
+		.on_click(() => {
+			if (this.dropdown.is_hidden()) {
+				this.expand();
+			}
+		})
 
 		// The error message.
 		this.error = Text("Incomplete field")
 			.color(this._missing_color)
 			.font_size("0.8em")
-			.margin(5, 0, 0, 2.5)
+			.margin(7.5, 0, 0, 2.5)
 			.padding(0)
+			.leading()
 			.hide()
 
 		// The dropdown menu.
@@ -900,6 +945,15 @@ class ExtendedSelectElement extends VStackElement {
 				window.removeEventListener("mousedown", this._on_dropdown_close)
 			}
 		}
+	}
+
+	// Set dropdown height.
+	dropdown_height(val) {
+		if (val === undefined) {
+			return this._dropdown_height;	
+		}
+		this._dropdown_height = val;
+		return this;
 	}
 
 	// Get the styling attributes.
@@ -963,6 +1017,9 @@ class ExtendedSelectElement extends VStackElement {
 			this.error.hide();
 		}
 		return this;
+	}
+	set_error(err = "Incomplete field") {
+		return this.missing(true, err);
 	}
 
 	// Submit the item, throws an error when the item is not defined.
@@ -1100,8 +1157,16 @@ class ExtendedSelectElement extends VStackElement {
 		// Show dropdown.
 		this.dropdown.show();
 
-		// Set min height.
+		// Select
 		if (this.items.length > 15) {
+			search.select();
+		}
+
+		// Set min height.
+		if (this._dropdown_height !== undefined) {
+			this.dropdown.fixed_height(this._dropdown_height);
+		}
+		else if (this.items.length > 15) {
 			this.dropdown.fixed_height((this.dropdown.content.child(0).clientHeight) * Math.min(this.items.length, 10) + 10)
 		}
 		else {

@@ -17,6 +17,17 @@ vweb.elements.elements_with_width_attribute = [
 // Is apple.
 vweb.is_safari = navigator.vendor.includes('Apple');
 
+// Extend the default VElement class.
+vweb._velement_classes = [];
+vweb.extend_velement = (props = {}) => {
+	const names = Object.keys(props);
+	vweb._velement_classes.iterate(Element => {
+		for (let i = 0; i < names.length; i++) {
+			Element.prototype[names[i]] = props[names[i]];
+		}
+	})
+}
+
 // Create the intersection obvserver.
 // vweb.utils.on_appear_observer = new IntersectionObserver(
 // 	(entries, observer) => {
@@ -68,10 +79,23 @@ vweb.is_safari = navigator.vendor.includes('Apple');
 // 	(entries, observer) => {
 // 		entries.forEach(entry => {
 // 			entry.target._on_render_callbacks.iterate((func) => func(entry.target));
-// 			entry.target._rendered = true;
+// 			entry.target.rendered = true;
 // 		});
 // 	},
 // );
+
+// Create the on render observer.
+vweb.utils.on_render_observer = new ResizeObserver(
+	(entries, observer) => {
+		entries.forEach(entry => {
+			if (!entry.target.rendered) {
+				entry.target._on_render_callbacks.iterate((func) => func(entry.target));
+				entry.target.rendered = true;
+				vweb.utils.on_render_observer.unobserve(entry.target);
+			}
+		});
+	},
+);
 
 // Create the on resize observer.
 vweb.utils.on_resize_observer = new ResizeObserver(
@@ -107,7 +131,17 @@ function CreateVElementClass({
 
 	// Safari can only inherit HTMLElement.
 	else if (vweb.is_safari) {
-		Base = HTMLElement;
+		// switch (tag) {
+		// 	case "img": 
+		// 		Base = HTMLImageElement;
+		// 		break;
+		// 	case "canvas": 
+		// 		Base = HTMLCanvasElement;
+		// 		break;
+		// 	default:
+				Base = HTMLElement;
+		// 		break;
+		// }
 	}
 
 	// Other browsers.
@@ -333,7 +367,7 @@ function CreateVElementClass({
 		// ---------------------------------------------------------
 		// Attributes.
 
-		static element_tag = tag; // must remain static.
+		static element_tag = tag; // must also be static.
 		static default_style = default_style;
 		static default_attributes = default_attributes;
 		static default_events = default_events;
@@ -347,7 +381,7 @@ function CreateVElementClass({
 			super();
 
 			// Attributes.
-			this.element_type = type; // must remain a member attribute.
+			this.element_type = type; // must also be a member attribute.
 			this.base_element_type = type; // this must remain the element type of the base class, element type may be overwritten when an element extends a base element.
 			this.element_display = "block";
 
@@ -355,7 +389,7 @@ function CreateVElementClass({
 			this.remove_focus = super.blur;
 
 			// On render event handler.
-			this._rendered = false;
+			this.rendered = false;
 
 			// Constructed by html code.
 			if (this.hasAttribute !== undefined && this.hasAttribute("created_by_html")) {
@@ -380,16 +414,19 @@ function CreateVElementClass({
 					this.events(Element.default_events);
 				}
 			}
+
+			// Append children.
+			// this.append(...children);
 		}
 		
 		// ---------------------------------------------------------
 		// default callbacks.
 
+		// Connected callback.
+		// Do not use this for the on_render func since that is not reliable.
+		// This is only used to set the `_is_connected` flag.
 		connectedCallback() {
-			if (this._on_render_callbacks != null) {
-				this._on_render_callbacks.iterate((func) => func(this));
-			}
-			this.rendered = true;
+			this._is_connected = true;
 		}
 
 		// ---------------------------------------------------------
@@ -524,6 +561,24 @@ function CreateVElementClass({
 			} else if (to != null) {
 				return `${filter} ${to}`;
 			}
+			return value;
+		}
+
+		// Convert a px string to number type.
+		_convert_px_to_number_type(value) {
+			if (value == null || value === "") { return 0; }
+			else if (typeof value === "string" && value.eq_last("px")) {
+				value = parseFloat(value)
+				if (isNaN(value)) { return 0; }
+			}
+			return value;
+		}
+
+		// Try and parse to float otherwise return original.
+		_try_parse_float(value) {
+			if (typeof value === "string" && (value.endsWith("em") || value.endsWith("rem"))) { return value; }
+			const float = parseFloat(value);
+			if (!isNaN(float)) { return float; }
 			return value;
 		}
 		
@@ -683,8 +738,8 @@ function CreateVElementClass({
 			} else {
 				while (this.firstChild) {
 					if (this.firstChild._assign_to_parent_as !== undefined) {
-						parent[this.firstChild._assign_to_parent_as] = this;
-						child._parent = this;
+						parent[this.firstChild._assign_to_parent_as] = this.firstChild;
+						this.firstChild._parent = parent;
 					}
 					if (on_append_callback !== undefined) {
 						on_append_callback(this.firstChild);
@@ -719,12 +774,18 @@ function CreateVElementClass({
 
 		// Get child by index.
 		child(index) {
+			if (index < 0) {
+				return this.children[this.children.length - index];	
+			}
 			return this.children[index];
 		}
 
 		// Get child by index.
 		get(index) {
-			if (index < 0 || index >= this.children.length) {
+			if (index < 0) {
+				return this.children[this.children.length - index];	
+			}
+			else if (index >= this.children.length) {
 				return undefined;
 			}
 			return this.children[index];
@@ -751,45 +812,91 @@ function CreateVElementClass({
 		width(value, check_attribute = true) {
 			if (check_attribute && vweb.elements.elements_with_width_attribute.includes(Element.element_tag)) {
 				if (value == null) {
-					return this.getAttribute("width");
+					return this._try_parse_float(this.getAttribute("width"));
 				}
 				this.setAttribute("width", value);
 			} else {
 				if (value == null) {
-					return this.style.width;
+					return this._try_parse_float(this.style.width);
 				}
 				this.style.width = this.pad_numeric(value);
 			}
 			return this;
 		}
 		fixed_width(value) {
-			if (value == null) { return this.style.width; }
+			if (value == null) {
+				return this._try_parse_float(this.style.width);
+			}
 			value = this.pad_numeric(value);
 			this.style.width = value; // also required for for example image masks.
 			this.style.minWidth = value;
 			this.style.maxWidth = value;
 			return this;
 		}
-		height(value) {
-			if (vweb.elements.elements_with_width_attribute.includes(Element.element_tag)) {
+		height(value, check_attribute = true) {
+			if (check_attribute && vweb.elements.elements_with_width_attribute.includes(Element.element_tag)) {
 				if (value == null) {
-					return this.getAttribute("height");
+					return this._try_parse_float(this.getAttribute("height"));
 				}
 				this.setAttribute("height", value);
 			} else {
 				if (value == null) {
-					return this.style.height;
+					return this._try_parse_float(this.style.height);
 				}
 				this.style.height = this.pad_numeric(value);
 			}
 			return this;
 		}
 		fixed_height(value) {
-			if (value == null) { return this.style.height; }
+			if (value == null) {
+				return this._try_parse_float(this.style.height);
+			}
 			value = this.pad_numeric(value);
 			this.style.height = value; // also required for for example image masks.
 			this.style.minHeight = value;
 			this.style.maxHeight = value;
+			return this;
+		}
+
+		// Sets the minimum height of an element.
+		/*	@docs:
+		 *	@title: Min height
+		 *	@description: 
+		 *		Sets the minimum height of an element.
+		 *		The equivalent of CSS attribute `minHeight`.
+		 *		
+		 *		Returns the attribute value when parameter `value` is `null`.
+		 *	@return: 
+		 *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+		 *	@parameter:
+		 *		@name: value
+		 *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+		 *	@inherit: false
+		 */ 
+		min_height(value) {
+			if (value == null) { return this._try_parse_float(this.style.minHeight); }
+			this.style.minHeight = this.pad_numeric(value);
+			return this;
+		}
+
+		// Sets the minimum width of an element.
+		/*	@docs:
+		 *	@title: Min width
+		 *	@description: 
+		 *		Sets the minimum width of an element.
+		 *		The equivalent of CSS attribute `minWidth`.
+		 *		
+		 *		Returns the attribute value when parameter `value` is `null`.
+		 *	@return: 
+		 *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+		 *	@parameter:
+		 *		@name: value
+		 *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+		 *	@inherit: false
+		 */ 
+		min_width(value) {
+			if (value == null) { return this._try_parse_float(this.style.minWidth); }
+			this.style.minWidth = this.pad_numeric(value);
 			return this;
 		}
 
@@ -878,6 +985,35 @@ function CreateVElementClass({
 			return this;
 		}
 
+		// Get frame while hidden.
+		/*	@docs:
+			@title: Get frame while hidden.
+			@descr: Get the would be rendered frame of the element if it is no longer hidden.
+			@return: Returns a `{width, height}` object.
+		*/
+		get_frame_while_hidden() {
+			const transition = this.transition();
+			this.transition("none");
+			const max_width = this.max_width();
+			this.max_width("none");
+			const max_height = this.max_height();
+			this.max_height("none");
+			const overflow = this.overflow();
+			this.overflow("visible");
+			this.visibility("hidden");
+			this.show();
+			const rect = this.getBoundingClientRect();
+			// const response = {width: rect.width, height: rect.height};
+			const response = {width: this.clientWidth, height: this.clientHeight};
+			this.hide();
+			this.visibility("visible");
+			this.max_width(max_width)
+			this.max_height(max_height)
+			this.transition(transition)
+			this.overflow(overflow)
+			return response;
+		}
+
 		// Padding, 1 or 4 args.
 		padding(...values) {
 			if (values.length === 0) {
@@ -913,6 +1049,90 @@ function CreateVElementClass({
 			}
 			return this;
 		}
+
+		// Sets the bottom padding of an element.
+		/*	@docs:
+		 *	@title: Padding bottom
+		 *	@description: 
+		 *		Sets the bottom padding of an element.
+		 *		The equivalent of CSS attribute `paddingBottom`.
+		 *		
+		 *		Returns the attribute value when parameter `value` is `null`.
+		 *	@return: 
+		 *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+		 *	@parameter:
+		 *		@name: value
+		 *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+		 *	@inherit: false
+		 */ 
+		padding_bottom(value) {
+			if (value == null) { return this._convert_px_to_number_type(this.style.paddingBottom); }
+			this.style.paddingBottom = this.pad_numeric(value);
+			return this;
+		}
+		
+		// Sets the left padding of an element.
+		/*	@docs:
+		 *	@title: Padding left
+		 *	@description: 
+		 *		Sets the left padding of an element.
+		 *		The equivalent of CSS attribute `paddingLeft`.
+		 *		
+		 *		Returns the attribute value when parameter `value` is `null`.
+		 *	@return: 
+		 *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+		 *	@parameter:
+		 *		@name: value
+		 *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+		 *	@inherit: false
+		 */ 
+		padding_left(value) {
+			if (value == null) { return this._convert_px_to_number_type(this.style.paddingLeft); }
+			this.style.paddingLeft = this.pad_numeric(value);
+			return this;
+		}
+
+		// Sets the right padding of an element.
+		/*	@docs:
+		 *	@title: Padding right
+		 *	@description: 
+		 *		Sets the right padding of an element.
+		 *		The equivalent of CSS attribute `paddingRight`.
+		 *		
+		 *		Returns the attribute value when parameter `value` is `null`.
+		 *	@return: 
+		 *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+		 *	@parameter:
+		 *		@name: value
+		 *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+		 *	@inherit: false
+		 */ 
+		padding_right(value) {
+			if (value == null) { return this._convert_px_to_number_type(this.style.paddingRight); }
+			this.style.paddingRight = this.pad_numeric(value);
+			return this;
+		}
+
+		// Sets the top padding of an element.
+		/*	@docs:
+		 *	@title: Padding top
+		 *	@description: 
+		 *		Sets the top padding of an element.
+		 *		The equivalent of CSS attribute `paddingTop`.
+		 *		
+		 *		Returns the attribute value when parameter `value` is `null`.
+		 *	@return: 
+		 *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+		 *	@parameter:
+		 *		@name: value
+		 *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+		 *	@inherit: false
+		 */ 
+		padding_top(value) {
+			if (value == null) { return this._convert_px_to_number_type(this.style.paddingTop); }
+			this.style.paddingTop = this.pad_numeric(value);
+			return this;
+		}
 		
 		// Margin, 1 or 4 args.
 		margin(...values) {
@@ -945,6 +1165,90 @@ function CreateVElementClass({
 			} else {
 				console.error("Invalid number of arguments for function \"margin()\".");
 			}
+			return this;
+		}
+
+		// Sets the bottom margin of an element.
+		/*	@docs:
+		 *	@title: Margin bottom
+		 *	@description: 
+		 *		Sets the bottom margin of an element.
+		 *		The equivalent of CSS attribute `marginBottom`.
+		 *		
+		 *		Returns the attribute value when parameter `value` is `null`.
+		 *	@return: 
+		 *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+		 *	@parameter:
+		 *		@name: value
+		 *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+		 *	@inherit: false
+		 */ 
+		margin_bottom(value) {
+			if (value == null) { return this._convert_px_to_number_type(this.style.marginBottom); }
+			this.style.marginBottom = this.pad_numeric(value);
+			return this;
+		}
+		
+		// Sets the left margin of an element.
+		/*	@docs:
+		 *	@title: Margin left
+		 *	@description: 
+		 *		Sets the left margin of an element.
+		 *		The equivalent of CSS attribute `marginLeft`.
+		 *		
+		 *		Returns the attribute value when parameter `value` is `null`.
+		 *	@return: 
+		 *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+		 *	@parameter:
+		 *		@name: value
+		 *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+		 *	@inherit: false
+		 */ 
+		margin_left(value) {
+			if (value == null) { return this._convert_px_to_number_type(this.style.marginLeft); }
+			this.style.marginLeft = this.pad_numeric(value);
+			return this;
+		}
+
+		// Sets the right margin of an element.
+		/*	@docs:
+		 *	@title: Margin right
+		 *	@description: 
+		 *		Sets the right margin of an element.
+		 *		The equivalent of CSS attribute `marginRight`.
+		 *		
+		 *		Returns the attribute value when parameter `value` is `null`.
+		 *	@return: 
+		 *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+		 *	@parameter:
+		 *		@name: value
+		 *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+		 *	@inherit: false
+		 */ 
+		margin_right(value) {
+			if (value == null) { return this._convert_px_to_number_type(this.style.marginRight); }
+			this.style.marginRight = this.pad_numeric(value);
+			return this;
+		}
+
+		// Sets the top margin of an element.
+		/*	@docs:
+		 *	@title: Margin top
+		 *	@description: 
+		 *		Sets the top margin of an element.
+		 *		The equivalent of CSS attribute `marginTop`.
+		 *		
+		 *		Returns the attribute value when parameter `value` is `null`.
+		 *	@return: 
+		 *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+		 *	@parameter:
+		 *		@name: value
+		 *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+		 *	@inherit: false
+		 */ 
+		margin_top(value) {
+			if (value == null) { return this._convert_px_to_number_type(this.style.marginTop); }
+			this.style.marginTop = this.pad_numeric(value);
 			return this;
 		}
 		
@@ -1057,7 +1361,7 @@ function CreateVElementClass({
 			stretch = true,
 			hide_dividers = false,	
 		}) {
-			if (this.element_type !== "HStack") {
+			if (this.element_type !== "HStack" && this.element_type !== "AnchorHStack") {
 				throw Error("This function os only supported for element \"HStackElement\".");
 			}
 
@@ -1065,6 +1369,7 @@ function CreateVElementClass({
 			let col_children = [];
 			let row_width = 0;
 			let row = 0;
+			let highest_margin = undefined;
 
 			// Styling.
 			// this.justify_content("space-between")
@@ -1072,40 +1377,95 @@ function CreateVElementClass({
 
 			// Set flex basis.
 			const flex_basis = (child, basis, margin) => {
-				child.width(`calc(${basis*100}% - ${margin}px)`);
-				child.min_width(`calc(${basis*100}% - ${margin}px)`);
-				child.max_width(`calc(${basis*100}% - ${margin}px)`);
+				if (margin === 0) {
+					child.width(`${basis*100}%`);
+					child.min_width(`${basis*100}%`);
+					child.max_width(`${basis*100}%`);
+				} else {
+					child.width(`calc(${basis*100}% - ${margin}px)`);
+					child.min_width(`calc(${basis*100}% - ${margin}px)`);
+					child.max_width(`calc(${basis*100}% - ${margin}px)`);
+				}
 			}
 
 			// Set flex on the columns.
 			const set_flex = () => {
+				// let index = 0;
+				// let margin = 0;
+				// let full_basis = 0;
+				// col_children.iterate((i) => {
+				// 	let basis = i[1] == null ? ((col_children.length - 1) / columns) : i[1];
+				// 	if (col_children.length === 1) {
+				// 		basis = 1.0;
+				// 	}
+				// 	full_basis += basis;
+				// 	const child = i[0];
+				// 	if (index > 0) {
+				// 		child.margin_left(hspacing);
+				// 		margin += hspacing;
+				// 	}
+				// 	++index;
+				// });
+				// if (full_basis !== undefined && full_basis < 1) {
+				// 	console.log("MARGIN:", margin);
+				// 	margin /= full_basis; // use a full basis (1.0) based margin, so when the user has set side_by_side_basis it will use the full divided margin, resulting in aligned elements when they are stacked. otherwise they wont stack.
+				// 	console.log("MARGIN POST:", margin);
+				// } else {
+				// 	console.log("MARGIN NO:", full_basis, margin);
+				// }
+
+				const margin = (columns - 1) * hspacing; // always use a full margin otherwise margin / columns will result in a smaller margin when cols is smaller than defined columns on a wrapped line. Resulting in unaligned stacks.
+
 				let index = 0;
-				let margin = 0;
 				col_children.iterate((i) => {
 					const child = i[0];
 					if (index > 0) {
-						child.margin_left(hspacing);
-						margin += hspacing;
+						child.margin_left(hspacing)
 					}
-					++index;
-				});
-				col_children.iterate((i) => {
-					const child = i[0];
-					child.overflow("hidden")
-					if (stretch || col_children.length === columns) {
+					// child.overflow("hidden") // do not set overflow to hidden since this causes issues when the user wants overflow for something like box shadow etc.
+					if (stretch && index + 1 === col_children.length) {
+						let basis = i[1] == null ? (1 - ((col_children.length - 1) / columns)) : i[1];
+						if (col_children.length === 1) {
+							basis = 1.0;
+						}
 						flex_basis(
 							child, 
-							i[1] == null ? 1 / col_children.length : i[1], 
-							margin / col_children.length,
+							basis, 
+							margin / columns,
+							// hspacing / col_children.length
+							// Math.max(margin, hspacing * (columns - 2)),
 						);
 					} else {
 						flex_basis(
 							child, 
 							i[1] == null ? 1 / columns : i[1], 
-							hspacing * (columns - 2),
+							margin / columns,
+							// hspacing
+							// hspacing * (columns - 1),
+							// Math.max(margin, hspacing * (columns - 2)), // causes non aligned width when uneven items, resulting in 3 and 2 cols.
+							// margin,
+							// hspacing * (columns - 2)
 						);
 					}
+					++index;
 				})
+				// col_children.iterate((i) => {
+				// 	const child = i[0];
+				// 	child.overflow("hidden") // do not set overflow to hidden since this causes issues when the user wants overflow for something like box shadow etc.
+				// 	if (stretch || col_children.length === columns) {
+				// 		flex_basis(
+				// 			child, 
+				// 			i[1] == null ? 1 / col_children.length : i[1], 
+				// 			margin / col_children.length,
+				// 		);
+				// 	} else {
+				// 		flex_basis(
+				// 			child, 
+				// 			i[1] == null ? 1 / columns : i[1], 
+				// 			hspacing * (columns - 2),
+				// 		);
+				// 	}
+				// })
 			}
 
 			// Check if the child is the last non divider child.
@@ -1137,45 +1497,63 @@ function CreateVElementClass({
 				// No divider.
 				else {
 
-					// Is last non divider node.
-					const is_last_node = is_last_non_divider(child)
-
-					// Get the child's custom basis.
-					const child_custom_basis = child._side_by_side_basis;
-					const basis = child_custom_basis == null ? 1 / columns : child_custom_basis;
-
-					// Set margins.
-					child.stretch(true);
-					child.box_sizing("border-box")
-					child.margin_left(0); // reset for when it is called inside @media.
-					if (row > 0) {
-						child.margin_top(vspacing);
-					} else {
-						child.margin_top(0); // reset for when it is called inside @media.
-					}
-
-					// When the childs basis + the row width would overflow 1 then add it to the next line.
-					if (row_width + basis > 1) {
-						set_flex();
+					// Only one column.
+					if (columns === 1) {
+						child.fixed_width("100%");
+						child.stretch(true);
+						child.box_sizing("border-box")
+						child.margin_left(0); // reset for when it is called inside @media.
+						if (row > 0) {
+							child.margin_top(vspacing);
+						} else {
+							child.margin_top(0); // reset for when it is called inside @media.
+						}
 						++row;
-						row_width = 0;
-						col_children = [];
-						col_children.push([child, child_custom_basis]);
 					}
 
-					// When the child basis + the row width would equal 1 or the node is the last node item then add the columns.
-					else if (row_width + basis === 1 || is_last_node) {
-						col_children.push([child, child_custom_basis]);
-						set_flex();
-						++row;
-						row_width = 0;
-						col_children = [];	
-					}
-
-					// Otherwise add to the colums.
+					// 1+ columns
 					else {
-						col_children.push([child, child_custom_basis]);
-						row_width += basis;
+
+						// Is last non divider node.
+						const is_last_node = is_last_non_divider(child)
+
+						// Get the child's custom basis.
+						const child_custom_basis = child._side_by_side_basis;
+						const basis = child_custom_basis == null ? 1 / columns : child_custom_basis;
+
+						// Set margins.
+						child.stretch(true);
+						child.box_sizing("border-box")
+						child.margin_left(0); // reset for when it is called inside @media.
+						if (row > 0) {
+							child.margin_top(vspacing);
+						} else {
+							child.margin_top(0); // reset for when it is called inside @media.
+						}
+
+						// When the childs basis + the row width would overflow 1 then add it to the next line.
+						if (row_width + basis > 1) {
+							set_flex();
+							++row;
+							row_width = 0;
+							col_children = [];
+							col_children.push([child, child_custom_basis]);
+						}
+
+						// When the child basis + the row width would equal 1 or the node is the last node item then add the columns.
+						else if (row_width + basis === 1 || is_last_node) {
+							col_children.push([child, child_custom_basis]);
+							set_flex();
+							++row;
+							row_width = 0;
+							col_children = [];	
+						}
+
+						// Otherwise add to the colums.
+						else {
+							col_children.push([child, child_custom_basis]);
+							row_width += basis;
+						}
 					}
 				}
 			})
@@ -1185,20 +1563,31 @@ function CreateVElementClass({
 		// Set the side by side basis for a node.
 		// Must be set in floating percentages so 0.0 till 1.0.
 		side_by_side_basis(basis) {
-			this._side_by_side_basis = basis;
+			if (basis == null) { return this._side_by_side_basis; }
+			else if (basis === false) {
+				this._side_by_side_basis = undefined;
+			} else {
+				this._side_by_side_basis = basis;
+			}
 			return this;
 		}
 
 		// Set text ellipsis overflow.
-		ellipsis_overflow(to = true) {
+		ellipsis_overflow(to = true, after_lines = null) {
 			if (to === null) {
 				return this.style.textOverflow === "ellipsis";
 			} else if (to === true) {
 				this.style.textOverflow = "ellipsis";
-				this.style.whiteSpace = "nowrap";
 				this.style.overflow = "hidden";
 				this.style.textWrap = "wrap";
 				this.style.overflowWrap = "break-word";
+				if (after_lines != null) {
+					this.style.webkitLineClamp = after_lines;
+					this.style.webkitBoxOrient = "vertical";
+					this.style.display = "-webkit-box";
+				} else {
+					this.style.whiteSpace = "nowrap";
+				}
 			} else if (to === false) {
 				this.style.textOverflow = "default";
 				this.style.whiteSpace = "default";
@@ -1216,6 +1605,7 @@ function CreateVElementClass({
 		align(value) {
 			switch (this.base_element_type) {
 				case "HStack":
+				case "AnchorHStack":
 				case "ZStack":
 					if (value == null) { return this.style.justifyContent; }
 					if (value === "default") { value = ""; }
@@ -1223,7 +1613,12 @@ function CreateVElementClass({
 						this.style.justifyContent = value;
 					}
 					return this;
+				case "Frame":
+					this.style.display = "flex";
+					this.style.flexDirection = "column";
+					// fallthrough.
 				case "VStack":
+				case "AnchorVStack":
 				case "Scroller":
 				case "View":
 					if (value == null) { return this.style.alignItems; }
@@ -1255,6 +1650,7 @@ function CreateVElementClass({
 		align_vertical(value) {
 			switch (this.base_element_type) {
 				case "HStack":
+				case "AnchorHStack":
 				case "ZStack":
 					if (value == null) { return this.style.alignItems; }
 					if (value === "default") { value = "normal"; }
@@ -1262,7 +1658,12 @@ function CreateVElementClass({
 						this.style.alignItems = value;
 					}
 					return this;
+				case "Frame":
+					this.style.display = "flex";
+					this.style.flexDirection = "column";
+					// fallthrough.
 				case "VStack":
+				case "AnchorVStack":
 				case "Scroller":
 				case "View":
 					if (value == null) { return this.style.justifyContent; }
@@ -1334,6 +1735,71 @@ function CreateVElementClass({
 		align_height() {
 			return this.align_items("stretch");
 		}
+
+		// Text wrap.
+		/*	@docs:
+		 *	@title: Text wrap
+		 *	@description: 
+		 *		Set the text wrap value.
+		 *		The equivalent of CSS attribute `textWrap`.
+		 *		
+		 *		Returns the attribute value when parameter `value` is `null`.
+		 *	@return: 
+		 *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+		 *	@parameter:
+		 *		@name: value
+		 *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+		 *	@inherit: false
+		 */ 
+		text_wrap(value) {
+			if (value == null) { return this.style.textWrap; }
+			this.style.textWrap = value;
+			return this;
+		}
+
+		// Webkit line clamp
+		/*	@docs:
+		 *	@title: Line clamp
+		 *	@description: 
+		 *		This non-standard CSS property allows you to limit the number of lines shown in a block container. When used in conjunction with `-webkit-box-orient`, it specifies the maximum number of lines to display before truncating the text. Text that exceeds this limit is cut off and typically ends with an ellipsis. This property is particularly useful for creating text overflow effects in web design where maintaining a consistent, visually manageable block of text is necessary.
+		 *
+		 *		The equivalent of CSS attribute `-webkit-line-clamp`.
+		 *		
+		 *		Returns the attribute value when parameter `value` is `null`.
+		 *	@return: 
+		 *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+		 *	@parameter:
+		 *		@name: value
+		 *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+		 *	@inherit: false
+		 */ 
+		line_clamp(value) {
+			if (value == null) { return this.style.webkitLineClamp; }
+			this.style.webkitLineClamp = value;
+			return this;
+		}
+
+		// Webkit box orient.
+		/*	@docs:
+		 *	@title: Box orient
+		 *	@description: 
+		 *		This property is part of the old flexbox model and is used to define the orientation of the children in a flex container. In combination with `-webkit-line-clamp`, it's set to vertical to allow the line clamping effect on block containers. It dictates how the children of the box are laid out: horizontally or vertically. Note that `-webkit-box-orient` is specific to Webkit-based browsers and is not part of the standard CSS flexbox properties.
+		 *
+		 *		The equivalent of CSS attribute `-webkit-line-clamp`.
+		 *		
+		 *		Returns the attribute value when parameter `value` is `null`.
+		 *	@return: 
+		 *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+		 *	@parameter:
+		 *		@name: value
+		 *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+		 *	@inherit: false
+		 */ 
+		box_orient(value) {
+			if (value == null) { return this.style.webkitBoxOrient; }
+			this.style.webkitBoxOrient = value;
+			return this;
+		}
 		
 		// ---------------------------------------------------------
 		// Styling functions.
@@ -1386,6 +1852,111 @@ function CreateVElementClass({
 			}
 			return this;
 		}
+
+		// Border top.
+		/*	@docs:
+		 *	@title: Border top
+		 *	@description: 
+		 *		Set the border top.
+		 *		
+		 *		Returns the attribute value when no parameters are defined.
+		 *	@return: 
+		 *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+		 *	@inherit: false
+		 */ 
+		border_top(...values) {
+			if (values.length === 0) {
+				return this.style.borderTop;
+			} else if (values.length === 1) {
+				this.style.borderTop = values[0];
+			} else if (values.length === 2) {
+				this.style.borderTop = this.pad_numeric(values[0]) + " solid " + values[1];
+			} else if (values.length === 3) {
+				this.style.borderTop = this.pad_numeric(values[0]) + " ", values[1] + " " + values[2];
+			} else {
+				console.error("Invalid number of arguments for function \"border_top()\".");
+			}
+			return this;
+		}
+
+		// Border bottom.
+		/*	@docs:
+		 *	@title: Border bottom
+		 *	@description: 
+		 *		Set the border bottom.
+		 *		
+		 *		Returns the attribute value when no parameters are defined.
+		 *	@return: 
+		 *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+		 *	@inherit: false
+		 */ 
+		border_bottom(...values) {
+			if (values.length === 0) {
+				return this.style.borderBottom;
+			} else if (values.length === 1) {
+				this.style.borderBottom = values[0];
+			} else if (values.length === 2) {
+				this.style.borderBottom = this.pad_numeric(values[0]) + " solid " + values[1];
+			} else if (values.length === 3) {
+				this.style.borderBottom = this.pad_numeric(values[0]) + " ", values[1] + " " + values[2];
+			} else {
+				console.error("Invalid number of arguments for function \"border_bottom()\".");
+			}
+			return this;
+		}
+
+		// Border right.
+		/*	@docs:
+		 *	@title: Border right
+		 *	@description: 
+		 *		Set the border right.
+		 *		
+		 *		Returns the attribute value when no parameters are defined.
+		 *	@return: 
+		 *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+		 *	@inherit: false
+		 */ 
+		border_right(...values) {
+			if (values.length === 0) {
+				return this.style.borderRight;
+			} else if (values.length === 1) {
+				this.style.borderRight = values[0];
+			} else if (values.length === 2) {
+				this.style.borderRight = this.pad_numeric(values[0]) + " solid " + values[1];
+			} else if (values.length === 3) {
+				this.style.borderRight = this.pad_numeric(values[0]) + " ", values[1] + " " + values[2];
+			} else {
+				console.error("Invalid number of arguments for function \"border_right()\".");
+			}
+			return this;
+		}
+		
+		// Border left.
+		/*	@docs:
+		 *	@title: Border left
+		 *	@description: 
+		 *		Set the border left.
+		 *		
+		 *		Returns the attribute value when no parameters are defined.
+		 *	@return: 
+		 *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+		 *	@inherit: false
+		 */ 
+		border_left(...values) {
+			if (values.length === 0) {
+				return this.style.borderLeft;
+			} else if (values.length === 1) {
+				this.style.borderLeft = values[0];
+			} else if (values.length === 2) {
+				this.style.borderLeft = this.pad_numeric(values[0]) + " solid " + values[1];
+			} else if (values.length === 3) {
+				this.style.borderLeft = this.pad_numeric(values[0]) + " ", values[1] + " " + values[2];
+			} else {
+				console.error("Invalid number of arguments for function \"border_left()\".");
+			}
+			return this;
+		}
+
 
 		// Adds shadow to the object, 1 or 4 args.
 		shadow(...values) {
@@ -1582,6 +2153,17 @@ function CreateVElementClass({
 			return this;
 		}
 
+
+		// Assign font size by scale in relation to the current assigned font size.
+		scale_font_size(scale = 1.0) {
+			const size = parseFloat(this.style.fontSize)
+			if (!isNaN(size)) {
+				this.font_size(size * scale);
+			}
+			return this;
+		}
+
+
 		// ---------------------------------------------------------
 		// Visibility functions.
 
@@ -1612,7 +2194,10 @@ function CreateVElementClass({
 		// Specify if the element is hidden.
 		// Should not be used with an argument, rather use hide() and show().
 		is_hidden() {
-			return this.style.display == "none" || typeof this.style.display === "undefined";
+			return this.style.display === "none" || typeof this.style.display === "undefined";
+		}
+		is_visible() {
+			return !(this.style.display === "none" || typeof this.style.display === "undefined");
 		}
 
 		// Toggle visibility.
@@ -1654,7 +2239,18 @@ function CreateVElementClass({
 				let dict = {};
 				for (let property in this.style) {
 					let value = this.style[property];
+					
+					// Check for css styles assigned with "var(...)" otherwise they will not be added to the dict.
 					if (
+						typeof value === 'string' && 
+						value !== undefined && 
+						value.startsWith("var(")
+					) {
+						dict[property] = value;
+					}
+
+					// Check property.
+					else if (
 						this.style.hasOwnProperty(property)
 					) {
 						const is_index = (/^\d+$/).test(property);
@@ -1680,15 +2276,6 @@ function CreateVElementClass({
 						else if (this.element_type === "Style") {
 							dict[property] = value;
 						}
-					}
-
-					// Check for css styles assigned with "var(...)" otherwise they will not be added to the dict.
-					else if (
-						typeof value === 'string' && 
-						value !== undefined && 
-						value.startsWith("var(")
-					) {
-						dict[property] = value;
 					}
 				}
 				return dict;
@@ -1722,7 +2309,7 @@ function CreateVElementClass({
 			}
 			return this;
 		}
-		
+
 		// Get or set a single events.
 		// leave value null to get the events.
 		event(key, value = null) {
@@ -1762,6 +2349,41 @@ function CreateVElementClass({
 			return this;
 		}
 
+		/*	@docs:
+			@title: Toggle class
+			@description: Toggle a class name from the class list.
+			@param:
+				@name: name
+				@descr: The class name.
+		 */
+		toggle_class(name) {
+			this.classList.toggle(name);
+			return this;
+		}
+
+		/*	@docs:
+			@title: Remove class
+			@description: Remove a class name from the class list.
+			@param:
+				@name: name
+				@descr: The class name.
+		 */
+		remove_class(name) {
+			this.classList.remove(name);
+			return this;
+		}
+
+		/*	@docs:
+			@title: Remove all classes
+			@description: Remove all classes from the class list.
+		 */
+		remove_classes() {
+			while (this.classList.length > 0) {
+				this.classList.remove(this.classList.item(0));
+			}
+			return this;
+		}
+
 		// Themes.
 		// - A theme should have an id.
 		//   Other attributes should be an elements function name as key with parameters as value.
@@ -1798,7 +2420,7 @@ function CreateVElementClass({
 			}
 
 			// Enable.
-			else if (mouse_down_brightness === true || typeof mouse_down_brightness === "number") {
+			if (mouse_down_brightness === true || typeof mouse_down_brightness === "number") {
 				if (mouse_down_brightness === true) {
 					mouse_down_brightness = 0.8;
 				}
@@ -1816,11 +2438,13 @@ function CreateVElementClass({
 		}
 
 		// Get the text width of the entire text as one line, useful for input elements.
+		// @warning: Only reliable when the element has been rendered.
 		text_width(text = null) {
 			const width_measurer = document.createElement("canvas").getContext("2d");
-			width_measurer.font = window.getComputedStyle(this).font;
+			const computed = window.getComputedStyle(this);
+		    width_measurer.font = `${computed.fontStyle} ${computed.fontVariant} ${computed.fontWeight} ${computed.fontSize} ${computed.fontFamily}`;
 			if (text == null) {
-				return width_measurer.measureText(this.selected).width;
+				return width_measurer.measureText(this.textContent).width;
 			} else {
 				return width_measurer.measureText(text).width;
 			}
@@ -1885,6 +2509,14 @@ function CreateVElementClass({
 		}
 
 		// Remove all media queries.
+		remove_medias() {
+			if (typeof this.media_queries === "object") {
+				Object.values(this.media_queries).iterate((query) => {
+					query.list.removeListener(query.callback);
+				})
+			}
+			return this;
+		}
 		remove_all_media() {
 			if (typeof this.media_queries === "object") {
 				Object.values(this.media_queries).iterate((query) => {
@@ -2234,7 +2866,7 @@ function CreateVElementClass({
 						transform = `translateX(0)`;
 						initial_transform = `translateX(${-distance}px)`
 					} else {
-						return reject(`Invalid direction "${direction}", the valid directions are "top", "bottom", "right", "left".`);
+						return reject(new Error(`Invalid direction "${direction}", the valid directions are "top", "bottom", "right", "left".`));
 					}
 				} else {
 					if (direction === "top") {
@@ -2250,7 +2882,7 @@ function CreateVElementClass({
 						transform = `translateX(${-distance}px)`;
 						initial_transform = "translateX(0)";
 					} else {
-						return reject(`Invalid direction "${direction}", the valid directions are "top", "bottom", "right", "left".`);
+						return reject(new Error(`Invalid direction "${direction}", the valid directions are "top", "bottom", "right", "left".`));
 					}
 				}
 				initial_transform = old_transform + initial_transform;
@@ -2507,10 +3139,27 @@ function CreateVElementClass({
 		// ---------------------------------------------------------
 		// Events.
 
+		// Register event callback from `vweb.events`.
+		on_event(id, callback) {
+			vweb.events.on(id, this, callback);
+			return this;
+		}
+
+		// Remove on event.
+		remove_on_event(id, callback) {
+			vweb.events.remove(id, this, callback);
+			return this;
+		}
+
+		// Remove all on event callbacks.
+		remove_on_events(id) {
+			vweb.events.remove(id, this);
+			return this;
+		}
+
 		// Set timeout.
 		// Valid options attributes are `id` and `debounce`.
 		timeout(delay, callback, options = null) {
-			let timeout = setTimeout(delay, () => callback(this));
 			if (options != null && options.id != null) {
 				if (this._timeouts === undefined) {
 					this._timeouts = {};
@@ -2518,7 +3167,9 @@ function CreateVElementClass({
 				if (options.debounce === true) {
 					clearTimeout(this._timeouts[options.id]);
 				}
-				this._timeouts[options.id] = timeout;
+				this._timeouts[options.id] = setTimeout(() => callback(this), delay);
+			} else {
+				setTimeout(() => callback(this), delay);
 			}
 			return this;
 		}
@@ -2545,7 +3196,21 @@ function CreateVElementClass({
 		}
 
 		// Script to be run when the element is being clicked
-		on_click(callback) {
+		// Either 1 param can be passed the callback.
+		// Or 2 params, first is the emulated href and second the callback. The href will be set and the default behaviour of the event will be prevented. This can emulate a href for SEO in SPA's. Dont forget to use pushState() though.
+		on_click(...args) {
+			let simulate_href, callback;
+			if (args.length === 0) {
+				return this.onclick;
+			} else if (args.length === 1) {
+				callback = args[0];
+			} else if (args.length === 2 && args[0] == null) {
+				callback = args[1];
+			} else {
+				simulate_href = args[0];
+				callback = args[1];
+				this.href(simulate_href);
+			}
 			if (callback == null) {
 				return this.onclick;
 			}
@@ -2553,6 +3218,9 @@ function CreateVElementClass({
 			this.user_select("none");
 			const e = this;
 			this.onclick = (t) => {
+				if (simulate_href) {
+					event.preventDefault();
+				}
 				if (this._disabled !== true) {
 					callback(e, t);
 				}
@@ -2562,6 +3230,11 @@ function CreateVElementClass({
 			// 	this.attr("rel", "noopener noreferrer"); // for seo.
 			// }
 			return this;
+		}
+
+		// On click redirect.
+		on_click_redirect(url) {
+			return this.on_click(url, () => vweb.utils.redirect(url));
 		}
 
 		// Script to be run when an element's scrollbar is being scrolled.
@@ -2892,20 +3565,52 @@ function CreateVElementClass({
 			if (Array.isArray(this._on_render_callbacks)) {
 				this._on_render_callbacks.push(callback);
 			} else {
-				this._rendered = false;
+				this.rendered = false;
 				this._on_render_callbacks = [callback];
-				// vweb.utils.on_render_observer.observe(this);
+				if (!this._observing_on_render) {
+					this._observing_on_render = true;
+					vweb.utils.on_render_observer.observe(this);
+				}
 			}
 			return this;
 		}
 		remove_on_render(callback) {
 			if (Array.isArray(this._on_render_callbacks)) {
 				this._on_render_callbacks = this._on_render_callbacks.drop(callback);
+				if (this._on_render_callbacks.length === 0) {
+					vweb.utils.on_render_observer.unobserve(this);
+					this._observing_on_render = false;
+				}
 			}
 			return this;
 		}
-		is_rendered(callback) {
-			return this._rendered;
+		remove_on_renders() {
+			if (Array.isArray(this._on_render_callbacks)) {
+				this._on_render_callbacks = [];
+				vweb.utils.on_render_observer.unobserve(this);
+				this._observing_on_render = false;
+			}
+			return this;
+		}
+		is_rendered() {
+			return this.rendered;
+		}
+
+		// On load.
+		// This event is executed when te entire page is fully loaded.
+		// Register event callback from `vweb.events`.
+		// @warning: This event will not be fired if you overwrite the `window.onload` callback.
+		on_load(callback) {
+			vweb.events.on("vweb.on_load", this, callback);
+			return this;
+		}
+		remove_on_load(callback) {
+			vweb.events.remove("vweb.on_load", this, callback);
+			return this;
+		}
+		remove_on_loads() {
+			vweb.events.remove("vweb.on_load", this);
+			return this;
 		}
 
 		// On resize event.
@@ -2916,16 +3621,70 @@ function CreateVElementClass({
 			if (Array.isArray(this._on_resize_callbacks)) {
 				this._on_resize_callbacks.push(callback);
 			} else {
-				this._rendered = false;
 				this._on_resize_callbacks = [callback];
-				vweb.utils.on_resize_observer.observe(this);
+				if (!this._observing_on_resize) {
+					this._observing_on_resize = true;
+					vweb.utils.on_resize_observer.observe(this);
+				}
 			}
 			return this;
 		}
 		remove_on_resize(callback) {
 			if (Array.isArray(this._on_resize_callbacks)) {
 				this._on_resize_callbacks = this._on_resize_callbacks.drop(callback);
+				if (this._on_resize_callbacks.length === 0) {
+					vweb.utils.on_resize_observer.unobserve(this);
+					this._observing_on_resize = false;
+				}
 			}
+			return this;
+		}
+		remove_on_resizes(callback) {
+			if (Array.isArray(this._on_resize_callbacks)) {
+				this._on_resize_callbacks = [];
+				vweb.utils.on_resize_observer.unobserve(this);
+				this._observing_on_resize = false;
+			}
+			return this;
+		}
+
+		/*	@docs:
+			@title: On resize rule
+			@descr:
+				Add an on resize rule event.
+				The callbacks are only executed when the evaluation changes during a resize event.
+			@note:
+				This function add's a `on_resize` callback.
+			@param:
+				@name: evaluation
+				@type: function
+				@descr: The function to evaluate if the statement is true, the element node is passed as the first argument.
+			@param:
+				@name: on_true
+				@type: function
+				@descr: The on true callback if the statement is true, the element node is passed as the first argument.
+			@param:
+				@name: on_false
+				@type: function
+				@descr: The on false callback, the element node is passed as the first argument.
+		 */
+		on_resize_rule(evaluation, on_true, on_false) {
+			if (this._on_resize_rule_evals === undefined) {
+				this._on_resize_rule_evals = [];
+			}
+			const eval_index = this._on_resize_rule_evals.length;
+			this._on_resize_rule_evals[eval_index] = null;
+			this.on_resize(() => {
+				const result = evaluation(this);
+				if (result !== this._on_resize_rule_evals[eval_index]) {
+					this._on_resize_rule_evals[eval_index] = result;
+					if (result && on_true) {
+						on_true(this);
+					} else if (!result && on_false) {
+						on_false(this);
+					}
+				}
+			})
 			return this;
 		}
 
@@ -3150,6 +3909,25 @@ function CreateVElementClass({
 			return this;
 		}
 
+		/*	@docs:
+		 	@title: On mouse over and out
+		 	@description: 
+		 		Set callbacks for the on mouse over and mouse out events.
+		 	@return: 
+		 		Returns the `Element` object.
+		 	@parameter:
+		 		@name: mouse_over
+		 		@description: The mouse over callback.
+		 	@parameter:
+		 		@name: mouse_out
+		 		@description: The mouse out callback.
+		 */ 
+		on_mouse_over_out(mouse_over, mouse_out) {
+			this.on_mouse_over(mouse_over);
+			this.on_mouse_out(mouse_out);
+			return this;
+		}
+
 		/*  docs:
 		 *  @title: On gesture
 		 *  @description: Create touch gesture events.
@@ -3315,7 +4093,7 @@ function CreateVElementClass({
 		// Set the current element as the default.
 		set_default(Type) {
 			if (Type == null) {
-				Type = E;
+				Type = Element;
 			}
 			Type.default_style = this.styles();
 			return this;
@@ -3406,6 +4184,163 @@ function CreateVElementClass({
 			return this.scrollHeight > this.clientHeight;
 		}
 
+		// Wait till the element and all it's children are fully rendered.
+		// This should only be used in the `on_render` callback.
+		// Since nodes appended after calling this function will not be checked.
+		// @warning: Does not work with non vweb nodes.
+		// @warning: Does not work currectly.
+		async wait_till_children_rendered(timeout = 10000) {
+			return new Promise((resolve, reject) => {
+
+				// Vars.
+				let elapsed = 0;
+				let step = 25;
+				let nodes = [];
+
+				// Map all nodes.
+				const map_nodes = (node) => {
+					nodes.append(node);
+					for (let i = 0; i < node.children.length; i++) {
+						map_nodes(node.children[i]);
+					}
+				}
+				map_nodes(this);
+				console.log(nodes);
+				
+				// Wait.
+				const wait = () => {
+					const rendered = nodes.iterate(node => {
+						if (!node._is_connected) {
+							return false;
+						}
+						console.log(node._is_connected);
+					})
+					if (rendered !== false) {
+						console.log("resolve", rendered);
+						resolve();
+					} else {
+						if (elapsed > timeout) {
+							return reject(new Error("Timeout error."));
+						}
+						elapsed += step;
+						setTimeout(wait, step);
+					}
+				}
+				wait();
+			})
+		}
+
+		// ---------------------------------------------------------
+		// Pseudo-element functions.
+
+
+		/*	@docs:
+			@title: Add pseudo element
+			@descr: Add a pseudo element.
+		 */
+		pseudo(type, node) {
+
+			// Check params.
+			if (!(node instanceof PseudoElement)) {
+				console.error("Invalid type for parameter \"node\" the valid type is \"PseudoElement\".");
+				return this;
+			}
+
+			// Gen id.
+			if (node.pseudo_id === undefined) {
+				node.pseudo_id = "pseudo_" + String.random(24);
+			}
+
+			// Set content.
+			if (node.style.content == null) {
+				node.style.content = "";
+			}
+
+			// Add the current element to the pseudo's added to elements.
+			if (node.added_to_elements === undefined) {
+				node.added_to_elements = [];
+			}
+			const alread_added = node.added_to_elements.iterate((item) => {
+				if (item.node === this && item.type === type) {
+					return true;
+				}
+			})
+			if (alread_added !== true) {
+				node.added_to_elements.append({
+					node: this,
+					type: type,
+				})
+			}
+
+			// Initialize cache object.
+			if (this.pseudo_stylesheets === undefined) {
+				this.pseudo_stylesheets = {};
+			}
+
+			// Add/edit stylesheet.
+			const css = `.${node.pseudo_id}::${type}{${node.style.cssText};content:"";}`
+			if (this.pseudo_stylesheets[node.pseudo_id] === undefined) {
+				const style = document.createElement('style');
+				style.type = 'text/css';
+				document.head.appendChild(style); // append before insertRule
+				style.sheet.insertRule(css, 0);
+				this.pseudo_stylesheets[node.pseudo_id] = style;
+			} else {
+				const style = this.pseudo_stylesheets[node.pseudo_id];
+				style.sheet.deleteRule(0);
+				style.sheet.insertRule(css, 0);
+			}
+
+			// Add class.
+			this.classList.add(node.pseudo_id);
+
+			// Response.
+			return this;
+		}
+
+		/*	@docs:
+			@title: Remove pseudo element
+			@descr: Remove a pseudo element by node.
+		 */
+		remove_pseudo(node) {
+			if (node && node.pseudo_id) {
+				this.classList.remove(node.pseudo_id);
+			}
+			this.pseudo_stylesheets[node.pseudo_id].remove();
+			delete this.pseudo_stylesheets[node.pseudo_id];
+			return this;
+		}
+		remove_pseudos() {
+			this.classList.forEach(name => {
+				if (name.startsWith("pseudo_")) {
+					this.classList.remove(name);
+				}
+			})
+			Object.values(this.pseudo_stylesheets).iterate(stylesheet => { stylesheet.remove(); })
+			this.pseudo_stylesheets = {};
+			return this;
+		}
+
+		/*	@docs:
+			@title: Add pseudo hover
+			@descr:
+				Add a pseudo element on mouse hover.
+				Does not work in combinatino with other mouse over events.
+		 */
+		pseudo_on_hover(type, node, set_defaults = true) {
+			if (set_defaults) {
+				node.position(0, 0, 0, 0);
+				const border_radius = this.border_radius();
+				if (border_radius) {
+					node.border_radius(border_radius);
+				}
+	    		this.position("relative")
+	    	}
+			this.on_mouse_over(() => this.pseudo("after", node))
+            this.on_mouse_out(() => this.remove_pseudo(node))
+            return this;
+		}
+
 		// ---------------------------------------------------------
 		// Parent functions.
 
@@ -3443,6 +4378,40 @@ function CreateVElementClass({
 			return this;
 		}
 
+		// Check if an element is a direct child of this element.
+		/* 	@docs:
+		 * 	@nav: Frontend
+		 *	@title: Is child
+		 *	@desc: 
+		 * 		Check if an element is a direct child of the element or the element itself.
+		 *	@param:
+		 *		@name: target
+		 *		@desc: The target element to test.
+		 *		@type: Node, Element
+		 */
+		is_child(target) {
+			return vweb.utils.is_child(this, target);
+		}
+
+		// Check if an element is a nested child of this element.
+		/* 	@docs:
+		 * 	@nav: Frontend
+		 *	@title: Is child
+		 *	@desc: 
+		 * 		Check if an element is a recursively nested child of the element or the element itself.
+		 *	@param:
+		 *		@name: target
+		 *		@desc: The target element to test.
+		 *		@type: Node, Element
+		 *	@param:
+		 *		@name: stop_node
+		 *		@desc: A node at which to stop checking if target is a parent of the current element.
+		 *		@type: Node, Element
+		 */
+		is_nested_child(target, stop_node = null) {
+			return vweb.utils.is_nested_child(this, target, stop_node);
+		}
+
 		// ---------------------------------------------------------
 		// Cast functions.
 		
@@ -3450,6 +4419,59 @@ function CreateVElementClass({
 		toString() {
 			this.setAttribute("created_by_html", "true");
 			return this.outerHTML;
+		}
+
+		// ---------------------------------------------------------
+		// Attr Functions
+
+		// Specifies that the element is read-only.
+		/*	@docs:
+		 *	@title: Readonly
+		 *	@description: 
+		 *		Specifies that the element is read-only.
+		 *		The equivalent of HTML attribute `readonly`.
+		 *		
+		 *		Returns the attribute value when parameter `value` is `null`.
+		 *	@return: 
+		 *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+		 *	@parameter:
+		 *		@name: value
+		 *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+		 *	@inherit: false
+		 */ 
+		readonly(value) {
+			if (value == null) { return super.readOnly; }
+			if (!value) {
+				super.removeAttribute("readOnly");
+			} else {
+				super.readOnly = value;
+			}
+			return this;
+		}
+
+		// Specifies that the target will be downloaded when a user clicks on the hyperlink.
+		/*	@docs:
+		 *	@title: Download
+		 *	@description: 
+		 *		Specifies that the target will be downloaded when a user clicks on the hyperlink.
+		 *		The equivalent of HTML attribute `download`.
+		 *		
+		 *		Returns the attribute value when parameter `value` is `null`.
+		 *	@return: 
+		 *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
+		 *	@parameter:
+		 *		@name: value
+		 *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
+		 *	@inherit: false
+		 */ 
+		download(value) {
+			if (value == null) { return super.download; }
+			if (!value) {
+				super.removeAttribute("download");
+			} else {
+				super.download = value;
+			}
+			return this;
 		}
 
 		// ---------------------------------------------------------
@@ -4350,27 +5372,6 @@ function CreateVElementClass({
 			return this;
 		}
 
-		// A shorthand property for border-bottom-width, border-bottom-style and border-bottom-color.
-		/*	@docs:
-		 *	@title: Border bottom
-		 *	@description: 
-		 *		A shorthand property for border-bottom-width, border-bottom-style and border-bottom-color.
-		 *		The equivalent of CSS attribute `borderBottom`.
-		 *		
-		 *		Returns the attribute value when parameter `value` is `null`.
-		 *	@return: 
-		 *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-		 *	@parameter:
-		 *		@name: value
-		 *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-		 *	@inherit: false
-		 */ 
-		border_bottom(value) {
-			if (value == null) { return this.style.borderBottom; }
-			this.style.borderBottom = this.pad_numeric(value);
-			return this;
-		}
-
 		// Sets the color of the bottom border.
 		/*	@docs:
 		 *	@title: Border bottom color
@@ -4858,27 +5859,6 @@ function CreateVElementClass({
 			return this;
 		}
 
-		// A shorthand property for all the border-left properties.
-		/*	@docs:
-		 *	@title: Border left
-		 *	@description: 
-		 *		A shorthand property for all the border-left properties.
-		 *		The equivalent of CSS attribute `borderLeft`.
-		 *		
-		 *		Returns the attribute value when parameter `value` is `null`.
-		 *	@return: 
-		 *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-		 *	@parameter:
-		 *		@name: value
-		 *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-		 *	@inherit: false
-		 */ 
-		border_left(value) {
-			if (value == null) { return this.style.borderLeft; }
-			this.style.borderLeft = this.pad_numeric(value);
-			return this;
-		}
-
 		// Sets the color of the left border.
 		/*	@docs:
 		 *	@title: Border left color
@@ -4964,27 +5944,6 @@ function CreateVElementClass({
 			this.style.webkitBorderRadius = this.pad_numeric(value);
 			this.style.MozBorderRadius = this.pad_numeric(value);
 			this.style.OBorderRadius = this.pad_numeric(value);
-			return this;
-		}
-
-		// A shorthand property for all the border-right properties.
-		/*	@docs:
-		 *	@title: Border right
-		 *	@description: 
-		 *		A shorthand property for all the border-right properties.
-		 *		The equivalent of CSS attribute `borderRight`.
-		 *		
-		 *		Returns the attribute value when parameter `value` is `null`.
-		 *	@return: 
-		 *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-		 *	@parameter:
-		 *		@name: value
-		 *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-		 *	@inherit: false
-		 */ 
-		border_right(value) {
-			if (value == null) { return this.style.borderRight; }
-			this.style.borderRight = this.pad_numeric(value);
 			return this;
 		}
 
@@ -5090,27 +6049,6 @@ function CreateVElementClass({
 		border_style(value) {
 			if (value == null) { return this.style.borderStyle; }
 			this.style.borderStyle = value;
-			return this;
-		}
-
-		// A shorthand property for border-top-width, border-top-style and border-top-color.
-		/*	@docs:
-		 *	@title: Border top
-		 *	@description: 
-		 *		A shorthand property for border-top-width, border-top-style and border-top-color.
-		 *		The equivalent of CSS attribute `borderTop`.
-		 *		
-		 *		Returns the attribute value when parameter `value` is `null`.
-		 *	@return: 
-		 *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-		 *	@parameter:
-		 *		@name: value
-		 *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-		 *	@inherit: false
-		 */ 
-		border_top(value) {
-			if (value == null) { return this.style.borderTop; }
-			this.style.borderTop = this.pad_numeric(value);
 			return this;
 		}
 
@@ -7440,27 +8378,6 @@ function CreateVElementClass({
 			return this;
 		}
 
-		// Sets the bottom margin of an element.
-		/*	@docs:
-		 *	@title: Margin bottom
-		 *	@description: 
-		 *		Sets the bottom margin of an element.
-		 *		The equivalent of CSS attribute `marginBottom`.
-		 *		
-		 *		Returns the attribute value when parameter `value` is `null`.
-		 *	@return: 
-		 *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-		 *	@parameter:
-		 *		@name: value
-		 *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-		 *	@inherit: false
-		 */ 
-		margin_bottom(value) {
-			if (value == null) { return this.style.marginBottom; }
-			this.style.marginBottom = this.pad_numeric(value);
-			return this;
-		}
-
 		// Specifies the margin in the inline direction.
 		/*	@docs:
 		 *	@title: Margin inline
@@ -7521,69 +8438,6 @@ function CreateVElementClass({
 		margin_inline_start(value) {
 			if (value == null) { return this.style.marginInlineStart; }
 			this.style.marginInlineStart = value;
-			return this;
-		}
-
-		// Sets the left margin of an element.
-		/*	@docs:
-		 *	@title: Margin left
-		 *	@description: 
-		 *		Sets the left margin of an element.
-		 *		The equivalent of CSS attribute `marginLeft`.
-		 *		
-		 *		Returns the attribute value when parameter `value` is `null`.
-		 *	@return: 
-		 *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-		 *	@parameter:
-		 *		@name: value
-		 *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-		 *	@inherit: false
-		 */ 
-		margin_left(value) {
-			if (value == null) { return this.style.marginLeft; }
-			this.style.marginLeft = this.pad_numeric(value);
-			return this;
-		}
-
-		// Sets the right margin of an element.
-		/*	@docs:
-		 *	@title: Margin right
-		 *	@description: 
-		 *		Sets the right margin of an element.
-		 *		The equivalent of CSS attribute `marginRight`.
-		 *		
-		 *		Returns the attribute value when parameter `value` is `null`.
-		 *	@return: 
-		 *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-		 *	@parameter:
-		 *		@name: value
-		 *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-		 *	@inherit: false
-		 */ 
-		margin_right(value) {
-			if (value == null) { return this.style.marginRight; }
-			this.style.marginRight = this.pad_numeric(value);
-			return this;
-		}
-
-		// Sets the top margin of an element.
-		/*	@docs:
-		 *	@title: Margin top
-		 *	@description: 
-		 *		Sets the top margin of an element.
-		 *		The equivalent of CSS attribute `marginTop`.
-		 *		
-		 *		Returns the attribute value when parameter `value` is `null`.
-		 *	@return: 
-		 *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-		 *	@parameter:
-		 *		@name: value
-		 *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-		 *	@inherit: false
-		 */ 
-		margin_top(value) {
-			if (value == null) { return this.style.marginTop; }
-			this.style.marginTop = this.pad_numeric(value);
 			return this;
 		}
 
@@ -7788,11 +8642,11 @@ function CreateVElementClass({
 			return this;
 		}
 
-		// Specifies whether an SVG <mask> element is treated as a luminance mask or as an alpha mask.
+		// Specifies whether an SVG \<mask> element is treated as a luminance mask or as an alpha mask.
 		/*	@docs:
 		 *	@title: Mask type
 		 *	@description: 
-		 *		Specifies whether an SVG <mask> element is treated as a luminance mask or as an alpha mask.
+		 *		Specifies whether an SVG \<mask> element is treated as a luminance mask or as an alpha mask.
 		 *		The equivalent of CSS attribute `maskType`.
 		 *		
 		 *		Returns the attribute value when parameter `value` is `null`.
@@ -7932,48 +8786,6 @@ function CreateVElementClass({
 		min_inline_size(value) {
 			if (value == null) { return this.style.minInlineSize; }
 			this.style.minInlineSize = this.pad_numeric(value);
-			return this;
-		}
-
-		// Sets the minimum height of an element.
-		/*	@docs:
-		 *	@title: Min height
-		 *	@description: 
-		 *		Sets the minimum height of an element.
-		 *		The equivalent of CSS attribute `minHeight`.
-		 *		
-		 *		Returns the attribute value when parameter `value` is `null`.
-		 *	@return: 
-		 *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-		 *	@parameter:
-		 *		@name: value
-		 *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-		 *	@inherit: false
-		 */ 
-		min_height(value) {
-			if (value == null) { return this.style.minHeight; }
-			this.style.minHeight = this.pad_numeric(value);
-			return this;
-		}
-
-		// Sets the minimum width of an element.
-		/*	@docs:
-		 *	@title: Min width
-		 *	@description: 
-		 *		Sets the minimum width of an element.
-		 *		The equivalent of CSS attribute `minWidth`.
-		 *		
-		 *		Returns the attribute value when parameter `value` is `null`.
-		 *	@return: 
-		 *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-		 *	@parameter:
-		 *		@name: value
-		 *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-		 *	@inherit: false
-		 */ 
-		min_width(value) {
-			if (value == null) { return this.style.minWidth; }
-			this.style.minWidth = this.pad_numeric(value);
 			return this;
 		}
 
@@ -8583,27 +9395,6 @@ function CreateVElementClass({
 			return this;
 		}
 
-		// Sets the bottom padding of an element.
-		/*	@docs:
-		 *	@title: Padding bottom
-		 *	@description: 
-		 *		Sets the bottom padding of an element.
-		 *		The equivalent of CSS attribute `paddingBottom`.
-		 *		
-		 *		Returns the attribute value when parameter `value` is `null`.
-		 *	@return: 
-		 *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-		 *	@parameter:
-		 *		@name: value
-		 *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-		 *	@inherit: false
-		 */ 
-		padding_bottom(value) {
-			if (value == null) { return this.style.paddingBottom; }
-			this.style.paddingBottom = this.pad_numeric(value);
-			return this;
-		}
-
 		// Specifies the padding in the inline direction.
 		/*	@docs:
 		 *	@title: Padding inline
@@ -8664,69 +9455,6 @@ function CreateVElementClass({
 		padding_inline_start(value) {
 			if (value == null) { return this.style.paddingInlineStart; }
 			this.style.paddingInlineStart = value;
-			return this;
-		}
-
-		// Sets the left padding of an element.
-		/*	@docs:
-		 *	@title: Padding left
-		 *	@description: 
-		 *		Sets the left padding of an element.
-		 *		The equivalent of CSS attribute `paddingLeft`.
-		 *		
-		 *		Returns the attribute value when parameter `value` is `null`.
-		 *	@return: 
-		 *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-		 *	@parameter:
-		 *		@name: value
-		 *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-		 *	@inherit: false
-		 */ 
-		padding_left(value) {
-			if (value == null) { return this.style.paddingLeft; }
-			this.style.paddingLeft = this.pad_numeric(value);
-			return this;
-		}
-
-		// Sets the right padding of an element.
-		/*	@docs:
-		 *	@title: Padding right
-		 *	@description: 
-		 *		Sets the right padding of an element.
-		 *		The equivalent of CSS attribute `paddingRight`.
-		 *		
-		 *		Returns the attribute value when parameter `value` is `null`.
-		 *	@return: 
-		 *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-		 *	@parameter:
-		 *		@name: value
-		 *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-		 *	@inherit: false
-		 */ 
-		padding_right(value) {
-			if (value == null) { return this.style.paddingRight; }
-			this.style.paddingRight = this.pad_numeric(value);
-			return this;
-		}
-
-		// Sets the top padding of an element.
-		/*	@docs:
-		 *	@title: Padding top
-		 *	@description: 
-		 *		Sets the top padding of an element.
-		 *		The equivalent of CSS attribute `paddingTop`.
-		 *		
-		 *		Returns the attribute value when parameter `value` is `null`.
-		 *	@return: 
-		 *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-		 *	@parameter:
-		 *		@name: value
-		 *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-		 *	@inherit: false
-		 */ 
-		padding_top(value) {
-			if (value == null) { return this.style.paddingTop; }
-			this.style.paddingTop = this.pad_numeric(value);
 			return this;
 		}
 
@@ -10546,11 +11274,11 @@ function CreateVElementClass({
 			return this;
 		}
 
-		// Specifies whether the <form> or the <input> element should have autocomplete enabled.
+		// Specifies whether the \<form> or the \<input> element should have autocomplete enabled.
 		/*	@docs:
 		 *	@title: Auto complete
 		 *	@description: 
-		 *		Specifies whether the <form> or the <input> element should have autocomplete enabled.
+		 *		Specifies whether the \<form> or the \<input> element should have autocomplete enabled.
 		 *		The equivalent of HTML attribute `autocomplete`.
 		 *		
 		 *		Returns the attribute value when parameter `value` is `null`.
@@ -10630,11 +11358,11 @@ function CreateVElementClass({
 			return this;
 		}
 
-		// Specifies that an <input> element should be pre-selected when the page loads (for type="checkbox" or type="radio").
+		// Specifies that an \<input> element should be pre-selected when the page loads (for type="checkbox" or type="radio").
 		/*	@docs:
 		 *	@title: Checked
 		 *	@description: 
-		 *		Specifies that an <input> element should be pre-selected when the page loads (for type="checkbox" or type="radio").
+		 *		Specifies that an \<input> element should be pre-selected when the page loads (for type="checkbox" or type="radio").
 		 *		The equivalent of HTML attribute `checked`.
 		 *		
 		 *		Returns the attribute value when parameter `value` is `null`.
@@ -10949,27 +11677,6 @@ function CreateVElementClass({
 		disabled(value) {
 			if (value == null) { return super.disabled; }
 			super.disabled = value;
-			return this;
-		}
-
-		// Specifies that the target will be downloaded when a user clicks on the hyperlink.
-		/*	@docs:
-		 *	@title: Download
-		 *	@description: 
-		 *		Specifies that the target will be downloaded when a user clicks on the hyperlink.
-		 *		The equivalent of HTML attribute `download`.
-		 *		
-		 *		Returns the attribute value when parameter `value` is `null`.
-		 *	@return: 
-		 *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-		 *	@parameter:
-		 *		@name: value
-		 *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-		 *	@inherit: false
-		 */ 
-		download(value) {
-			if (value == null) { return super.download; }
-			super.download = value;
 			return this;
 		}
 
@@ -11302,11 +12009,11 @@ function CreateVElementClass({
 			return this;
 		}
 
-		// Refers to a <datalist> element that contains pre-defined options for an <input> element.
+		// Refers to a \<datalist> element that contains pre-defined options for an \<input> element.
 		/*	@docs:
 		 *	@title: List
 		 *	@description: 
-		 *		Refers to a <datalist> element that contains pre-defined options for an <input> element.
+		 *		Refers to a \<datalist> element that contains pre-defined options for an \<input> element.
 		 *		The equivalent of HTML attribute `list`.
 		 *		
 		 *		Returns the attribute value when parameter `value` is `null`.
@@ -11568,11 +12275,11 @@ function CreateVElementClass({
 			return this;
 		}
 
-		// Specifies a regular expression that an <input> element's value is checked against.
+		// Specifies a regular expression that an \<input> element's value is checked against.
 		/*	@docs:
 		 *	@title: Pattern
 		 *	@description: 
-		 *		Specifies a regular expression that an <input> element's value is checked against.
+		 *		Specifies a regular expression that an \<input> element's value is checked against.
 		 *		The equivalent of HTML attribute `pattern`.
 		 *		
 		 *		Returns the attribute value when parameter `value` is `null`.
@@ -11649,27 +12356,6 @@ function CreateVElementClass({
 		preload(value) {
 			if (value == null) { return super.preload; }
 			super.preload = value;
-			return this;
-		}
-
-		// Specifies that the element is read-only.
-		/*	@docs:
-		 *	@title: Readonly
-		 *	@description: 
-		 *		Specifies that the element is read-only.
-		 *		The equivalent of HTML attribute `readonly`.
-		 *		
-		 *		Returns the attribute value when parameter `value` is `null`.
-		 *	@return: 
-		 *		Returns the `Element` object. Unless parameter `value` is `null`, then the attribute's value is returned.
-		 *	@parameter:
-		 *		@name: value
-		 *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
-		 *	@inherit: false
-		 */ 
-		readonly(value) {
-			if (value == null) { return super.readOnly; }
-			super.readOnly = value;
 			return this;
 		}
 
@@ -11778,11 +12464,11 @@ function CreateVElementClass({
 			return this;
 		}
 
-		// Enables an extra set of restrictions for the content in an <iframe>.
+		// Enables an extra set of restrictions for the content in an \<iframe>.
 		/*	@docs:
 		 *	@title: Sandbox
 		 *	@description: 
-		 *		Enables an extra set of restrictions for the content in an <iframe>.
+		 *		Enables an extra set of restrictions for the content in an \<iframe>.
 		 *		The equivalent of HTML attribute `sandbox`.
 		 *		
 		 *		Returns the attribute value when parameter `value` is `null`.
@@ -11862,11 +12548,11 @@ function CreateVElementClass({
 			return this;
 		}
 
-		// Specifies the width, in characters (for <input>) or specifies the number of visible options (for <select>).
+		// Specifies the width, in characters (for \<input>) or specifies the number of visible options (for \<select>).
 		/*	@docs:
 		 *	@title: Size
 		 *	@description: 
-		 *		Specifies the width, in characters (for <input>) or specifies the number of visible options (for <select>).
+		 *		Specifies the width, in characters (for \<input>) or specifies the number of visible options (for \<select>).
 		 *		The equivalent of HTML attribute `size`.
 		 *		
 		 *		Returns the attribute value when parameter `value` is `null`.
@@ -11967,11 +12653,11 @@ function CreateVElementClass({
 			return this;
 		}
 
-		// Specifies the HTML content of the page to show in the <iframe>.
+		// Specifies the HTML content of the page to show in the \<iframe>.
 		/*	@docs:
 		 *	@title: Src doc
 		 *	@description: 
-		 *		Specifies the HTML content of the page to show in the <iframe>.
+		 *		Specifies the HTML content of the page to show in the \<iframe>.
 		 *		The equivalent of HTML attribute `srcdoc`.
 		 *		
 		 *		Returns the attribute value when parameter `value` is `null`.
@@ -12361,7 +13047,7 @@ function CreateVElementClass({
 		}
 
 		// Fires after the page is finished loading.
-		/*	@docs:
+		/*	DEPRC docs:
 		 *	@title: On load
 		 *	@description: 
 		 *		Fires after the page is finished loading.
@@ -12377,12 +13063,12 @@ function CreateVElementClass({
 		 *		@description: The value to assign. Leave `null` to retrieve the attribute's value.
 		 *	@inherit: false
 		 */ 
-		on_load(callback) {
-			if (callback == null) { return this.onload; }
-			const e = this;
-			this.onload = (t) => callback(e, t);
-			return this;
-		}
+		// on_load(callback) {
+		// 	if (callback == null) { return this.onload; }
+		// 	const e = this;
+		// 	this.onload = (t) => callback(e, t);
+		// 	return this;
+		// }
 
 		// Script to be run when the message is triggered.
 		/*	@docs:
@@ -12744,11 +13430,11 @@ function CreateVElementClass({
 			return this;
 		}
 
-		// Fires when the user writes something in a search field (for <input="search">).
+		// Fires when the user writes something in a search field (for \<input="search">).
 		/*	@docs:
 		 *	@title: On search
 		 *	@description: 
-		 *		Fires when the user writes something in a search field (for <input="search">).
+		 *		Fires when the user writes something in a search field (for \<input="search">).
 		 *		The equivalent of HTML attribute `onsearch`.
 		 *		
 		 *		The first parameter of the callback is the `Element` object.
@@ -13408,11 +14094,11 @@ function CreateVElementClass({
 			return this;
 		}
 
-		// Script to be run when the cue changes in a <track> element.
+		// Script to be run when the cue changes in a \<track> element.
 		/*	@docs:
 		 *	@title: On cue change
 		 *	@description: 
-		 *		Script to be run when the cue changes in a <track> element.
+		 *		Script to be run when the cue changes in a \<track> element.
 		 *		The equivalent of HTML attribute `oncuechange`.
 		 *		
 		 *		The first parameter of the callback is the `Element` object.
@@ -13888,11 +14574,11 @@ function CreateVElementClass({
 			return this;
 		}
 
-		// Fires when the user opens or closes the <details> element.
+		// Fires when the user opens or closes the \<details> element.
 		/*	@docs:
 		 *	@title: On toggle
 		 *	@description: 
-		 *		Fires when the user opens or closes the <details> element.
+		 *		Fires when the user opens or closes the \<details> element.
 		 *		The equivalent of HTML attribute `ontoggle`.
 		 *		
 		 *		The first parameter of the callback is the `Element` object.
@@ -13914,11 +14600,14 @@ function CreateVElementClass({
 
 	};
 
+	// Support extending.
+	vweb._velement_classes.push(Element);
+
 	// Register.
-	customElements.define("v-base-" + type.toLowerCase(), E, {extends: tag});
+	customElements.define("v-base-" + type.toLowerCase(), Element, {extends: tag});
 
 	// Return class.
-	return E;
+	return Element;
 };
 
 // Element class.
@@ -13929,3 +14618,8 @@ function VElement(...args) { return new VElementElement(...args); }
 // Used to create styles without an element, for example for animations.
 const StyleElement = CreateVElementClass({type: "Style", tag: "style"});
 function Style(...args) { return new StyleElement(...args); }
+
+// Fire the onload event.
+window.onload = () => {
+	vweb.events.emit("vweb.on_load");
+}

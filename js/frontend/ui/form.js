@@ -1,4 +1,5 @@
 
+
 // Extended input.
 @constructor_wrapper
 @register_element
@@ -47,7 +48,10 @@ class FormElement extends VStackElement {
 			}
 
 			// Initialize button.
-			else if (_this._button === undefined && (child.element_type === "Button" || child.element_type === "LoaderButton")) {
+			else if (/*_this._button === undefined &&*/ (child.element_type === "Button" || child.element_type === "LoaderButton") && child.on_click() == null) { //  && child.attr("submit_button") != "false"
+				if (_this._button !== undefined) {
+					_this._button.on_click(() => {})
+				}
 				_this.button(child);
 			}
 
@@ -140,7 +144,7 @@ class FormElement extends VStackElement {
 		}
 	}
 
-	// Set the submit button, by default the first button is used as the submit button.
+	// Set the submit button, by default the last button without a defined callback is used as the submit button.
 	button(element_or_id) {
 		if (element_or_id == null) { return this._button; }
 		if (typeof element_or_id === "string") {
@@ -151,7 +155,9 @@ class FormElement extends VStackElement {
 		}
 		this._button = element_or_id;
 		const _this = this;
-		this._button.on_click(() => _this.submit())
+		this._button.on_click(() => {
+			_this.submit().catch(console.error)
+		})
 		return this;
 	}
 

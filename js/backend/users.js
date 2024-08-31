@@ -17,6 +17,7 @@ const {FrontendError} = utils;
 
 /*  @docs:
     @nav: Backend
+    @chapter: Server
     @title: Users
     @desc:
         The users class, accessable under `Server.users`.
@@ -27,6 +28,9 @@ const {FrontendError} = utils;
 class Users {
     constructor(_server) {
         this.server = _server;
+
+        // Attributes.
+        this.avg_send_2fa_time = [];
     }
 
     // ---------------------------------------------------------
@@ -97,7 +101,7 @@ class Users {
     // Generate a token by uid.
     async _create_token(uid) {
         const token = this._generate_token(uid);
-        await this._tokens_db.update(
+        await this._tokens_db.save(
             uid, 
             "token",
             {
@@ -105,25 +109,23 @@ class Users {
                 token: this.server._hmac(token),
                 active: true,
             },
-            true
         );
         return token;
     }
 
     // Deactivate a token by uid.
     async _deactivate_token(uid) {
-        await this._tokens_db.update(
+        await this._tokens_db.save(
             uid, 
             "token",
             {active: false},
-            true
         );
     }
 
     // Generate a token by uid.
     async _create_2fa_token(uid, expiration) {
         const code = this._generate_code(6);
-        const doc = await this._tokens_db.update(
+        const doc = await this._tokens_db.save(
             uid, 
             "2fa",
             {
@@ -131,28 +133,26 @@ class Users {
                 code: code,
                 active: true,
             },
-            true
         );
         return code;
     }
 
     // Deactivate a token by uid.
     async _deactivate_2fa_token(uid) {
-        await this._tokens_db.update(
+        await this._tokens_db.save(
             uid, 
             "2fa",
             {active: false},
-            true
         );
     }
 
     // Perform authentication on a request.
     // When the authentication has failed an args object for response.send will be returned.
     // On a successfull authentication `null` will be returned.
-    async _authenticate(request) {
+    async _authenticate(stream) {
 
         // // Get api key key from bearer.
-        const authorization = request.headers["authorization"];
+        const authorization = stream.headers["authorization"];
         if (authorization !== undefined) {
             if (typeof authorization !== "string") {
                 return {
@@ -189,63 +189,63 @@ class Users {
                     data: "Unauthorized.",
                 };
             }
-            request.uid = uid;
+            stream.uid = uid;
             return null;
         }
 
         // Get token from cookies.
         else {
-            if (request.cookies.T == null || request.cookies.T.value == null) {
+            if (stream.cookies.T == null || stream.cookies.T.value == null) {
                 return {
                     status: 302, 
-                    headers: {"Location": `/signin?next=${request.url}`},
+                    headers: {"Location": `/signin?next=${stream.endpoint}`},
                     data: "Permission denied.",
                 };
             }
-            const token = request.cookies.T.value;
+            const token = stream.cookies.T.value;
             let uid;
             try {
                 uid = await this.get_uid_by_api_key(token);
             } catch (e) {
                 return {
                     status: 302, 
-                    headers: {"Location": `/signin?next=${request.url}`},
+                    headers: {"Location": `/signin?next=${stream.endpoint}`},
                     data: "Permission denied.",
                 };
             }
             if (await this.verify_token_by_uid(uid, token) !== true) {
                 return {
                     status: 302, 
-                    headers: {"Location": `/signin?next=${request.url}`},
+                    headers: {"Location": `/signin?next=${stream.endpoint}`},
                     data: "Permission denied.",
                 };
 
             }
-            request.uid = uid;
+            stream.uid = uid;
             return null;
         }
 
         // Authentication failed.
         return {
             status: 302, 
-            headers: {"Location": `/signin?next=${request.url}`},
+            headers: {"Location": `/signin?next=${stream.endpoint}`},
             data: "Permission denied.",
         };
     }
 
     // Sign a user in and return a response.
-    async _sign_in_response(response, uid) {
+    async _sign_in_response(stream, uid) {
 
         // Generate token.
         const token = await this._create_token(uid);
         
         // Create headers.
-        this._create_token_cookie(response, token);
-        await this._create_user_cookie(response, uid);
-        await this._create_detailed_user_cookie(response, uid);
+        this._create_token_cookie(stream, token);
+        await this._create_user_cookie(stream, uid);
+        await this._create_detailed_user_cookie(stream, uid);
             
         // Response.
-        response.send({
+        stream.send({
             status: 200,
             data: {message: "Successfully signed in."}
         });
@@ -256,54 +256,54 @@ class Users {
 
     // Create token headers.
     //  - Should be called when generating a token.
-    _create_token_cookie(response, token) {
-        response.set_header("Cache-Control", "max-age=0, no-cache, no-store, must-revalidate, proxy-revalidate");
-        response.set_header("Access-Control-Allow-Credentials", "true");
+    _create_token_cookie(stream, token) {
+        stream.set_header("Cache-Control", "max-age=0, no-cache, no-store, must-revalidate, proxy-revalidate");
+        stream.set_header("Access-Control-Allow-Credentials", "true");
         let expires = new Date(new Date().getTime() + this.server.token_expiration * 1000);
         if (typeof token === "object") {
             token = token.token;
         }
-        response.set_cookie(`T=${token}; Max-Age=86400; Path=/; Expires=${expires.toUTCString()}; SameSite=None; ${this.server.https === undefined ? "" : "Secure"}; HttpOnly;`);
+        stream.set_cookie(`T=${token}; Max-Age=86400; Path=/; Expires=${expires.toUTCString()}; SameSite=None; ${this.server.https === undefined ? "" : "Secure"}; HttpOnly;`);
     }
     
     // Create user headers.
     //  - Should be called when a user is authenticated.
-    async _create_user_cookie(response, uid) {
+    async _create_user_cookie(stream, uid) {
         const secure = this.server.https === undefined ? "" : "Secure";
         if (typeof uid === "string") {
-            response.set_cookie(`UserID=${uid}; Path=/; SameSite=None; ${secure};`);
+            stream.set_cookie(`UserID=${uid}; Path=/; SameSite=None; ${secure};`);
             const is_activated = this.server.enable_account_activation ? await this.is_activated(uid) : true;
-            response.set_cookie(`UserActivated=${is_activated}; Path=/; SameSite=None; ${secure};`);
+            stream.set_cookie(`UserActivated=${is_activated}; Path=/; SameSite=None; ${secure};`);
         } else {
-            response.set_cookie(`UserID=-1; Path=/; SameSite=None; ${secure};`);
+            stream.set_cookie(`UserID=-1; Path=/; SameSite=None; ${secure};`);
             const is_activated = this.server.enable_account_activation ? false : true;
-            response.set_cookie(`UserActivated=${is_activated}; Path=/; SameSite=None; ${secure};`);
+            stream.set_cookie(`UserActivated=${is_activated}; Path=/; SameSite=None; ${secure};`);
         }
     }
     
     // Create user headers.
     //  - Should be called when a user has just signed in, signed up or changed their account.
-    async _create_detailed_user_cookie(response, uid) {
+    async _create_detailed_user_cookie(stream, uid) {
         const secure = this.server.https === undefined ? "" : "Secure";
         const user = await this.get(uid);
-        response.set_cookie(`UserName=${user.username}; Path=/; SameSite=None; ${secure};`);
-        response.set_cookie(`UserFirstName=${user.first_name}; Path=/; SameSite=None; ${secure};`);
-        response.set_cookie(`UserLastName=${user.last_name}; Path=/; SameSite=None; ${secure};`);
-        response.set_cookie(`UserEmail=${user.email}; Path=/; SameSite=None; ${secure};`);
+        stream.set_cookie(`UserName=${user.username}; Path=/; SameSite=None; ${secure};`);
+        stream.set_cookie(`UserFirstName=${user.first_name}; Path=/; SameSite=None; ${secure};`);
+        stream.set_cookie(`UserLastName=${user.last_name}; Path=/; SameSite=None; ${secure};`);
+        stream.set_cookie(`UserEmail=${user.email}; Path=/; SameSite=None; ${secure};`);
     }
     
     // Reset all default cookies.
     // - Should be called when a user signs out.
-    _reset_cookies(response) {
+    _reset_cookies(stream) {
         const secure = this.server.https === undefined ? "" : "Secure";
-        response.set_cookie(`T=; Path=/; SameSite=None; ${secure}; HttpOnly;`);
-        response.set_cookie(`UserID=-1; Path=/; SameSite=None; ${secure};`);
-        response.set_cookie(`UserActivated=false; Path=/; SameSite=None; ${secure};`);
-        // response.set_cookie(`2FAUserID=-1; Path=/; SameSite=None; ${secure};`);
-        response.set_cookie(`UserName=; Path=/; SameSite=None; ${secure};`);
-        response.set_cookie(`UserFirstName=; Path=/; SameSite=None; ${secure};`);
-        response.set_cookie(`UserLastName=; Path=/; SameSite=None; ${secure};`);
-        response.set_cookie(`UserEmail=; Path=/; SameSite=None; ${secure};`);
+        stream.set_cookie(`T=; Path=/; SameSite=None; ${secure}; HttpOnly;`);
+        stream.set_cookie(`UserID=-1; Path=/; SameSite=None; ${secure};`);
+        stream.set_cookie(`UserActivated=false; Path=/; SameSite=None; ${secure};`);
+        // stream.set_cookie(`2FAUserID=-1; Path=/; SameSite=None; ${secure};`);
+        stream.set_cookie(`UserName=; Path=/; SameSite=None; ${secure};`);
+        stream.set_cookie(`UserFirstName=; Path=/; SameSite=None; ${secure};`);
+        stream.set_cookie(`UserLastName=; Path=/; SameSite=None; ${secure};`);
+        stream.set_cookie(`UserEmail=; Path=/; SameSite=None; ${secure};`);
     }
 
     // ---------------------------------------------------------
@@ -331,24 +331,23 @@ class Users {
                 method: "GET",
                 endpoint: "/vweb/auth/2fa",
                 content_type: "application/json",
-                rate_limit: 100,
-                rate_limit_duration: 60,
+                rate_limit: "global",
                 params: {
                     email: "string",
                 },
-                callback: async (request, response, params) => {
+                callback: async (stream, params) => {
                     
                     // Get uid.
                     let uid;
                     if ((uid = await this.get_uid_by_email(params.email)) == null) {
-                        return response.success({
+                        return stream.success({
                             data: {message: "A 2FA code was sent if the specified email exists."},
                         });
                     }
                     
                     // Send.
-                    await this.send_2fa({uid:uid, request:request});
-                    return response.success({
+                    await this.send_2fa({uid:uid, stream});
+                    return stream.success({
                         data: {message: "A 2FA code was sent if the specified email exists."},
                     });
                     
@@ -360,36 +359,38 @@ class Users {
                 method: "POST",
                 endpoint: "/vweb/auth/signin",
                 content_type: "application/json",
-                rate_limit: 100,
-                rate_limit_duration: 60,
-                callback: async (request, response) => {
+                rate_limit: {
+                    limit: 10,
+                    interval: 60,
+                    group: "vweb.auth"
+                },
+                callback: async (stream) => {
 
                     // Get params.
                     let email, email_err, username, username_err, password, uid, code;
                     try {
-                        email = request.param("email")
+                        email = stream.param("email")
                     } catch (err) {
                         email_err = err;
                     }
                     try {
-                        username = request.param("username")
+                        username = stream.param("username")
                     } catch (err) {
                         username_err = err;
                     }
                     if (email_err && username_err) {
-                        return response.error({status: Status.bad_request, data: {error: email_err.message}});
+                        return stream.error({status: Status.bad_request, data: {error: email_err.message}});
                     }
                     try {
-                        password = request.param("password")
+                        password = stream.param("password")
                     } catch (err) {
-                        return response.error({status: Status.bad_request, data: {error: err.message}});
+                        return stream.error({status: Status.bad_request, data: {error: err.message}});
                     }
                     
                     // Get uid.
                     if (email) {
                         if ((uid = await this.get_uid_by_email(email)) == null) {
-                            console.log("NO EMAIL")
-                            return response.error({
+                            return stream.error({
                                 status: Status.unauthorized,
                                 data: {
                                     error: "Unauthorized.",
@@ -402,8 +403,7 @@ class Users {
                         }
                     } else {
                         if ((uid = await this.get_uid(username)) == null) {
-                            console.log("NO USERNAME")
-                            return response.error({
+                            return stream.error({
                                 status: Status.unauthorized,
                                 data: {
                                     error: "Unauthorized.",
@@ -415,7 +415,6 @@ class Users {
                             });
                         }
                     }
-                    console.log("VERIFY")
                     
                     // Verify password.
                     if (await this.verify_password(uid, password)) {
@@ -425,10 +424,21 @@ class Users {
 
                             // Get 2FA.
                             try {
-                                code = request.param("code")
+                                code = stream.param("code")
                             } catch (err) {
-                                await this.send_2fa({uid:uid, request:request});
-                                return response.send({
+
+                                // Send 2fa and add to avg time tracking.
+                                const start_time = Date.now();
+                                await this.send_2fa({uid:uid, stream});
+
+                                // Add to avg time tracking.
+                                if (this.avg_send_2fa_time.length >= 10000) {
+                                    this.avg_send_2fa_time.shift();
+                                }
+                                this.avg_send_2fa_time.push(Date.now() - start_time);
+
+                                // Send error.
+                                return stream.send({
                                     status: Status.two_factor_auth_required,
                                     data: {error: "2FA required."}
                                 });
@@ -437,7 +447,7 @@ class Users {
                             // Verify 2FA.
                             const err = await this.verify_2fa(uid, code);
                             if (err) {
-                                return response.send({
+                                return stream.send({
                                     status: Status.unauthorized,
                                     data: {
                                         error: "Invalid 2FA code.",
@@ -450,11 +460,21 @@ class Users {
                         }
                         
                         // Sign in.
-                        return await this._sign_in_response(response, uid);
+                        return await this._sign_in_response(stream, uid);
+                    }
+
+                    // Wait for the same time as it would time on avg to send a mail.
+                    if (this.avg_send_2fa_time.length >= 10) {
+                        const sorted = [...this.avg_send_2fa_time].sort((a, b) => a - b);
+                        const mid = Math.floor(sorted.length / 2);
+                        if (sorted.length % 2 === 0) {
+                            return (sorted[mid - 1] + sorted[mid]) / 2;
+                        }
+                        await new Promise(resolve => setTimeout(resolve, sorted[mid]))
                     }
 
                     // Unauthorized.
-                    return response.send({
+                    return stream.send({
                         status: Status.unauthorized,
                         data: {
                             error: "Unauthorized.",
@@ -473,18 +493,17 @@ class Users {
                 endpoint: "/vweb/auth/signout",
                 content_type: "application/json",
                 authenticated: true,
-                rate_limit: 100,
-                rate_limit_duration: 60,
-                callback: async (request, response) => {
+                rate_limit: "global",
+                callback: async (stream) => {
                     
                     // Delete token.
-                    await this._deactivate_token(request.uid);
+                    await this._deactivate_token(stream.uid);
                     
                     // Create headers.
-                    this._reset_cookies(response);
+                    this._reset_cookies(stream);
                     
                     // Response.
-                    return response.success({
+                    return stream.success({
                         data: {message: "Successfully signed out."},
                     })
                 }
@@ -495,8 +514,7 @@ class Users {
                 method: "POST",
                 endpoint: "/vweb/auth/signup",
                 content_type: "application/json",
-                rate_limit: 100,
-                rate_limit_duration: 60,
+                rate_limit: "global",
                 params: {
                     username: "string",
                     first_name: "string",
@@ -504,14 +522,14 @@ class Users {
                     email: "string",
                     password: "string",
                     verify_password: "string",
-                    phone_number: {type: "string", default: ""},
+                    phone_number: {type: "string", required: false},
                 },
-                callback: async (request, response, params) => {
+                callback: async (stream, params) => {
                     
                     // Verify password.
                     const {error, invalid_fields} = this._verify_new_pass(params.password, params.verify_password);
                     if (error) {
-                        return response.error({
+                        return stream.error({
                             status: Status.bad_request,
                             data: {
                                 error: error,
@@ -525,7 +543,7 @@ class Users {
                     try {
                         uid = await this.create(params);
                     } catch (err) {
-                        return response.error({status: Status.bad_request, data: {
+                        return stream.error({status: Status.bad_request, data: {
                             error: err.message,
                             invalid_fields: err.invalid_fields || {},
                         }});
@@ -533,11 +551,11 @@ class Users {
                     
                     // Send 2fa code for activation.
                     if (this.server.enable_account_activation) {
-                        await this.send_2fa({uid:uid, request:request});
+                        await this.send_2fa({uid:uid, stream});
                     }
                     
                     // Sign in.
-                    return await this._sign_in_response(response, uid);
+                    return await this._sign_in_response(stream, uid);
                     
                 }
             },
@@ -547,19 +565,18 @@ class Users {
                 method: "POST",
                 endpoint: "/vweb/auth/activate",
                 content_type: "application/json",
-                rate_limit: 100,
-                rate_limit_duration: 60,
+                rate_limit: "global",
                 params: {
                     "code": "string",
                 },
-                callback: async (request, response, params) => {
+                callback: async (stream, params) => {
                     
                     // Vars.
-                    let uid = request.uid;
+                    let uid = stream.uid;
                     
                     // Get uid by cookie.
                     if (uid == null) {
-                        uid = request.cookies["UserID"].value;
+                        uid = stream.cookies["UserID"].value;
                         if (uid === "null" || value === "-1") {
                             uid = null;
                         }
@@ -567,13 +584,13 @@ class Users {
                     
                     // Check uid.
                     if (uid == null) {
-                        return response.error({status: Status.forbidden, data: {error: "Permission denied."}});
+                        return stream.error({status: Status.forbidden, data: {error: "Permission denied."}});
                     }
 
                     // Verify.
                     const err = await this.verify_2fa(uid, params.code);
                     if (err) {
-                        return response.error({status: Status.forbidden, data: {
+                        return stream.error({status: Status.forbidden, data: {
                             error: "Permission denied.",
                             invalid_fields: {
                                 "code": err,
@@ -586,8 +603,8 @@ class Users {
                     await this.set_activated(uid, true);
                     
                     // Response.
-                    await this._create_user_cookie(response, uid);
-                    return response.success({data: {message: "Successfully verified the 2FA code."}});
+                    await this._create_user_cookie(stream, uid);
+                    return stream.success({data: {message: "Successfully verified the 2FA code."}});
                     
                 }
             },
@@ -597,20 +614,19 @@ class Users {
                 method: "POST",
                 endpoint: "/vweb/auth/forgot_password",
                 content_type: "application/json",
-                rate_limit: 10,
-                rate_limit_duration: 60,
+                rate_limit: "global",
                 params: {
                     email: "string",
                     code: "string",
                     password: "string",
                     verify_password: "string",
                 },
-                callback: async (request, response, params) => {
+                callback: async (stream, params) => {
                     
                     // Verify password.
                     const {error, invalid_fields} = this._verify_new_pass(params.password, params.verify_password);
                     if (error) {
-                        return response.error({
+                        return stream.error({
                             status: Status.bad_request,
                             data: {
                                 error: error,
@@ -622,13 +638,13 @@ class Users {
                     // Get uid.
                     let uid;
                     if ((uid = await this.get_uid_by_email(params.email)) == null) {
-                        return response.error({status: Status.forbidden, data: {error: "Invalid email."},});
+                        return stream.error({status: Status.forbidden, data: {error: "Invalid email."},});
                     }
                     
                     // Verify 2fa.
                     const err = await this.verify_2fa(uid, params.code);
                     if (err) {
-                        return response.error({status: Status.forbidden, data: {
+                        return stream.error({status: Status.forbidden, data: {
                             error: "Invalid 2FA code.",
                             invalid_fields: {
                                 "code": "Invalid code"
@@ -640,7 +656,7 @@ class Users {
                     await this.set_password(uid, params.password);
                     
                     // Sign in.
-                    return await this._sign_in_response(response, uid);
+                    return await this._sign_in_response(stream, uid);
                 }
             },
         )
@@ -656,14 +672,13 @@ class Users {
                 endpoint: "/vweb/user",
                 content_type: "application/json",
                 authenticated: true,
-                rate_limit: 100,
-                rate_limit_duration: 60,
+                rate_limit: "global",
                 params: {
                     detailed: {type: "boolean", default: false},
                 },
-                callback: async (request, response, params) => {
-                    const user = await this.get(request.uid, params.detailed);
-                    return response.success({data: user});
+                callback: async (stream, params) => {
+                    const user = await this.get(stream.uid, params.detailed);
+                    return stream.success({data: user});
                 }
             },
 
@@ -672,12 +687,11 @@ class Users {
                 method: "POST",
                 endpoint: "/vweb/user",
                 authenticated: true,
-                rate_limit: 100,
-                rate_limit_duration: 60,
-                callback: async (request, response) => {
-                    await this.set(request.uid, request.params);
-                    await this._create_detailed_user_cookie(response, request.uid);
-                    return response.success({data: {message: "Successfully updated your account."}});
+                rate_limit: "global",
+                callback: async (stream) => {
+                    await this.set(stream.uid, stream.params);
+                    await this._create_detailed_user_cookie(stream, stream.uid);
+                    return stream.success({data: {message: "Successfully updated your account."}});
                 }
             },
         
@@ -686,17 +700,16 @@ class Users {
                 method: "POST",
                 endpoint: "/vweb/user/change_password",
                 authenticated: true,
-                rate_limit: 100,
-                rate_limit_duration: 60,
+                rate_limit: "global",
                 params: {
                     current_password: "string",
                     password: "string",
                     verify_password: "string",
                 },
-                callback: async (request, response, params) => {
+                callback: async (stream, params) => {
                     
                     // Verify old password.
-                    if (await this.verify_password(request.uid, params.current_password) !== true) {
+                    if (await this.verify_password(stream.uid, params.current_password) !== true) {
                         return response.error({
                             status: Status.unauthorized,
                             data: {
@@ -711,7 +724,7 @@ class Users {
                     // Verify new password.
                     const {error, invalid_fields} = this._verify_new_pass(params.password, params.verify_password);
                     if (error) {
-                        return response.error({
+                        return stream.error({
                             status: Status.bad_request,
                             data: {
                                 error: error,
@@ -721,10 +734,10 @@ class Users {
                     }
                     
                     // Set password.
-                    await this.set_password(request.uid, params.password);
+                    await this.set_password(stream.uid, params.password);
                     
                     // Success.
-                    return response.success({
+                    return stream.success({
                         status: Status.success,
                         data: {message: "Successfully updated your password."},
                     });
@@ -736,18 +749,17 @@ class Users {
                 method: "DELETE",
                 endpoint: "/vweb/user",
                 authenticated: true,
-                rate_limit: 100,
-                rate_limit_duration: 60,
-                callback: async (request, response) => {
+                rate_limit: "global",
+                callback: async (stream) => {
                     
                     // Delete.
-                    await this.delete(request.uid);
+                    await this.delete(stream.uid);
 
                     // Reset cookies.
-                    this._reset_cookies(response);
+                    this._reset_cookies(stream);
                     
                     // Success.
-                    return response.success({
+                    return stream.success({
                         status: Status.success,
                         data: {message: "Successfully deleted your account."},
                     });
@@ -759,13 +771,12 @@ class Users {
                 method: "POST",
                 endpoint: "/vweb/user/api_key",
                 authenticated: true,
-                rate_limit: 100,
-                rate_limit_duration: 60,
-                callback: async (request, response) => {
-                    return response.success({
+                rate_limit: "global",
+                callback: async (stream) => {
+                    return stream.success({
                         data: {
                             "message": "Successfully generated an API key.",
-                            "api_key": await this.generate_api_key(request.uid),
+                            "api_key": await this.generate_api_key(stream.uid),
                         }
                     });
                 }
@@ -776,11 +787,10 @@ class Users {
                 method: "DELETE",
                 endpoint: "/vweb/user/api_key",
                 authenticated: true,
-                rate_limit: 100,
-                rate_limit_duration: 60,
-                callback: async (request, response) => {
-                    await this.revoke_api_key(request.uid);
-                    return response.send({
+                rate_limit: "global",
+                callback: async (stream) => {
+                    await this.revoke_api_key(stream.uid);
+                    return stream.send({
                         status: Status.success,
                         data: {message: "Successfully revoked your API key."},
                     });
@@ -792,16 +802,15 @@ class Users {
                 method: "GET",
                 endpoint: "/vweb/user/data",
                 authenticated: true,
-                rate_limit: 100,
-                rate_limit_duration: 60,
+                rate_limit: "global",
                 params: {
                     path: "string",
                     default: {type: "string", default: null},
                 },
-                callback: async (request, response, params) => {
-                    return response.send({
+                callback: async (stream, params) => {
+                    return stream.send({
                         status: Status.success,
-                        data: await this.public.load(request.uid, params.path, params.default)
+                        data: await this.public.load(stream.uid, params.path, {default: params.default})
                     });
                 }
             },
@@ -811,15 +820,14 @@ class Users {
                 method: "POST",
                 endpoint: "/vweb/user/data",
                 authenticated: true,
-                rate_limit: 100,
-                rate_limit_duration: 60,
+                rate_limit: "global",
                 params: {
                     path: "string",
                     data: {type: undefined},
                 },
-                callback: async (request, response, params) => {
-                    await this.public.save(request.uid, params.path, params.data);
-                    return response.send({
+                callback: async (stream, params) => {
+                    await this.public.save(stream.uid, params.path, params.data);
+                    return stream.send({
                         status: Status.success,
                         data: {message: "Successfully saved."},
                     });
@@ -831,16 +839,15 @@ class Users {
                 method: "DELETE",
                 endpoint: "/vweb/user/data",
                 authenticated: true,
-                rate_limit: 100,
-                rate_limit_duration: 60,
+                rate_limit: "global",
                 params: {
                     path: "string",
                     data: {type: undefined},
                     recursive: {type: "string", default: false},
                 },
-                callback: async (request, response, params) => {
-                    await this.public.delete(request.uid, params.path, params.recursive);
-                    return response.send({
+                callback: async (stream, params) => {
+                    await this.public.delete(stream.uid, params.path, params.recursive);
+                    return stream.send({
                         status: Status.success,
                         data: {message: "Successfully deleted."},
                     });
@@ -852,16 +859,15 @@ class Users {
                 method: "GET",
                 endpoint: "/vweb/user/data/protected",
                 authenticated: true,
-                rate_limit: 100,
-                rate_limit_duration: 60,
+                rate_limit: "global",
                 params: {
                     path: "string",
                     default: {type: "string", default: null},
                 },
-                callback: async (request, response, params) => {
-                    return response.send({
+                callback: async (stream, params) => {
+                    return stream.send({
                         status: Status.success,
-                        data: await this.protected.load(request.uid, params.path, params.default)
+                        data: await this.protected.load(stream.uid, params.path, {default: params.default})
                     });
                 }
             },
@@ -878,13 +884,12 @@ class Users {
                 endpoint: "/vweb/support/pin",
                 content_type: "application/json",
                 authenticated: true,
-                rate_limit: 100,
-                rate_limit_duration: 60,
-                callback: async (request, response) => {
+                rate_limit: "global",
+                callback: async (stream) => {
 
                     // Sign in.
-                    const pin = await this.get_support_pin(request.uid);
-                    return response.success({data: {
+                    const pin = await this.get_support_pin(stream.uid);
+                    return stream.success({data: {
                         message: "Successfully retrieved your support PIN.",
                         pin: pin,
                     }});
@@ -897,25 +902,24 @@ class Users {
                 method: "POST",
                 endpoint: "/vweb/support/submit",
                 content_type: "application/json",
-                rate_limit: 100,
-                rate_limit_duration: 60,
-                callback: async (request, response) => {
+                rate_limit: "global",
+                callback: async (stream) => {
                     
                     // Get params.
-                    let params = request.params;
+                    let params = stream.params;
 
                     // When unauthenticated get contact params.
                     let user = null, email, first_name, last_name;
-                    if (request.uid == null) {
+                    if (stream.uid == null) {
                         try {
-                            email = request.param("email");
-                            first_name = request.param("first_name");
-                            last_name = request.param("last_name");
+                            email = stream.param("email");
+                            first_name = stream.param("first_name");
+                            last_name = stream.param("last_name");
                         } catch (err) {
-                            return response.error({status: Status.bad_request, data: {error: err.message}});
+                            return stream.error({status: Status.bad_request, data: {error: err.message}});
                         }
                     } else {
-                        user = await this.get(request.uid);
+                        user = await this.get(stream.uid);
                         email = user.email;
                         first_name = user.first_name;
                         last_name = user.last_name;
@@ -933,14 +937,14 @@ class Users {
                         delete params.type;
                     }
                     if (user) {
-                        body += `<span style='font-weight: bold'>UID</span>: ${request.uid}<br>`;
+                        body += `<span style='font-weight: bold'>UID</span>: ${stream.uid}<br>`;
                         body += `<span style='font-weight: bold'>User</span>: ${user.username}<br>`;
                     }
                     body += `<span style='font-weight: bold'>Email</span>: ${email}<br>`;
                     body += `<span style='font-weight: bold'>First Name</span>: ${first_name}<br>`;
                     body += `<span style='font-weight: bold'>Last Name</span>: ${last_name}<br>`;
-                    if (request.uid != null) {
-                        const support_pin = await this.get_support_pin(request.uid);
+                    if (stream.uid != null) {
+                        const support_pin = await this.get_support_pin(stream.uid);
                         body += `<span style='font-weight: bold'>Support PIN</span>: ${support_pin} <span style='color: green'>verified</span><br>`;
                     } else if (params.support_pin) {
                         body += `<span style='font-weight: bold'>Support PIN</span>: ${params.support_pin} <span style='color: red'>not yet verified</span><br>`;
@@ -984,7 +988,7 @@ class Users {
                     })
 
                     // Sign in.
-                    return response.success({data: {message: "Successfully sent your request."}});
+                    return stream.success({data: {message: "Successfully sent your request."}});
                 }
             },
         )
@@ -1126,7 +1130,8 @@ class Users {
         password,
         phone_number = "",
     }) {
-
+        // @todo verify params on all funcs.
+        
         // Check if username & email already exist.
         if (await this.username_exists(username)) {
             const e = new Error(`Username "${username}" is already registered.`);
@@ -1156,7 +1161,6 @@ class Users {
             support_pin: this._generate_code(8),
             is_activated: !this.server.enable_account_activation,
         })
-        console.log("Saved")
 
         // Response.
         return uid;
@@ -1182,6 +1186,10 @@ class Users {
         await this.private.delete_all(uid);
         if (this.server.payments !== undefined) {
             await this.server.payments._delete_user(uid);
+        }
+        const res = this.server.on_delete_user({uid});
+        if (res instanceof Promise) {
+            await res;
         }
     }
 
@@ -1344,7 +1352,7 @@ class Users {
         if (data.email != null) {
             delete data.email; // since this may not be overwritten using this func.
         }
-        data = await this._users_db.update(uid, "user", data);
+        data = await this._users_db.save(uid, "user", data);
         if (data == null) { throw new Error(`Unable to find a user by uid "${uid}".`); }
         return data;
     }
@@ -1854,8 +1862,8 @@ class Users {
      *      @name: uid
      *      @cached: Users:uid:param
      *  @parameter:
-     *      @name: request
-     *      @description: The request object from the client request.
+     *      @name: stream
+     *      @description: The stream object from the client request.
      *      @type: object
      *  @parameter:
      *      @name: expiration
@@ -1863,11 +1871,11 @@ class Users {
      *      @type: number
      *  @usage:
      *      ...
-     *      await server.users.send_2fa({uid: 0, request: request});
+     *      await server.users.send_2fa({uid: 0, stream});
      */
     async send_2fa({
         uid, 
-        request,
+        stream,
         expiration = 300,
         _device = null,
     }) {
@@ -1881,31 +1889,38 @@ class Users {
         // Get device.
         let device;
         if (_device === null) {
-            device = request.headers["user-agent"];
+            device = stream.headers["user-agent"];
         }
         
         // Replace body.
         if (this.server.on_2fa_mail === undefined) {
             throw Error("Define server callback \"Server.on_2fa_mail\" to generate the HTML mail body.");
         }
-        let body = this.server.on_2fa_mail({
+        let mail = this.server.on_2fa_mail({
             code: code,
             username: user.username,
             email: user.email,
             date: new Date().toUTCString(),
-            ip: request.ip,
+            ip: stream.ip,
             device: device ? device : "Unknown",
         });
-        if (body instanceof Mail.MailElement) {
-            body = body.html();
+        let body = mail, subject = null
+        if (mail instanceof Mail.MailElement) {
+            body = mail.html();
+            subject = mail.subject()
         }
         
         // Send mail.
         return await this.server.send_mail({
             recipients: [user.email],
-            subject: "Two Factor Authentication Code",
-            body: body,
+            subject: subject ?? "Two Factor Authentication Code",
+            body,
         });   
+    }
+
+    // List all users.
+    async list() {
+        return await this._users_db.list_query({_path: "user"});
     }
 }
 // ---------------------------------------------------------

@@ -6,12 +6,14 @@
 // ---------------------------------------------------------
 // Libraries.
 
-const https = require("https");
+// const https = require("https");
 const http = require("http");
+const http2 = require("http2");
 const libcrypto = require("crypto");
 const libnodemailer = require('nodemailer');
 const libcluster = require('cluster');
 const libos = require('os');
+const CleanCSS = require('clean-css');
 
 // ---------------------------------------------------------
 // Imports.
@@ -23,13 +25,18 @@ const Mail = require('./plugins/mail.js');
 const Status = require("./status.js");
 const Mutex = require("./mutex.js");
 const Endpoint = require("./endpoint.js");
-const Response = require("./response.js");
-const Request = require("./request.js");
+const ImageEndpoint = require("./image_endpoint.js");
+const Stream = require("./stream.js");
+// const Response = require("./response.js");
+// const Request = require("./request.js");
 const Database = require("./database.js");
 const FileWatcher = require("./file_watcher.js");
 const Users = require("./users.js");
-const Adyen = require("./payments/adyen.js");
+// const Adyen = require("./payments/adyen.js");
 const Paddle = require("./payments/paddle.js");
+const {RateLimits, RateLimitServer, RateLimitClient} = require("./rate_limit.js");
+const Blacklist = require("./blacklist.js");
+const logger = require("./logger.js");
 const {FrontendError} = utils;
 
 // ---------------------------------------------------------
@@ -42,6 +49,7 @@ const {FrontendError} = utils;
 
 /*  @docs:
     @nav: Backend
+    @chapter: Server
     @title: Server
     @description: 
         The backend server class.
@@ -62,17 +70,20 @@ const {FrontendError} = utils;
         @type: number
     @parameter:
         @name: tls
-        @description: The tls settings to enable HTTPS.
+        @description: The tls settings for HTTPS.
         @type: object
-        @required: false
         @attribute:
-            @name: certificate
+            @name: cert
             @description: The path to the certificate.
             @type: string
         @attribute:
-            @name: private_key
+            @name: key
             @description: The path to the private key file.
             @type: string
+        @attribute:
+            @name: ca
+            @description: The path to the ca bundle file.
+            @type: null, string
         @attribute:
             @name: passphrase
             @description: The passphrase of the private key.
@@ -83,16 +94,52 @@ const {FrontendError} = utils;
         @type: string
         @required: true
     @parameter:
-        @name: statics
-        @description: Array with path's to static directories.
-        @type: array[string]
+        @name: source
+        @description: The path to the source directory of your website. This may either be the source directory of your code, or the source directory where files will be stored for your website.
+        @type: string
         @required: true
+    @parameter:
+        @name: is_primary
+        @description: Used to indicate if the current server is the primary node.
+        @type: string
+        @required: true
+    @parameter:
+        @name: statics
+        @description: Array with paths to static directories or static directory objects.
+        @type: array[string, StaticDirectory]
+        @required: true
+        @attributes_type: StaticDirectory
+        @attr:
+            @name: path
+            @descr: The path to the static directory or file.
+            @required: true
+        @attr:
+            @name: endpoint
+            @descr: The base endpoint of the static directory, by default the path's name will be used.
+            @required: false
+        @attr:
+            @name: cache
+            @descr: Enable caching for the static endpoints, this value will be used for parameter `Endpoint.cache`.
+            @default: true
+            @required: false
+        @attr:
+            @name: endpoints_cache
+            @descr: This attribute can be used to define a specific cache policy per endpoint from this static directory. Must be formatted as `{<endpoint>: <cache>}`, the cache value will be used for parameter `Endpoint.cache`.
+            @default: {}
+            @required: false
+        @attr:
+            @name: exclude
+            @descr: An array of paths to exlude. The array may contain regexes.
+            @default: {}
+            @required: false
     @parameter:
         @name: database
         @description:
             The mongodb database settings.
 
-            The parameter can be defined as a `string` type as the database uri, or as an object with parameters for the <type>Database</type> object.
+            The parameter can be defined as a `string` type as the database uri, or as an object with parameters for the <Type>Database</Type> object.
+
+            When parameter `Server.is_primary` is defined as `false`, the database should always be defined as the database uri `string`. Since the secondary node will connect with the primary node.
         @type: string, object
         @required: true
     @parameter:
@@ -166,6 +213,11 @@ const {FrontendError} = utils;
             @required: true
             @description: The country name of your company's address.
         @attribute:
+            @name: country_code
+            @type: string
+            @required: true
+            @description: The two-letter ISO country code of your company's location.
+        @attribute:
             @name: tax_id
             @type: string
             @required: true
@@ -188,7 +240,7 @@ const {FrontendError} = utils;
         @name: smtp
         @description:
             The smpt arguments object.
-            More information about the arguments can be found at the nodemailer <link https://nodemailer.com/smtp/>documentation<link>.
+            More information about the arguments can be found at the nodemailer <Link https://nodemailer.com/smtp/>documentation</Link>.
         @type: object
         @attribute:
             @name: sender
@@ -208,7 +260,7 @@ const {FrontendError} = utils;
             @name: secure
             @description: Enable secure options.
             @type: boolean
-        @parameter:
+        @attr:
             @name: auth
             @description: The authentication settings.
             @type: object
@@ -223,15 +275,12 @@ const {FrontendError} = utils;
     @parameter:
         @name: payments
         @type: object
-        @description: The arguments for the payment class. The `type` attribute is used to indicate the payment provider, the other attributes are arguments for the payment class.
+        @description: The arguments for the payment class. The `type` attribute is used to indicate the payment provider, the other attributes are arguments for the payment class <Link #Paddle>Paddle</Link>.
         @attribute:
             @name: type
             @type: string
             @description: The payment provider name.
             @required: true
-            @enum:
-                @value: adyen
-                @desc: Payment provider Adyen.
             @enum:
                 @value: paddle
                 @desc: Payment provider Paddle.
@@ -241,8 +290,8 @@ const {FrontendError} = utils;
         @type: string
     @parameter:
         @name: file_watcher
-        @description: The file watcher arguments, define to enable file watching. The parameter may either be an FileWatcher object, an object with arguments or a string for the `source` argument. The process argument `--no-file-watcher` can always be used to temporarily disable the file watcher.
-        @type: FileWatcher, object, string
+        @description: The file watcher arguments, define to enable file watching. The parameter may either be an FileWatcher object, an object with arguments. The process argument `--no-file-watcher` or environment variable `VWEB_NO_FILE_WATCHER="1"` can always be used to (temporarily) disable the file watcher.
+        @type: FileWatcher, object
     @parameter:
         @name: mail_style
         @description: The mail settings to customize automatically generated mails.
@@ -259,6 +308,142 @@ const {FrontendError} = utils;
         @name: offline
         @description: Boolean indicating if the development server is being run offline.
         @type: boolean
+    @parameter:
+        @name: multiprocessing
+        @description: Enable multiprocessing when in production mode.
+        @type: boolean
+        @def: true
+    @parameter:
+        @name: processes
+        @description: The number of processes when multiprocessing is enabled. By default the number of CPU's will be used for the amount of processes.
+        @type: null, number
+        @def: null
+    @parameter:
+        @name: rate_limit
+        @description:
+            The rate limit server and client settings. Rate limiting works with a centralizer websocket server and secondary clients.
+        @type: object
+        @required: false
+        @attribute:
+            @name: server
+            @type: object, boolean
+            @description:
+                The server configuration.
+
+                By default the primary server instance will start the rate limit service.
+
+                However, when parameter `rate_limit.server` is `false`. All rate limit instances will use a client to connect to an already running rate limit instance. If so, you must manually set up this rate limt server.
+            @attribute:
+                @name: ip
+                @description:
+                    The ip to which the rate limiting server will bind. By default the rate limit server will run on localhost only.
+                @type: null, string
+            @attribute:
+                @name: port
+                @description:
+                    The port to which the rate limiting server will bind. The default port is `51234`.
+                @type: number
+                @def: 51234
+            @attribute:
+                @name: https
+                @description:
+                    To enable https on the server you must define a `https.createServer` configuration. Otherwise, the rate limit server will run on http.
+                @type: null, object
+        @attribute:
+            @name: client
+            @description:
+                The client configuration. 
+            @attribute:
+                @name: ip
+                @description: 
+                    The ip address of the primary node with the rate limiting server. The primary node is indicated by the `Server.is_primary` parameter.
+
+                    When `Server.is_primary` is true, the rate limiting server will listen on the private ip address of your current machine.
+                @type: null, string
+            @attribute:
+                @name: port
+                @description:
+                    The port of the primary node with the rate limiting server. The default port is `51234`.
+                @type: number
+                @def: 51234
+            @attribute:
+                @name: url
+                @description:
+                    The full websocket url of the server. If defined this takes precedence over parameters `ip` and `port`.
+
+                    This can be useful when `rate_limit.server` is `false`.
+                @type: null, string
+    @parameter:
+        @name: keys
+        @description:
+            The array with names of crypto keys. The keys will be generated and stored in the database when they do not exist. The keys will be accessable as `Server.keys.$name`.
+
+            The array items may be a string representing the name of the key, or an object containing the name and the length of the key.
+        @type: array[string], array[object]
+        @required: false
+        @attribute:
+            @name: name
+            @description: 
+                The name of the key.
+            @type: string
+        @attribute:
+            @name: length
+            @description:
+                The length of the key.
+            @type: number
+    @parameter:
+        @name: additional_sitemap_endpoints
+        @description:
+            An array with additional endpoints that will be added to the sitemap. By default all endpoints where attribute `view` is defined will be added the sitemap.
+        @type: array[string]
+    @parameter:
+        @name: daemon
+        @description:
+            The optional settings for the service daemons. The service daemons can be disabled by passing value `false` to parameter `daemon`. 
+
+            By default this settings will also partially be used for the database service daemon.
+        @type: object
+        @attr:
+            @name: user
+            @desc: The executing user of the service daemon.
+            @type: string
+        @attr:
+            @name: group
+            @desc: The executing group of the service daemon.
+            @type: string
+        @attr:
+            @name: args
+            @desc: The arguments for the start command.
+            @type: array[string]
+        @attr:
+            @name: env
+            @desc: The environment variables for the service daemon.
+            @type: object
+        @attr:
+            @name: description
+            @desc: The description of the service daemon.
+            @type: string
+        @attr:
+            @name: logs
+            @desc: The path to the log file.
+            @type: string
+        @attr:
+            @name: errors
+            @desc: The path to the error log file.
+            @type: string
+    @parameter:
+        @name: admin
+        @description:
+            Administrator settings used for protected administrator endpoints.
+        @type: object
+        @attr:
+            @name: password
+            @desc: The password used for administrator endpoints.
+            @type: string
+        @attr:
+            @name: ips
+            @desc: IP addresses used by the website administrator. These ip's will be used to create a whitelist for administrator endpoints.
+            @type: string[]
 
     @attribute:
         @name: users
@@ -269,7 +454,7 @@ const {FrontendError} = utils;
             @desc: 
                 The database collection for public data of users.
                 
-                More information about the collection's functions can be found at <type>UIDCollection</type>
+                More information about the collection's functions can be found at <Type>UIDCollection</Type>
             @warning: 
                 The authenticated user always has read and write access to all data inside the user's protected directory through the backend rest api. Any other users or unauthenticated users do not have access to this data.
         @attribute:
@@ -278,7 +463,7 @@ const {FrontendError} = utils;
             @desc: 
                 The database collection for public data of users.
                 
-                More information about the collection's functions can be found at <type>UIDCollection</type>
+                More information about the collection's functions can be found at <Type>UIDCollection</Type>
             @warning:
                 The authenticated user always has read access to all data inside the user's protected directory through the backend rest api. Any other users or unauthenticated users do not have access to this data.
         @attribute:
@@ -287,7 +472,7 @@ const {FrontendError} = utils;
             @desc: 
                 The database collection for public data of users.
                 
-                More information about the collection's functions can be found at <type>UIDCollection</type>
+                More information about the collection's functions can be found at <Type>UIDCollection</Type>
             @note:
                 The user has no read or write access to the private directory.
     @attribute:
@@ -296,7 +481,8 @@ const {FrontendError} = utils;
         @desc: 
             The database storage collection for the website's system backend data.
             
-            More information about the collection's functions can be found at <type>Collection</type>
+            More information about the collection's functions can be found at <Type>Collection</Type>
+
  */
 
 // @tdo implement 3D secure "requires_action" status for a refund and payment intent.
@@ -451,16 +637,18 @@ class Server {
         ".mpeg",
         ".flv",
     ];
-
+    
     // Constructor.
     constructor({
         ip = "127.0.0.1",
         port = 8000,
         domain = null,
-        statics = [],
+        is_primary = true,
+        source = null,
         database = "mongodb://localhost:27017/main",
+        statics = [],
         favicon = null,
-        company = null,
+        company = {},
         meta = new Meta(),
         tls = null,
         smtp = null,
@@ -477,28 +665,55 @@ class Server {
             button_bg: "#1F2F3D",
             divider_bg: "#706780",
         },
+        rate_limit = {
+            server: {
+                ip: null,
+                port: RateLimitServer.default_port,
+                https: null,
+            },
+            client: {
+                ip: null,
+                port: RateLimitServer.default_port,
+                url: null,
+            },
+        },
+        keys = [],
         payments = null,
         default_headers = null,
         google_tag = null,
         token_expiration = 86400,
         enable_2fa = false,
         enable_account_activation = true,
+        honey_pot_key = null,
         production = false,
-        file_watcher = null,
+        multiprocessing = true,
+        processes = null,
+        file_watcher = {},
         offline = false,
+        additional_sitemap_endpoints = [],
+        log_level = 0,
+        daemon = {},
+        admin = {
+            password: null,
+            ips: [],
+        },
     }) {
 
         // Verify args.
-        vlib.utils.verify_params({params: arguments[0], check_unknown: true, info: {
+        vlib.scheme.verify({object: arguments[0], check_unknown: true, scheme: {
             ip: "string",
             port: "number",
             domain: "string",
-            statics: "array",
-            database: {type: ["string", "object"]},
+            statics: {type: "array", default: []},
+            is_primary: {type: "boolean", default: true},
+            source: "string",
+            database: {type: ["string", "object", "boolean"], required: false},
             favicon: {type: "string", required: false},
+            honey_pot_key: {type: "string", default: null},
             company: {
                 type: "object",
-                attrs: {
+                default: {},
+                scheme: {
                     name: "string",
                     legal_name: "string",
                     street: "string",
@@ -507,6 +722,7 @@ class Server {
                     city: "string",
                     province: "string",
                     country: "string",
+                    country_code: "string",
                     tax_id: {type: "string", default: null},
                     icon: {type: "string", default: null},
                     stroke_icon: {type: "string", default: null},
@@ -514,18 +730,40 @@ class Server {
             },
             meta: {type: "object", required: false},
             tls: {
-                type: ["null", "object"],
+                type: ["object"],
                 required: false,
-                attrs: {
-                    certificate: "string",
-                    private_key: "string",
+                scheme: {
+                    cert: "string",
+                    key: "string",
+                    ca: {type: "string", default: null},
                     passphrase: {type: "string", default: null},
                 }
             },
+            rate_limit: {
+                type: "object",
+                default: {
+                    ip: null,
+                    port: RateLimitServer.default_port,
+                },
+                scheme: {
+                    server: {type: ["boolean", "object"], default: {}, scheme: {
+                        ip: {type: "string", default: null},
+                        port: {type: "number", default: RateLimitServer.default_port},
+                        https: {type: "object", default: null},
+                    }},
+                    server: {type: "object", default: {}, scheme: {
+                        ip: {type: "string", default: null},
+                        port: {type: "number", default: RateLimitServer.default_port},
+                        url: {type: "string", default: null},
+                    }},
+                },
+            },
+            keys: {type: "array", default: []},
             smtp: {type: ["null", "object"], required: false},
             mail_style: {
                 type: "object",
-                attrs: {
+                required: false,
+                scheme: {
                     font: {type: "string", default: '"Helvetica", sans-serif'},
                     title_fg: {type: "string", default: "#121B23"},
                     subtitle_fg: {type: "string", default: "#121B23"},
@@ -546,22 +784,62 @@ class Server {
             enable_2fa: {type: "boolean", required: false},
             enable_account_activation: {type: "boolean", required: false},
             production: {type: "boolean", required: false},
-            file_watcher: {type: ["null", "string", "object"], required: false},
-            offline: {type: "boolean", default: false}
+            multiprocessing: {type: "boolean", required: false, default: true},
+            processes: {type: "number", required: false, default: null},
+            file_watcher: {type: ["null", "boolean", "object"], required: false},
+            offline: {type: "boolean", default: false},
+            additional_sitemap_endpoints: {type: "array", default: []},
+            log_level: {type: "number", default: 0},
+            daemon: {type: ["object", "boolean"], default: {}},
+            admin: {type: "object", default: {}, attributes: {
+                ips: {type: "array", default: []},
+                password: {
+                    type: "string",
+                    verify: (param) => (param.length < 10 ? `Parameter "Server.admin.password" must have a length of at least 10 characters.` : null),
+                },
+            }},
         }});
 
         // Assign attributes directly.
         this.port = port;
         this.ip = ip;
+        this.is_primary = is_primary && libcluster.isMaster;
+        this.source = new vlib.Path(source);
         this.favicon = favicon;
         this.enable_2fa = enable_2fa;
         this.enable_account_activation = enable_account_activation;
         this.token_expiration = token_expiration;
         this.google_tag = google_tag;
         this.production = production;
+        this.multiprocessing = multiprocessing;
+        this.processes = processes == null ? libos.cpus().length : processes;
         this.company = company;
         this.mail_style = mail_style;
         this.offline = offline;
+        this.online = !offline;
+        this.honey_pot_key = honey_pot_key;
+        this._keys = keys;
+        this.additional_sitemap_endpoints = additional_sitemap_endpoints;
+        this.log_level = log_level;
+        this.tls = tls;
+        this.file_watcher = file_watcher;
+        this.admin = admin;
+
+        /* @performance */ this.performance = new vlib.Performance("Server performance");
+
+        // Assign objects to server so it is easy to access.
+        this.status = Status;
+        this.logger = logger;
+        this.rate_limits = RateLimits;
+
+        // Add global rate limit.
+        this.rate_limits.add({group: "global", interval: 60, limit: 120});
+
+        // Check source.
+        if (!this.source.exists()) {
+            throw Error(`Source directory "${this.source.str()}" does not exist.`);
+        }
+        this.source = this.source.abs();
 
         // Set domain.
         this.domain = domain.replace("https://","").replace("http://","");
@@ -570,26 +848,19 @@ class Server {
         }
 
         // Set full domain.
-        this.full_domain = `http${tls == null || tls.private_key === null ? "" : "s"}://${domain}`; // also required for Stripe.
+        this.full_domain = `http${tls == null || tls.key === null ? "" : "s"}://${domain}`; // also required for Stripe.
         while (this.full_domain.charAt(this.full_domain.length - 1) === "/") {
             this.full_domain = this.full_domain.substr(0, this.full_domain.length - 1);
         }
 
         // Set statics.
-        this.statics = [];
-        let export_static;
-        statics.iterate((path) => {
-            path = new vlib.Path(path).abs();
-            if (export_static === undefined && path.name() === "static") {
-                export_static = path;
-            }
-            if (this.statics.includes(path) === false) {
-                this.statics.push(path);
-            }
-        });
-        if (export_static === undefined) {
-            throw Error("The static directories must at least include one directory named \"static\".");
-        }
+        this.statics = statics;
+        
+        // Add the default static to statics.
+        this.statics.append({
+            path: `${__dirname}/../static/`,
+            endpoint: "/vweb_static",
+        })
 
         // Set meta.
         if (meta instanceof Meta === false) {
@@ -599,37 +870,44 @@ class Server {
             meta.favicon = this.full_domain + "/favicon.ico";
         }
         if (favicon != null && meta.image == null) {
-            meta.favicon = this.full_domain + "/favicon.ico";
+            meta.image = this.full_domain + "/favicon.ico";
+        } else if (meta.image != null && !meta.image.startsWith("http")) {
+            meta.image = this.full_domain + meta.image;
         }
         this.meta = meta;
 
         // Default headers.
+        const base_default_headers = {
+            "Vary": "Origin",
+            "Referrer-Policy": "same-origin",
+            "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+            "Access-Control-Allow-Origin": "*",
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+            'Access-Control-Allow-Credentials': 'true',
+            "X-XSS-Protection": "1; mode=block",
+            "X-Content-Type-Options": "frame-ancestors 'none'; nosniff;",
+            "X-Frame-Options": "DENY",
+            "Strict-Transport-Security": "max-age=31536000",
+        }
+        const default_csp = {
+            "default-src": "'self' https://*.google-analytics.com",
+            "img-src": `'self' http://${this.domain} https://${this.domain} https://*.google-analytics.com https://raw.githubusercontent.com/vandenberghinc/ `,
+            "script-src": "'self' 'unsafe-inline' https://ajax.googleapis.com https://www.googletagmanager.com https://googletagmanager.com https://*.google-analytics.com https://code.jquery.com https://cdn.jsdelivr.net/npm/@vandenberghinc/",
+            "style-src": "'self' 'unsafe-inline' https://cdn.jsdelivr.net/npm/@vandenberghinc/",
+        }
         if (default_headers === null) {
-            this.csp = {
-                "default-src": "'self' https://*.google-analytics.com",
-                "img-src": `'self' http://${this.domain} https://${this.domain} https://*.google-analytics.com https://raw.githubusercontent.com/vandenberghinc/ `,
-                "script-src": "'self' 'unsafe-inline' https://ajax.googleapis.com https://www.googletagmanager.com https://googletagmanager.com https://*.google-analytics.com https://code.jquery.com https://cdn.jsdelivr.net/npm/@vandenberghinc/",
-                "style-src": "'self' 'unsafe-inline' https://cdn.jsdelivr.net/npm/@vandenberghinc/",
-            }
-            this.default_headers = {
-                "Vary": "Origin",
-                "Referrer-Policy": "same-origin",
-                "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
-                "X-XSS-Protection": "1; mode=block",
-                "X-Content-Type-Options": "frame-ancestors 'none'; nosniff;",
-                "X-Frame-Options": "DENY",
-                "Strict-Transport-Security": "max-age=31536000",
-            }
+            this.csp = default_csp;
+            this.default_headers = {...base_default_headers};
         } else {
             if (default_headers["Content-Security-Policy"] != null && typeof default_headers["Content-Security-Policy"] !== "object") {
                 throw Error("The Content-Security-Policy of the default headers must be an object with values for each csp key, e.g. \"{'script-src': '...'}\".");
             }
-            this.csp = default_headers["Content-Security-Policy"] != null ? default_headers["Content-Security-Policy"] : {
-                "default-src": "'self' https://*.google-analytics.com",
-                "img-src": `'self' http://${this.domain} https://${this.domain} https://*.google-analytics.com https://raw.githubusercontent.com/vandenberghinc/ `,
-                "script-src": "'self' 'unsafe-inline' https://ajax.googleapis.com https://www.googletagmanager.com https://googletagmanager.com https://*.google-analytics.com https://code.jquery.com https://cdn.jsdelivr.net/npm/@vandenberghinc/",
-                "style-src": "'self' 'unsafe-inline' https://cdn.jsdelivr.net/npm/@vandenberghinc/",
-            }
+            this.csp = default_headers["Content-Security-Policy"] != null ? default_headers["Content-Security-Policy"] : default_csp;
+            Object.keys(base_default_headers).iterate(key => {
+                if (default_headers[key] === undefined) {
+                    default_headers[key] = base_default_headers[key];
+                }
+            })
             this.default_headers = default_headers;
         }
 
@@ -651,102 +929,119 @@ class Server {
         }
 
         // Define your list of endpoints
-        this.endpoints = [];
-
-        // Copy the default static directory.
-        // Must be before the file watcher is initialized.
-        const sync_dir = async (from, to) => {
-            if (to.exists() === false) {
-                from.cp_sync(to);
-                return ;
-            }
-            const paths = from.paths_sync().iterate_append((item) => {
-                return item.str().substr(from.length);
-            });
-            paths.iterate_async_await((subpath) => {
-                const src = from.join(subpath)
-                const dest = to.join(subpath);
-                if (dest.exists() === false || src.mtime > dest.mtime) {
-                    src.cp_sync(dest)
-                }
-            })
-        }
-        const src_static = new vlib.Path(`${__dirname}/../static/`).abs();
-        sync_dir(src_static.join("payments"), export_static.join("payments"));
+        this.endpoints = new Map();
+        this.err_endpoints = new Map();
 
         // File watcher.
-        if (process.argv.includes("--no-file-watcher") === false && this.production === false && file_watcher != null && process.env.VWEB_FILE_WATCHER != '1') {
+        if (process.env.VWEB_NO_FILE_WATCHER == null && process.argv.includes("--no-file-watcher") === false && this.production === false && file_watcher != false && process.env.VWEB_FILE_WATCHER != '1') {
 
-            // Create default endpoints.
-            let additional_paths = this._create_default_endpoints();
+            // Disable primary for when users access is_primary.
+            this.is_primary = false;
 
-            // Create static endpoints.
-            this.statics.iterate((path) => {
-                additional_paths = additional_paths.concat(this._create_static_endpoints(path.base(), path));
-            });
+            // Enable file watcher.
+            this.is_file_watcher = true;
 
-            // Add the vweb backend source files to the additional files.
-            additional_paths.push(__dirname);
-
-            // Initialize file watcher.
-            if (typeof file_watcher === "string" || file_watcher instanceof vlib.Path) {
-                this.file_watcher = new FileWatcher({source: file_watcher});
+            // Null.
+            if (this.file_watcher == null) {
+                this.file_watcher = {};
             }
-            else if (file_watcher instanceof FileWatcher) {
-                this.file_watcher = file_watcher;
+
+            // Source.
+            if (!this.file_watcher.source) {
+                this.file_watcher.source = this.source.str();
+            }
+
+            // Initialize.
+            if (!(this.file_watcher instanceof FileWatcher)) {
+                this.file_watcher = new FileWatcher(this.file_watcher);
+            }
+
+        }
+
+        // No file watcher.
+        else {
+
+            // Disable file watcher.
+            this.is_file_watcher = false;
+
+            // Set logger.
+            // const log_source = this.source.join(".logs");
+            // if (!log_source.exists()) {
+            //     log_source.mkdir_sync();
+            // }
+            // logger.assign_paths(log_source.join("logs"), log_source.join("errors")); // no longer save to file since this should be handled by the service daemon.
+            logger.log_level = this.log_level;
+            this.log = logger.log;
+            this.error = logger.error;
+
+            // Initialize the service daemon.
+            // Must be initialized before initializing the database.
+            if (daemon !== false) {
+                const log_source = this.source.join(".logs");
+                if (!log_source.exists()) {
+                    log_source.mkdir_sync();
+                }
+                this.daemon = new vlib.Daemon({
+                    name: this.domain.replaceAll(".", ""),
+                    user: daemon.user || libos.userInfo().username,
+                    group: daemon.group || null,
+                    command: "vweb --service --start",
+                    cwd: this.source.str(),
+                    args: daemon.args || [],
+                    env: daemon.env || {},
+                    description: daemon.description || `Service daemon for website ${this.domain}.`,
+                    auto_restart: true,
+                    logs: daemon.logs || log_source.join("logs").str(),
+                    errors: daemon.errors || log_source.join("errors").str(),
+                })
+            }
+
+            // Initialize the database class.
+            if (typeof database === "string" || database instanceof String) {
+                this.db = new Database({uri: database, _server: this});
+            } else if (database !== false) {
+                this.db = new Database({...database, _server: this});
+            }
+
+            // Initialize the users class.
+            this.users = new Users(this);
+
+            // The smtp instance.
+            if (smtp) {
+                this.smtp_sender = smtp.sender;
+                this.smtp = libnodemailer.createTransport(smtp);
+            }
+
+            // The rate limit server/client.
+            if (this.is_primary) {
+                this.rate_limit = new RateLimitServer({...rate_limit.server, _server: this});
             } else {
-                this.file_watcher = new FileWatcher(file_watcher);
+                if (rate_limit.server.https) {
+                    rate_limit.client.https = true;
+                }
+                this.rate_limit = new RateLimitClient({...rate_limit.client, _server: this});
             }
-            // this.file_watcher.excluded.push(this.database.str());
 
-            // Add default and static endpoints.
-            this.file_watcher.additional_paths = this.file_watcher.additional_paths.concat(additional_paths);
-            
-            // Start.
-            this.file_watcher.start();
-            return ;
+            // Blacklist class.
+            if (this.honey_pot_key) {
+                this.blacklist = new Blacklist({api_key: this.honey_pot_key});
+            }
+
+            // The master sha256 hash key.
+            this._hash_key = null;
+
+            // Other keys.
+            this.keys = {};
         }
 
-        // Initialize the database class.
-        if (typeof database === "string" || database instanceof String) {
-            this.db = new Database({uri: database, _server: this});
-        } else {
-            this.db = new Database({...database, _server: this});
-        }
-
-        // Initialize the users class.
-        this.users = new Users(this);
-
-        // The smtp instance.
-        if (smtp) {
-            this.smtp_sender = smtp.sender;
-            this.smtp = libnodemailer.createTransport(smtp);
-        }
-        
-        // Create an HTTPS server
-        if (tls) {
-            this.https = https.createServer(
-                {
-                    key: new vlib.Path(tls.private_key).load_sync('utf8'), 
-                    cert: new vlib.Path(tls.certificate).load_sync('utf8'), 
-                    passphrase: tls.passphrase
-                },
-                (request, response) => this._serve(request, response)
-            );
-        }
-
-        // Create an HTTP server
-        this.http = http.createServer((request, response) => this._serve(request, response));
-
-        // The master sha256 hash key.
-        this.hash_key = null;
+        /* @performance */ this.performance.end("constructor");
     }
 
     // ---------------------------------------------------------
     // Utils (private).
 
     // Get a content type from an extension.
-    _get_content_type(extension) {
+    get_content_type(extension) {
         let content_type = Server.content_type_mimes.iterate((item) => {
             if (item[0] == extension) {
                 return item[1];
@@ -762,15 +1057,25 @@ class Server {
     // Crypto (private).
 
     // Generate a crypto key.
-    _generate_crypto_key(length = 32) {
+    generate_crypto_key(length = 32) {
         return libcrypto.randomBytes(length).toString('hex');
     }
 
     // Create a sha hmac with the master key.
-    _hmac(data) {
-        const hmac = libcrypto.createHmac("sha256", this.hash_key);
+    hmac(key, data, algo = "sha256") {
+        const hmac = libcrypto.createHmac(algo, key);
         hmac.update(data);
         return hmac.digest("hex");
+    }
+    _hmac(data) {
+        const hmac = libcrypto.createHmac("sha256", this._hash_key);
+        hmac.update(data);
+        return hmac.digest("hex");
+    }
+
+    // Hash without a key.
+    hash(data, algo = "sha256") {
+        return libcrypto.createHash(algo).update(data).digest('hex');
     }
 
     // ---------------------------------------------------------
@@ -778,26 +1083,22 @@ class Server {
 
     // Initialize the default headers.
     _init_default_headers() {
-        let csp = "";
+        let csp = [];
         Object.keys(this.csp).iterate((key) => {
-            csp += key;
+            csp.append(key);
             const value = this.csp[key];
             if (typeof value === "string" && value.length > 0) {
-                csp += " ";
-                csp += value;
+                csp.append(" ");
+                csp.append(value);
             }
-            csp += ";";
+            csp.append(";");
         });
-        this.default_headers["Content-Security-Policy"] = csp;
+        this.default_headers["Content-Security-Policy"] = csp.join("");
     }
 
     // Add header defaults.
-    _set_header_defaults(response) {
-        response.set_headers(this.default_headers);
-        // if (this.domain != null) {
-        //     response.set_header("Origin", this.domain);
-        //     response.set_header("Access-Control-Allow-Origin", this.domain);
-        // }
+    _set_header_defaults(stream) {
+        stream.set_headers(this.default_headers);
     }
 
     // ---------------------------------------------------------
@@ -805,16 +1106,25 @@ class Server {
 
     // Find endpoint.
     _find_endpoint(endpoint, method = null) {
-        return this.endpoints.iterate((end) => {
-            if (end.endpoint == endpoint && (method == null || method == end.method)) {
-                return endpoint;
+        const result = this.endpoints.get(endpoint + ":" + method);
+        if (!result) {
+            for (const e of this.endpoints.values()) {
+                if (
+                    e.endpoint instanceof RegExp &&
+                    e.method === method &&
+                    e.endpoint.test(endpoint)
+                ) {
+                    return e;    
+                }
             }
-        })
+        }
+        return result;
     }
 
     // Create static endpoints.
-    _create_static_endpoints(base, dir) {
-        const exclude = [".DS_Store"]
+    /*
+    _create_static_endpoints(static_dir, dir) {
+        const exclude = [".DS_Store", ".cache", ".old", ".ignore"]
         let paths = [];
         dir.paths_sync().iterate((path) => {
 
@@ -823,45 +1133,104 @@ class Server {
                 return null;
             }
 
+            // Get absolute.
+            path = path.abs();
+
             // Add to paths.
             paths.push(path.str());
 
             // Read dir recursively.
             if (path.is_dir()) {
-                paths = paths.concat(this._create_static_endpoints(base, path));
+                paths = paths.concat(this._create_static_endpoints(static_dir, path));
             }
 
             // Add file.
             else {
-                let subpath = path.str().substr(base.length)
-                if (subpath.charAt(0) != "/") {
-                    subpath = "/" + subpath;
+
+                // Create endpoint.
+                let endpoint = path.str().substr(static_dir.base().length)
+                if (endpoint.charAt(0) != "/") {
+                    endpoint = "/" + endpoint;
                 }
-                let data;
-                if (path.extension() === ".js") {
-                    data = path.load_sync();
-                    const compiler = new vhighlight.JSCompiler({
-                        line_breaks: true,
-                        double_line_breaks: false,
-                        comments: false,
-                        white_space: false,
-                    })
-                    data = compiler.compile_code(data, path.str());
-                } else {
-                    data = path.load_sync({type: null});
+
+                // Get custom cache time.
+                let cache = true;
+                if (this.production && this.statics_cache[path.str()] != null) {
+                    cache = this.statics_cache[path.str()];
+                    console.log("CACHE", endpoint, cache);
                 }
-                this.endpoint(new Endpoint({
-                    method: "GET",
-                    endpoint: subpath,
-                    data: data,
-                    content_type: this._get_content_type(path.extension()),
-                    compress: !Server.compressed_extensions.includes(path.extension()),
-                    _path: path.str(),
-                }))
+
+
+                // Get content type.
+                const content_type = this.get_content_type(path.extension());
+
+                // Image endpoint with supported transformation.
+                if (ImageEndpoint.supported_images.includes(path.extension())) {
+                    this.endpoint(new ImageEndpoint({
+                        endpoint,
+                        content_type,
+                        path,
+                        cache,
+                        static_path: static_dir,
+                        _is_static: true,
+                    }))
+                }
+
+                // Default static endpoint.
+                else {
+
+                    // Load data.
+                    let data;
+                    if (path.extension() === ".js") {
+
+                        data = path.load_sync();
+                        const hash = this.hash(data);
+
+                        // Check cache for restarts by file watcher.
+                        const {cache_path, cache_hash, cache_data} = utils.get_compiled_cache(this.domain, "GET", path.str());
+                        if (cache_data && hash === cache_hash) {
+                            data = cache_data;
+                        }
+
+                        // Compile.
+                        else {
+                            const compiler = new vhighlight.JSCompiler({
+                                line_breaks: true,
+                                double_line_breaks: false,
+                                comments: false,
+                                white_space: false,
+                            })
+                            data = compiler.compile_code(data, path.str());
+
+                            // Cache for restarts.
+                            utils.set_compiled_cache(cache_path, data, hash);
+                        }
+                    }
+                    else if (path.extension() === ".css") {
+                        const minifier = new CleanCSS();
+                        data = minifier.minify(path.load_sync()).styles;
+                    }
+                    else {
+                        data = path.load_sync({type: null});
+                    }
+
+                    // Create endpoint.
+                    this.endpoint(new Endpoint({
+                        method: "GET",
+                        endpoint,
+                        data,
+                        content_type,
+                        compress: !Server.compressed_extensions.includes(path.extension()),
+                        cache,
+                        _path: path.str(),
+                        _is_static: true,
+                    }))
+                }
             }
         })
         return paths;
     }
+    */
 
     // Create default endpoints.
     _create_default_endpoints() {
@@ -879,10 +1248,69 @@ class Server {
                 method: "GET",
                 endpoint: "/favicon.ico",
                 data: favicon.load_sync({type: null}),
-                content_type: this._get_content_type(favicon.extension()),
+                content_type: this.get_content_type(favicon.extension()),
+                _is_static: true,
             }))
             additional_file_watcher_paths.push(favicon.str());
         }
+
+        // Create status endpoint.
+        const status_dir = this.source.join(".status");
+        if (!status_dir.exists()) { status_dir.mkdir_sync(); }
+        const status_key_path = status_dir.join("key");
+        let status_key;
+        if (!status_key_path.exists()) {
+            status_key = this.generate_crypto_key(32)
+            status_key_path.save_sync(status_key);
+        } else {
+            status_key = status_key_path.load_sync();
+        }
+        this.endpoint(new Endpoint({
+            method: "GET",
+            endpoint: "/.status",
+            content_type: "application/json",
+            params: {
+                key: "string",
+            },
+            callback: async (stream, params) => {
+
+                // Check key.
+                if (params.key !== status_key) {
+                    return stream.send({
+                        status: 403, 
+                        headers: {"Content-Type": "text/plain"},
+                        data: "Access Denied",
+                    })
+                }
+
+                // Default status info.
+                const status = {};
+                status.ip = this.ip;
+                if (this.http) {
+                    status.http_port = this.port == null ? 80 : (this.port);
+                }
+                if (this.https) {
+                    status.https_port = this.port == null ? 443 : (this.port + 1);
+                }
+
+                // Load data.
+                const data = await this._sys_db.load("status", {
+                    default: {
+                        running_since: null,
+                        running_threads: 0,
+                        total_threads: 0,
+                    }
+                });
+                Object.expand(status, data);
+
+                // Response.
+                return stream.send({
+                    status: 200, 
+                    headers: {"Content-Type": "application/json"},
+                    data: status,
+                })
+            },
+        }))
 
         // Default static endpoints.
         const defaults = [
@@ -913,22 +1341,22 @@ class Server {
                 content_type: "application/javascript",
                 path: new vlib.Path(vhighlight.web_exports.js),
             },
-            {
-                method: "GET",
-                endpoint: "/vweb/payments/adyen.js",
-                content_type: "application/javascript",
-                path: new vlib.Path(`${__dirname}/../frontend/min/adyen.js`),
-                templates: {
-                    ADYEN_ENV: this.production ? "live" : "test",
-                    ADYEN_CLIENT_KEY: this.payments ? this.payments.client_key : "",
-                }
-            },
-            {
-                method: "GET",
-                endpoint: "/vweb/payments/adyen.css",
-                content_type: "text/css",
-                path: new vlib.Path(`${__dirname}/../frontend/css/adyen.css`),
-            },
+            // {
+            //     method: "GET",
+            //     endpoint: "/vweb/payments/adyen.js",
+            //     content_type: "application/javascript",
+            //     path: new vlib.Path(`${__dirname}/../frontend/min/adyen.js`),
+            //     templates: {
+            //         ADYEN_ENV: this.production ? "live" : "test",
+            //         ADYEN_CLIENT_KEY: this.payments ? this.payments.client_key : "",
+            //     }
+            // },
+            // {
+            //     method: "GET",
+            //     endpoint: "/vweb/payments/adyen.css",
+            //     content_type: "text/css",
+            //     path: new vlib.Path(`${__dirname}/../frontend/css/adyen.css`),
+            // },
             {
                 method: "GET",
                 endpoint: "/vweb/payments/paddle.js",
@@ -945,6 +1373,9 @@ class Server {
             let data = item.path.load_sync();
             if (item.templates != null) {
                 data = utils.fill_templates(data, item.templates);
+            } else if (item.path.extension() === ".css") {
+                const minifier = new CleanCSS();
+                data = minifier.minify(data).styles;
             }
             this.endpoint(new Endpoint({
                 method: item.method,
@@ -965,15 +1396,16 @@ class Server {
         let sitemap = "";
         sitemap += "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
         sitemap += "<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\n";
-        this.endpoints.iterate((endpoint) => {
-            if (
-                endpoint.data == null &&
-                endpoint.callback == null &&
-                endpoint.endpoint != "robots.txt" &&
-                !endpoint.authenticated
-            ) {
-                sitemap += `<url>\n   <loc>${this.full_domain}/${endpoint.endpoint}</loc>\n</url>\n`;
+        for (const endpoint of this.endpoints.values()) {
+            if (endpoint.sitemap) {
+                sitemap += `<url>\n   <loc>${this.full_domain}/${endpoint.endpoint}</loc>\n</url>\n`; // @todo not compatiable with regex endpoints
             }
+        }
+        this.additional_sitemap_endpoints.iterate((endpoint) => {
+            while (endpoint.length > 0 && endpoint.charAt(0) === "/") {
+                endpoint = endpoint.substr(1);
+            }
+            sitemap += `<url>\n   <loc>${this.full_domain}/${endpoint}</loc>\n</url>\n`;
         })
         sitemap += "</urlset>\n";
         this.endpoint(new Endpoint({
@@ -987,104 +1419,868 @@ class Server {
 
     // Create the robots.txt endpoint.
     _create_robots_txt() {
+        let robots = "User-agent: *\n";
+        let disallowed = 0;
+        for (const endpoint of this.endpoints.values()) {
+            if (!endpoint.robots) {
+                robots += `Disallow: ${endpoint.endpoint}\n`; // @todo not compatiable with regex endpoints
+            }
+        }
+        if (disallowed === 0) {
+            robots += `Disallow: \n`;
+        }
+        robots += `\nSitemap: ${this.full_domain}/sitemap.xml`;
         this.endpoint(new Endpoint({
             method: "GET",
             endpoint: "/robots.txt",
             content_type: "text/plain",
-            data: `User-agent: *\nDisallow: \n\nSitemap: ${this.full_domain}/sitemap.xml`,
+            data: robots,
             compress: false,
         }))
+    }
+
+    // Create admin endpoint.
+    _create_admin_endpoint() {
+
+        // Add admin tokens.
+        this.admin.tokens = [];
+
+        // Verify token.
+        const verify_token = (token) => {
+            const now = Date.now();
+            let new_tokens = [];
+            let verified = false;
+            this.admin.tokens.iterate((i) => {
+                if (now < i.expiration) {
+                    if (i.token === token) {
+                        verified = true;
+                    }
+                    new_tokens.append(i);
+                }
+            })
+            this.admin.tokens = new_tokens;
+            return verified;
+        }
+
+        // Admin data.
+        this.endpoint(new Endpoint({
+            method: "POST",
+            endpoint: "/admin/auth",
+            content_type: "application/json",
+            rate_limit: {
+                group: "vweb.admin.auth",
+                limit: 5,
+                interval: 60,
+            },
+            params: {
+                password: "string",
+            },
+            ip_whitelist: this.admin.ips,
+            callback: async (stream, params) => {
+
+                // Check key.
+                if (params.password !== this.admin.password) {
+                    return stream.send({
+                        status: 403, 
+                        headers: {"Content-Type": "text/plain"},
+                        data: "Access Denied",
+                    })
+                }
+
+                // Generate token.
+                const token = {
+                    token: String.random(32),
+                    expiration: Date.now() + 3600 * 1000,
+                };
+                this.admin.tokens.append(token)
+
+                // Response.
+                return stream.send({
+                    status: 200, 
+                    headers: {"Content-Type": "application/json"},
+                    data: token,
+                })
+            },
+        }))
+
+        // Admin data.
+        this.endpoint(new Endpoint({
+            method: "GET",
+            endpoint: "/admin/data",
+            content_type: "application/json",
+            rate_limit: "global",
+            params: {
+                token: "string",
+            },
+            ip_whitelist: this.admin.ips,
+            callback: async (stream, params) => {
+
+                // Verify token.
+                if (!verify_token(params.token)) {
+                    return stream.send({
+                        status: 403, 
+                        headers: {"Content-Type": "text/plain"},
+                        data: "Access Denied",
+                    })
+                }
+
+                // Data.
+                const data = {};
+
+                // Parse subscriptions.
+                const subscriptions = await this.payments._get_all_active_subscriptions();
+                data.subscriptions = subscriptions.length;
+
+                // Load data.
+                const status = await this._sys_db.load("status", {
+                    default: {
+                        running_since: null,
+                        running_threads: 0,
+                        total_threads: 0,
+                    }
+                });
+                Object.expand(data, status);
+
+                // System data.
+                data.cpu_usage = vlib.system.cpu_usage();
+                data.memory_usage = vlib.system.memory_usage();
+                data.network_usage = await vlib.system.network_usage();
+
+                // Users.
+                data.users = (await this.users.list()).length;
+
+                // Response.
+                return stream.send({
+                    status: 200, 
+                    headers: {"Content-Type": "application/json"},
+                    data: data,
+                })
+            },
+        }))
+
+        // Admin view.
+        this.endpoint(new Endpoint({
+            method: "GET",
+            endpoint: "/admin",
+            content_type: "application/json",
+            rate_limit: "global",
+            params: {
+                password: "string",
+            },
+            ip_whitelist: this.admin.ips,
+            sitemap: false,
+            robots: false,
+            view: {
+                templates: {
+                    DOMAIN: this.domain,
+                },
+                callback: () => {
+
+                    // Style.
+                    const style = {
+                        bg: "#F2F3F6",
+                        sub_bg: "#FAFAFA",
+                        fg: "#000000",
+                        sub_fg: "#9099B4",
+                        border: "#D6D6D6",
+                        tint: "#64B878", //"#8EB8EB", //"#4E9CF7",
+                    }
+
+                    // Vars.
+                    let TOKEN;
+                    let TOKEN_EXP;
+                    let AUTH_WIDGET;
+                    let PANEL_WIDGET;
+
+                    // Defaults.
+                    Title()
+                        .color(style.fg)
+                        .set_default()
+                    Text()
+                        .color(style.sub_fg)
+                        .font_size(18)
+                        .set_default()
+                    Button()
+                        .color(style.sub_fg)
+                        .background(style.bg)
+                        .padding(12.5, 10)
+                        .font_weight(500)
+                        .font_size(16)
+                        .border_radius(10)
+                        .border(1, style.border)
+                        .set_default()
+                    LoaderButton()
+                        .color(style.fg)
+                        .background(style.bg)
+                        .padding(12.5, 10)
+                        .font_weight(500)
+                        .font_size(16)
+                        .border_radius(10)
+                        .border(1, style.border)
+                        .set_default()
+                    ExtendedInput()
+                        .color(style.fg)
+                        .mask_color(style.fg)
+                        .background(style.bg)
+                        .border_radius(10)
+                        .border(1, style.border)
+                        .set_default()
+
+                    // Widget.
+                    const Widget = (...children) => {
+                        return VStack(...children)
+                            .padding(30, 20)
+                            .border_radius(10)
+                            .border(1, style.border)
+                            .background(style.sub_bg)
+                    }
+                    const SingleStatWidget = (title, stat, color = null, font_size = 35) => {
+                        if (color == "green") {
+                            color = style.tint;
+                        } else if (color == "red") {
+                            color = "#E86666";
+                        }
+                        return Widget(
+                            Title(title)
+                                // .color(style.sub_fg)
+                                .font_size(14)
+                                .font_weight(600),
+                            VStack(
+                                Text(stat)
+                                    .color(color || style.sub_fg)
+                                    .font_size(font_size)
+                                    // .font_weight("bold")
+                                    .margin_top(15)
+                                    .center(),
+                            )
+                            .height("100%")
+                            .center_vertical()
+                        )
+                        // .center()
+                        .padding(20, 20)
+                        .min_width(120)
+                        .margin(10);
+                    }
+
+                    // View.
+                    const VIEW = View(
+                        VStack(
+                            HStack(
+                                ImageMask("/vweb_static/admin/admin.png")
+                                    .mask_color(style.tint)
+                                    .frame(22, 22), // ?format=webp&width=64&height=64
+                                Title("Admin Panel")
+                                    // .color(style.sub_fg)
+                                    .font_weight(600)
+                                    .font_size(14)
+                                    .margin_left(5)
+                                    .margin_top(3),
+                                Spacer(),
+                                Text("$DOMAIN")
+                                    .font_size(14)
+                                    .color(style.fg)
+                                    // .font_style("italic")
+                            )
+                            .center_vertical(),
+                        )
+                        .padding(15, 15)
+                        .width("100%")
+                        .border_bottom("1px solid " + style.border)
+                        .box_shadow("0 0 10px #00000050"),
+                        VStack(
+
+                            // Auth widget.
+                            (AUTH_WIDGET = Widget(
+                                Title("Authentication Required")
+                                    .font_size(28)
+                                    .margin_bottom(10),
+                                Text("Fill in your admin authentication password to visit the admin panel."),
+                                ExtendedInput({
+                                    label: "Password",
+                                    image: "/vweb_static/admin/password.webp",
+                                    type: "password",
+                                    placeholder: "Password"
+                                })
+                                    .id("password")
+                                    .margin_top(35)
+                                    .on_enter(() => document.getElementById("auth_submit").click()),
+                                LoaderButton("Authenticate")
+                                    .loader.background(style.sub_fg).parent()
+                                    .margin_top(35)
+                                    .id("auth_submit")
+                                    .on_click(async (button) => {
+                                        const input = document.getElementById("password");
+                                        const password = input.submit();
+                                        button.show_loader();
+                                        try {
+                                            const response = await vweb.utils.request({
+                                                method: "POST",
+                                                url: "/admin/auth",
+                                                data: {
+                                                    password: password,
+                                                },
+                                            })
+                                            button.hide_loader();
+                                            TOKEN = response.token;
+                                            TOKEN_EXP = response.expiration;
+                                            AUTH_WIDGET.hide();
+                                            PANEL_WIDGET.load();
+                                        } catch (e) {
+                                            input.show_error(e.error || e.message)
+                                            button.hide_loader();
+                                        }
+                                    }),
+                            )
+                            .padding(40, 30)
+                            .text_center()
+                            .width(400)),
+
+                            // Panel widget.
+                            (PANEL_WIDGET = VStack()
+                            .frame("100%", "100%")
+                            .center()
+                            .hide()
+                            .assign("load", async function() {
+
+                                // Show.
+                                this.show();
+                                this.remove_children();
+                                this.append(
+                                    VStack(
+                                        RingLoader()
+                                        .frame(30, 30)
+                                        .background(style.sub_fg)
+                                        .update()
+                                    )
+                                    .frame("100%", "100%")
+                                    .center()
+                                    .center_vertical()
+                                )
+
+                                // Make request.
+                                if (Date.now() >= TOKEN_EXP) {
+                                    AUTH_WIDGET.show();
+                                    PANEL_WIDGET.hide();
+                                    return ;
+                                }
+                                const data = await vweb.utils.request({
+                                    method: "GET",
+                                    url: "/admin/data",
+                                    data: {
+                                        token: TOKEN,
+                                    },
+                                })
+
+                                // Show.
+                                this.remove_children();
+                                this.append(
+                                    VStack(
+                                        Title("Admin Panel")
+                                            .font_size(32)
+                                            .margin(0, 0, 10, 10),
+
+                                        Title("Status")
+                                            .font_size(22)
+                                            .margin(20, 0, 0, 10),
+                                        Divider()
+                                            .background(style.border)
+                                            .margin(10, 0, 10, 10),
+                                        HStack(
+                                            SingleStatWidget("Running Since", new vweb.Date(data.running_since).format("%d-%m-%y %H:%M"), null, 30),
+                                            SingleStatWidget(
+                                                "Status",
+                                                data.running_threads === data.total_threads ? "OK" : "Warnings",
+                                                data.running_threads === data.total_threads ? null : "red",
+                                                30
+                                            ),
+                                            SingleStatWidget("Threads", data.running_threads),
+                                            SingleStatWidget(
+                                                "Crashed Threads",
+                                                data.total_threads - data.running_threads,
+                                                data.total_threads - data.running_threads === 0 ? null : "red",
+                                            ),
+                                        )
+                                        .wrap(true)
+                                        .align_height(),
+
+                                        Title("System")
+                                            .font_size(22)
+                                            .margin(20, 0, 0, 10),
+                                        Divider()
+                                            .background(style.border)
+                                            .margin(10, 0, 10, 10),
+                                        HStack(
+                                            SingleStatWidget(
+                                                "CPU Usage", data.cpu_usage.toFixed(2)+"%",
+                                                data.cpu_usage > 90 ? "red" : null,
+                                            ),
+                                            SingleStatWidget(
+                                                "Memory Usage", data.memory_usage.used_percentage.toFixed(2)+"%",
+                                                data.memory_usage.used_percentage > 90 ? "red" : null,
+                                            ),
+                                            SingleStatWidget("Network Sent", data.network_usage.sent),
+                                            SingleStatWidget("Network Received", data.network_usage.received),
+                                        )
+                                        .wrap(true)
+                                        .align_height(),
+
+                                        Title("Users")
+                                            .font_size(22)
+                                            .margin(20, 0, 0, 10),
+                                        Divider()
+                                            .background(style.border)
+                                            .margin(10, 0, 10, 10),
+                                        HStack(
+                                            SingleStatWidget("Users", data.users),
+                                            SingleStatWidget("Subscriptions", data.subscriptions),
+                                        )
+                                        .wrap(true)
+                                        .align_height(),
+                                    )
+                                    .leading()
+                                    .frame("100%", "100%")
+                                    .max_width(1400)
+                                    .padding(40, 20)
+                                    .overflow("hidden scroll")
+                                )
+                            }))
+                        )
+                        .center()
+                        .center_vertical()
+                        .position(53, 0, 0, 0)
+                    )
+                    .font_family("'Helvetica', sans-serif")
+                    .background(style.bg);
+
+                    // Append.
+                    document.body.appendChild(VIEW);
+                },
+            },
+        }))
+    }
+
+    // Initialize statics.
+    async _initialize_statics() {
+
+        // Static paths for the file watcher.
+        const static_paths = [];
+        
+        // Add static file.
+        const add_static_file = (path, endpoint, cache = true) => {
+
+            // Add to static paths.
+            static_paths.append(path.str());
+
+            // Get content type.
+            const content_type = this.get_content_type(path.extension());
+
+            // Image endpoint with supported transformation.
+            if (ImageEndpoint.supported_images.includes(path.extension())) {
+                this.endpoint(new ImageEndpoint({
+                    endpoint,
+                    content_type,
+                    path,
+                    cache,
+                    rate_limit: "global",
+                    _is_static: true,
+                }))
+            }
+
+            // Default static endpoint.
+            else {
+
+                // Load data.
+                let data;
+                if (path.extension() === ".js") {
+
+                    data = path.load_sync();
+                    const hash = this.hash(data);
+
+                    // Check cache for restarts by file watcher.
+                    const {cache_path, cache_hash, cache_data} = utils.get_compiled_cache(this.domain, "GET", path.str());
+                    if (cache_data && hash === cache_hash) {
+                        data = cache_data;
+                    }
+
+                    // Compile.
+                    else {
+                        const compiler = new vhighlight.JSCompiler({
+                            line_breaks: true,
+                            double_line_breaks: false,
+                            comments: false,
+                            white_space: false,
+                        })
+                        data = compiler.compile_code(data, path.str());
+
+                        // Cache for restarts.
+                        utils.set_compiled_cache(cache_path, data, hash);
+                    }
+                }
+                else if (path.extension() === ".css") {
+                    const minifier = new CleanCSS();
+                    data = minifier.minify(path.load_sync()).styles;
+                }
+                else {
+                    data = path.load_sync({type: null});
+                }
+
+                // Create endpoint.
+                this.endpoint(new Endpoint({
+                    method: "GET",
+                    endpoint,
+                    data,
+                    content_type,
+                    compress: !Server.compressed_extensions.includes(path.extension()),
+                    cache,
+                    rate_limit: "global",
+                    _path: path.str(),
+                    _is_static: true,
+                }))
+            }
+        }
+
+        // Initialize statics.
+        const add_static = async (opts) => {
+            if (opts == null) { return ; }
+            else if (typeof opts === "object") {
+
+                // Check object.
+                vlib.scheme.verify({object: opts, check_unknown: true, scheme: {
+                    path: "string",
+                    endpoint: {type: "string", default: null},
+                    cache: {type: ["boolean", "number"], default: true},
+                    endpoint_cache: {type: "object", default: {}},
+                    exclude: {type: "array", default: []},
+                }});
+
+                // Vars.
+                const exclude = [/.*\.DS_Store/, /.*\.cache/, /.*\.old/, /.*\.ignore/, ...opts.exclude]
+                const paths = [];
+                const source = new vlib.Path(opts.path).abs();
+                const source_len = source.str().length;
+                const is_dir = source.is_dir();
+
+                // Is excluded.
+                const is_excluded = (path) => {
+                    if (path instanceof RegExp) {
+                        return exclude.some(item => path.test(item));
+                    } else {
+                        return exclude.includes(path);
+                    }
+                }
+
+                // Initialize endpoint.
+                if (opts.endpoint == null) {
+                    opts.endpoint = `/${source.name()}`;
+                } else {
+                    if (opts.endpoint.first() != "/") {
+                        opts.endpoint = "/" + opts.endpoint;
+                    }
+                    while (opts.endpoint.last() == "/") {
+                        opts.endpoint = opts.endpoint.substr(0, opts.endpoint.length - 1);
+                    }
+                }
+
+                // Not a directory.
+                if (!is_dir) {
+                    return add_static_file(
+                        source,
+                        opts.endpoint,
+                        opts.cache,
+                    )
+                }
+
+                // First extract all paths recursively.
+                // non recursive to ignore .old etc dirs.
+                const read_dir = async (path) => {
+                    const dir_paths = await path.paths();
+                    const promises = [];
+                    for (let i = 0; i < dir_paths.length; i++) {
+                        if (!is_excluded(dir_paths[i])) {
+                            if (dir_paths[i].is_dir()) {
+                                promises.append(read_dir(dir_paths[i]));
+                            } else {
+                                paths.append(dir_paths[i]);
+                            }
+                        }
+                    };
+                    await Promise.all(promises);
+                }
+                if (is_dir) {
+                    await read_dir(source);
+                }
+
+                // Convert paths into a static object.
+                paths.iterate(path => {
+                    const endpoint = `${opts.endpoint}${path.str().substr(source_len)}`;
+                    add_static_file(
+                        path,
+                        endpoint,
+                        opts.endpoint_cache[endpoint] == null ? opts.cache : opts.endpoint_cache[endpoint],
+                    )
+                })
+                
+            }
+            else if (typeof opts === "string") {
+                await add_static({path: opts});
+            }
+        }
+
+        // Iterate.
+        for (let i = 0; i < this.statics.length; i++) {
+            if (this.statics[i] instanceof vlib.Path) {
+                this.statics[i] = this.statics[i].str();
+            }
+            await add_static(this.statics[i]);
+        }
+
+        // Response.
+        return static_paths;
     }
 
     // ---------------------------------------------------------
     // Server (private).
 
     // Initialize.
-    async _initialize() {
+    async initialize() {
 
-        // Start the database.
-        await this.db.initialize();
+        /* @performance */ this.performance.start()
 
-        // Database collections.
-        this._sys_db = this.db.create_collection("_sys"); // the vweb sys collection.
+        // File watcher.
+        if (this.is_file_watcher) {
 
-        // Public collections.
-        this.storage = this.db.create_collection("_storage"); // the sys backend storage collection for the user's server.
+            // Disable primary for when users access is_primary.
+            this.is_primary = false;
+            
+            // Create default endpoints.
+            let additional_paths = this._create_default_endpoints();
+
+            // Add the vweb backend source files to the additional files.
+            additional_paths.push(__dirname);
+
+            // Add statics to additional paths.
+            additional_paths.append(...(await this._initialize_statics()));
+
+            // Add default and static endpoints.
+            this.file_watcher.additional_paths = this.file_watcher.additional_paths.concat(additional_paths);
+
+            // Excluded.
+            this.file_watcher.excluded.append(this.source.join(".db").str());
+            this.file_watcher.excluded.append(this.source.join(".rate_limit").str());
+            this.file_watcher.excluded.append(this.source.join(".logs").str());
+
+            if (!this.production) {
+                [
+                    `${process.env.PERSISTANCE}/private/dev/vinc/vlib/js/vlib.js`,
+                    `${process.env.PERSISTANCE}/private/dev/vinc/vhighlight/vhighlight.js`,
+                ].iterate(path => {
+                    path = new vlib.Path(path);
+                    if (path.exists()) {
+                        this.file_watcher.excluded.append(path.str());
+                    }
+                })
+            }
+
+            // Stop.
+            return ;
+
+        }
+
+        // No file watcher.
+        else {
+            
+            // Create HTTPS server.
+            if (this.tls) {
+                this.https = http2.createSecureServer(
+                    {
+                        key: new vlib.Path(this.tls.key).load_sync('utf8'), 
+                        cert: new vlib.Path(this.tls.cert).load_sync('utf8'), 
+                        ca: this.tls.ca == null ? null : new vlib.Path(this.tls.ca).load_sync('utf8'), 
+                        passphrase: this.tls.passphrase,
+                        allowHTTP1: true,
+                    },
+                    // Support for http1.
+                    // Does not work, requests get triggered on the stream and on this callback.
+                    (req, res) => {
+                        if (req.httpVersion.charAt(0) !== "2") {
+                            this._serve(null, null, req, res)
+                        }
+                    },
+                );
+                this.https.on('stream', (stream, headers) => {
+                    this._serve(stream, headers, null, null)
+                });
+            }
+
+            // Payments require HTTPS in production.
+            else if (this.production && this.payments) {
+                throw Error("Accepting payments in production mode requires HTTPS.");
+            }
+
+            // Redirect HTTP requests to HTTPS.
+            if (this.tls) {
+                this.http = http.createServer((request, response) => {
+                    response.writeHead(301, { Location: `https://${request.headers.host}${request.url}` });
+                    response.end();
+                });
+            } else {
+                this.http = http.createServer((req, res) => {
+                    this._serve(null, null, req, res)
+                });
+            }
+            // if (this.tls) {
+            //     this.http = http.createServer((request, response) => {
+            //         response.writeHead(301, { Location: `https://${request.headers.host}${request.url}` });
+            //         response.end();
+            //     });
+            // }
+
+            // // Create HTTP server.
+            // else {
+            //     this.http = http.createServer((request, response) => {
+            //         try {
+            //             this._serve(request, response)
+            //         } catch (e) {
+            //             console.error(e);
+            //         }
+            //     });
+            // }
+
+            /* @performance */ this.performance.end("create-http-server");
+        }
 
         // No file watcher.
         const file_watcher_restart = process.argv.includes("--file-watcher-restart");
+
+        // Start the database.
+        if (this.db) {
+            await this.db.initialize();
+
+            // Database collections.
+            this._sys_db = this.db.create_collection("_sys"); // the vweb sys collection.
+
+            // Accessable collections.
+            this.storage = this.db.create_collection("_storage"); // the sys backend storage collection for the user's server.
+
+            /* @performance */ this.performance.end("init-db");
         
-        // Load keys.
-        const keys_document = await this._sys_db.load("keys");
-        if (keys_document == null) {
-            this.hash_key = this._generate_crypto_key(32);
-            await this._sys_db.save("keys", {
-                sha256: this.hash_key,
-            });
-        } else {
-            this.hash_key = keys_document.sha256;
-            if (this.hash_key === undefined) {
-                this.hash_key = this._generate_crypto_key(32);
-                keys_document.sha256 = this.hash_key;
-                await this._sys_db.save("keys", keys_document);
+            // Load keys.
+            const keys_document = await this._sys_db.load("keys");
+            const gen_user_crypto_key = (doc, key) => {
+                if (typeof key === "string") {
+                    doc[key] = this.generate_crypto_key(32);
+                } else {
+                    if (key.length == null) {
+                        throw Error(`Crypto key object "${JSON.stringify(key)}" does not contain a "length" attribute.`);
+                    }
+                    if (typeof key.length !== "number") {
+                        throw Error(`Crypto key object "${JSON.stringify(key)}" has an invalid type fo attribute "length", the valid type is "number".`);
+                    }
+                    if (key.name == null) {
+                        throw Error(`Crypto key object "${JSON.stringify(key)}" does not contain a "name" attribute.`);
+                    }
+                    if (typeof key.name !== "string") {
+                        throw Error(`Crypto key object "${JSON.stringify(key)}" has an invalid type fo attribute "name", the valid type is "string".`);
+                    }
+                    doc[key.name] = this.generate_crypto_key(key.length);
+                    this.keys[key.name] = doc[key.name];
+                }
             }
+            if (keys_document == null) {
+                this._hash_key = this.generate_crypto_key(32);
+                const doc = {
+                    _master_sha256: this._hash_key,
+                };
+                this._keys.iterate((key) => {
+                    gen_user_crypto_key(doc, key);
+                })
+                await this._sys_db.save("keys", doc);
+            } else {
+
+                // Check hash key.
+                this._hash_key = keys_document._master_sha256;
+                let perform_save = false;
+                if (this._hash_key === undefined) {
+                    this._hash_key = this.generate_crypto_key(32);
+                    keys_document._master_sha256 = this._hash_key;
+                    perform_save = true;
+                }
+
+                // Check crypto keys.
+                this._keys.iterate((key) => {
+                    let name = typeof key === "string" ? key : key.name;
+                    if (keys_document[name] == null) {
+                        gen_user_crypto_key(keys_document, key);
+                        perform_save = true;
+                    }
+                    this.keys[name] = keys_document[name];
+                })
+
+                // Save.
+                if (perform_save) {
+                    await this._sys_db.save("keys", keys_document);
+                }
+            }
+
+            /* @performance */ this.performance.end("load-keys");
         }
 
         // Initialize default headers.
         this._init_default_headers();
+        /* @performance */ this.performance.end("init-default-headers");
 
         // Create default endpoints.
         this._create_default_endpoints();
+        /* @performance */ this.performance.end("create-default-endpoints");
+
+        // Create admin endpoints.
+        this._create_admin_endpoint();
+        /* @performance */ this.performance.end("create-admin-endpoints");
 
         // Create static endpoints.
-        this.statics.iterate((path) => {
-            this._create_static_endpoints(path.base(), path);
-        });
+        await this._initialize_statics();
+        /* @performance */ this.performance.end("create-static-endpoints");
 
-        // Create sitemap when it does not exist.
-        if (this._find_endpoint("sitemap.xml") == null) {
-            this._create_sitemap();
+        // Initialize all endpoints.
+        // Must be done after initializing static and default endpoints to support html embeddings.
+        for (const endpoint of this.endpoints.values()) {
+            await endpoint._initialize(this);
         }
-        
-        // Create robots.txt when it does not exist.
-        if (this._find_endpoint("robots.txt") == null) {
-            this._create_robots_txt();
+        for (const endpoint of this.err_endpoints.values()) {
+            await endpoint._initialize(this);
         }
+        /* @performance */ this.performance.end("init-endpoints");
 
         // Initialize users.
-        this.users._initialize();
+        if (this.db) {
+            this.users._initialize();
+            /* @performance */ this.performance.end("init-users");
+        }
 
         // Database preview endpoints (only when production mode is disabled).
-        this.db._initialize_db_preview();
+        if (this.db) {
+            this.db._initialize_db_preview();
+            /* @performance */ this.performance.end("init-db-preview");
+        }
         
         // Payments.
         if (this.payments !== undefined) {
             await this.payments._initialize();
         }
-
-        // Set the caching of all endpoints.
-        this.endpoints.iterate((endpoint) => {
-            if (endpoint.callback === null) {
-                if (this.production && endpoint.cache == null) {
-                    endpoint.cache = 3600 * 24;
-                } else if (!this.production) {
-                    endpoint.cache = null;
-                }
-            }
-        })
+        /* @performance */ this.performance.end("init-payments");
 
         // Get the icon and stroke icon file paths when defined.
         this.company.stroke_icon_path = null;
         this.company.icon_path = null;
         if (this.company.stroke_icon || this.company.icon) {
-            this.endpoints.iterate((endpoint) => {
+            for (const endpoint of this.endpoints.values()) {
                 if (endpoint.endpoint === this.company.stroke_icon) {
                     this.company.stroke_icon_path = endpoint._path;
                 }
                 if (endpoint.endpoint === this.company.icon) {
                     this.company.icon_path = endpoint._path;
                 }
-            });
+            }
             if (this.company.stroke_icon != null && this.company.stroke_icon_path == null) {
                 throw Error(`Unable to find the company's stroke icon endpoint "${this.company.stroke_icon}".`);
             }
@@ -1092,106 +2288,247 @@ class Server {
                 throw Error(`Unable to find the company's icon endpoint "${this.company.icon}".`);
             }
         }
+
+        /* @performance */ this.performance.end("init-icons");
+
+        // Create sitemap when it does not exist.
+        // Must be done at the end of initialization func since some funcs might still create endpoints.
+        if (this._find_endpoint("sitemap.xml") == null) {
+            this._create_sitemap();
+        }
+        /* @performance */ this.performance.end("create-sitemap");
+        
+        // Create robots.txt when it does not exist.
+        // Must be done at the end of initialization func since some funcs might still create endpoints.
+        if (this._find_endpoint("robots.txt") == null) {
+            this._create_robots_txt();
+        }
+        /* @performance */ this.performance.end("create-robots.txt");
     }
 
     // Serve a client.
     // @todo implement rate limiting.
     // @todo save internal server errors.
-    async _serve(request, response) {
-        return new Promise(async (resolve) => {
+    async _serve(stream, headers, req, res) {
+        try {
+
+            // Convert stream.
+            stream = new Stream(stream, headers, req, res);
+
+            // Vars.
+            let endpoint, method, endpoint_url;
 
             // Log endpoint result.
             const log_endpoint_result = (message = null, status = null) => {
-                utils.log(`${method}:${endpoint_url}: ${message === null ? response.status_message : message} [${status === null ? response.status_code : status}] (${request.ip})${libcluster.worker ? `(worker: ${libcluster.worker.id})` : ""}.`);
+                let log_level = 0;
+                if (endpoint) {
+                    log_level = endpoint.is_static ? 1 : 0
+                }
+                if (status == null) {
+                    status = stream.status_code;
+                }
+                logger.log(log_level, `${method}:${endpoint_url}: ${message ? message : Status.get_description(status)} [${status}] (${stream.ip}).`);
             }
 
-            // Initialize the request and wait till all the data has come in.
-            request = new Request(request);
-            response = new Response(response);
-            await request.promise;
+            // Serve error endpoint.
+            const serve_error_endpoint = async (status_code) => {
+
+                // Get default response.
+                const is_api_endpoint = endpoint && endpoint.callback != null;
+                let default_response;
+                switch (status_code) {
+                    case 400: 
+                        default_response = {
+                            status: 400, 
+                            headers: {"Content-Type": is_api_endpoint ? "application/json" : "text/plain"},
+                            data: is_api_endpoint ? {error: "Bad Request"} : "Bad Request",
+                        };
+                        break;
+                    case 403: 
+                        default_response = {
+                            status: 403, 
+                            headers: {"Content-Type": is_api_endpoint ? "application/json" : "text/plain"},
+                            data: is_api_endpoint ? {error: "Access Denied"} : "Access Denied",
+                        };
+                        break;
+                    case 404: 
+                        default_response = {
+                            status: 404, 
+                            headers: {"Content-Type": is_api_endpoint ? "application/json" : "text/plain"},
+                            data: is_api_endpoint ? {error: "Not Found"} : "Not Found",
+                        };
+                        break;
+                    case 500:
+                    default: 
+                        default_response = {
+                            status: 500, 
+                            headers: {"Content-Type": is_api_endpoint ? "application/json" : "text/plain"},
+                            data: is_api_endpoint ? {error: "Internal Server Error"} : "Internal Server Error",
+                        };
+                        break;
+                }
+
+                // Serve error endpoint or default response.
+                if (!this.err_endpoints.has(status_code)) {
+                    stream.send(default_response);
+                } else {
+                    const err_endpoint = this.err_endpoints.get(status_code);
+                    try {
+                        await err_endpoint._serve(stream, status_code);
+                    } catch (err) {
+                        logger.error(`Error endpoint ${status_code}: `, err);
+                        stream.send(default_response);
+                    }
+                }
+            }
+
+            // Check ip against blacklist.
+            if (this.online && this.blacklist !== undefined && !this.blacklist.verify(stream.ip)) {
+                await serve_error_endpoint(403);
+                log_endpoint_result();
+                return ;
+            }
+
+            // Check if the request matches any of the defined endpoints
+            method = stream.method;
+            endpoint_url = stream.endpoint;
+            endpoint = this._find_endpoint(endpoint_url, method);
+
+            // Check regex endpoints.
+            if (!endpoint) {
+
+            }
+            
+            // No endpoint found.
+            if (!endpoint) {
+
+                // Check OPTIONS request.
+                if (method === "OPTIONS") {
+                    const original_method = stream.headers['access-control-request-method']
+                    const original_endpoint = this._find_endpoint(endpoint_url, original_method);
+                    if (original_endpoint) {
+
+                        // Set headers.
+                        this._set_header_defaults(stream);
+                        original_endpoint._set_headers(stream);
+
+                        // When any cors origin is allowed and origin is present than respond with that origin.
+                        // This is a fix for `sendBeacon` in the frontend, since that does support disabling credentials such as in libris is required.
+                        // And allow...origin * is not supported due too the wildcard.
+                        // @warning: DO NOT REMOVE THIS: or it will break Libris Documentations through sendBeacon.
+                        if (stream.headers.origin && this.default_headers["Access-Control-Allow-Origin"] === "*") {
+                            stream.remove_header("Access-Control-Allow-Origin", "access-control-allow-origin");
+                            stream.set_header("Access-Control-Allow-Origin", stream.headers.origin);
+                        }
+
+                        // Send.
+                        stream.send({status: Status.no_content})
+                        log_endpoint_result();
+                        return ;
+                    }
+                }
+
+                // Respond with 404.
+                await serve_error_endpoint(404);
+                log_endpoint_result();
+                return ;
+            }
+
+            // Check rate limit.
+            if (this.online && endpoint.rate_limits.length > 0) {
+                const result = await this.rate_limit.limit(stream.ip, endpoint.rate_limits);
+                if (result !== null) {
+                    stream.send({
+                        status: 429, 
+                        headers: {
+                            "Content-Type": "text/plain",
+                            "X-RateLimit-Reset": result,
+                        },
+                        data: `Rate limit exceeded, please try again in ${parseInt((result - Date.now()) / 1000)} seconds.`,
+                    });
+                    log_endpoint_result();
+                    return ;
+                }
+            }
 
             // Parse the request parameters.
             try {
-                request._parse_params();
+                await stream.promise;
             } catch (err) {
-                response.send({
-                    status: 400, 
-                    headers: {"Content-Type": "text/plain"},
-                    data: `Bad Request - ${err}`,
-                });
+                logger.error(`${endpoint.method}:${endpoint.endpoint}: `, err);
+                await serve_error_endpoint(500);
                 log_endpoint_result();
-                return resolve();
+                return ;
+            }
+            try {
+                stream._parse_params();
+            } catch (err) {
+                logger.error(`${endpoint.method}:${endpoint.endpoint}: `, err);
+                await serve_error_endpoint(400);
+                log_endpoint_result();
+                return ;
             }
 
             // Set default headers.
-            this._set_header_defaults(response);
+            this._set_header_defaults(stream);
 
-            // Check if the request matches any of the defined endpoints
-            const method = request.method;
-            const endpoint_url = request.endpoint;
-            const endpoint = this.endpoints.find((endpoint) => {
-                return endpoint.method === method && endpoint.endpoint === endpoint_url;
-            });
-
-            // No endpoint found.
-            if (!endpoint) {
-                response.send({
-                    status: 404, 
-                    headers: {"Content-Type": "text/plain"},
-                    data: "Not Found",
-                });
-                log_endpoint_result();
-                return resolve();
+            // When any cors origin is allowed and origin is present than respond with that origin.
+            // This is a fix for `sendBeacon` in the frontend, since that does support disabling credentials such as in libris is required.
+            // And allow...origin * is not supported due too the wildcard.
+            // @warning: DO NOT REMOVE THIS: or it will break Libris Documentations through sendBeacon.
+            if (stream.headers.origin && this.default_headers["Access-Control-Allow-Origin"] === "*") {
+                stream.remove_header("Access-Control-Allow-Origin", "access-control-allow-origin");
+                stream.set_header("Access-Control-Allow-Origin", stream.headers.origin);
             }
 
-            // Check rate limiting.
-            // @todo.
+            // Do not authenticate on static endpoints, unless "authenticated" flag is somehow enabled.
+            if (!endpoint.is_static || endpoint.authenticated) {
 
-            // Always perform authentication so the request.uid will also be assigned even when the endpoint is not authenticated.
-            const auth_result = await this.users._authenticate(request);
+                // Always perform authentication so the stream.uid will also be assigned even when the endpoint is not authenticated.
+                const auth_result = await this.users._authenticate(stream);
 
-            // Reset cookies when authentication has failed, so the UserID cookies etc will be reset.
-            if (auth_result !== null) {
-                this.users._reset_cookies(response);
-            }
+                // Reset cookies when authentication has failed, so the UserID cookies etc will be reset.
+                // Only on non static files, so when a user from another websites includes a static file it will not set cookies.
+                if (auth_result !== null && !endpoint.is_static) {
+                    this.users._reset_cookies(stream);
+                }
 
-            // When the endpoint is authenticated and the authentication has failed then send the error response.
-            if (auth_result !== null && endpoint.authenticated) {
-                response.send(auth_result);
-                log_endpoint_result();
-                return resolve();
+                // When the endpoint is authenticated and the authentication has failed then send the error response.
+                if (auth_result !== null && endpoint.authenticated) {
+                    stream.send(auth_result);
+                    log_endpoint_result();
+                    return ;
+                }
             }
 
             // Serve endpoint.
             try {
-                await endpoint._serve(request, response);
+                await endpoint._serve(stream);
             } catch (err) {
-                utils.error(`${endpoint.method}:${endpoint.endpoint}: `, err);
-                response.send({
-                    status: 500, 
-                    headers: {"Content-Type": "text/plain"},
-                    data: "Internal Server Error",
-                });
-                log_endpoint_result();
-                return resolve();
+                logger.error(`${endpoint.method}:${endpoint.endpoint}: `, err);
+                if (!stream.destroyed && !stream.closed) {
+                    await serve_error_endpoint(500);
+                    log_endpoint_result();
+                }
+                return ;
             }
 
             // Check if the response has been sent.
-            if (!response.finished) {
-                utils.error(`${endpoint.method}:${endpoint.endpoint}: `, "Unfinished response.");
-                response.send({
-                    status: 500, 
-                    headers: {"Content-Type": "text/plain"},
-                    data: "Internal Server Error",
-                });
+            if (!stream.finished) {
+                logger.error(`${endpoint.method}:${endpoint.endpoint}: `, "Unfinished response.");
+                await serve_error_endpoint(500);
                 log_endpoint_result();
-                return resolve();
+                return ;
             }
 
             // Log.
             log_endpoint_result();
-            return resolve();
-        })
+            return ;
+
+        // Catch error.
+        } catch (err) {
+            logger.error("Fatal error:", err);
+        }
     }
 
     // ---------------------------------------------------------
@@ -1207,34 +2544,101 @@ class Server {
      *      server.start();
      */
     async start() {
+        
+        // Always initialize, even when forking.
+        await this.initialize();
 
         // Inside file watcher process.
-        // Just hang till file watcher has ended so the user does not have to account for the current process being the file watcher or the actual server that is starting.
-        if (this.file_watcher) {
+        if (this.is_file_watcher) {
+            this.file_watcher.start();
             await this.file_watcher.promise;
             return null;
         }
 
-        // Master.
-        if (this.production && libcluster.isMaster) {
-            // Fork workers
-            const numCPUs = libos.cpus().length;
+        // Start the rate limiting client/server, also when forking.
+        if (this.db) {
+            /* @performance */ this.performance.start()
+            await this.rate_limit.start();
+            /* @performance */ this.performance.end("init-rate-limit");
+        }
 
-            for (let i = 0; i < numCPUs; i++) {
-                libcluster.fork();
+        // Master.
+        if (this.production && this.multiprocessing && libcluster.isMaster) {
+
+            // Vars.
+            let active_threads = 0;
+            const thread_ids = {}; 
+            const restart_limiters = {};
+
+            // Start thread.
+            const start_thread = (thread_id, restart = false) => {
+
+                // Fork.
+                const worker = libcluster.fork();
+
+                // Log.
+                logger.log(restart ? 0 : 1, `Starting thread ${worker.process.pid}.`);
+
+                // Cache thread id.
+                thread_ids[worker.process.pid] = thread_id;
+
+                // Increment active threads.
+                ++active_threads;
             }
 
-            libcluster.on('exit', (worker, code, signal) => {
-                console.log(`Worker ${worker.process.pid} died`);
+            // Fork workers.
+            for (let i = 0; i < this.processes; i++) {
+
+                // Generate thread id.
+                let thread_id;
+                while ((thread_id = String.random(8)) && Object.values(thread_ids).includes(thread_id)) {}
+
+                // Create limiter.
+                restart_limiters[thread_id] = new vlib.TimeLimiter({limit: 3, duration: 60 * 1000});
+
+                // Start thread.
+                start_thread(thread_id);
+            }
+
+            // Save status.
+            await this._sys_db.save("status", {
+                running_since: Date.now(),
+                total_threads: active_threads,
+                running_threads: active_threads,
             });
 
+            // On exit.
+            libcluster.on('exit', async (worker, code, signal) => {
+
+                // Fetch thread id.
+                const thread_id = thread_ids[worker.process.pid];
+                delete thread_ids[worker.process.pid];
+
+                // Logs.
+                logger.error(`Thread ${worker.process.pid} crashed.`);
+
+                // Restart with limit.
+                const limiter = restart_limiters[thread_id];
+                if (limiter != null && limiter.limit()) {
+                    --active_threads;
+                    start_thread(thread_id, true);
+                }
+
+                // Reached limit, shutdown thread.
+                else {
+                    logger.error(`Thread ${worker.process.pid} is being shut down due too it's periodic restart limit.`);
+                    --active_threads;
+                    await this._sys_db.save("status", {running_threads: active_threads});
+                    if (active_threads === 0) {
+                        logger.error(`All threads died, stopping server.`);
+                        process.exit(0);
+                    }
+                }
+            });
         }
 
         // Forked.
         else {
-
-            // Initialize.
-            await this._initialize();
 
             // Set default port.
             let http_port, https_port
@@ -1252,9 +2656,9 @@ class Server {
                 if (!is_running) {
                     is_running = true;
                     if (this.https !== undefined) {
-                        utils.log(`Running on http://${this.ip}:${http_port} and https://${this.ip}:${https_port}.`); // @warning if you change this running on text you should update vide::BuildSystem since that depends on this log line.
+                        logger.log(0, `Running on http://${this.ip}:${http_port} and https://${this.ip}:${https_port}.`); // @warning if you change this running on text you should update vide::BuildSystem since that depends on this log line.
                     } else {
-                        utils.log(`Running on http://${this.ip}:${http_port}.`); // @warning if you change this running on text you should update vide::BuildSystem since that depends on this log line.
+                        logger.log(0, `Running on http://${this.ip}:${http_port}.`); // @warning if you change this running on text you should update vide::BuildSystem since that depends on this log line.
                     }
                 }
             }
@@ -1293,38 +2697,77 @@ class Server {
                 new vlib.Path(process.env.VWEB_STARTED_FILE).save_sync("1")
             }
 
+            /* @performance */ this.performance.end("listen");
         }
+
+        // /* @performance */ this.performance.dump();
     }
 
-    // Stop the server and exit the program.
-	/*  @docs:
+    // Stop the server.
+    /*  @docs:
      *  @title: Stop
      *  @description:
-     *      Stop the server and exit the program by default.
-     *  @parameter:
-     *      @name: exit
-     *      @description: A boolean indicating whether the program should exit after stopping the server.
-     *      @type: boolean
+     *      Stop the server.
      *  @usage:
      *      ...
      *      server.stop();
      */
-    stop(exit = true) {
-        if (this.https === undefined && this.http === undefined) {
-            return null; // inside file watcher process.
+    async stop() {
+        await this.rate_limit.stop();
+        if (this.https) {
+            this.https.close();
         }
-        if (this.https !== undefined) {
-            this.https.close((code) => { 
-				if (exit) {
-                	process.exit(0);
-				}
-            });
+        if (this.http) {
+            this.http.close();
         }
-        this.http.close((code) => { 
-			if (exit) {
-            	process.exit(0);
-			}
-        });
+        if (this.db) {
+            this.db.close();
+        }
+    }
+
+    // Fetch status.
+    /*  @docs:
+        @title: Fetch status.
+        @desc: This function is meant to be used when the server is in production mode, it will make an API request to your server through the defined `Server.domain` parameter.
+        @note: This function can be called without initializing the server.
+        @param:
+            @name: type
+            @desc: The wanted output type. Either an `object` or a `string` type for CLI purposes.
+    */
+    async status(type = "object") {
+
+        // Load key.
+        const key_path = this.source.join(".status/key")
+        if (!key_path.exists()) {
+            throw new Error("No status key has been generated yet. Start your server first.");
+        }
+        const key = key_path.load_sync();
+
+        // Make request.
+        const {body: status} = await vlib.request({
+            host: this.domain,
+            endpoint: "/.status",
+            method: "GET",
+            params: {key},
+            query: true,
+            json: true,
+        })
+
+        // String type.
+        if (type === "string") {
+            if (status.running_since !== null) {
+                status.running_since = new vlib.Date(status.running_since).format("%d-%m-%y %H:%M:%S");
+            }
+            let str = `${this.domain}:\n`;
+            Object.keys(status).iterate((key) => {
+                str += ` * ${key}: ${status[key]}\n`;
+            })
+            str = str.substr(0, str.length - 1);
+            return str;
+        }
+        
+        // Response.
+        return status;
     }
 
     // ---------------------------------------------------------
@@ -1342,7 +2785,7 @@ class Server {
      *  @parameter:
      *      @name: value
      *      @description: The value to add to the Content-Security-Policy key.
-     *      @type: null, string
+     *      @type: null, string, string[]
      *  @usage:
      *      ...
      *      server.add_csp("script-src", "somewebsite.com");
@@ -1352,7 +2795,13 @@ class Server {
         if (this.csp[key] === undefined) {
             this.csp[key] = "";
         }
-        if (typeof value === "string" && value.length > 0) {
+        if (Array.isArray(value)) {
+            value.iterate(v => {
+                if (typeof v === "string" && v.length > 0) {
+                    this.csp[key] += " " + v.trim();
+                }
+            })
+        } else if (typeof value === "string" && value.length > 0) {
             this.csp[key] += " " + value.trim();
         }
     }
@@ -1376,7 +2825,7 @@ class Server {
      *      server.remove_csp("upgrade-insecure-requests");
      */
     remove_csp(key, value = null) {
-        if (this.csp[option] === undefined) {
+        if (this.csp[key] === undefined) {
             return;
         }
         if (typeof value === "string" && value.length > 0) {
@@ -1405,6 +2854,72 @@ class Server {
     }
 
     // ---------------------------------------------------------
+    // TLS.
+
+    // Generate a key and csr for tls.
+    async generate_tls_key({path, organization_unit = "IT", ec = true}) {
+
+        // Args.
+        if (path == null) {
+            throw Error("Define parameter \"path\".");
+        }
+        if (organization_unit == null) {
+            throw Error("Define parameter \"organization_unit\".");
+        }
+
+        // Paths.
+        path = new vlib.Path(path);
+        const key = path.join("key.key");
+        const csr = path.join("csr.csr");
+        if (!path.exists()) {
+            path.mkdir_sync();
+        }
+        if (key.exists()) {
+            throw Error(`Key path "${key.str()}" already exists, remove the file manually to continue.`);
+        }
+        if (csr.exists()) {
+            throw Error(`CSR path "${csr.str()}" already exists, remove the file manually to continue.`);
+        }
+
+        // Generate the private key using the EC parameters file
+        const proc = new vlib.Proc();
+        await proc.start({
+            command: "openssl",
+            args: ec
+                ? ["ecparam", "-genkey", "-name", "secp384r1", "-out", key.str()]
+                : ["genpkey", "-algorithm", "RSA", "-pkeyopt", "rsa_keygen_bits:2048", "-out", key.str()]
+            ,
+            opts: { stdio: "inherit" },
+        });
+        if (proc.exit_status != 0) {
+            throw Error(`Encountered an error while generating the private key [${proc.exit_status}]: ${proc.err}`);
+        }
+
+        // Generate the CSR using the generated private key
+        const csrFile = path.join("csr.csr").str();
+        await proc.start({
+            command: "openssl",
+            args: [
+                "req", "-new", "-key", key.str(), "-out", csr.str(),
+                "-subj",  
+                "\"" +
+                "/C=" + this.company.country_code +
+                "/ST=" + this.company.province +
+                "/L=" + this.company.city +
+                "/O=" + this.company.name +
+                "/OU=" + organization_unit +
+                "/CN=" + this.domain +
+                "\""
+            ],
+            opts: { stdio: "inherit" },
+        });
+        if (proc.exit_status != 0) {
+            throw Error(`Encountered an error while generating the CSR [${proc.exit_status}]: ${proc.err}`);
+        }
+        logger.log(0, `Generated the tls key with CSR for domain "${this.domain}".`);
+    }
+
+    // ---------------------------------------------------------
     // Endpoints.
 
     // Add one or multiple endpoints.
@@ -1428,6 +2943,12 @@ class Server {
                 continue;
             }
 
+            // Is array of endpoints.
+            if (Array.isArray(endpoint)) {
+                this.endpoint(...endpoint);
+                continue;
+            }
+
             // Initialize endpoint.
             if (endpoint instanceof Endpoint === false) {
                 endpoint = new Endpoint(endpoint)
@@ -1442,12 +2963,40 @@ class Server {
                 }
             }
 
-            // Initialize the endpoint.
-            endpoint._initialize(this);
-
             // Add endpoint.
-            this.endpoints.push(endpoint);
+            this.endpoints.set(`${endpoint.endpoint}:${endpoint.method}`, endpoint);
         }
+        return this;
+    }
+
+    // Add an error endpoint.
+    /*  @docs:
+        @title: Add error endpoint
+        @description:
+            Add an endpoint per error status code.
+        @parameter:
+            @name: status_code
+            @type: number
+            @description:
+                The status code of the error.
+
+                The supported status codes are:
+                * `404`
+                * `400` (Will not be used when the endpoint uses an API callback).
+                * `403`
+                * `404`
+                * `500`
+        @parameter:
+            @name: endpoint
+            @description:
+                The endpoint parameters.
+
+                An endpoint parameter can either be a `Endpoint` class or an `object` with the `Endpoint` arguments.
+            @type: Endpoint, object
+    */
+    error_endpoint(status_code, endpoint) {
+        endpoint = endpoint instanceof Endpoint ? endpoint : new Endpoint(endpoint);
+        this.err_endpoints.set(status_code, endpoint);
         return this;
     }
 
@@ -1507,7 +3056,6 @@ class Server {
         body = "",
         attachments = [],
     }) {
-        // return new Promise(async (resolve, reject) => {
 
         // Not enabled.
         if (this.smtp === undefined) {
@@ -1581,6 +3129,20 @@ class Server {
     // ---------------------------------------------------------
     // Default callbacks.
     // These can all be overwritten by the user.
+
+    // On delete user.
+    /*  @docs:
+     *  @title: On delete user
+     *  @description: This function can be overridden with a callback for when a user is deleted.
+     *  @parameter:
+     *      @name: uid
+     *      @description: The uid of the deleted user.
+     *      @type: string, array
+     *  @usage:
+     *      ...
+     *      server.on_delete_user = ({uid}) => {}
+     */
+    async on_delete_user({uid}) {}
 
     // On successfull one-time payment.
     // This gets called for every product in the payment.
@@ -2046,7 +3608,7 @@ class Server {
 
                 // Image.
                 TableRow(
-                    Image(`${this.full_domain}/static/payments/party.png`)
+                    Image(`${this.full_domain}/vweb_static/payments/party.png`)
                         .frame(60, 60)
                         .margin(0, 0, 30, 0)
                 )
@@ -2109,7 +3671,7 @@ class Server {
 
                 // Image.
                 TableRow(
-                    ImageMask(`${this.full_domain}/static/payments/error.png`)
+                    ImageMask(`${this.full_domain}/vweb_static/payments/error.png`)
                         .frame(40, 40)
                         .mask_color("#E8454E")
                         .margin(0, 0, 30, 0)
@@ -2172,7 +3734,7 @@ class Server {
 
                 // Image.
                 TableRow(
-                    Image(`${this.full_domain}/static/payments/check.png`)
+                    Image(`${this.full_domain}/vweb_static/payments/check.png`)
                         .frame(40, 40)
                         .margin(0, 0, 30, 0)
                 )
@@ -2235,7 +3797,7 @@ class Server {
 
                 // Image.
                 TableRow(
-                    ImageMask(`${this.full_domain}/static/payments/error.png`)
+                    ImageMask(`${this.full_domain}/vweb_static/payments/error.png`)
                         .frame(40, 40)
                         .mask_color("#E8454E")
                         .margin(0, 0, 30, 0)
@@ -2298,7 +3860,7 @@ class Server {
 
                 // Image.
                 TableRow(
-                    Image(`${this.full_domain}/static/payments/party.png`)
+                    Image(`${this.full_domain}/vweb_static/payments/party.png`)
                         .frame(60, 60)
                         .margin(0, 0, 30, 0)
                 )
@@ -2361,7 +3923,7 @@ class Server {
 
                 // Image.
                 TableRow(
-                    ImageMask(`${this.full_domain}/static/payments/error.png`)
+                    ImageMask(`${this.full_domain}/vweb_static/payments/error.png`)
                         .frame(40, 40)
                         .mask_color("#E8454E")
                         .margin(0, 0, 30, 0)
@@ -2424,7 +3986,7 @@ class Server {
 
                 // Image.
                 TableRow(
-                    Image(`${this.full_domain}/static/payments/party.png`)
+                    Image(`${this.full_domain}/vweb_static/payments/party.png`)
                         .frame(60, 60)
                         .margin(0, 0, 30, 0)
                 )
@@ -2487,7 +4049,7 @@ class Server {
 
                 // Image.
                 TableRow(
-                    ImageMask(`${this.full_domain}/static/payments/error.png`)
+                    ImageMask(`${this.full_domain}/vweb_static/payments/error.png`)
                         .frame(40, 40)
                         .mask_color("#E8454E")
                         .margin(0, 0, 30, 0)

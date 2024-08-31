@@ -90,7 +90,8 @@ class CheckBoxElement extends VStackElement {
 			})
 
 		// Text element.
-		this.text = Text(text)
+		this.text = Text()
+			.inner_html(text) // so links can be added to the text.
 			.font_size("inherit")
 			.color("inherit")
 			.padding(0)

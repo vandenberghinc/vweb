@@ -28,12 +28,16 @@
  */
 @constructor_wrapper(suffix="Class")
 class ThemesClass {
-	constructor(id, themes = {}) {
+	constructor(
+		id,
+		themes = {},
+	) {
 
 		// Attributes.
 		this.active_id = null;
 		this.active = null;
 		this._themes = [];
+		this._theme_ids = [];
 		this._attrs = [];
 		this._css_vars = {};
 		this._id = id;
@@ -44,6 +48,7 @@ class ThemesClass {
 			// Initialize.
 			const theme_style = themes[theme];
 			this._themes.append(theme);
+			this._theme_ids.append(theme);
 			this[theme] = theme_style;
 
 			// Activate first theme.
@@ -92,15 +97,41 @@ class ThemesClass {
 		})
 	}
 
+	// Assign a new value.
+	set(theme, key, value) {
+
+		// Update theme.
+		const theme_style = this[theme];
+		if (typeof value === "string" && (value.indexOf("linear-gradient") !== -1 || value.indexOf("radial-gradient") !== -1)) {
+			theme_style[key] = new String(value);
+			theme_style[key]._is_gradient = true;
+			this._css_vars[key] = new String(`var(--${this._id}_${key})`);
+			this._css_vars[key]._is_gradient = true;
+		} else {
+			theme_style[key] = value;
+			this._css_vars[key] = `var(--${this._id}_${key})`;
+		}
+
+		// Set property.
+		if (this.active_id === theme) {
+			document.documentElement.style.setProperty(`--${this._id}_${key}`, this.active[key]);
+		}
+
+		// Response.
+		return this;
+	}
+
 	get id() {
 		return `${this._id}.${this.active_id}`
 	}
 
 	// Initialize by cached.
-	initialize() {
-		const cached = localStorage.getItem(this._id);
-		if (this._themes.includes(cached)) {
-			this.activate(cached);
+	initialize(id = null) {
+		if (id == null) {
+			id = localStorage.getItem(this._id);
+		}
+		if (id != null && this._themes.includes(id)) {
+			this.activate(id);
 		}
 		return this;
 	}
@@ -134,6 +165,30 @@ class ThemesClass {
 	on_activate(callback) {
 		if (callback == null) { return this._on_activate_callback; }
 		this._on_activate_callback = callback;
+		return this;
+	}
+
+	// Get cached active subtheme id.
+	get_active_id_cached() {
+		return localStorage.getItem(this._id);
+	}
+
+	// Toggle themes.
+	toggle(apply_theme_update = true) {
+		if (this._theme_ids.length > 1) {
+			let active_index = null;
+			for (let i = 0; i < this._theme_ids.length; i++) {
+				if (this._theme_ids[i] === this.active_id) {
+					active_index = i;
+					break;
+				}
+			}
+			if (active_index + 1 < this._theme_ids.length) {
+				this.activate(this._theme_ids[active_index + 1], apply_theme_update);
+			} else {
+				this.activate(this._theme_ids[0], apply_theme_update);
+			}
+		}
 		return this;
 	}
 }

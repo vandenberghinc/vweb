@@ -341,7 +341,6 @@ function CreateVElementClass({
                 html += "</html>";
             }
 
-
             // Response.
             return html;
         }
@@ -1229,6 +1228,30 @@ mail.TableElement = TableElement;
 mail.Table = Table;
 
 // ---------------------------------------------------------
+// CSS.
+
+class CSSElement extends CreateVElementClass({
+    type: "CSS",
+    tag: "style",
+}) {
+
+    // Constructor.
+    constructor(style) {
+        
+        // Initialize base class.
+        super();
+        
+        // Add inner html.
+        this._inner_html = style;
+    }
+}
+
+function CSS(...args) { return new CSSElement(...args); }
+
+mail.CSSElement = CSSElement;
+mail.CSS = CSS;
+
+// ---------------------------------------------------------
 // Mail.
 
 class MailElement extends CreateVElementClass({
@@ -1251,6 +1274,18 @@ class MailElement extends CreateVElementClass({
         
         // Add children.
         this.append(...children);
+
+        // Attributes.
+        this._subject = null
+    }
+
+    // Set the mail's subject.
+    subject(subj) {
+        if (subj == null) {
+            return this._subject
+        }
+        this._subject = subj
+        return this
     }
 }
 

@@ -25,12 +25,13 @@ class ForEachElement extends CreateVElementClass({
 		// Iterate.
 		if (Array.isArray(items)) {
 			for (let i = 0; i < items.length; i++) {
-				this.append(func(items[i], i));
+				this.append(func(items[i], i, i === items.length - 1));
 			}
 		} else if (typeof items === "object") {
 			let index = 0;
-			Object.keys(items).iterate((key) => {
-				this.append(func(key, items[key], index));
+			const keys = Object.keys(items);
+			keys.iterate((key) => {
+				this.append(func(key, items[key], index, index === keys.length - 1));
 				++index;
 			})
 		} else {

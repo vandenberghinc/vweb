@@ -13,8 +13,10 @@ const zlib = require('zlib');
 
 /*  @docs 
  *  @nav: Backend
+ *  @chapter: Stream
  *  @title: Response
  *  @description: The response object.
+ *  @deprecated: true
  */
 class Response {
     constructor(res) {

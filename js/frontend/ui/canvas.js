@@ -26,11 +26,109 @@ class CanvasElement extends CreateVElementClass({
 	
 	constructor() {
 		super();
+
+		// Safari does not render images correctly for custom elements.
+		if (vweb.is_safari) {
+			this.attachShadow({ mode: 'open' });
+			this._e = document.createElement("canvas");
+			this._e.style.objectFit = "cover";
+			this.shadowRoot.appendChild(this._e);
+			this.position("relative"); // for img width height 100%
+			this.overflow("hidden"); // for border radius.
+
+			// Set resize event otherwise when the item resizes the shadow image does not.
+			this.on_resize(() => {
+				this._e.style.width = this.style.width;
+				this._e.width = this.width;
+				this._e.style.height = this.style.height;
+				this._e.height = this.height;
+			})
+		}
+
+
 		this.ctx_2d = this.getContext("2d");
 	}
 
 	// ---------------------------------------------------------
+	// Override functions.
+
+	// Height, purely for safari.
+	height(value, check_attribute = true) {
+		if (this._e === undefined) {
+			return super.height(value, check_attribute);
+		}
+		if (value == null) {
+			return this._e.height;
+		}
+		super.height(value, false);
+		this._e.style.height = this.pad_numeric(value, "px");
+		this._e.height = this.pad_numeric(value, "");
+		return this;
+	}
+	min_height(value) {
+		if (this._e === undefined) {
+			return super.min_height(value);
+		}
+		if (value == null) {
+			return this._e.style.minHeight;
+		}
+		this._e.style.minHeight = this.pad_numeric(value, "px");
+		return this;
+	}
+	max_height(value) {
+		if (this._e === undefined) {
+			return super.max_height(value);
+		}
+		if (value == null) {
+			return this._e.style.maxHeight;
+		}
+		this._e.style.maxHeight = this.pad_numeric(value, "px");
+		return this;
+	}
+
+	// Width, purely for safari.
+	width(value, check_attribute = true) {
+		if (this._e === undefined) {
+			return super.width(value, check_attribute);
+		}
+		if (value == null) {
+			return this._e.width;
+		}
+		super.width(value, false);
+		this._e.style.width = this.pad_numeric(value, "px");
+		this._e.width = value;
+		return this;
+	}
+	min_width(value) {
+		if (this._e === undefined) {
+			return super.min_width(value);
+		}
+		if (value == null) {
+			return this._e.style.minWidth;
+		}
+		this._e.style.minWidth = this.pad_numeric(value, "px");
+		return this;
+	}
+	max_width(value) {
+		if (this._e === undefined) {
+			return super.max_width(value);
+		}
+		if (value == null) {
+			return this._e.style.maxWidth;
+		}
+		this._e.style.maxWidth = this.pad_numeric(value, "px");
+		return this;
+	}
+
+	// ---------------------------------------------------------
 	// Utility functions.
+
+	getContext(...args) {
+		if (vweb.is_safari) {
+			return this._e.getContext(...args);
+		}
+		return super.getContext(...args);
+	}
 
 	// Draw lines.
 	draw_lines(ctx, points = [{x: 0, y: 0}], tension = null) {
@@ -101,7 +199,7 @@ class CanvasElement extends CreateVElementClass({
 	 *		@description: The line points, an array with objects with `x` and `y` values.
 	 *	@parameter:
 	 *		@name: tension
-	 *		@description: The smoothness of the line, use `null` or `0` for a straight line and {>0.0, 2.0} for a smooth line.
+	 *		@description: The smoothness of the line, use `null` or `0` for a straight line and {0.0, 2.0} for a smooth line.
 	 *	@parameter:
 	 *		@name: color
 	 *		@description: The line color.
@@ -232,4 +330,35 @@ class CanvasElement extends CreateVElementClass({
 		this.ctx_2d.clearRect(0, 0, this.width, this.height);
 		return this;
 	}
+
+	shadow_color(val) {
+		if (val === undefined) { return this.ctx_2d.shadowColor; }
+		this.ctx_2d.shadowColor = val;
+		return this;
+	}
+	shadow_blur(val) {
+		if (val === undefined) { return this.ctx_2d.shadowBlur; }
+		this.ctx_2d.shadowBlur = val;
+		return this;
+	}
+	shadow_offset_x(val) {
+		if (val === undefined) { return this.ctx_2d.shadowOffsetX; }
+		this.ctx_2d.shadowOffsetX = val;
+		return this;
+	}
+	shadow_offset_y(val) {
+		if (val === undefined) { return this.ctx_2d.shadowOffsetY; }
+		this.ctx_2d.shadowOffsetY = val;
+		return this;
+	}
 };
+// function Canvas(...args) {
+// 	if (vweb.is_safari) {
+// 		const e = document.createElement(CanvasElement.element_tag, {is: "v-" + CanvasElement.name.toLowerCase()})
+// 		console.log("E", e);
+// 		e._init(...args);
+// 		return e;
+// 	} else {
+// 		return new CanvasElement(...args);
+// 	}
+// }

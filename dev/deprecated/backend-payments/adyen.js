@@ -1261,12 +1261,12 @@ class Payments {
         }
 
         // Check args.
-        vlib.utils.verify_params({params: {uid, cart, billing_details, ip}, info: {
+        vlib.scheme.verify({object: {uid, cart, billing_details, ip}, scheme: {
             uid: {type: "number", required: false},
             cart: "array",
             billing_details: {
                 type: "object",
-                attrs: {
+                scheme: {
                     billing_details: "string",
                     first_name: "string",
                     last_name: "string",

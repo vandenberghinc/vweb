@@ -301,7 +301,7 @@ vweb.payments.get_product = async function(id) {
 			}
 		})
 		if (product == null) {
-			return reject(`Product "${id}" does not exist.`);
+			return reject(new Error(`Product "${id}" does not exist.`));
 		}
 		resolve(product);
 	})

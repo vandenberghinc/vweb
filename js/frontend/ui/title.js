@@ -14,6 +14,7 @@ class TitleElement extends CreateVElementClass({
 		"color": "inherit",
 		"white-space": "wrap",
 		"text-align": "inherit",
+		"font-weight": "700", // for safari since it inherits HTMLElement only.
 	},
 }) {
 	
@@ -24,7 +25,7 @@ class TitleElement extends CreateVElementClass({
 		super();
 		
 		// Set text.
-		this.inner_html(text);
+		this.text(text); // do not use inner_html since the text might contain "<" etc.
 	}
 		
 }
@@ -40,6 +41,7 @@ class SubtitleElement extends CreateVElementClass({
 		"color": "inherit",
 		"white-space": "wrap",
 		"text-align": "inherit",
+		"font-weight": "700", // for safari since it inherits HTMLElement only.
 	},
 }) {
 	
@@ -50,7 +52,7 @@ class SubtitleElement extends CreateVElementClass({
 		super();
 		
 		// Set text.
-		this.inner_html(text);
+		this.text(text); // do not use inner_html since the text might contain "<" etc.
 	}
 		
 }

@@ -1,3 +1,11 @@
+---
+name: getting_started
+description: Getting started with vweb.
+navigation: JS
+chapter: Getting Started
+title: Getting Started
+---
+
 # Getting started
 Building a simple hello world website with vweb.
 
@@ -16,7 +24,7 @@ $ touch my_website/my_view.h
 ```
 
 ## File my_website/.vweb
-Create the vweb configuration file. See <type>vweb::server::Config</type> for more information. 
+Create the vweb configuration file. See <Type>vweb::server::Config</Type> for more information. 
 ```cpp
 {
 

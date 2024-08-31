@@ -8,6 +8,7 @@
 
 /*  @docs:
  *  @nav: Backend
+    @chapter: Endpoints
     @title: Meta
     @description: The js view meta information class.
     @parameter:
@@ -86,7 +87,7 @@ class Meta {
     /* @docs:
      * @title: Set value
      * @description: Set value funcs that return the current object.
-     * @return: Returns the current <type>Meta</type> object.
+     * @return: Returns the current <Type>Meta</Type> object.
      * @type: Meta
      * @funcs: 8
      */
@@ -98,6 +99,63 @@ class Meta {
     set_charset(value) { this.charset = value; return this; }
     set_viewport(value) { this.viewport = value; return this; }
     set_favicon(value) { this.favicon = value; return this; }
+
+    // Get as object.
+    obj() {
+        return {
+            author: this.author,
+            title: this.title,
+            description: this.description,
+            image: this.image,
+            robots: this.robots,
+            charset: this.charset,
+            viewport: this.viewport,
+            favicon: this.favicon,
+        };
+    }
+
+    // Build meta headers.
+    build_html(domain = null) {
+        let html = "";
+
+        // Default meta data.
+        html += `<meta charset='${this.charset}'>`;
+        html += `<meta name='viewport' content='${this.viewport}'/>`;
+        
+        // Meta.
+        html += `<title id='__page_title'>${this.title}</title>`;
+        html += `<meta name='author' content='${this.author}'/>`;
+        html += `<meta name='description' content='${this.description}'/>`;
+        
+        // Meta/facebook.
+        html += `<meta property='og:title' content='${this.title}'/>`;
+        html += `<meta property='og:description' content='${this.description}'/>`;
+        html += `<meta property='og:image' content='${this.image}'/>`;
+        if (domain) {
+            html += `<meta property="og:url" content="${domain}"/>`
+        }
+        html += `<meta property="og:type" content="website"/>`
+
+        // Twitter/X.
+        html += `<meta name='twitter:card' content='summary_large_image'/>`;
+        // html += `<meta name='twitter:site' content='${this.image}'/>`; // twitter username.
+        html += `<meta name='twitter:title' content='${this.title}'/>`;
+        html += `<meta name='twitter:description' content='${this.description}'/>`;
+        html += `<meta name='twitter:image' content='${this.image}'/>`;
+
+        // FB App id.
+        // <meta property="fb:app_id" content="your-facebook-app-id" />
+
+        
+        // Meta robots.
+        html += `<meta name='robots' content='${this.robots}'>`;
+        
+        // Favicon.
+        html += `<link rel='icon' href='${this.favicon}' type='image/x-icon'/>`;
+
+        // Response.
+        return html;
+    }
 }
 
 // ---------------------------------------------------------

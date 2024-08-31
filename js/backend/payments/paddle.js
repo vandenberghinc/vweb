@@ -11,6 +11,7 @@ const PDFDocument = require("pdfkit");
 const libcrypto = require("crypto");
 const {vlib} = require("../vinc.js");
 const utils = require("../utils.js");
+const logger = require("../logger.js");
 const Status = require("../status.js");
 const {FrontendError} = utils;
 
@@ -87,7 +88,7 @@ const {FrontendError} = utils;
         @attribute:
             @name: interval
             @type: string
-            @desc: The recurring frequency, when this is defined a product will become a subscription product.
+            @desc: The recurring interval, when this is defined a product will become a subscription product.
             @enum:
                 @value: "day"
                 @desc: Use this value to create a subscription product that renews at a daily interval.
@@ -100,6 +101,30 @@ const {FrontendError} = utils;
             @enum:
                 @value: "year"
                 @desc: Use this value to create a subscription product that renews at a yearly interval.
+        @attribute:
+            @name: trial
+            @type: null, object
+            @desc: The trial settings for this product. Leave undefined to disable a trialing period. This attribute will be ignored for one-time payments.
+            @attribute:
+                @name: frequency
+                @type: number
+                @desc: The trial frequency.
+            @attribute:
+                @name: interval
+                @type: string
+                @desc: The trial interval.
+                @enum:
+                    @value: "day"
+                    @desc: Daily interval.
+                @enum:
+                    @value: "week"
+                    @desc: Weekly interval.
+                @enum:
+                    @value: "month"
+                    @desc: Monthly interval.
+                @enum:
+                    @value: "year"
+                    @desc: Yearly interval.
         @attribute:
             @name: plans
             @type: array[ProductObject]
@@ -120,7 +145,7 @@ class Paddle {
     }) {
 
         // Verify args.
-        vlib.utils.verify_params({params: arguments[0], check_unknown: true, parent: "payments", info: {
+        vlib.scheme.verify({object: arguments[0], check_unknown: true, parent: "payments", scheme: {
             type: {type: "string", default: "paddle"},
             api_key: "string",
             client_key: "string",
@@ -138,11 +163,6 @@ class Paddle {
         this.products = products;
         this.server = _server;
 
-        // Checks.
-        if (this.server.production && this.server.https === undefined) {
-            throw Error("Accepting payments in production mode requires HTTPS.");
-        }
-
         // Request headers.
         this._host = this.sandbox ? "sandbox-api.paddle.com" : "api.paddle.com";
         this._headers = {
@@ -156,6 +176,8 @@ class Paddle {
         this.server.csp["script-src"] += " https://*.paddle.com/ https://*.payments-amazon.com https://*.paypal.com https://*.google.com";
         this.server.csp["style-src"] += " https://*.paddle.com/ https://*.media-amazon.com https://*.paypal.com https://*.google.com";
         this.server.csp["img-src"] += " https://*.paddle.com/ https://*.media-amazon.com https://*.paypal.com https://*.google.com";
+
+        /* @performance */ this.performance = new vlib.Performance("Payments performance");
     }
 
     // ---------------------------------------------------------
@@ -188,19 +210,25 @@ class Paddle {
                         try {
                             resolve(JSON.parse(data));
                         } catch (error) {
-                            reject('Failed to parse response data');
+                            reject(new Error('Failed to parse response data'));
                         }
                     } else {
                         if (data == null || data === "") {
-                            return reject(`${method}:${endpoint}: Request failed [${response.statusCode}].`);
+                            const err = new Error(`${method}:${endpoint}: Request failed [${response.statusCode}].`)
+                            err.status_code = response.statusCode;
+                            return reject(err);
                         }
                         try {
                             data = JSON.parse(data);
                         } catch (e) {
-                            return reject(`${method}:${endpoint}: Request failed [${response.statusCode}].`);
+                            const err = new Error(`${method}:${endpoint}: Request failed [${response.statusCode}].`)
+                            err.status_code = response.statusCode;
+                            return reject(err);
                         }
                         if (data.error == null) {
-                            return reject(`${method}:${endpoint}: Request failed [${response.statusCode}].`);
+                            const err = new Error(`${method}:${endpoint}: Request failed [${response.statusCode}].`)
+                            err.status_code = response.statusCode;
+                            return reject(err);
                         }
                         data = data.error;
                         let errs = "";
@@ -211,7 +239,9 @@ class Paddle {
                             })
                             errs = errs.substr(0, errs.length - 2);
                         }
-                        reject(`${method}:${endpoint}: ${data.detail} [${response.statusCode}]${errs}.`);
+                        const err = new Error(`${method}:${endpoint}: ${data.detail} [${response.statusCode}]${errs}.`);
+                        err.status_code = response.statusCode;
+                        reject(err);
                     }
                 });
             });
@@ -245,32 +275,32 @@ class Paddle {
     // Database (private).
 
     // Add or remove a subscription to the user's active subscriptions.
-    async _add_subscription(uid, prod_id, pay_id, sub_id) {
-        await this._sub_db.update(uid, prod_id, {prod_id, pay_id, sub_id}, true);
+    async _add_subscription(uid, prod_id, sub_id) {
+        await this._active_sub_db.save(uid, prod_id, {prod_id, sub_id});
     }
     async _delete_subscription(uid, prod_id) {
-        await this._sub_db.delete(uid, prod_id);
+        await this._active_sub_db.delete(uid, prod_id);
     }
     async _check_subscription(uid, prod_id, load_data = true) {
-        const doc = await this._sub_db.load(uid, prod_id);
-        let exists = false, pay_id, sub_id;
+        const doc = await this._active_sub_db.load(uid, prod_id);
+        let exists = false, sub_id;
         if (doc == null) {
             if (load_data) {
-                return {exists, sub_id, pay_id};
+                return {exists, sub_id};
             } else {
                 return exists;
             }
         }
-        pay_id = doc.pay_id;
+        exists = true;
         sub_id = doc.sub_id;
         if (load_data) {
-            return {exists, sub_id, pay_id};
+            return {exists, sub_id};
         } else {
             return exists;
         }
     }
-    async _get_subscriptions(uid, detailed = false) {
-        const list = await this._sub_db.list_query({_uid: uid});
+    async _get_active_subscriptions(uid, detailed = false) {
+        const list = await this._active_sub_db.list_query({_uid: uid});
         if (detailed) { return list; }
         const products = [];
         list.iterate((doc) => {
@@ -278,10 +308,25 @@ class Paddle {
         })
         return products;
     }
+    async _save_subscription(subscription) {
+        await this._sub_db.save(subscription.uid == null ? "unauth" : subscription.uid, subscription.id, subscription);
+    }
+    async _load_subscription(id) {
+        const subscription = await this._sub_db.find(null, {_path: id});
+        if (subscription == null) {
+            throw Error(`Unable to find subscription "${id}".`);
+        }
+        return subscription;
+    }
+    async _get_subscriptions(uid) {
+        if (uid === "unauth" || uid == null) { return []; }
+        const list = await this._sub_db.list_query({_uid: uid});
+        return list;
+    }
 
     // Save and delete payments, all failed payments should be deleted from the database.
     async _save_payment(payment) {
-        await this._pay_db.update(payment.uid == null ? "unauth" : payment.uid, payment.id, payment, true);
+        await this._pay_db.save(payment.uid == null ? "unauth" : payment.uid, payment.id, payment);
     }
     async _load_payment(id) {
         const uid = id.split("_")[1];
@@ -294,6 +339,16 @@ class Paddle {
         }
         return payment;
     }
+    async _load_payment_by_transaction(id) {
+        const payment = await this._pay_db.find(null, {tran_id: id});
+        if (payment == null) {
+            throw Error(`Unable to find the payment by transaction id "${id}".`);
+        }
+        if (payment.uid == null || payment.uid == "unauth") {
+            delete payment.billing_details;
+        }
+        return payment;
+    }
     async _delete_payment(id) {
         const uid = id.split("_")[1];
         await this._pay_db.delete(uid, id);
@@ -302,8 +357,14 @@ class Paddle {
     // Delete all info of a user.
     async _delete_user(uid) {
         await this._sub_db.delete_all(uid);
+        await this._active_sub_db.delete_all(uid);
         await this._pay_db.delete_all(uid);
         await this._inv_db.delete_all(uid);
+    }
+
+    // List all active subscriptions.
+    async _get_all_active_subscriptions() {
+        return await this._active_sub_db.list_query({});
     }
 
     // ---------------------------------------------------------
@@ -372,6 +433,23 @@ class Paddle {
     // Create or update a product, when existing product is undefined a new product and price will be created.
     async _check_product(product, existing_products = [], existing_prices = []) {
 
+        // Check create product permission.
+        const has_create_products_permission = async () => {
+            if (process.argv.includes("--no-payment-edits")) {
+                return false;
+            }
+            if (this._has_create_products_permission) {
+                return true;
+            }
+            const input = await vlib.prompt("Some paddle products have to be edited, do you wish to make these changes? [y/n]: ")
+            if (["y", "yes", "ok"].includes(input.toLowerCase())) {
+                this._has_create_products_permission = true;
+            } else {
+                this._has_create_products_permission = false;
+            }
+            return this._has_create_products_permission;
+        }
+
         // Find existing product.
         const existing_product = existing_products.iterate((item) => {
             if (item.custom_data.id === product.id) {
@@ -381,9 +459,14 @@ class Paddle {
         
         // No existing product so create.
         if (existing_product == null) {
+
+            // Check permission.
+            if (!await has_create_products_permission()) {
+                return ;
+            }
         
             // Create product.
-            utils.log(`Creating product ${product.name}.`);
+            logger.log(0, `Creating product ${product.name}.`);
             const created_product = await this._req("POST", "/products", {
                 name: product.name,
                 description: product.description,
@@ -394,14 +477,14 @@ class Paddle {
             product.paddle_prod_id = created_product.data.id;
 
             // Create price.
-            utils.log(`Creating a price for product ${product.name}.`);
+            logger.log(0, `Creating a price for product ${product.name}.`);
             const created_price = await this._req("POST", "/prices", {
                 product_id: product.paddle_prod_id,
                 name: product.name,
                 description: product.description,
                 unit_price: {amount: parseInt(product.price * 100).toString(), currency_code: product.currency},
                 billing_cycle: product.is_subscription ? {interval: product.interval, frequency: product.frequency} : null,
-                trial_period: product.trial_interval != null && product.trial_frequency != null ? {interval: product.trial_interval, frequency: product.trial_frequency} : null,
+                trial_period: product.trial,
                 tax_mode: this.inclusive_tax ? "internal" : "external",
             })
             product.price_id = created_price.data.id;
@@ -412,7 +495,7 @@ class Paddle {
 
             // Vars.
             product.paddle_prod_id = existing_product.id;
-            const has_trial = product.trial_interval != null && product.trial_frequency != null;
+            const has_trial = product.trial != null;
 
             // Check if the product should be updated.
             const update_product = (
@@ -425,7 +508,10 @@ class Paddle {
 
             // Update product.
             if (update_product) {
-                utils.log(`Updating product ${product.name}.`);
+                if (!await has_create_products_permission()) {
+                    return ;
+                }
+                logger.log(0, `Updating product ${product.name}.`);
                 await this._req("PATCH", `/products/${product.paddle_prod_id}`, {
                     name: product.name,
                     description: product.description,
@@ -445,14 +531,17 @@ class Paddle {
 
             // Create price.
             if (existing_price == null) {
-                utils.log(`Creating a price for product ${product.name}.`);
+                if (!await has_create_products_permission()) {
+                    return ;
+                }
+                logger.log(0, `Creating a price for product ${product.name}.`);
                 const price = await this._req("POST", "/prices", {
                     product_id: product.paddle_prod_id,
                     name: product.name,
                     description: product.description,
                     unit_price: {amount: parseInt(product.price * 100).toString(), currency_code: product.currency},
                     billing_cycle: product.is_subscription ? {interval: product.interval, frequency: product.frequency} : null,
-                    trial_period: has_trial ? {interval: product.trial_interval, frequency: product.trial_frequency} : null,
+                    trial_period: product.trial,
                     tax_mode: this.inclusive_tax ? "internal" : "external",
                 })
                 product.price_id = price.data.id;
@@ -480,22 +569,25 @@ class Paddle {
                     )) ||
                     (has_trial && (
                         existing_price.trial_period == null ||
-                        existing_price.trial_period.interval !== product.trial_interval ||
-                        existing_price.trial_period.frequency !== product.trial_frequency
+                        existing_price.trial_period.interval !== product.trial.interval ||
+                        existing_price.trial_period.frequency !== product.trial.frequency
                     )) ||
                     existing_price.status !== "active"
                 )
                 
                 // Update price.
                 if (update_price) {
-                    utils.log(`Updating the price of product ${product.name}.`);
+                    if (!await has_create_products_permission()) {
+                        return ;
+                    }
+                    logger.log(0, `Updating the price of product ${product.name}.`);
                     await this._req("PATCH", `/prices/${product.price_id}`, {
                         // product_id: product.id, // not allowed.
                         name: product.name,
                         description: product.description,
                         unit_price: {amount: parseInt(product.price * 100).toString(), currency_code: product.currency},
                         billing_cycle: product.is_subscription ? {interval: product.interval, frequency: product.frequency} : null,
-                        trial_period: has_trial ? {interval: product.trial_interval, frequency: product.trial_frequency} : null,
+                        trial_period: product.trial,
                         tax_mode: this.inclusive_tax ? "internal" : "external",
                         status: "active",
                     })
@@ -504,155 +596,178 @@ class Paddle {
         }
     }
 
-    // Cancel subscription by payment.
-    // The payment object should always be the unedited original payment since it will be updatd and saved to the database.
-    async _cancel_subscription(payment) {
-        if (typeof payment === "string") {
-            payment = await this._load_payment(payment);
+    // Cancel subscription by subscription id.
+    async _cancel_subscription(id, immediate = false) {
+        if (id == null) {
+            throw Error(`Define parameter \"id\".`);
         }
-        if (payment.cus_id == null) {
-            throw Error(`Payment "${payment.id}" does not have an assigned customer id attribute.`);
-        }
-        if (payment.sub_id == null) {
-            throw Error(`Payment "${payment.id}" does not have an assigned subscription id attribute, it may not be a subscription payment.`);
-        }
-        if (payment.line_items.length == 0) {
-            throw Error(`Payment "${payment.id}" does not contain any line items.`);
+
+        // Load subscription object.
+        const subscription = await this._load_subscription(id);
+        if (subscription == null) {
+            throw Error(`Unable to find subscription "${id}".`);   
         }
 
         // Cancel.
-        const cancellable = [];
-        let all_cancelled = null;
-        payment.line_items.iterate((item) => {
-            const product = this.get_product_sync(item.product);
-            if (product.is_subscription) {
-            }
-            if (product.is_subscription) {
-                if (item.status === "cancelled" || item.status === "cancelling") {
-                    if (all_cancelled === null) {
-                        all_cancelled = true;
-                    }
-                } else if (item.status === "paid" || item.status === "refunding") {
-                    all_cancelled = false;
-                    cancellable.push(item);
-                }
-
-            }
-        })
-        if (all_cancelled) {
-            throw new FrontendError(`This subscription is already cancelled and will become inactive at the end of the billing period.`, Status.bad_request);
+        if (subscription.status !== "active") {
+            throw new FrontendError(`This subscription does not contain any cancellable items, the subscription is likely already cancelled.`, Status.bad_request);
         }
-        if (cancellable.length === 0) {
-            throw new FrontendError(`This subscription does not contain any cancellable items, the subscription is likely already cancelled or refunded.`, Status.bad_request);
-        }
-        await this._req("POST", `/subscriptions/${payment.sub_id}/cancel`, {
-            // effective_from: "immediately",
+        await this._req("POST", `/subscriptions/${subscription.id}/cancel`, {
+            effective_from: immediate ? "immediately" : null,
         });
 
-        // Update payment.
-        cancellable.iterate((item) => {
-            if (item.status === "paid") {
-                item.status = "cancelling";
-            }
-        })
-        await this._save_payment(payment);
-
-        /* V1 cancel per product but since the webhook subscription event does not show which sub items are cancelled, this is not possible.
-
-        // Update the subscription items.
-        const sub = await this._req("GET", `/subscriptions/${payment.sub_id}`);
-        const items = [];
-        const cancelled_line_items = [];
-        let edits = 0;
-        sub.data.items.iterate((sub_item) => {
-
-            // Only for active subscription items.
-            if (sub_item.recurring && (sub_item.status === "active" || sub_item.status === "trailing")) {
-
-                // Recurring items.
-                const item = payment.line_items.iterate((item) => {
-                    if (item.paddle_prod_id === sub_item.price.product_id) {
-                        return item;
-                    }
-                })
-
-                // Item not found, so cancel but do not update status since it is not found.
-                if (item == null) {
-                    console.error(`Unable to find subscription item "${sub_item.price.product_id}" while cancelling. Items: ${JSON.stringify(payment.line_items)}`)
-                    ++edits;
-                }
-
-                // Already cancelling.
-                // else if (item.status === "cancelling") {
-                //     items.push({
-                //         price_id: sub_item.price.id,
-                //         quantity: sub_item.quantity,
-                //     })
-                // }
-
-                // Cancel item.
-                else if (products == null || products.includes(item.id)) {
-                    item.status = "cancelling";
-                    ++edits;
-                    cancelled_line_items.push(item);
-                }
-
-                // Keep item.
-                else {
-                    items.push({
-                        price_id: sub_item.price.id,
-                        quantity: sub_item.quantity,
-                    })
-                }
-            }
-
-            // Keep all non recurring.
-            else if (sub_item.recurring === false) {
-                items.push({
-                    price_id: sub_item.price.id,
-                    quantity: sub_item.quantity,
-                })
-            }
-        })
-
-        // No edits.
-        if (edits === 0) {
-            throw Error("This payment does not contain any cancellable subscriptions.");
-        }
-
-        // Catch certain error.
-        try {
-        
-            // Delete the subscription.
-            if (items.length === 0) {
-                await this._req("POST", `/subscriptions/${payment.sub_id}/cancel`, {});
-            }
-
-            // Update the subscription.
-            else {
-                await this._req("PATCH", `/subscriptions/${payment.sub_id}`, {
-                    items: items,
-                    scheduled_change: null,
-                    proration_billing_mode: "full_next_billing_period",
-                });
-            }
-        } catch (error) {
-            if (error.message.indexOf("cannot update subscription, pending scheduled changes") === -1) {
-                throw error;
-            }
-        }
-
-        // Update payment.
-        cancelled_line_items.iterate((item) => {
-            item.status = "cancelling";
-        })
-        await this._save_payment(payment);
-        */
+        // Update subscription.
+        subscription.status = "cancelling";
+        await this._save_subscription(subscription);
     }
+
+    // async _cancel_subscription(payment) {
+    //     if (typeof payment === "string") {
+    //         payment = await this._load_payment(payment);
+    //     }
+    //     if (payment.cus_id == null) {
+    //         throw Error(`Payment "${payment.id}" does not have an assigned customer id attribute.`);
+    //     }
+    //     if (payment.sub_id == null) {
+    //         throw Error(`Payment "${payment.id}" does not have an assigned subscription id attribute, it may not be a subscription payment.`);
+    //     }
+    //     if (payment.line_items.length == 0) {
+    //         throw Error(`Payment "${payment.id}" does not contain any line items.`);
+    //     }
+
+    //     // Cancel.
+    //     const cancellable = [];
+    //     let all_cancelled = null;
+    //     payment.line_items.iterate((item) => {
+    //         const product = this.get_product_sync(item.product);
+    //         if (product.is_subscription) {
+    //             if (item.status === "cancelled" || item.status === "cancelling") {
+    //                 if (all_cancelled === null) {
+    //                     all_cancelled = true;
+    //                 }
+    //             } else if (item.status === "paid" || item.status === "refunding" || item.status === "refunded") {
+    //                 all_cancelled = false;
+    //                 cancellable.push(item);
+    //             }
+
+    //         }
+    //     })
+    //     if (all_cancelled) {
+    //         throw new FrontendError(`This subscription is already cancelled and will become inactive at the end of the billing period.`, Status.bad_request);
+    //     }
+    //     if (cancellable.length === 0) {
+    //         throw new FrontendError(`This subscription does not contain any cancellable items, the subscription is likely already cancelled or refunded.`, Status.bad_request);
+    //     }
+    //     await this._req("POST", `/subscriptions/${payment.sub_id}/cancel`, {
+    //         // effective_from: "immediately",
+    //     });
+
+    //     // Update payment.
+    //     cancellable.iterate((item) => {
+    //         if (item.status === "paid") {
+    //             item.status = "cancelling";
+    //         }
+    //     })
+    //     await this._save_payment(payment);
+
+    //     /* V1 cancel per product but since the webhook subscription event does not show which sub items are cancelled, this is not possible.
+
+    //     // Update the subscription items.
+    //     const sub = await this._req("GET", `/subscriptions/${payment.sub_id}`);
+    //     const items = [];
+    //     const cancelled_line_items = [];
+    //     let edits = 0;
+    //     sub.data.items.iterate((sub_item) => {
+
+    //         // Only for active subscription items.
+    //         if (sub_item.recurring && (sub_item.status === "active" || sub_item.status === "trailing")) {
+
+    //             // Recurring items.
+    //             const item = payment.line_items.iterate((item) => {
+    //                 if (item.paddle_prod_id === sub_item.price.product_id) {
+    //                     return item;
+    //                 }
+    //             })
+
+    //             // Item not found, so cancel but do not update status since it is not found.
+    //             if (item == null) {
+    //                 console.error(`Unable to find subscription item "${sub_item.price.product_id}" while cancelling. Items: ${JSON.stringify(payment.line_items)}`)
+    //                 ++edits;
+    //             }
+
+    //             // Already cancelling.
+    //             // else if (item.status === "cancelling") {
+    //             //     items.push({
+    //             //         price_id: sub_item.price.id,
+    //             //         quantity: sub_item.quantity,
+    //             //     })
+    //             // }
+
+    //             // Cancel item.
+    //             else if (products == null || products.includes(item.id)) {
+    //                 item.status = "cancelling";
+    //                 ++edits;
+    //                 cancelled_line_items.push(item);
+    //             }
+
+    //             // Keep item.
+    //             else {
+    //                 items.push({
+    //                     price_id: sub_item.price.id,
+    //                     quantity: sub_item.quantity,
+    //                 })
+    //             }
+    //         }
+
+    //         // Keep all non recurring.
+    //         else if (sub_item.recurring === false) {
+    //             items.push({
+    //                 price_id: sub_item.price.id,
+    //                 quantity: sub_item.quantity,
+    //             })
+    //         }
+    //     })
+
+    //     // No edits.
+    //     if (edits === 0) {
+    //         throw Error("This payment does not contain any cancellable subscriptions.");
+    //     }
+
+    //     // Catch certain error.
+    //     try {
+        
+    //         // Delete the subscription.
+    //         if (items.length === 0) {
+    //             await this._req("POST", `/subscriptions/${payment.sub_id}/cancel`, {});
+    //         }
+
+    //         // Update the subscription.
+    //         else {
+    //             await this._req("PATCH", `/subscriptions/${payment.sub_id}`, {
+    //                 items: items,
+    //                 scheduled_change: null,
+    //                 proration_billing_mode: "full_next_billing_period",
+    //             });
+    //         }
+    //     } catch (error) {
+    //         if (error.message.indexOf("cannot update subscription, pending scheduled changes") === -1) {
+    //             throw error;
+    //         }
+    //     }
+
+    //     // Update payment.
+    //     cancelled_line_items.iterate((item) => {
+    //         item.status = "cancelling";
+    //     })
+    //     await this._save_payment(payment);
+    //     */
+    // }
 
     // Initialize all products.
     async _initialize_products() {
         const file_watcher_restart = process.argv.includes("--file-watcher-restart");
+
+        /* @performance */ let now = this.performance.start();
 
         // Extend and initialize all products.
         // Check a payment product / plan product.
@@ -745,10 +860,12 @@ class Paddle {
             }
         })
 
+        /* @performance */ now = this.performance.end("init-products", now);
+
         // Check registered products.
-        const last_products = await this._settings_db.load("last_products");
-        if (JSON.stringify(last_products) !== JSON.stringify(this.products)) {
-            const product_ids = await this._settings_db.load("product_ids");
+        const last_products = await this._settings_db.load(`last_products${this.server.production ? "" : "_demo"}`);
+        if (Object.eq(last_products, this.products)) {
+            const product_ids = await this._settings_db.load(`product_ids${this.server.production ? "" : "_demo"}`);
             product_ids.iterate((item) => {
                 const product = this.get_product_sync(item.id);
                 if (product != null) {
@@ -756,12 +873,14 @@ class Paddle {
                     product.price_id = item.price_id;
                 }
             })
+            /* @performance */ now = this.performance.end("assign-product-ids", now);
         }
-        else if (this.server.offline === false && file_watcher_restart === false) {
+        else if (this.server.offline === false) {
 
             // Get all products and prices.
             const existing_products = await this._get_products();
             const existing_prices = await this._get_prices();
+            /* @performance */ now = this.performance.end("get-prices-and-products", now);
 
             // Check all products.
             const product_ids = [];
@@ -784,27 +903,36 @@ class Paddle {
                     })
                 }
             });
+            /* @performance */ now = this.performance.end("check-products", now);
 
             // Save last products.
-            await this._settings_db.update("last_products", this.products, true);
+            await this._settings_db.save(`last_products${this.server.production ? "" : "_demo"}`, Object.delete_recursively(Object.deep_copy(this.products), ["paddle_prod_id", "price_id"]));
 
             // Save price ids.
-            await this._settings_db.update("product_ids", product_ids, true);
+            await this._settings_db.save(`product_ids${this.server.production ? "" : "_demo"}`, product_ids);
+
+            /* @performance */ now = this.performance.end("save-products-to-db", now);
         }
     }
 
     // Initialize the payments.
     async _initialize() {
+        /* @performance */ this.performance.start();
+
         const file_watcher_restart = process.argv.includes("--file-watcher-restart");
 
         // Create database collections.
         this._settings_db = this.server.db.create_collection("_payment_settings");
         this._sub_db = this.server.db.create_uid_collection("_subscriptions");
+        this._active_sub_db = this.server.db.create_uid_collection("_active_subscriptions");
         this._pay_db = this.server.db.create_uid_collection("_payments");
         this._inv_db = this.server.db.create_uid_collection("_invoices");
+        /* @performance */ this.performance.end("init-db");
+
 
         // Initialize products.
         await this._initialize_products();
+        /* @performance */ let now = this.performance.start();
 
         // Add endpoints.
         this.server.endpoint(
@@ -814,21 +942,20 @@ class Paddle {
                 method: "POST",
                 endpoint: "/vweb/payments/init",
                 content_type: "application/json",
-                rate_limit: 100,
-                rate_limit_duration: 60,
+                rate_limit: "global",
                 params: {
                     items: "array",
                 },
-                callback: async (request, response, params) => {
+                callback: async (stream, params) => {
 
                     // Check items.
                     if (params.items.length === 0) {
-                        return response.error({status: Status.bad_request, data: {error: "Shopping cart is empty."}})
+                        return stream.error({status: Status.bad_request, data: {error: "Shopping cart is empty."}})
                     }
                     let sub_plan_count = {};
                     const error = await params.items.iterate_async_await(async (item) => {
                         if (item.product.is_subscription) {
-                            if (request.uid == null) {
+                            if (stream.uid == null) {
                                 return "You must be signed-in to purchase a subscription.";
                             }
                             if (item.quantity != null && item.quantity > 1) {
@@ -839,21 +966,17 @@ class Paddle {
                             } else {
                                 return "You can not charge two different subscription plans from the same subscription product.";   
                             }
-                            if (await this._check_subscription(request.uid, item.product.id, false)) {
+                            if (await this._check_subscription(stream.uid, item.product.id, false)) {
                                 return `You are already subscribed to product "${item.product.name}".`;
                             }
                         }
                     })
                     if (error) {
-                        return response.error({status: Status.bad_request, data: {error}})
+                        return stream.error({status: Status.bad_request, data: {error}})
                     }
 
                     // Success.
-                    return response.success({
-                        data: {
-                            pay_id: `pay_${request.uid == null ? "unauth" : request.uid}_${Date.now()}${String.random(4)}`
-                        },
-                    });
+                    return stream.success();
                 }
             },
 
@@ -862,10 +985,9 @@ class Paddle {
                 method: "GET",
                 endpoint: "/vweb/payments/products",
                 content_type: "application/json",
-                rate_limit: 100,
-                rate_limit_duration: 60,
-                callback: (request, response) => {
-                    return response.success({data: this.products});
+                rate_limit: "global",
+                callback: (stream) => {
+                    return stream.success({data: this.products});
                 }
             },
 
@@ -874,13 +996,12 @@ class Paddle {
                 method: "GET",
                 endpoint: "/vweb/payments/payment",
                 content_type: "application/json",
-                rate_limit: 100,
-                rate_limit_duration: 60,
+                rate_limit: "global",
                 params: {
                     id: "string",
                 },
-                callback: async (request, response, params) => {
-                    return response.success({data: (await this._load_payment(params.id))});
+                callback: async (stream, params) => {
+                    return stream.success({data: (await this._load_payment(params.id))});
                 }
             },
 
@@ -890,21 +1011,20 @@ class Paddle {
                 endpoint: "/vweb/payments/payments",
                 content_type: "application/json",
                 authenticated: true,
-                rate_limit: 100,
-                rate_limit_duration: 60,
+                rate_limit: "global",
                 params: {
                     days: {type: "number", default: 30},
                     limit: {type: "number", default: null},
                     status: {type: "string", default: null},
                 },
-                callback: async (request, response, params) => {
+                callback: async (stream, params) => {
                     const result = await this.get_payments({
-                        uid: request.uid,
+                        uid: stream.uid,
                         days: params.days,
                         limit: params.limit,
                         status: params.status,
                     })
-                    return response.success({data: result});
+                    return stream.success({data: result});
                 }
             },
 
@@ -914,20 +1034,19 @@ class Paddle {
                 endpoint: "/vweb/payments/payments/refundable",
                 content_type: "application/json",
                 authenticated: true,
-                rate_limit: 100,
-                rate_limit_duration: 60,
+                rate_limit: "global",
                 params: {
                     days: {type: "number", default: 30},
                     limit: {type: ["null", "number"], default: null},
                     status: {type: ["null", "string"], default: null},
                 },
-                callback: async (request, response, params) => {
+                callback: async (stream, params) => {
                     const result = await this.get_refundable_payments({
-                        uid: request.uid,
+                        uid: stream.uid,
                         days: params.days,
                         limit: params.limit,
                     })
-                    return response.success({data: result});
+                    return stream.success({data: result});
                 }
             },
 
@@ -937,19 +1056,18 @@ class Paddle {
                 endpoint: "/vweb/payments/payments/refunded",
                 content_type: "application/json",
                 authenticated: true,
-                rate_limit: 100,
-                rate_limit_duration: 60,
+                rate_limit: "global",
                 params: {
                     days: {type: "number", default: 30},
                     limit: {type: ["null", "number"], default: null},
                 },
-                callback: async (request, response, params) => {
+                callback: async (stream, params) => {
                     const result = await this.get_refunded_payments({
-                        uid: request.uid,
+                        uid: stream.uid,
                         days: params.days,
                         limit: params.limit,
                     })
-                    return response.success({data: result});
+                    return stream.success({data: result});
                 }
             },
 
@@ -959,19 +1077,18 @@ class Paddle {
                 endpoint: "/vweb/payments/payments/refunding",
                 content_type: "application/json",
                 authenticated: true,
-                rate_limit: 100,
-                rate_limit_duration: 60,
+                rate_limit: "global",
                 params: {
                     days: {type: ["null", "number"], default: null},
                     limit: {type: ["null", "number"], default: null},
                 },
-                callback: async (request, response, params) => {
+                callback: async (stream, params) => {
                     const result = await this.get_refunding_payments({
-                        uid: request.uid,
+                        uid: stream.uid,
                         days: params.days,
                         limit: params.limit,
                     })
-                    return response.success({data: result});
+                    return stream.success({data: result});
                 }
             },
 
@@ -980,16 +1097,15 @@ class Paddle {
                 method: "POST",
                 endpoint: "/vweb/payments/refund",
                 content_type: "application/json",
-                rate_limit: 100,
-                rate_limit_duration: 60,
+                rate_limit: "global",
                 params: {
                     payment: {type: ["string", "object"]},
                     line_items: {type: ["array", "null"], default: null},
                     reason: {type: "string", default: "refund"},
                 },
-                callback: async (request, response, params) => {
+                callback: async (stream, params) => {
                     await this.create_refund(params.payment, params.line_items, params.reason);
-                    return response.success();
+                    return stream.success();
                 }
             },
 
@@ -999,46 +1115,43 @@ class Paddle {
                 endpoint: "/vweb/payments/subscription",
                 content_type: "application/json",
                 authenticated: true,
-                rate_limit: 100,
-                rate_limit_duration: 60,
+                rate_limit: "global",
                 params: {
                     product: "string",
                 },
-                callback: async (request, response, params) => {
-                    await this.cancel_subscription(request.uid, params.product);
-                    return response.success();
+                callback: async (stream, params) => {
+                    await this.cancel_subscription(stream.uid, params.product);
+                    return stream.success();
                 }
             },
 
             // Cancel a subscription by payment.
-            {
-                method: "DELETE",
-                endpoint: "/vweb/payments/subscription_by_payment",
-                content_type: "application/json",
-                authenticated: true,
-                rate_limit: 100,
-                rate_limit_duration: 60,
-                params: {
-                    payment: {type: ["string", "object"]},
-                },
-                callback: async (request, response, params) => {
-                    await this.cancel_subscription_by_payment(params.payment);
-                    return response.success();
-                }
-            },
+            // {
+            //     method: "DELETE",
+            //     endpoint: "/vweb/payments/subscription_by_payment",
+            //     content_type: "application/json",
+            //     authenticated: true,
+            //     rate_limit: "global",
+            //     params: {
+            //         payment: {type: ["string", "object"]},
+            //     },
+            //     callback: async (stream, params) => {
+            //         await this.cancel_subscription_by_payment(params.payment);
+            //         return stream.success();
+            //     }
+            // },
 
-            // Get subscriptions.
+            // Get active subscriptions.
             {
                 method: "GET",
-                endpoint: "/vweb/payments/subscriptions",
+                endpoint: "/vweb/payments/active_subscriptions",
                 content_type: "application/json",
                 authenticated: true,
-                rate_limit: 100,
-                rate_limit_duration: 60,
+                rate_limit: "global",
                 authenticated: true,
-                callback: async (request, response, params) => {
-                    return response.success({
-                        data: {subscriptions: (await this.get_subscriptions(request.uid))},
+                callback: async (stream, params) => {
+                    return stream.success({
+                        data: {subscriptions: (await this.get_active_subscriptions(stream.uid))},
                     });
                 }
             },
@@ -1049,14 +1162,13 @@ class Paddle {
                 endpoint: "/vweb/payments/subscribed",
                 content_type: "application/json",
                 authenticated: true,
-                rate_limit: 100,
-                rate_limit_duration: 60,
+                rate_limit: "global",
                 params: {
                     product: "string",
                 },
-                callback: async (request, response, params) => {
-                    return response.success({
-                        data: {is_subscribed: (await this.is_subscribed(request.uid, params.product))}
+                callback: async (stream, params) => {
+                    return stream.success({
+                        data: {is_subscribed: (await this.is_subscribed(stream.uid, params.product))}
                     });
                 }
             },
@@ -1065,6 +1177,8 @@ class Paddle {
             this.server.offline ? null : (await this._create_webhook()),
 
         );
+        /* @performance */ now = this.performance.end("init-endpoints", now);
+        // /* @performance */ this.performance.dump();
     }
 
     // ---------------------------------------------------------
@@ -1104,14 +1218,13 @@ class Paddle {
         let obj = (await this._req("GET", `/transactions/${data.id}`, {include: ["address", "adjustment", "business", "customer"]})).data;
 
         // Initialize.
+        const id = `pay_${obj.custom_data.uid == null ? "unauth" : obj.custom_data.uid}_${String.random(4)}${Date.now()}`
         const payment = {
-            id: obj.custom_data.pay_id,     // payment id, generated by the frontend.
+            id: id,                         // payment id.
             uid: obj.custom_data.uid,       // user id,
             cus_id: obj.customer_id,        // customer id.
             tran_id: obj.id,                // transaction id.
-            sub_id: obj.subscription_id,    // subscription id.
             timestamp: Date.now(),
-            // timestamp: obj.created_at,   // user friendly str timestamp.
             status: null,                   // payment status, possible values are "open" or "paid".
             line_items: [],                 // cart line items as {quantity: 1, product: "prod_xxx"}.
             billing_details: {
@@ -1185,7 +1298,7 @@ class Paddle {
             case "past_due":
                 payment.status = "past_due"; break;
             default:
-                utils.error("Payment Webhook: ", `Unknown payment status "${obj.status}".`);
+                logger.error("Payment Webhook: ", `Unknown payment status "${obj.status}".`);
                 payment.status = "unkown";
                 break;
         }
@@ -1202,7 +1315,7 @@ class Paddle {
                 discount: parseFloat(item.totals.discount / 100), // should not be changed to unit totals, since mails and invoices depend on this behaviour, just divide by quantity.
                 subtotal: parseFloat(item.totals.subtotal / 100), // should not be changed to unit totals, since mails and invoices depend on this behaviour, just divide by quantity.
                 total: parseFloat(item.totals.total / 100), // should not be changed to unit totals, since mails and invoices depend on this behaviour, just divide by quantity.
-                status: "paid", // can be "paid", "cancelling", "cancelled", "refunded", "refunding".
+                status: "paid", // can be "paid", "refunded", "refunding".
             })
         })
 
@@ -1258,11 +1371,11 @@ class Paddle {
                 const subscription = await this.get_product(product.subscription_id, true);
                 await subscription.plans.iterate_async_await(async (plan) => {
                     if (plan.id != product.id) {
-                        const {exists, pay_id} = await this._check_subscription(uid, plan.id);
+                        const {exists, sub_id} = await this._check_subscription(uid, plan.id);
                         if (exists) {
-                            utils.log(`Cancelling subscription "${plan.id}" due too downgrade/upgrade to "${product.id}" of user "${payment.uid}".`)
-                            // await this.cancel_subscription_by_payment(pay_id, [plan.id]);
-                            await this._cancel_subscription(pay_id);
+                            logger.log(0, `Cancelling subscription "${plan.id}" due too downgrade/upgrade to "${product.id}" of user "${payment.uid}".`)
+                            // @todo cancel sub by sub id.
+                            await this._cancel_subscription(sub_id);
                         }
                     }
                 })
@@ -1297,35 +1410,44 @@ class Paddle {
     async _subscription_webhook(data) {
 
         // Vars.
-        const payment = await this._load_payment(data.custom_data.pay_id);
-        const {uid, cus_id} = payment;
+        const uid = data.custom_data.uid;
+        const subscription = {
+            uid,
+            id: data.id,
+            cus_id: data.customer_id,    // customer id.
+            status: "active",           // can be "active", "cancelling", "cancelled".
+            plans: [],
+        }
 
-        // Assign payment id.
-        payment.sub_id = data.id;
-        await this._save_payment(payment);
-
-        // Check the payment line items.
-        await payment.line_items.iterate_async_await(async (item) => {
-            const product = this.get_product_sync(item.product, false);
+        // Check the subscription line items.
+        await data.items.iterate_async_await(async (item) => {
+            const product = this._get_product_by_paddle_prod_id(item.price.product_id, false)
 
             // Product not found or no sub id found, nothing to do here, the payment webhook already handles this scenario.
-            if ((product == null) || (product.is_subscription && payment.sub_id == null)) {
+            if (product == null) {
+                logger.error(`Subscription webhook [#sub1]: Unable to find product with id ${item.price.product_id}. This is a serious error which causes a non activated subscription for a paid transaction. You should manually cancel the subscription. Event: ${JSON.stringify(data, null, 4)}.`);
                 return null;
             }
 
             // Subscription.
             else if (product.is_subscription) {
 
+                // Add to plans.
+                subscription.plans.append(product.id);
+
                 // Active the user's subscription in the database.
-                utils.log(`Activating subscription "${product.id}" of user "${payment.uid}".`)
-                await this._add_subscription(uid, product.id, payment.id, payment.sub_id);
+                logger.log(0, `Activating subscription "${product.id}" of user "${subscription.uid}".`)
+                await this._add_subscription(uid, product.id, subscription.id);
 
                 // No need to cancel other subs, this is already handled by the payment webhook.
 
                 // Execute callback.
-                await this._exec_user_callback(this.server.on_susbcription, {product, payment});
+                await this._exec_user_callback(this.server.on_susbcription, {product, subscription});
             }
         })
+
+        // Save subscription.
+        await this._save_subscription(subscription);
 
         // No need to send mail, payment webhook already handles this.
     }
@@ -1334,30 +1456,20 @@ class Paddle {
     async _subscription_cancelled_webhook(data) {
 
         // Vars.
-        const payment = await this._load_payment(data.custom_data.pay_id);
-        const {uid, cus_id} = payment;
+        const subscription = await this._load_subscription(data.id);
 
-        // Delete subscriptions made by this payment.
-        let line_items = [];
-        if (payment.sub_id != null) {
-            await payment.line_items.iterate_async_await(async (item) => {
-                const product = this.get_product_sync(item.product, false);
-                if (product != null && product.is_subscription) {
-                    item.status = "cancelled";
-                    await this._delete_subscription(uid, product.id);
-                    line_items.push(item);
-                    utils.log(`Deactivating subscription "${product.id}" of user "${payment.uid}".`)
-                }
-            })
-        }
+        // Delete subscriptions made by this subscription.
+        await subscription.plans.iterate_async_await(async (plan_id) => {
+            await this._delete_subscription(subscription.uid, plan_id);
+            logger.log(0, `Deactivating subscription "${plan_id}" of user "${subscription.uid}".`)
+        })
 
         // Update database.
-        if (line_items.length > 0) {
-            await this._save_payment(payment);
-        }
+        subscription.status = "cancelled";
+        await this._save_subscription(subscription);
 
         // Execute callback.
-        await this._exec_user_callback(this.server.on_cancellation, {payment, line_items});
+        await this._exec_user_callback(this.server.on_cancellation, {subscription});
 
         // Send an email to the user.
         // try {
@@ -1384,7 +1496,7 @@ class Paddle {
             const is_approved = data.status === "approved";
 
             // Vars.
-            const payment = await this._load_payment(data.custom_data.pay_id);
+            const payment = await this._load_payment_by_transaction(data.transaction_id);
 
             // Get and update line items.
             const line_items = [], cancel_products = [];
@@ -1394,14 +1506,14 @@ class Paddle {
                         item.status = is_approved ? "refunded" : "paid";
                         cancel_products.push(item.product);
                         line_items.push(item);
+                        return false;
                     }
                 })
             })
 
             // Manage subscriptions.
             if (payment.sub_id != null && is_approved) {
-                // @todo still check if a subscription is automatically cancelled by paddle when it is refunded.
-                // this.cancel_subscription_by_payment(payment, cancel_products);
+                await this._cancel_subscription(payment.sub_id, true);
             }
 
             // Update database.
@@ -1411,7 +1523,7 @@ class Paddle {
 
             // Execute callback.
             if (is_approved) {
-                utils.log(`Refunded items of payment ${payment.id} of user "${payment.uid}".`)
+                logger.log(0, `Refunded items of payment "${payment.id}" of user "${payment.uid}".`)
                 await this._exec_user_callback(
                     is_refund ? this.server.on_refund : this.server.on_chargeback, 
                     {payment, line_items}
@@ -1426,7 +1538,7 @@ class Paddle {
                 //     console.error(error);
                 // }
             } else {
-                utils.log(`Refund denied for items of payment ${payment.id} of user "${payment.uid}".`)
+                logger.log(0, `Refund denied for items of payment ${payment.id} of user "${payment.uid}".`)
                 await this._exec_user_callback(
                     is_refund ? this.server.on_failed_refund : this.server.on_failed_chargeback, 
                     {payment, line_items}
@@ -1444,14 +1556,14 @@ class Paddle {
         }
 
         // Chargeback reversal.
-        if (data.action === "chargeback_reverse" && data.status === "reversed") {
+        else if (data.action === "chargeback_reverse" && data.status === "reversed") {
 
             // Vars.
-            const payment = await this._load_payment(data.custom_data.pay_id);
+            const payment = await this._load_payment_by_transaction(data.transaction_id);
 
-            // Reactivate subscriptions on chargeback reverse.
+            // Log reactivation subscriptions on chargeback reverse.
             if (payment.sub_id != null) {
-                utils.log(`Chargeback reversed for payment ${payment.id} from user "${payment.uid}".`)
+                logger.log(0, `Chargeback reversed for payment ${payment.id} from user "${payment.uid}".`)
                 // @todo.
             }
 
@@ -1478,7 +1590,7 @@ class Paddle {
         const file_watcher_restart = process.argv.includes("--file-watcher-restart");
 
         // Register the webhook.
-        const webhook_doc = await this._settings_db.load("webhook");
+        const webhook_doc = await this._settings_db.load(`webhook${this.server.production ? "" : "_demo"}`);
         const webhook_settings = {
             description: "vweb webhook",
             destination: `${this.server.full_domain}/vweb/payments/webhook`,
@@ -1506,60 +1618,77 @@ class Paddle {
             ],
         };
 
+        // Register webhook.
+        const register_webhook = async () => {
+            logger.log(0, "Registering payments webhook.");
+            const response = await this._req("POST", "/notification-settings", webhook_settings)
+            this.webhook_key = response.data.endpoint_secret_key;
+            await this._settings_db.save(`webhook${this.server.production ? "" : "_demo"}`, {
+                id: response.data.id,
+                key: this.webhook_key,
+            });
+        }
+
         // Webhook registered.
         if (webhook_doc != null) {
             this.webhook_key = webhook_doc.key;
 
             // Check update required.
-            const last_webhook = await this._settings_db.load("last_webhook");
+            const last_webhook = await this._settings_db.load(`last_webhook${this.server.production ? "" : "_demo"}`);
             if (JSON.stringify(last_webhook) !== JSON.stringify(webhook_settings) && file_watcher_restart === false) {
 
                 // Check update required.
                 const webhook_id = webhook_doc.id;
-                const registered = await this._req("GET", `/notification-settings/${webhook_id}`);
-                const item = registered.data;
-                const patch = (() => {
-                    if (
-                        item.active !== true ||
-                        item.destination !== webhook_settings.destination ||
-                        item.type !== webhook_settings.type ||
-                        item.description !== webhook_settings.description ||
-                        item.subscribed_events.length != webhook_settings.subscribed_events.length
-                    ) {
-                        return true;
+                let registered
+                try {
+                    registered = await this._req("GET", `/notification-settings/${webhook_id}`);
+                } catch (error) {
+                    if (error.status === 404) {
+                        registered = undefined;
+                        await register_webhook();
+                    } else {
+                        throw error;
                     }
-                    return webhook_settings.subscribed_events.iterate((x) => {
-                        const found = item.subscribed_events.iterate((y) => {
-                            if (x === y.name) {
+                }
+                if (registered) {
+                    const item = registered.data;
+                    const patch = (() => {
+                        if (
+                            item.active !== true ||
+                            item.destination !== webhook_settings.destination ||
+                            item.type !== webhook_settings.type ||
+                            item.description !== webhook_settings.description ||
+                            item.subscribed_events.length != webhook_settings.subscribed_events.length
+                        ) {
+                            return true;
+                        }
+                        return webhook_settings.subscribed_events.iterate((x) => {
+                            const found = item.subscribed_events.iterate((y) => {
+                                if (x === y.name) {
+                                    return true;
+                                }
+                            })
+                            if (found === false) {
                                 return true;
                             }
                         })
-                        if (found === false) {
-                            return true;
-                        }
-                    })
-                })();
+                    })();
 
-                // Update.
-                if (patch === true) {
-                    utils.log("Updating payments webhook.");
-                    await this._req("PATCH", `/notification-settings/${webhook_id}`, {...webhook_settings, active: true});
+                    // Update.
+                    if (patch === true) {
+                        logger.log(0, "Updating payments webhook.");
+                        await this._req("PATCH", `/notification-settings/${webhook_id}`, {...webhook_settings, active: true});
+                    }
+
+                    // Save.
+                    await this._settings_db.save(`last_webhook${this.server.production ? "" : "_demo"}`, webhook_settings);
                 }
-
-                // Save.
-                await this._settings_db.update("last_webhook", webhook_settings, true);
             }
         }
 
         // Register webhook.
         else {
-            utils.log("Registering payments webhook.");
-            const response = await this._req("POST", "/notification-settings", webhook_settings)
-            this.webhook_key = response.data.endpoint_secret_key;
-            await this._settings_db.save("webhook", {
-                id: response.data.id,
-                key: this.webhook_key,
-            });
+            await register_webhook();
         }
 
         // Ip whitelist.
@@ -1584,33 +1713,32 @@ class Paddle {
         return  {
             method: "POST",
             endpoint: "/vweb/payments/webhook",
-            rate_limit: 100000,
-            rate_limit_duration: 60,
-            callback: async (request, response) => {
+            rate_limit: false,
+            callback: async (stream) => {
 
                 // Ip whitelist.
-                if (ip_whitelist.includes(request.ip) === false) {
-                    utils.log(`POST:/vweb/payments/webhook: Warning: Blocking non whitelisted ip "${request.ip}".`);
-                    return response.error({status: Status.unauthorized});
+                if (ip_whitelist.includes(stream.ip) === false) {
+                    logger.log(0, `POST:/vweb/payments/webhook: Warning: Blocking non whitelisted ip "${stream.ip}".`);
+                    return stream.error({status: Status.unauthorized});
                 }
                 
                 // Verify.
-                const full_signature = request.headers["paddle-signature"];
+                const full_signature = stream.headers["paddle-signature"];
                 if (full_signature == null) {
-                    utils.log("POST:/vweb/payments/webhook: Error: No paddle signature found in the request headers.");
-                    return response.error({status: Status.unauthorized, data: {error: "Webhook signature verification failed."}});
+                    logger.log(0, "POST:/vweb/payments/webhook: Error: No paddle signature found in the request headers.");
+                    return stream.error({status: Status.unauthorized, data: {error: "Webhook signature verification failed."}});
                 }
                 const ts_index = full_signature.indexOf(";");
                 const ts = full_signature.substr(3, ts_index - 3);
                 const signature = full_signature.substr(ts_index + 4);
-                const digest = libcrypto.createHmac("sha256", this.webhook_key).update(`${ts}:${request.body}`).digest("hex");
+                const digest = libcrypto.createHmac("sha256", this.webhook_key).update(`${ts}:${stream.body}`).digest("hex");
                 if (libcrypto.timingSafeEqual(Buffer.from(digest, "hex"), Buffer.from(signature, "hex")) !== true) {
-                    utils.log("POST:/vweb/payments/webhook: Error: Webhook signature verification failed.");
-                    return response.error({status: Status.unauthorized, data: {error: "Webhook signature verification failed."}});
+                    logger.log(0, "POST:/vweb/payments/webhook: Error: Webhook signature verification failed.");
+                    return stream.error({status: Status.unauthorized, data: {error: "Webhook signature verification failed."}});
                 }
 
                 // Process items.
-                const event = JSON.parse(request.body);
+                const event = JSON.parse(stream.body);
                 switch (event.event_type) {
 
                     // Paid transaction.
@@ -1645,7 +1773,7 @@ class Paddle {
                 }
 
                 // Success.
-                response.success();
+                stream.success({data: {message: "OK"}});
 
             },
         };
@@ -1815,7 +1943,7 @@ class Paddle {
         all_payments.iterate((payment) => {
             const line_items = [];
             payment.line_items.iterate((item) => {
-                if (item.status !== "cancelled" && item.status !== "refunded" && item.status !== "refunding") {
+                if (item.status === "paid" && item.total > 0) { // skip total 0 for free trial.
                     line_items.push(item);
                 }
             })
@@ -1972,7 +2100,6 @@ class Paddle {
             reason,
             items,
             custom_data: {
-                pay_id: payment.id,
                 uid: payment.uid,
             }
         });
@@ -2010,7 +2137,7 @@ class Paddle {
             @type: string, array[string, object]
             @desc: The product to cancel, the product ids to cancel or the product objects to cancel.
     */
-    async cancel_subscription(uid, products) {
+    async cancel_subscription(uid, products, _throw_no_cancelled_err = true) {
         if (products == null) {
             throw new Error("Parameter \"products\" should be a defined value of type \"array[string, object]\".");
         }
@@ -2022,41 +2149,53 @@ class Paddle {
             if (typeof product === "object") {
                 product = product.id;
             }
-            const {exists, pay_id} = await this._check_subscription(uid, product);
-            if (exists && cancelled.includes(pay_id) === false) {
-                await this.cancel_subscription_by_payment(pay_id);
-                cancelled.push(pay_id)
+            const {exists, sub_id} = await this._check_subscription(uid, product);
+            if (exists && cancelled.includes(sub_id) === false) {
+                await this._cancel_subscription(sub_id);
+                cancelled.push(sub_id)
             }
         });
-        if (cancelled.length === 0) {
-            throw new Error("No cancellable subscriptions found.");
+        if (_throw_no_cancelled_err && cancelled.length === 0) {
+            throw new FrontendError("No cancellable subscriptions found.", Status.bad_request);
         }
     }
 
-    // Cancel subscription by payment.
+    // Cancel subscription by subscription id.
     /*  @docs:
-        @title: Cancel Subscription.
-        @desc: Cancel a subscription based on the retrieved payment object or id.
+        @title: Cancel subscription by subscription id.
+        @desc: Cancel a subscription based on the retrieved subscription object or id.
         @warning: Cancelling a subscription will also cancel all other subscriptions that were created by the same payment request.
         @param:
-            @name: payment
+            @name: subscription
             @required: true
             @type: string, object
-            @desc: The retrieved payment object or the payment's id.
+            @desc: The retrieved subscription object or the subscription's id.
+        @param:
+            @name: immediate
+            @type: boolean
+            @desc: Immediately cancel the subscription, or wait till the end of the billing cycle.
     */
-    async cancel_subscription_by_payment(payment) {
-        if (typeof payment === "string") {
-            payment = await this._load_payment(payment);
-        } else {
-            payment = await this._load_payment(payment.id); // since it needs to be the unaltered payment obj for `_cancel_subscription`.
+    async cancel_subscription_by_id(subscription, immediate = false) {
+        if (typeof subscription === "object") {
+            subscription = subscription.id;
         }
-        return await this._cancel_subscription(payment);
+        return await this._cancel_subscription(subscription, immediate);
     }
 
     // Get subscriptioms.
     /*  @docs:
-        @title: Get Subscriptions
+        @title: Get active subscriptions
         @desc: Get the active subscriptions of a user.
+        @param:
+            @name: uid
+            @cached: Users:uid:param
+    */
+    async get_active_subscriptions(uid) {
+        return await this._get_active_subscriptions(uid);
+    }
+    /*  @docs:
+        @title: Get all subscriptions
+        @desc: Get all subscriptions of a user, active and inactive.
         @param:
             @name: uid
             @cached: Users:uid:param
@@ -2312,6 +2451,34 @@ class Paddle {
                 reject(error);
             });
         });
+    }
+
+    // ---------------------------------------------------------
+    // Development.
+
+    // Cancel all subscriptions to clear development environment.
+    async dev_cancel_all_subscriptions() {
+
+        // Fetch.
+        let subs = [], after = null;
+        while (true) {
+            const response = await this._req("GET", "/subscriptions", after == null ? {per_page: 100} : {per_page: 100, after});
+            subs = subs.concat(response.data);
+            if (!response.meta.has_more) {
+                break;
+            }
+            after = subs.last().id;
+        }
+
+        // Cancel.
+        await subs.iterate_async_await(async (sub) => {
+            if (sub.status === "active") {
+                console.log("Cancelling subscription", sub.id);
+                await this._req("POST", `/subscriptions/${sub.id}/cancel`, {
+                    effective_from: "immediately",
+                });
+            }
+        })
     }
     
 }

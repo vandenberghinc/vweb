@@ -5,16 +5,24 @@
 
 
 // ---------------------------------------------------------
-// Imports.
+// Libraries.
 
 const libproc = require("child_process");
+const libbson = require("bson");
+const { Transform } = require('stream');
 const {MongoClient, ObjectID} = require('mongodb');
+
+// ---------------------------------------------------------
+// Imports.
+
+const Status = require("./status.js");
 const {vlib} = require("./vinc.js");
 
 // ---------------------------------------------------------
 // Collection.
 // Path based collection, so "myfile", "mydir/myfile".
 
+// @warning: The "path" param must always be allowed to be an object or string, also for the UIDCollection class.
 // @warning: THE DATABASE COLLECTION SHOULD ALSO ACCEPT OBJECTS FOR PATHS.
 /*  @docs:
     @nav: Backend
@@ -22,12 +30,20 @@ const {vlib} = require("./vinc.js");
     @title: Collection
     @desc: The database collection class.
     @note: The document attribute `_path` is a reserved index attribute for the path of the document.
+    @attribute: 
+        @name: col
+        @desc: The native mongodb collection.
 */
 class Collection {
-    constructor(collection, uid_based = false) {
+
+    // Static attributes.
+    static chunk_size = 1024 * 1024 * 4; // 4MB chunks, lower is better for frequent updates.
+
+    // Constructor.
+    constructor(collection, _uid_based = false) {
         this.col = collection;
-        this.uid_based = uid_based;
-        if (uid_based) {
+        this.uid_based = _uid_based;
+        if (_uid_based) {
             this.col.createIndex({ _path: 1, _uid: 1 });
         } else {
             this.col.createIndex({_path: 1});
@@ -41,6 +57,100 @@ class Collection {
             return doc._content;
         }
         return doc;
+    }
+
+    // Chunked methods.
+    async _load_chunked(path, find_opts) {
+        let query = typeof path === "string" ? {_path: path, chunk: {$gte: 0}} : {...path, chunk: {$gte: 0}};
+        const chunks_cursor = this.col.find(query, find_opts).sort({chunk: 1});
+        const chunks = await chunks_cursor.toArray();
+        if (chunks.length === 0) {
+            return null;
+        }
+        const buffer = Buffer.concat(chunks.map(chunk => chunk.data.buffer));
+        return libbson.deserialize(buffer);
+
+        // const transformStream = new Transform({
+        //     transform(chunk, encoding, callback) {
+        //         this.push(chunk.data.buffer);
+        //         callback();
+        //     }
+        // });
+        // chunks.forEach(chunk => transformStream.write(chunk));
+        // transformStream.end();
+        // return new Promise((resolve, reject) => {
+        //     let buffers = [];
+        //     transformStream.on('data', (data) => buffers.push(data));
+        //     transformStream.on('end', () => {
+        //         const buffer = Buffer.concat(buffers);
+        //         resolve(bson.deserialize(buffer));
+        //     });
+        //     transformStream.on('error', reject);
+        // });
+    }
+    async _save_chunked(path, content) {
+
+        // Serialize.
+        const buffer = libbson.serialize(content);
+        const new_chunk_count = Math.ceil(buffer.length / Collection.chunk_size);
+
+        // Retrieve the old chunk count
+        const ref_query = typeof path === "string" ? {_path: path,  chunk: -1} : {...path, chunk: -1};
+        const object_ref = await this.col.findOne(ref_query);
+        const old_chunk_count = object_ref ? object_ref.chunks : 0;
+
+        // Update chunks.
+        const bulk_ops = [];
+        for (let i = 0; i < buffer.length; i += Collection.chunk_size) {
+            let query, update;
+            if (typeof path === "string") {
+                query = {
+                    _path: path,
+                    chunk: i / Collection.chunk_size,
+                }
+                update = {
+                    chunk: i / Collection.chunk_size,
+                    data: buffer.slice(i, i + Collection.chunk_size)
+                }
+            } else {
+                query = {
+                    ...path,
+                    chunk: i / Collection.chunk_size,
+                }
+                update = {
+                    chunk: i / Collection.chunk_size,
+                    data: buffer.slice(i, i + Collection.chunk_size)
+                }
+            }
+            bulk_ops.push({
+                updateOne: {
+                    filter: query,
+                    update: {$set: update},
+                    upsert: true
+                }
+            });
+        }
+
+        // Update reference.
+        bulk_ops.push({
+            updateOne: {
+                filter: ref_query,
+                update: {$set: {
+                    chunk: -1,
+                    chunks: new_chunk_count,
+                }},
+                upsert: true
+            }
+        });
+
+        // Write.
+        await this.col.bulkWrite(bulk_ops, {ordered: true});
+
+        // Delete any excess chunks if the new chunk count is less than the old chunk count
+        if (new_chunk_count < old_chunk_count) {
+            ref_query.chunk = {$gte: new_chunk_count};
+            await this.col.deleteMany(ref_query);
+        }
     }
 
     // Find.
@@ -63,6 +173,31 @@ class Collection {
         }
     }
 
+    // Exists.
+    /*  @docs:
+     *  @title: Exists
+     *  @description: Check if a document exists.
+     *  @parameter:
+     *      @name: path
+     *      @description: The database path to the document.
+     *      @type: string
+     */
+    async exists(path) {
+        if (typeof path !== "string" && (typeof path !== "object" || path === null)) {
+            throw Error(`Parameter "path" has an invalid type "${typeof path}", the valid type is "string".`);
+        }
+        try {
+            const doc = await this.col.findOne(
+                typeof path === "object" ? path : {_path: path},
+                {projection: { _id: 1 }}
+            );
+            return doc != null;
+        } catch (error) {
+            console.error(error);
+            throw new Error('Encountered an error while checking if the document exists.');
+        }
+    }
+
     // Load.
     /*  @docs:
      *  @title: Load
@@ -76,31 +211,92 @@ class Collection {
      *      @description: The database path to the document.
      *      @type: string
      *  @parameter:
-     *      @name: def
-     *      @description:
-     *          The default data to be returned when the data does not exist.
-     *
-     *          When the type of parameter `def` is `object` then the keys that do not exist in the loaded object, but do exist in the default object will be inserted into the loaded object.
+     *      @name: opts
+     *      @desc: Additional options.
      *      @type: null, object
+     *      @attribute:
+     *          @name: default
+     *          @description:
+     *              The default data to be returned when the data does not exist.
+     *  
+     *              When the type of attribute `default` is `object` then the keys that do not exist in the loaded object, but do exist in the default object will be inserted into the loaded object.
+     *          @type: null, object
+     *      @attribute:
+     *          @name: chunked
+     *          @description: Load a chunked document.
+     *          @type: null, object
+     *      @attribute:
+     *          @name: attributes
+     *          @description: The attributes to load.
+     *          @type: null, string[]
      */
-    async load(path, def = undefined) {
+    async load(path, opts = null) {
         if (typeof path !== "string" && (typeof path !== "object" || path === null)) {
             throw Error(`Parameter "path" has an invalid type "${typeof path}", the valid type is "string".`);
         }
         try {
-            const doc = this._process_doc(await this.col.findOne(typeof path === "object" ? path : {_path: path}));
+
+            // Get attributes.
+            let find_opts;
+            if (opts) {
+                if (opts.projection) {
+                    find_opts = {projection: opts.projection};
+                }
+                else if (opts.attributes) {
+                    find_opts = {projection: {
+                        _id: 1,
+                        _path: 1,
+                        _uid: 1,
+                    }};
+                    opts.attributes.iterate((i) => {
+                        find_opts.projection[i] = 1;
+                    })
+                }
+            }
+
+            // Load doc.
+            let doc;
+            if (opts != null && opts.chunked === true) {
+                doc = await this._load_chunked(path, find_opts);
+            } else {
+
+                // Load.
+                doc = await this.col.findOne(
+                    typeof path === "object" ? path : {_path: path},
+                    find_opts,
+                );
+                this.clean(doc);
+            }
+
+            // Process doc.
+            doc = this._process_doc(doc);
+
+            // Handle default.
             if (doc == null) {
-                if (def !== undefined) { return def; }
+                if (opts != null && opts.default !== undefined) { return opts.default; }
                 return null;
             }
-            if (typeof def === "object" && def !== null && Array.isArray(def) === false) {
-                Object.keys(def).iterate((key) => {
-                    if (doc[key] === undefined) {
-                        doc[key] = def[key];
-                    }
-                })
+
+            // Insert default keys.
+            else if (opts != null && typeof opts.default === "object" && opts.default !== null && Array.isArray(opts.default) === false) {
+                const set_defaults = (obj, defaults) => {
+                    Object.keys(defaults).iterate((key) => {
+                        if (obj[key] === undefined) {
+                            obj[key] = defaults[key];
+                        } else if (
+                            typeof obj[key] === "object" && Array.isArray(obj[key]) === false && obj[key] !== null &&
+                            typeof defaults[key] === "object" && Array.isArray(defaults[key]) === false && defaults[key] !== null
+                        ) {
+                            set_defaults(obj[key], defaults[key])
+                        }
+                    })
+                }
+                set_defaults(doc, opts.default);
             }
+
+            // Response.
             return doc;
+
         } catch (error) {
             console.error(error);
             throw new Error('Encountered an error while loading the document.');
@@ -110,43 +306,7 @@ class Collection {
     // Save.
     /*  @docs:
      *  @title: Save
-     *  @description: Save data by path.
-     *  @parameter:
-     *      @name: path
-     *      @description: The database path to the document.
-     *      @type: string
-     *  @parameter:
-     *      @name: data
-     *      @description: The data to save.
-     *      @type: null, boolean, number, string, array, object
-     */
-    async save(path, content) {
-        if (typeof path !== "string" && (typeof path !== "object" || path === null)) {
-            throw Error(`Parameter "path" has an invalid type "${typeof path}", the valid type is "string".`);
-        }
-        let doc;
-        if (typeof path === "object") {
-            doc = path;
-        } else {
-            doc = {_path: path};
-        }
-        if (typeof content === "object" && Array.isArray(content) == false && content !== null) {
-            Object.expand(doc, content);
-        } else {
-            doc._content = content;
-        }
-        try {
-            const response = await this.col.insertOne(doc);
-        } catch (error) {
-            console.error(error);
-            throw new Error('Encountered an error while saving the document.');
-        }
-    }
-
-    // Update.
-    /*  @docs:
-     *  @title: Update
-     *  @description: Update data by path.
+     *  @description: Save data by path. When the document already exists this function only updates the specified content attributes.
      *  @return:
      *      Returns the updated document.
      *  @parameter:
@@ -158,16 +318,37 @@ class Collection {
      *      @description: The data to save.
      *      @type: null, boolean, number, string, array, object
      *  @parameter:
-     *      @name: auto_create
-     *      @description: Automatically create the document when it does not exist.
-     *      @type: boolean
+     *      @name: opts
+     *      @desc: Additional options.
+     *      @type: null, object
+     *      @attribute:
+     *          @name: chunked
+     *          @description: Chunk the document into multiple documents, therefore documents larger than 16MB are supported.
+     *          @warning: Currently this option is only supported for types `object` and `array`.
+     *          @default: false
+     *          @type: boolean
+     *      @attribute:
+     *          @name: bulk
+     *          @description: Get a bulk operation object, so several operations can be executed in bulk.
+     *          @default: false
+     *          @type: boolean
+     *      @attribute:
+     *          @name: set
+     *          @description: By default the $set attribute is used for the content, with `opts.set` disabled you can create your own instructions. The `content` attribute must reflect this.
+     *          @warning: This does not work in combination with `opts.chunked`.
+     *          @default: true
+     *          @type: boolean
      */
-    async update(path, content, auto_create = false) {
+    async save(path, content, opts = null) {
         if (typeof path !== "string" && (typeof path !== "object" || path === null)) {
             throw Error(`Parameter "path" has an invalid type "${typeof path}", the valid type is "string".`);
         }
         try {
-            let set;
+
+            // Vars.
+            let doc, set;
+
+            // Create set.
             if (typeof content === "object" && Array.isArray(content) == false && content !== null) {
                 delete content._id;
                 delete content._path;
@@ -176,23 +357,116 @@ class Collection {
             } else {
                 set = {_content: content};
             }
-            const doc = await this.col.findOneAndUpdate(
-                typeof path === "object" ? path : {_path: path},
-                {$set: set},
-                {returnDocument: 'after'}
-            );
-            if (auto_create && doc == null) {
-                return await this.save(path, content);
+
+            // Save chunked.
+            if (opts != null && opts.chunked === true) {
+                this._save_chunked(path, set);
             }
-            else if (doc != null && doc._content != null) {
-                return doc._content;
+
+            // Save as single doc.
+            else {
+                if (opts != null && opts.bulk) {
+                    return {updateOne: {
+                        filter: typeof path === "object" ? path : {_path: path},
+                        update: opts == null || opts.set !== false ? {$set: set} : set,
+                        upsert: true,
+                    }};
+                } else {
+                    // findOneAndUpdate()
+                    await this.col.updateOne(
+                        typeof path === "object" ? path : {_path: path},
+                        opts == null || opts.set !== false ? {$set: set} : set,
+                        {upsert: true},
+                    );
+                }
             }
-            return doc;
+
+            // Response.
+            return content;
+
         } catch (error) {
             console.error(error);
             throw new Error('Encountered an error while updating the document.');
         }
     }
+
+    // Append items to the arrays inside the document.
+    /*  DEPRECATED docs:
+     *  @title: Append
+     *  @description: 
+     *      Append the items from the nested arrays in the content to the arrays inside the document.
+     *
+     *      This will throw an error if the content has any non array attributes.
+     *  @return:
+     *      Returns the updated document.
+     *  @parameter:
+     *      @name: path
+     *      @description: The database path to the document.
+     *      @type: string
+     *  @parameter:
+     *      @name: data
+     *      @description: The data to save.
+     *      @type: object[string, array]
+     *  @parameter:
+     *      @name: opts
+     *      @desc: Additional options.
+     *      @type: null, object
+     *      @attribute:
+     *          @name: chunked
+     *          @description: Chunk the document into multiple documents, therefore documents larger than 16MB are supported.
+     *          @warning: Currently this option is only supported for types `object` and `array`.
+     *          @default: false
+     *          @type: boolean
+     */
+    // async append(path, content, opts = null) {
+    //     if (typeof path !== "string" && (typeof path !== "object" || path === null)) {
+    //         throw Error(`Parameter "path" has an invalid type "${typeof path}", the valid type is "string".`);
+    //     }
+    //     if (typeof content !== "object" || content === null || Array.isArray(content)) {
+    //         throw Error(`Parameter "content" has an invalid type, the valid type is "object".`);
+    //     }
+    //     Object.keys(content).iterate((key) => {
+    //         if (!Array.isArray(content[key])) {
+    //             throw Error(`Parameter "content" has an invalid type for nested attribute "${key}", the valid nested type is "array".`);
+    //         }
+    //     })
+    //     try {
+
+    //         // Vars.
+    //         let doc, set;
+
+    //         // Create set.
+    //         if (typeof content === "object" && Array.isArray(content) == false && content !== null) {
+    //             delete content._id;
+    //             delete content._path;
+    //             delete content._uid;
+    //             set = content;
+    //         } else {
+    //             set = {_content: content};
+    //         }
+
+    //         // Save chunked.
+    //         if (opts != null && opts.chunked === true) {
+    //             this._save_chunked(path, set);
+    //         }
+
+    //         // Save as single doc.
+    //         else {
+    //             await this.col.findOneAndUpdate(
+    //                 typeof path === "object" ? path : {_path: path},
+    //                 {$set: set},
+    //                 {upsert: true}
+    //             );
+    //         }
+
+    //         // Response.
+    //         return content;
+
+    //     } catch (error) {
+    //         console.error(error);
+    //         throw new Error('Encountered an error while updating the document.');
+    //     }
+    // }
 
     // List.
     /*  @docs:
@@ -330,13 +604,39 @@ class Collection {
      *      @name: path
      *      @description: The database path to the document.
      *      @type: string
+     *  @parameter:
+     *      @name: opts
+     *      @desc: Additional options.
+     *      @type: null, object
+     *      @attribute:
+     *          @name: chunked
+     *          @description: Delete a chunked document.
+     *          @default: false
+     *          @type: boolean
+     *      @attribute:
+     *          @name: bulk
+     *          @description: Get a bulk operation object, so several operations can be executed in bulk.
+     *          @default: false
+     *          @type: boolean
      */
-    async delete(path) {
+    async delete(path, opts = null) {
         if (typeof path !== "string" && (typeof path !== "object" || path === null)) {
             throw Error(`Parameter "path" has an invalid type "${typeof path}", the valid type is "string".`);
         }
         try {
-            await this.col.deleteOne(typeof path === "object" ? path : {_path: path},);
+            if (opts != null && opts.chunked === true) {
+                if (opts.bulk) {
+                    return {deleteMany: {filter: typeof path === "object" ? path : {_path: path}}};
+                } else {
+                    await this.col.deleteMany(typeof path === "object" ? path : {_path: path});
+                }
+            } else {
+                if (opts != null && opts.bulk) {
+                    return {deleteOne: {filter: typeof path === "object" ? path : {_path: path}}};
+                } else {
+                    await this.col.deleteOne(typeof path === "object" ? path : {_path: path});
+                }
+            }
         } catch (error) {
             console.error(error);
             throw new Error('Encountered an error while deleting.');
@@ -425,7 +725,12 @@ class Collection {
     }
 
     // Clean a document from all system attributes.
+    /*  @docs:
+     *  @title: Clean document
+     *  @description: Clean a document from all default system attributes.
+     */
     clean(doc) {
+        if (doc == null) { return doc; }
         delete doc._id;
         delete doc._path;
         if (this.uid_based) {
@@ -433,11 +738,111 @@ class Collection {
         }
         return doc;
     }
+
+    // Write bulk operations.
+    async bulk_operations(operations = []) {
+        return await this.col.bulkWrite(operations, {ordered: true});
+    }
+
+    // Save.
+    /*  DEPRECATED docs:
+     *  @title: Save
+     *  @description: Save data by path.
+     *  @parameter:
+     *      @name: path
+     *      @description: The database path to the document.
+     *      @type: string
+     *  @parameter:
+     *      @name: data
+     *      @description: The data to save.
+     *      @type: null, boolean, number, string, array, object
+    async save(path, content) {
+        if (typeof path !== "string" && (typeof path !== "object" || path === null)) {
+            throw Error(`Parameter "path" has an invalid type "${typeof path}", the valid type is "string".`);
+        }
+        let doc;
+        if (typeof path === "object") {
+            doc = path;
+        } else {
+            doc = {_path: path};
+        }
+        if (typeof content === "object" && Array.isArray(content) == false && content !== null) {
+            Object.expand(doc, content);
+        } else {
+            doc._content = content;
+        }
+        try {
+            const response = await this.col.insertOne(doc);
+        } catch (error) {
+            console.error(error);
+            throw new Error('Encountered an error while saving the document.');
+        }
+    }
+    */
+
+     /*
+    async _save_chunked(path, content) {
+
+        // Variables.
+        const buffer = libbson.serialize(content);
+        const chunks = Math.ceil(buffer.length / Collection.chunk_size);
+        const bulk_ops = [];
+
+        // Chunk.
+        for (let i = 0; i < buffer.length; i += Collection.chunk_size) {
+            let document;
+            if (typeof path === "string") {
+                document = {
+                    _path: path,
+                    chunk: i / Collection.chunk_size,
+                    data: buffer.slice(i, i + Collection.chunk_size)
+                }
+            } else {
+                document = {
+                    ...path,
+                    chunk: i / Collection.chunk_size,
+                    data: buffer.slice(i, i + Collection.chunk_size)
+                }
+            }
+            bulk_ops.push({insertOne: {document}});
+        }
+
+        // Create reference.
+        const ref_query = typeof path === "string" ? {_path: path,  chunk: -1} : {...path, chunk: -1};
+        bulk_ops.push({
+            updateOne: {
+                filter: ref_query,
+                update: {$set: {
+                    chunk: -1,
+                    chunks: new_chunk_count,
+                }},
+                upsert: true
+            }
+        });
+
+        // Create reference.
+        await this.col.updateOne(
+            typeof path === "string" ? {_path: path} : path,
+            {$set: {
+                chunk: -1, // to indicate as main chunk reference.
+                chunks,
+            }},
+            {upsert: true}
+        );
+
+        // Write.
+        await this.col.bulkWrite(bulk_ops, { ordered: true });
+    }
+    async _delete_chunked(path) {
+        await this.col.deleteMany(typeof path === "string" ? {_path: path} : path);
+    }
+    */
 }
 
 // ---------------------------------------------------------
 // UID based collection.
 
+// @warning: The "path" param must always be allowed to be an object or string, also for the UIDCollection class.
 // @warning: THE DATABASE COLLECTION SHOULD ALSO ACCEPT OBJECTS FOR PATHS.
 /*  @docs:
     @nav: Backend
@@ -446,11 +851,14 @@ class Collection {
     @desc: The UID based database collection class.
     @note: The document attribute `_uid` is a reserved index attribute for the user id of the document.
     @note: The document attribute `_path` is a reserved index attribute for the path of the document.
+    @attribute: 
+        @name: col
+        @desc: The native mongodb collection.
 */
 class UIDCollection {
     constructor(collection) {
         this._col = new Collection(collection, true);
-        this.col = this._col; // keep as `this.col` so user can interact with it in the same way as in `Collection`.
+        this.col = this._col.col; // keep as `this.col` so user can interact with it in the same way as in `Collection`.
     }
 
     // Find.
@@ -472,7 +880,36 @@ class UIDCollection {
         if (uid != null) {
             query._uid = uid;
         }
+        // else if (typeof uid === "object") {
+        //     query = uid;
+        // }
         return await this._col.find(query);
+    }
+
+    // Exists.
+    /*  @docs:
+     *  @title: Exists
+     *  @description: Check if a document exists.
+     *  @parameter:
+     *      @name: uid
+     *      @cached: Users:uid:param
+     *  @parameter:
+     *      @name: path
+     *      @description: The database path to the document.
+     *      @type: string, object
+     */
+    async exists(uid, path) {
+        if (typeof path !== "string" && (typeof path !== "object" || path === null)) {
+            throw Error(`Parameter "path" has an invalid type "${typeof path}", the valid type is "string".`);
+        }
+        if (typeof uid !== "string") {
+            throw Error(`Parameter "uid" has an invalid type "${typeof uid}", the valid type is "string".`);
+        }
+        if (typeof path === "object") {
+            return await this._col.exists({...path, _uid: uid});
+        } else {
+            return await this._col.exists({_path: path, _uid: uid});
+        }
     }
 
     // Load.
@@ -491,14 +928,18 @@ class UIDCollection {
      *      @description: The database path to the document.
      *      @type: string, object
      *  @parameter:
-     *      @name: def
-     *      @description:
-     *          The default data to be returned when the data does not exist.
-     *
-     *          When the type of parameter `def` is `object` then the keys that do not exist in the loaded object, but do exist in the default object will be inserted into the loaded object.
+     *      @name: opts
+     *      @desc: Additional options.
      *      @type: null, object
+     *      @attribute:
+     *          @name: default
+     *          @description:
+     *              The default data to be returned when the data does not exist.
+     *  
+     *              When the type of attribute `default` is `object` then the keys that do not exist in the loaded object, but do exist in the default object will be inserted into the loaded object.
+     *          @type: null, object
      */
-    async load(uid, path, def = undefined) {
+    async load(uid, path, opts = null) {
         if (typeof path !== "string" && (typeof path !== "object" || path === null)) {
             throw Error(`Parameter "path" has an invalid type "${typeof path}", the valid type is "string".`);
         }
@@ -506,46 +947,16 @@ class UIDCollection {
             throw Error(`Parameter "uid" has an invalid type "${typeof uid}", the valid type is "string".`);
         }
         if (typeof path === "object") {
-            return await this._col.load({...path, _uid: uid}, def);
+            return await this._col.load({...path, _uid: uid}, opts);
         } else {
-            return await this._col.load({_path: path, _uid: uid}, def);
+            return await this._col.load({_path: path, _uid: uid}, opts);
         }
     }
 
     // Save.
     /*  @docs:
      *  @title: Save
-     *  @description: Save data by user id and path.
-     *  @parameter:
-     *      @name: uid
-     *      @cached: Users:uid:param
-     *  @parameter:
-     *      @name: path
-     *      @description: The database path to the document.
-     *      @type: string, object
-     *  @parameter:
-     *      @name: data
-     *      @description: The data to save.
-     *      @type: null, boolean, number, string, array, object
-     */
-    async save(uid, path, content) {
-        if (typeof path !== "string" && (typeof path !== "object" || path === null)) {
-            throw Error(`Parameter "path" has an invalid type "${typeof path}", the valid type is "string".`);
-        }
-        if (typeof uid !== "string") {
-            throw Error(`Parameter "uid" has an invalid type "${typeof uid}", the valid type is "string".`);
-        }
-        if (typeof path === "object") {
-            return await this._col.save({...path, _uid: uid}, content);
-        } else {
-            return await this._col.save({_path: path, _uid: uid}, content);
-        }
-    }
-
-    // Update.
-    /*  @docs:
-     *  @title: Update
-     *  @description: Update data by user id and path.
+     *  @description: Save data by user id and path. When the document already exists this function only updates the specified content attributes.
      *  @return:
      *      Returns the updated document.
      *  @parameter:
@@ -560,11 +971,28 @@ class UIDCollection {
      *      @description: The data to save.
      *      @type: null, boolean, number, string, array, object
      *  @parameter:
-     *      @name: auto_create
-     *      @description: Automatically create the document when it does not exist.
-     *      @type: boolean
+     *      @name: opts
+     *      @desc: Additional options.
+     *      @type: null, object
+     *      @attribute:
+     *          @name: chunked
+     *          @description: Chunk the document into multiple documents, therefore documents larger than 16MB are supported.
+     *          @warning: Currently this option is only supported for types `object` and `array`.
+     *          @default: false
+     *          @type: boolean
+     *      @attribute:
+     *          @name: bulk
+     *          @description: Get a bulk operation object, so several operations can be executed in bulk.
+     *          @default: false
+     *          @type: boolean
+     *      @attribute:
+     *          @name: set
+     *          @description: By default the $set attribute is used for the content, with `opts.set` disabled you can create your own instructions. The `content` attribute must reflect this.
+     *          @warning: This does not work in combination with `opts.chunked`.
+     *          @default: true
+     *          @type: boolean
      */
-    async update(uid, path, content, auto_create = false) {
+    async save(uid, path, content, opts = null) {
         if (typeof path !== "string" && (typeof path !== "object" || path === null)) {
             throw Error(`Parameter "path" has an invalid type "${typeof path}", the valid type is "string".`);
         }
@@ -572,9 +1000,9 @@ class UIDCollection {
             throw Error(`Parameter "uid" has an invalid type "${typeof uid}", the valid type is "string".`);
         }
         if (typeof path === "object") {
-            return await this._col.update({...path, _uid: uid}, content, auto_create);
+            return await this._col.save({...path, _uid: uid}, content, opts);
         } else {
-            return await this._col.update({_path: path, _uid: uid}, content, auto_create);
+            return await this._col.save({_path: path, _uid: uid}, content, opts);
         }
     }
 
@@ -686,8 +1114,22 @@ class UIDCollection {
      *      @name: path
      *      @description: The database path to the document.
      *      @type: string, object
+     *  @parameter:
+     *      @name: opts
+     *      @desc: Additional options.
+     *      @type: null, object
+     *      @attribute:
+     *          @name: chunked
+     *          @description: Delete a chunked document.
+     *          @default: false
+     *          @type: boolean
+     *      @attribute:
+     *          @name: bulk
+     *          @description: Get a bulk operation object, so several operations can be executed in bulk.
+     *          @default: false
+     *          @type: boolean
      */
-    async delete(uid, path) {
+    async delete(uid, path, opts = null) {
         if (typeof path !== "string" && (typeof path !== "object" || path === null)) {
             throw Error(`Parameter "path" has an invalid type "${typeof path}", the valid type is "string".`);
         }
@@ -695,9 +1137,9 @@ class UIDCollection {
             throw Error(`Parameter "uid" has an invalid type "${typeof uid}", the valid type is "string".`);
         }
         if (typeof path === "object") {
-            return await this._col.delete({...path, _uid: uid})
+            return await this._col.delete({...path, _uid: uid}, opts)
         } else {
-            return await this._col.delete({_path: path, _uid: uid})
+            return await this._col.delete({_path: path, _uid: uid}, opts)
         }
     }
 
@@ -777,10 +1219,50 @@ class UIDCollection {
         await this._col.delete_collection()
     }
 
-    // Clean a document from all system attributes.
+    // Clean a document from all default system attributes.
+    /*  @docs:
+     *  @title: Clean document
+     *  @description: Clean a document from all default system attributes.
+     */
     clean(doc) {
         return this._col.clean(doc);
     }
+
+    // Write bulk operations.
+    async bulk_operations(operations = []) {
+        return await this.col.bulkWrite(operations, {ordered: true});
+    }
+
+    // Save.
+    /*  DEPRECATED docs:
+     *  @title: Save
+     *  @description: Save data by user id and path.
+     *  @parameter:
+     *      @name: uid
+     *      @cached: Users:uid:param
+     *  @parameter:
+     *      @name: path
+     *      @description: The database path to the document.
+     *      @type: string, object
+     *  @parameter:
+     *      @name: data
+     *      @description: The data to save.
+     *      @type: null, boolean, number, string, array, object
+    async save(uid, path, content) {
+        if (typeof path !== "string" && (typeof path !== "object" || path === null)) {
+            throw Error(`Parameter "path" has an invalid type "${typeof path}", the valid type is "string".`);
+        }
+        if (typeof uid !== "string") {
+            throw Error(`Parameter "uid" has an invalid type "${typeof uid}", the valid type is "string".`);
+        }
+        if (typeof path === "object") {
+            return await this._col.save({...path, _uid: uid}, content);
+        } else {
+            return await this._col.save({_path: path, _uid: uid}, content);
+        }
+    }
+    */
+
 }
 
 
@@ -798,27 +1280,79 @@ class UIDCollection {
 
         1. You only provide the `uri` parameter to access an already running mongodb database.
 
-        2. You provide parameters `config`, `source` and `start_args` to start and optionally create the database.
+        2. You provide parameters `config` and `start_args` to start and optionally create the database.
+
+    @warning: 
+        Do not forget to enable TLS when using the `config` parameter. More information about integrating TLS can be found in the <Link https://www.mongodb.com/docs/manual/tutorial/upgrade-cluster-to-ssl/>MongoDB documentation</Link>
     @param:
         @name: uri
         @desc: The mongodb server uri.
         @type: string
     @param:
-        @name: preview
-        @desc: Enable the database preview endpoint `/vweb/db/preview` (only available when `Server.production` is `false`).
-        @type: string
-    @param:
-        @name: config
-        @desc: The json data for the mongodb config file. This file will be saved to the `$source/mongod.json` file when it is defined. Parameter `source` is required when this parameter is defined.
+        @name: source
+        @desc: The source path of the database directory, by default path `$server_source/.db` will be used.
         @type: null, string
     @param:
-        @name: source
-        @desc: The path to the database directory. This parameter is required when parameter `config` is defined.
+        @name: config
+        @desc: The json data for the mongodb config file. This file will be saved to the `$source/.db/mongod.json` file when it is defined. More information about parameters can be found in the <Link https://www.mongodb.com/docs/manual/reference/configuration-options/>MongoDB documentation</Link>.
         @type: null, string
     @param:
         @name: start_args
         @desc: The mongod database start command arguments.
         @type: null, array[string]
+    @param:
+        @name: client
+        @desc: The MongoClient options.
+        @type: null, object
+    @param:
+        @name: collections
+        @desc: The normal collections, the collections will be accessable under `Database.$collection_name`.
+        @type: array[string]
+    @param:
+        @name: uid_collections
+        @desc: The uid collections, the uid collections will be accessable under `Database.$collection_name`.
+        @type: array[string]
+    @param:
+        @name: preview
+        @desc: Enable the database preview endpoint `/vweb/db/preview` (only available when `Server.production` is `false`).
+        @type: string
+    @param:
+        @name: preview_ip_whitelist
+        @desc: The allowed ip's to visit the database preview.
+        @type: string
+    @parameter:
+        @name: daemon
+        @description:
+            The optional settings for the service daemon. The service daemon can be disabled by passing value `false` to parameter `daemon`.
+        @type: object
+        @attr:
+            @name: user
+            @desc: The executing user of the service daemon.
+            @type: string
+        @attr:
+            @name: group
+            @desc: The executing group of the service daemon.
+            @type: string
+        @attr:
+            @name: args
+            @desc: The arguments for the start command.
+            @type: array[string]
+        @attr:
+            @name: env
+            @desc: The environment variables for the service daemon.
+            @type: object
+        @attr:
+            @name: description
+            @desc: The description of the service daemon.
+            @type: string
+        @attr:
+            @name: logs
+            @desc: The path to the log file.
+            @type: string
+        @attr:
+            @name: errors
+            @desc: The path to the error log file.
+            @type: string
     @param:
         @name: _server
         @ignore: true
@@ -826,36 +1360,72 @@ class UIDCollection {
 class Database {
     constructor({
         uri = null, //'mongodb://localhost:27017/main',
-        preview = true,
         source = null,
         config = null,
-        start_args = null,
+        start_args = [],
+        client = null,
+        collections = [],
+        uid_collections = [],
+        preview = true,
+        preview_ip_whitelist = [],
+        daemon = {},
         _server,
     }) {
 
         // Checks.
-        if (config != null || source != null || start_args != null) {
-            const response = vlib.utils.verify_params({params: arguments[0], check_unknown: true, info: {
+        if (_server.is_primary && uri == null) {
+            const response = vlib.scheme.verify({object: arguments[0], check_unknown: true, scheme: {
                 uri: {type: "string", default: null},
-                source: "string",
+                source: {type: "string", default: null},
                 config: {type: "object", default: {}},
                 start_args: {type: "array", default: []},
+                client: {type: "object", default: {}},
+                collections: {type: "array", default: []},
+                uid_collections: {type: "array", default: []},
+                preview: {type: "boolean", default: true},
+                preview_ip_whitelist: {type: "array", default: []},
+                daemon: {type: ["object", "boolean"], default: {}},
                 _server: "object",
             }});
-            ({uri, config, start_args} = response);
+            ({uri, config, start_args, config, client} = response);
         }
 
         // Arguments.
         this.uri = uri;
         this.preview = preview;
+        this.preview_ip_whitelist = preview_ip_whitelist;
+        this.client_opts = client;
         this.config = config;
-        this.source = source == null ? source : new vlib.Path(source);
+        this.source = source != null ? new vlib.Path(source) : _server.source.join(".db");
         this.start_args = start_args;
+        this._collections = collections;
+        this._uid_collections = uid_collections;
         this.server = _server;
 
         // Attributes.
         this.client = null;
         this.collections = {};
+
+        // Initialize the service daemon.
+        if (this.server.daemon && daemon !== false) {
+            const log_source = this.server.source.join(".logs");
+            if (!log_source.exists()) {
+                log_source.mkdir_sync();
+            }
+            this.daemon = new vlib.Daemon({
+                name: this.server.daemon.name + ".mongodb",
+                user: daemon.user || this.server.daemon.user,
+                group: daemon.group || this.server.daemon.group,
+                command: "mongod",
+                cwd: this.server.daemon.cwd,
+                args: ["--config", this.source.join("mongod.json").str(), ...this.start_args],
+                env: daemon.env || this.server.daemon.env,
+                description: daemon.description || `Service daemon for the mongo database of website ${this.server.domain}.`,
+                auto_restart: true,
+                logs: daemon.logs || log_source.join("logs.mongodb").str(),
+                errors: daemon.errors || log_source.join("errors.mongodb").str(),
+            })
+        }
     }
 
     // Database preview.
@@ -863,7 +1433,7 @@ class Database {
         if (this.preview && this.server.production === false) {
             this.server.endpoint(
 
-                // Database previe.
+                // Database preview.
                 {
                     method: "GET"   ,
                     endpoint: "/vweb/db/preview",
@@ -1187,9 +1757,7 @@ class Database {
                                     let doc = (await vweb.utils.request({url: "/vweb/db/document", data: {collection, path, uid}})).document
                                     if (Array.isArray(doc)) {
                                         doc = {_content: doc};
-                                        // console.log(doc);
                                     }
-                                    console.log(doc);
                                     RenderList({
                                         title: uid != null ? `${collection}/${uid}:${path}` : `${collection}/${path}`, 
                                         list: doc,
@@ -1217,12 +1785,16 @@ class Database {
                     method: "GET",
                     endpoint: "/vweb/db/collections",
                     content_type: "application/json",
-                    rate_limit: 100,
-                    rate_limit_duration: 60,
-                    callback: async (request, response) => {
+                    rate_limit: "global",
+                    callback: async (stream) => {
+
+                        // Check ip whitelist.
+                        if (!this.preview_ip_whitelist.includes(stream.ip)) {
+                            return stream.error({status: Status.forbidden});
+                        }
 
                         // Sign in.
-                        return response.success({data: {
+                        return stream.success({data: {
                             message: "Successfully retrieved all collections.",
                             collections: await this.get_collections(),
                         }});
@@ -1234,24 +1806,28 @@ class Database {
                     method: "GET",
                     endpoint: "/vweb/db/documents",
                     content_type: "application/json",
-                    rate_limit: 100,
-                    rate_limit_duration: 60,
+                    rate_limit: "global",
                     params: {
                         collection: "string",
                     },
-                    callback: async (request, response, params) => {
+                    callback: async (stream, params) => {
+
+                        // Check ip whitelist.
+                        if (!this.preview_ip_whitelist.includes(stream.ip)) {
+                            return stream.error({status: Status.forbidden});
+                        }
 
                         // Check collection.
                         let col;
                         if ((col = this.collections[params.collection]) == null) {
-                            return response.error({data: {error: `Invalid collection "${params.collection}".`}})
+                            return stream.error({data: {error: `Invalid collection "${params.collection}".`}})
                         }
 
                         // Load docs.
                         let docs = await col.list_all();
 
                         // Sign in.
-                        return response.success({data: {
+                        return stream.success({data: {
                             message: "Successfully loaded the document.",
                             documents: docs,
                         }});
@@ -1263,19 +1839,23 @@ class Database {
                     method: "GET",
                     endpoint: "/vweb/db/document",
                     content_type: "application/json",
-                    rate_limit: 100,
-                    rate_limit_duration: 60,
+                    rate_limit: "global",
                     params: {
                         collection: "string",
                         path: ["string", "object"],
                         uid: {type: ["string", "null"], default: null},
                     },
-                    callback: async (request, response, params) => {
+                    callback: async (stream, params) => {
+
+                        // Check ip whitelist.
+                        if (!this.preview_ip_whitelist.includes(stream.ip)) {
+                            return stream.error({status: Status.forbidden});
+                        }
 
                         // Check collection.
                         let col;
                         if ((col = this.collections[params.collection]) == null) {
-                            return response.error({data: {error: `Invalid collection "${params.collection}".`}})
+                            return stream.error({data: {error: `Invalid collection "${params.collection}".`}})
                         }
 
                         // Load doc.
@@ -1287,7 +1867,7 @@ class Database {
                         }
 
                         // Sign in.
-                        return response.success({data: {
+                        return stream.success({data: {
                             message: "Successfully loaded the document.",
                             document: doc,
                         }});
@@ -1299,19 +1879,23 @@ class Database {
                     method: "DELETE",
                     endpoint: "/vweb/db/document",
                     content_type: "application/json",
-                    rate_limit: 100,
-                    rate_limit_duration: 60,
+                    rate_limit: "global",
                     params: {
                         collection: "string",
                         path: ["string", "object"],
                         uid: {type: ["string", "null"], default: null},
                     },
-                    callback: async (request, response, params) => {
+                    callback: async (stream, params) => {
+
+                        // Check ip whitelist.
+                        if (!this.preview_ip_whitelist.includes(stream.ip)) {
+                            return stream.error({status: Status.forbidden});
+                        }
 
                         // Check collection.
                         let col;
                         if ((col = this.collections[params.collection]) == null) {
-                            return response.error({data: {error: `Invalid collection "${params.collection}".`}})
+                            return stream.error({data: {error: `Invalid collection "${params.collection}".`}})
                         }
 
                         // Load doc.
@@ -1323,7 +1907,7 @@ class Database {
                         }
 
                         // Sign in.
-                        return response.success({data: {
+                        return stream.success({data: {
                             message: "Successfully deleted the document.",
                         }});
                     }
@@ -1334,32 +1918,36 @@ class Database {
                     method: "PATCH",
                     endpoint: "/vweb/db/document",
                     content_type: "application/json",
-                    rate_limit: 100,
-                    rate_limit_duration: 60,
+                    rate_limit: "global",
                     params: {
                         collection: "string",
                         path: ["string", "object"],
                         uid: {type: ["string", "null"], default: null},
                         content: "object",
                     },
-                    callback: async (request, response, params) => {
+                    callback: async (stream, params) => {
+
+                        // Check ip whitelist.
+                        if (!this.preview_ip_whitelist.includes(stream.ip)) {
+                            return stream.error({status: Status.forbidden});
+                        }
 
                         // Check collection.
                         let col;
                         if ((col = this.collections[params.collection]) == null) {
-                            return response.error({data: {error: `Invalid collection "${params.collection}".`}})
+                            return stream.error({data: {error: `Invalid collection "${params.collection}".`}})
                         }
 
                         // Load doc.
                         let doc;
                         if (params.uid == null) {
-                            doc = await col.update(params.path, params.content);
+                            doc = await col.save(params.path, params.content);
                         } else {
-                            doc = await col.update(params.uid, params.path, params.content);
+                            doc = await col.save(params.uid, params.path, params.content);
                         }
 
                         // Sign in.
-                        return response.success({data: {
+                        return stream.success({data: {
                             message: "Successfully updated the document.",
                         }});
                     }
@@ -1379,147 +1967,52 @@ class Database {
         }
     }
 
-    // Start.
-    /*
-    async start() {
-        return new Promise((resolve) => {
-
-            // Is remote.
-            if (this.remote) { 
-                
-                return resolve();
-            }
-
-            // Check config file.
-            const set_defaults = (config, defaults) => {
-                let edits = 0;
-                Object.keys(defauls).iterate((key) => {
-                    if (config[key] == null) {
-                        ++edits;
-                        config[key] = defaults[key];
-                    } else if (typeof config[key] == "object" && Array.isArray(config[key]) === false) {
-                        edits += set_defaults(config[key], defaults[key]);
-                    }
-                })
-                return edits;
-            }
-            const config_path = new vlib.Path(this.path+"/mongod.conf");
-            let config = {};
-            if (config_path.exists()) {
-                config = config_path.load_sync({type: "object"});
-            }
-            const edits = set_defaults(config, {
-                "systemLog": {
-                    "destination": "file",
-                    "path": `${this.path}/mongod.log`,
-                    "logAppend": true,
-                    "logRotate": "reopen",
-                    "verbosity": 1
-                },
-                "storage": {
-                    "dbPath": `${this.path}/db`,
-                    "journal": {
-                        "enabled": true
-                    }
-                },
-                "processManagement": {
-                    "fork": true,
-                    "pidFilePath": `${this.path}/mongod.pid`
-                },
-                "net": {
-                    "port": 27017,
-                    "bindIp": "127.0.0.1"//,server-ip
-                    // "ssl": {
-                    //     "mode": "requireSSL",
-                    //     "PEMKeyFile": this.ssl_key,
-                    //     "CAFile": this.ssl_ca,
-                    //     "clusterFile": this.ssl_cluster,
-                    //     "allowInvalidCertificates": false
-                    // }
-                },
-                "security": {
-                    "authorization": "enabled",
-                    // "keyFile": "/path/to/mongodb-keyfile"
-                },
-                // "replication": {
-                //     "replSetName": "yourReplSetName"
-                // }
-            })
-            if (edits > 0) {
-                config_path.save_sync(JSON.stringify(config));
-            }
-
-            // Start the mongodb server.
-            this.proc = libproc.spawn(
-                "mongod",
-                ["--config", config_path.str()],
-                {
-                    // cwd: this.source,
-                    stdio: "inherit",
-                    detached: true,
-                    env: {...process.env},
-                },
-            )
-            this.proc.stdout.on('data', (data) => {
-                console.log(data.toString());
-            })
-            this.proc.stderr.on('data', (data) => {
-                console.error(data.toString());
-            })
-            this.proc.on("error", (code, signal) => {
-                console.error(`MongoDB exited with error signal ${signal}.`);
-                process.exit(code);
-            })
-            this.proc.on("exit", (code, signal) => {
-                console.error(`MongoDB exited with signal ${signal}.`);
-                process.exit(code);
-            })
-
-            // Wait one sec then connect.
-            setTimeout(() => {
-
-                resolve();
-            }, 1000)
-        })  
-    }
-    */
-
     // Initialize.
     async initialize() {
 
-        // Mode 2.
-        if (this.source != null) {
+        // Set default config.
+        if (this.config == null) {
+            this.config = {};
+        }
+        if (this.config.systemLog === undefined) { this.config.systemLog = {}; }
+
+        this.config.systemLog.path = this.source.join("mongod.log").str()
+
+        if (this.config.systemLog.destination === undefined) {
+            this.config.systemLog.destination = "file";
+        }
+        if (this.config.systemLog.logAppend === undefined) {
+            this.config.systemLog.logAppend = true;
+        }
+        if (this.config.systemLog.logRotate === undefined) {
+            this.config.systemLog.logRotate = "reopen";
+        }
+        if (this.config.systemLog.verbosity === undefined) {
+            this.config.systemLog.verbosity = this.server.production ? 0 : 1;
+        }
+
+        if (this.config.storage === undefined) { this.config.storage = {}; }
+
+        const db_path = this.source.join("db");
+        this.config.storage.dbPath = db_path.str()
+        if (!db_path.exists()) {
+            db_path.mkdir_sync();
+        }
+
+        if (this.config.processManagement === undefined) { this.config.processManagement = {}; }
+        this.config.processManagement.pidFilePath = this.source.join("mongod.pid").str()
+
+        if (this.config.net === undefined) { this.config.net = {}; }
+        if (this.config.net.port === undefined) { this.config.net.port = 27017; }
+        if (this.config.net.bindIp === undefined) { this.config.net.bindIp = "127.0.0.1"; }
+
+        // Mode 2: Start database.
+        if (this.server.is_primary && this.uri == null) {
 
             // Create the database.
             if (!this.source.exists()) {
                 this.source.mkdir_sync();
             }
-
-            // Set defaults.
-            if (this.config.systemLog === undefined) { this.config.systemLog = {}; }
-            this.config.systemLog.path = this.source.join("mongod.log").str()
-            if (this.config.systemLog.destination === undefined) {
-                this.config.systemLog.destination = "file";
-            }
-            if (this.config.systemLog.logAppend === undefined) {
-                this.config.systemLog.logAppend = true;
-            }
-            if (this.config.systemLog.logRotate === undefined) {
-                this.config.systemLog.logRotate = "reopen";
-            }
-            if (this.config.systemLog.verbosity === undefined) {
-                this.config.systemLog.verbosity = 1;
-            }
-
-            if (this.config.storage === undefined) { this.config.storage = {}; }
-            this.config.storage.dbPath = this.source.join("db").str()
-
-            if (this.config.processManagement === undefined) { this.config.processManagement = {}; }
-            this.config.processManagement.pidFilePath = this.source.join("mongod.pid").str()
-
-            if (this.config.net === undefined) { this.config.net = {}; }
-            if (this.config.net.port === undefined) { this.config.net.port = 27017; }
-            if (this.config.net.bindIp === undefined) { this.config.net.bindIp = "127.0.0.1"; }
 
             // Set the uri.
             if (this.uri == null) {
@@ -1554,11 +2047,30 @@ class Database {
 
         }
 
+        // Assign URI.
+        else if (!this.server.is_primary && this.uri == null) {
+            this.uri = `mongodb://${this.config.net.bindIp}:${this.config.net.port}/main`
+        }
+
         // Initialize client.
-        this.client = new MongoClient(this.uri);
+        this.client = new MongoClient(this.uri, this.client_opts);
 
         // Connect.
         await this.connect();
+
+        // Create collections.
+        this._collections.iterate((name) => {
+            if (this[name] !== undefined) {
+                throw Error(`Unable to initialize database collection "${name}", this attribute name is already used.`);
+            }
+            this[name] = this.create_collection(name);
+        })
+        this._uid_collections.iterate((name) => {
+            if (this[name] !== undefined) {
+                throw Error(`Unable to initialize database collection "${name}", this attribute name is already used.`);
+            }
+            this[name] = this.create_uid_collection(name);
+        })
     }
 
     // Close.
@@ -1576,6 +2088,9 @@ class Database {
             @type: string
      */
     create_collection(id) {
+        if (id in this.collections) {
+            throw Error(`Collection "${id}" is already initialized.`)
+        }
         const col = new Collection(this.db.collection(id));
         this.collections[id] = col;
         return col;
@@ -1591,6 +2106,9 @@ class Database {
             @type: string
      */
     create_uid_collection(id) {
+        if (id in this.collections) {
+            throw Error(`Collection "${id}" is already initialized.`)
+        }
         const col = new UIDCollection(this.db.collection(id));
         this.collections[id] = col;
         return col;

@@ -26,7 +26,7 @@ class TextElement extends CreateVElementClass({
 		super();
 	
 		// Set text.
-		this.inner_html(text);
+		this.text(text); // do not use inner_html since the text might contain "<" etc.
 	}
 		
 }

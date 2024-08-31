@@ -229,7 +229,7 @@ int main() {
 	"mask-position 	Sets the starting position of a mask layer image (relative to the mask position area)" "\n"
 	"mask-repeat 	Specifies how the mask layer image is repeated" "\n"
 	"mask-size 	Specifies the size of a mask layer image" "\n"
-	"mask-type 	Specifies whether an SVG <mask> element is treated as a luminance mask or as an alpha mask" "\n"
+	"mask-type 	Specifies whether an SVG \<mask> element is treated as a luminance mask or as an alpha mask" "\n"
 	"max-height 	Sets the maximum height of an element" "\n"
 	"max-width 	Sets the maximum width of an element" "\n"
 	"@media 	Sets the style rules for different media types/devices/sizes" "\n"
@@ -379,13 +379,13 @@ int main() {
 	"align 	Not supported in HTML 5. 	Specifies the alignment according to surrounding elements. Use CSS instead" "\n"
 	"alt 	<area>, <img>, <input> 	Specifies an alternate text when the original element fails to display" "\n"
 	"async 	<script> 	Specifies that the script is executed asynchronously (only for external scripts)" "\n"
-	"autocomplete 	<form>, <input> 	Specifies whether the <form> or the <input> element should have autocomplete enabled" "\n"
+	"autocomplete 	<form>, <input> 	Specifies whether the \<form> or the \<input> element should have autocomplete enabled" "\n"
 	"autofocus 	<button>, <input>, <select>, <textarea> 	Specifies that the element should automatically get focus when the page loads" "\n"
 	"autoplay 	<audio>, <video> 	Specifies that the audio/video will start playing as soon as it is ready" "\n"
 	"bgcolor 	Not supported in HTML 5. 	Specifies the background color of an element. Use CSS instead" "\n"
 	"border 	Not supported in HTML 5. 	Specifies the width of the border of an element. Use CSS instead" "\n"
 	"charset 	<meta>, <script> 	Specifies the character encoding" "\n"
-	"checked 	<input> 	Specifies that an <input> element should be pre-selected when the page loads (for type=\"checkbox\" or type=\"radio\")" "\n"
+	"checked 	<input> 	Specifies that an \<input> element should be pre-selected when the page loads (for type=\"checkbox\" or type=\"radio\")" "\n"
 	"cite 	<blockquote>, <del>, <ins>, <q> 	Specifies a URL which explains the quote/deleted/inserted text" "\n"
 	"class 	Global Attributes 	Specifies one or more classnames for an element (refers to a class in a style sheet)" "\n"
 	"color 	Not supported in HTML 5. 	Specifies the text color of an element. Use CSS instead" "\n"
@@ -413,20 +413,20 @@ int main() {
 	"height 	<canvas>, <embed>, <iframe>, <img>, <input>, <object>, <video> 	Specifies the height of the element" "\n"
 	"hidden 	Global Attributes 	Specifies that an element is not yet, or is no longer, relevant" "\n"
 	"high 	<meter> 	Specifies the range that is considered to be a high value" "\n"
-	"href 	<a>, <area>, <base>, <link> 	Specifies the URL of the page the link goes to" "\n"
-	"hreflang 	<a>, <area>, <link> 	Specifies the language of the linked document" "\n"
+	"href 	<a>, <area>, <base>, <Link> 	Specifies the URL of the page the link goes to" "\n"
+	"hreflang 	<a>, <area>, <Link> 	Specifies the language of the linked document" "\n"
 	"http-equiv 	<meta> 	Provides an HTTP header for the information/value of the content attribute" "\n"
 	"id 	Global Attributes 	Specifies a unique id for an element" "\n"
 	"ismap 	<img> 	Specifies an image as a server-side image map" "\n"
 	"kind 	<track> 	Specifies the kind of text track" "\n"
 	"label 	<track>, <option>, <optgroup> 	Specifies the title of the text track" "\n"
 	"lang 	Global Attributes 	Specifies the language of the element's content" "\n"
-	"list 	<input> 	Refers to a <datalist> element that contains pre-defined options for an <input> element" "\n"
+	"list 	<input> 	Refers to a \<datalist> element that contains pre-defined options for an \<input> element" "\n"
 	"loop 	<audio>, <video> 	Specifies that the audio/video will start over again, every time it is finished" "\n"
 	"low 	<meter> 	Specifies the range that is considered to be a low value" "\n"
 	"max 	<input>, <meter>, <progress> 	Specifies the maximum value" "\n"
 	"maxlength 	<input>, <textarea> 	Specifies the maximum number of characters allowed in an element" "\n"
-	"media 	<a>, <area>, <link>, <source>, <style> 	Specifies what media/device the linked document is optimized for" "\n"
+	"media 	<a>, <area>, <Link>, <source>, <style> 	Specifies what media/device the linked document is optimized for" "\n"
 	"method 	<form> 	Specifies the HTTP method to use when sending form-data" "\n"
 	"min 	<input>, <meter> 	Specifies a minimum value" "\n"
 	"multiple 	<input>, <select> 	Specifies that a user can enter more than one value" "\n"
@@ -444,7 +444,7 @@ int main() {
 	"onclick 	All visible elements. 	Script to be run when the element is being clicked" "\n"
 	"oncontextmenu 	All visible elements. 	Script to be run when a context menu is triggered" "\n"
 	"oncopy 	All visible elements. 	Script to be run when the content of the element is being copied" "\n"
-	"oncuechange 	<track> 	Script to be run when the cue changes in a <track> element" "\n"
+	"oncuechange 	<track> 	Script to be run when the cue changes in a \<track> element" "\n"
 	"oncut 	All visible elements. 	Script to be run when the content of the element is being cut" "\n"
 	"ondblclick 	All visible elements. 	Script to be run when the element is being double-clicked" "\n"
 	"ondrag 	All visible elements. 	Script to be run when the element is being dragged" "\n"
@@ -465,7 +465,7 @@ int main() {
 	"onkeydown 	All visible elements. 	Script to be run when a user is pressing a key" "\n"
 	"onkeypress 	All visible elements. 	Script to be run when a user presses a key" "\n"
 	"onkeyup 	All visible elements. 	Script to be run when a user releases a key" "\n"
-	"onload 	<body>, <iframe>, <img>, <input>, <link>, <script>, <style> 	Script to be run when the element is finished loading" "\n"
+	"onload 	<body>, <iframe>, <img>, <input>, <Link>, <script>, <style> 	Script to be run when the element is finished loading" "\n"
 	"onloadeddata 	<audio>, <video> 	Script to be run when media data is loaded" "\n"
 	"onloadedmetadata 	<audio>, <video> 	Script to be run when meta data (like dimensions and duration) are loaded" "\n"
 	"onloadstart 	<audio>, <video> 	Script to be run just as the file begins to load before anything is actually loaded" "\n"
@@ -498,29 +498,29 @@ int main() {
 	"onsubmit 	<form> 	Script to be run when a form is submitted" "\n"
 	"onsuspend 	<audio>, <video> 	Script to be run when fetching the media data is stopped before it is completely loaded for whatever reason" "\n"
 	"ontimeupdate 	<audio>, <video> 	Script to be run when the playing position has changed (like when the user fast forwards to a different point in the media)" "\n"
-	"ontoggle 	<details> 	Script to be run when the user opens or closes the <details> element" "\n"
+	"ontoggle 	<details> 	Script to be run when the user opens or closes the \<details> element" "\n"
 	"onunload 	<body> 	Script to be run when a page has unloaded (or the browser window has been closed)" "\n"
 	"onvolumechange 	<audio>, <video> 	Script to be run each time the volume of a video/audio has been changed" "\n"
 	"onwaiting 	<audio>, <video> 	Script to be run when the media has paused but is expected to resume (like when the media pauses to buffer more data)" "\n"
 	"onwheel 	All visible elements. 	Script to be run when the mouse wheel rolls up or down over an element" "\n"
 	"open 	<details> 	Specifies that the details should be visible (open) to the user" "\n"
 	"optimum 	<meter> 	Specifies what value is the optimal value for the gauge" "\n"
-	"pattern 	<input> 	Specifies a regular expression that an <input> element's value is checked against" "\n"
+	"pattern 	<input> 	Specifies a regular expression that an \<input> element's value is checked against" "\n"
 	"placeholder 	<input>, <textarea> 	Specifies a short hint that describes the expected value of the element" "\n"
 	"poster 	<video> 	Specifies an image to be shown while the video is downloading, or until the user hits the play button" "\n"
 	"preload 	<audio>, <video> 	Specifies if and how the author thinks the audio/video should be loaded when the page loads" "\n"
 	"readonly 	<input>, <textarea> 	Specifies that the element is read-only" "\n"
-	"rel 	<a>, <area>, <form>, <link> 	Specifies the relationship between the current document and the linked document" "\n"
+	"rel 	<a>, <area>, <form>, <Link> 	Specifies the relationship between the current document and the linked document" "\n"
 	"required 	<input>, <select>, <textarea> 	Specifies that the element must be filled out before submitting the form" "\n"
 	"reversed 	<ol> 	Specifies that the list order should be descending (9,8,7...)" "\n"
 	"rows 	<textarea> 	Specifies the visible number of lines in a text area" "\n"
 	"rowspan 	<td>, <th> 	Specifies the number of rows a table cell should span" "\n"
-	"sandbox 	<iframe> 	Enables an extra set of restrictions for the content in an <iframe>" "\n"
+	"sandbox 	<iframe> 	Enables an extra set of restrictions for the content in an \<iframe>" "\n"
 	"scope 	<th> 	Specifies whether a header cell is a header for a column, row, or group of columns or rows" "\n"
 	"selected 	<option> 	Specifies that an option should be pre-selected when the page loads" "\n"
 	"shape 	<area> 	Specifies the shape of the area" "\n"
-	"size 	<input>, <select> 	Specifies the width, in characters (for <input>) or specifies the number of visible options (for <select>)" "\n"
-	"sizes 	<img>, <link>, <source> 	Specifies the size of the linked resource" "\n"
+	"size 	<input>, <select> 	Specifies the width, in characters (for \<input>) or specifies the number of visible options (for \<select>)" "\n"
+	"sizes 	<img>, <Link>, <source> 	Specifies the size of the linked resource" "\n"
 	"span 	<col>, <colgroup> 	Specifies the number of columns to span" "\n"
 	"spellcheck 	Global Attributes 	Specifies whether the element is to have its spelling and grammar checked or not" "\n"
 	"src 	<audio>, <embed>, <iframe>, <img>, <input>, <script>, <source>, <track>, <video> 	Specifies the URL of the media file" "\n"
@@ -534,7 +534,7 @@ int main() {
 	"target 	<a>, <area>, <base>, <form> 	Specifies the target for where to open the linked document or where to submit the form" "\n"
 	"title 	Global Attributes 	Specifies extra information about an element" "\n"
 	"translate 	Global Attributes 	Specifies whether the content of an element should be translated or not" "\n"
-	"type 	<a>, <button>, <embed>, <input>, <link>, <menu>, <object>, <script>, <source>, <style> 	Specifies the type of element" "\n"
+	"type 	<a>, <button>, <embed>, <input>, <Link>, <menu>, <object>, <script>, <source>, <style> 	Specifies the type of element" "\n"
 	"usemap 	<img>, <object> 	Specifies an image as a client-side image map" "\n"
 	"value 	<button>, <input>, <li>, <option>, <meter>, <progress>, <param> 	Specifies the value of the element" "\n"
 	"width 	<canvas>, <embed>, <iframe>, <img>, <input>, <object>, <video> 	Specifies the width of the element" "\n"
@@ -597,7 +597,7 @@ int main() {
 	"onabort 	script 	Script to be run on abort" "\n"
 	"oncanplay 	script 	Script to be run when a file is ready to start playing (when it has buffered enough to begin)" "\n"
 	"oncanplaythrough 	script 	Script to be run when a file can be played all the way to the end without pausing for buffering" "\n"
-	"oncuechange 	script 	Script to be run when the cue changes in a <track> element" "\n"
+	"oncuechange 	script 	Script to be run when the cue changes in a \<track> element" "\n"
 	"ondurationchange 	script 	Script to be run when the length of the media changes" "\n"
 	"onemptied 	script 	Script to be run when something bad happens and the file is suddenly unavailable (like unexpectedly disconnects)" "\n"
 	"onended 	script 	Script to be run when the media has reach the end (a useful event for messages like \"thanks for listening\")" "\n"
@@ -617,7 +617,7 @@ int main() {
 	"ontimeupdate 	script 	Script to be run when the playing position has changed (like when the user fast forwards to a different point in the media)" "\n"
 	"onvolumechange 	script 	Script to be run each time the volume is changed which (includes setting the volume to \"mute\")" "\n"
 	"onwaiting 	script 	Script to be run when the media has paused but is expected to resume (like when the media pauses to buffer more data)" "\n"
-	"ontoggle 	script 	Fires when the user opens or closes the <details> element" "\n"
+	"ontoggle 	script 	Fires when the user opens or closes the \<details> element" "\n"
 	;
 	Array<String> event_names = {
 		"onafterprint",
@@ -817,6 +817,21 @@ int main() {
 		"rotate", // custom function.
 		"on_resize", // custom function.
 		"background", // custom function.
+		"margin_left",
+		"margin_right",
+		"margin_top",
+		"margin_bottom",
+		"padding_left",
+		"padding_right",
+		"padding_top",
+		"padding_bottom",
+		"min_width",
+		"min_height",
+		"on_load",
+		"border_right",
+		"border_top",
+		"border_bottom",
+		"border_left",
 	};
 	
 	// Pad numeric funcs.

@@ -10,11 +10,12 @@ const zlib = require('zlib');
 
 // ---------------------------------------------------------
 // Request object.
-
 /*  @docs 
  *  @nav: Backend
+ *  @chapter: Stream
  *  @title: Request
  *  @description: The request object.
+ *  @deprecated: true
  */
 class Request {
 
@@ -145,6 +146,7 @@ class Request {
                         key = "";
                         value = "";
                         is_key = true;
+                        continue;
                     }
                     if (is_key) {
                         key += c;

@@ -4,3 +4,4 @@
  */
 
 const vweb = {};
+vweb.internal = {};

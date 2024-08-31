@@ -31,7 +31,7 @@ vweb.compression.compress = function(data, options = {level: 9}) {
 /*  @docs:
     @nav: Frontend
     @chapter: Compression
-    @title: Compress
+    @title: Decompress
     @desc: Decompress data.
     @param: 
         @name: data

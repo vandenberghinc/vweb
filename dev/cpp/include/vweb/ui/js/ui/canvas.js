@@ -100,7 +100,7 @@ class CanvasElement extends CreateVElementClass({
      *	} 
      *	@parameter: {
      *		@name: tension
-     *		@description: The smoothness of the line, use `null` or `0` for a straight line and {>0.0, 2.0} for a smooth line.
+     *		@description: The smoothness of the line, use `null` or `0` for a straight line and {0.0, 2.0} for a smooth line.
      *	} 
      *	@parameter: {
      *		@name: color

@@ -48,9 +48,10 @@ vweb.utils.is_even = function(number) {
 
 // Is mobile device.
 /* 	@docs:
- * 	@nav: Frontend
- *	@title: Is Mobile
- *	@desc: Check if the user agent is a mobile device.
+   	@nav: Frontend
+   	@chapter: Utils
+  	@title: Is Mobile
+  	@desc: Check if the user agent is a mobile device.
  */
 vweb.utils.is_mobile = function() {
 	return (
@@ -66,14 +67,15 @@ vweb.utils.is_mobile = function() {
 
 // Make immutable.
 /* 	@docs:
- * 	@nav: Frontend
- *	@title: Make Immutable
- *	@desc: 
- * 		Make all objects of an array or object immutable. All nested objects will also be made immutable recursively.
- *	@param:
- *		@name: object
- *		@desc: The array or object to freeze.
- *		@type: array, object 
+ 	@nav: Frontend
+	@chapter: Utils
+  	@title: Make Immutable
+  	@desc: 
+   		Make all objects of an array or object immutable. All nested objects will also be made immutable recursively.
+  	@param:
+  		@name: object
+  		@desc: The array or object to freeze.
+  		@type: array, object 
  */
 vweb.utils.make_immutable = (object) => {
 	if (Array.isArray(object)) {
@@ -92,6 +94,65 @@ vweb.utils.make_immutable = (object) => {
 			}
 		})
 	}
+}
+
+// Check if an element is a direct child of an element.
+/* 	@docs:
+   	@nav: Frontend
+	@chapter: Utils
+  	@title: Is child
+  	@desc: 
+   		Check if an element is a direct child of an element or the parent element itself.
+  	@param:
+  		@name: parent
+  		@desc: The parent element to test.
+  		@type: Node, Element
+  	@param:
+  		@name: target
+  		@desc: The target element to test.
+  		@type: Node, Element
+ */
+vweb.utils.is_child = (parent, target) => {
+	for (let i = 0; i < parent.children.length; i++) {
+		if (target === parent.children[i]) {
+			return true;
+		}
+	}
+	return false;
+}
+
+// Check if an element is a nested child of an element.
+/* 	@docs:
+   	@nav: Frontend
+	@chapter: Utils
+  	@title: Is child recursively
+  	@desc: 
+   		Check if an element is a recursively nested child of an element or the parent element itself.
+  	@param:
+  		@name: parent
+  		@desc: The parent element to test.
+  		@type: Node, Element
+  	@param:
+  		@name: target
+  		@desc: The target element to test.
+  		@type: Node, Element
+  	@param:
+  		@name: stop_node
+  		@desc: A node at which to stop checking if target is a parent of the current element.
+  		@type: Node, Element
+ */
+vweb.utils.is_nested_child = (parent, target, stop_node = null) => {
+	let e = target;
+	while (e != null) {
+		if (e === parent) {
+			return true;
+		}
+		else if (e === stop_node) {
+			return false;
+		}
+		e = e.parentElement;
+	}
+	return false;
 }
 
 // Equals.
@@ -207,6 +268,11 @@ vweb.utils.url_param = function(name, def = null) {
 	if (param == null || param == "") {
 		return def;
 	}
+	switch (param) {
+		case "true": case "True": case "TRUE": return true;
+		case "false": case "False": case "FALSE": return false;
+		case "null": return null;
+	}
 	return param;
 }
 
@@ -253,7 +319,152 @@ vweb.utils.hex_brightness = function(color) {
 	return brightness;
 }
 
+// Perform a deep copy on any type, except it does not support classes, only primitive objects.
+/*  @docs:
+	@nav: Frontend
+	@chapter: Utils
+    @title: Deep copy
+    @desc: Perform a deep copy on any type, it does not support classes, only primitive objects.
+ */
+vweb.utils.deep_copy = (obj) => {
+    if (Array.isArray(obj)) {
+        const copy = [];
+        obj.iterate((item) => {
+            copy.append(vweb.utils.deep_copy(item));
+        })
+        return copy;
+    }
+    else if (obj !== null && obj instanceof String) {
+        return new String(obj.toString());
+    }
+    else if (obj !== null && typeof obj === "object") {
+        const copy = {};
+        const keys = Object.keys(obj);
+        const values = Object.values(obj);
+        for (let i = 0; i < keys.length; i++) {
+            copy[keys[i]] = vweb.utils.deep_copy(values[i]);
+        }
+        return copy;
+    }
+    else {
+        return obj;
+    }
+}
+
 // Request.
+vweb.utils.request = function({
+	method = "GET",			// method.
+	url = null,				// url or endpoint.
+	data = null,			// data or params.
+	json = true, 			// json response.
+	credentials = "same-origin", // add credentials either "include", "same-origin", "omit".
+	// async = true,
+	headers = {},
+}) {
+
+	// Set headers.
+	// Host and User-Agent headers are restricted and set by the browser itself.
+	if (json && data !== null && headers['Content-Type'] == null) {
+		headers['Content-Type'] = 'application/json';
+	}
+
+	// Handle data.
+	if (data !== null && typeof data === "object") {
+
+		// Query.
+		if (method === "GET" || method === "get") {
+			url += "?" + new URLSearchParams(data).toString();;
+			data = undefined;
+		}
+
+		// Body.
+		else {
+
+			// Stringify.
+			data = JSON.stringify(data);
+		}
+	}
+	
+	// Define options.
+	const options = {
+		method,
+		credentials,
+		headers,
+		body: data,
+		// async,
+	};
+
+	return new Promise((resolve, reject) => {
+		fetch(url, options)
+			.then(response => {
+
+				// Handle error code.
+				if (!response.ok) {
+
+					// Parse as json.
+					if (json) {
+						const clone = response.clone();
+						response.json().then(data => {
+							if (data.status === undefined) {
+								data.status = response.status;
+							}
+							reject(data);
+						}).catch(err => {
+							clone.text()
+							.then(data => {
+								reject({
+									error: data,
+									status: response.status
+								});
+							})
+							.catch(text_err => {
+								reject({
+									error: err,
+									status: response.status
+								});
+							})
+						});
+					}
+
+					// Reject.
+					else {
+						reject({
+							error: response.statusText,
+							status: response.status
+						});
+					}
+					return; // stop.
+				}
+
+				// Successfull response.
+				if (json) {
+					response.json().then(data => {
+						resolve(data, response.status);
+					}).catch(err => {
+						console.log("Response:", response.text())
+						reject({
+							error: 'Failed to parse JSON response: ' + err.message,
+							status: response.status
+						});
+					});
+				} else {
+					response.text().then(data => {
+						resolve(data, response.status);
+					}).catch(err => {
+						console.log("Response:", response.text())
+						reject({
+							error: 'Failed to parse text response: ' + err.message,
+							status: response.status
+						});
+					});
+				}
+			})
+			.catch(error => {
+				reject({ error: error.message }); // Reject with error message if fetch fails
+			});
+	});
+}
+/*
 vweb.utils.request = function({
 	method = "GET",			// method.
 	url = null,				// url or endpoint.
@@ -296,6 +507,7 @@ vweb.utils.request = function({
 		})
 	});
 }
+*/
 // vweb.utils.request = function({
 // 	method = "GET",
 // 	url = null,
@@ -337,9 +549,15 @@ vweb.utils.request = function({
 // 	})
 // }
 
+
+
 // On content loaded.
-vweb.utils.on_load = function(func) {
-	document.addEventListener("DOMContentLoaded", async () => {
+vweb.utils.on_load = async function(func) {
+	// document.addEventListener("DOMContentLoaded", async () => {
+		const splash = document.getElementById("__vweb_splash_screen");
+		if (splash != null) {
+			splash.remove();
+		}
 		let e = func();
 		if (e instanceof Promise) {
 			try {
@@ -352,11 +570,35 @@ vweb.utils.on_load = function(func) {
 		if (e != null) {
 			document.body.appendChild(e);
 		}
-	});
+	// });
 }
 
 // Convert a unix timestamp in seconds or ms to the user's date format.
-vweb.utils.unix_to_date = function(unix, mseconds = false) {
+vweb.utils.unix_to_date = function(unix, mseconds = null) {
+
+	// Guess msec or sec.
+	if (mseconds === null) {
+	  
+	    // As of now, Unix time in milliseconds is 13 digits and in seconds is 10 digits
+	    const str = unix.toString();
+	    if (str.length === 13) {
+	        mseconds = true;
+	    } else if (str.length === 10) {
+	        mseconds = false;
+	    } else {
+	        // Future-proofing: When second-based timestamps eventually reach 11 digits
+	        if (str.length > 10 && str.length < 13) {
+	            // Check if adding three zeroes (to simulate milliseconds) results in a plausible future date
+	            // This is a rough estimation and might not be accurate
+	            const futureCheck = new Date(parseInt(str + "000", 10));
+	            if (futureCheck.getFullYear() > new Date().getFullYear() && futureCheck.getFullYear() < 3000) {
+	                mseconds = false;
+	            }
+	        }
+	    }
+	}
+
+	// Format.
 	const date = new Date(mseconds ? unix : unix * 1000);
 	const lang = navigator.language || navigator.userLanguage;
 	const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -380,55 +622,56 @@ vweb.utils.unix_to_date = function(unix, mseconds = false) {
 
 // Fuzzy search.
 /* 	@docs:
- * 	@nav: Frontend
- * 	@title: Fuzzy Search
- * 	@description:
- *		Perform a fuzzy similairity match between a query and an array of targets.
- *	@type: number
- * 	@return:
- *		Returns an array with the targets sorted from best match to lowest match, unless parameter `get_matches` is enabled.
- * 	@param:
- * 		@name: query
- * 		@description: The search query.
- * 		@type: string
- * 	@param:
- * 		@name: targets
- * 		@description: 
- *			The target with target strings.
- *			When the nested items are objects then the parameter `key` should be defined to retrieve the query string.
- *			When the nested items are arrays then the first value of the array will be used as the query string.
- * 		@type: array[string, object, array]
- * 	@param:
- * 		@name: limit
- * 		@description: Limit the number of results. Define the limit as `null` or `-1` to set no limit.
- * 		@type: number
- * 	@param:
- * 		@name: case_match
- * 		@description:
- *			When the `case_match` flag is enabled the similairity match is capital sensitive.
- * 		@type: boolean
- * 	@param:
- * 		@name: allow_exceeding_chars
- * 		@description: 
- *			Allow matches where the single character count of the search query exceeds that of the single character count of the target.
- *			So when the query is "aa" and the target is "a" then no match will be given since the "a" count of the target (2) is higher than the "a" count of the query (1).
- * 		@type: boolean
- * 	@param:
- * 		@name: get_matches
- * 		@description:
- *			When the `get_matches` flag is enabled the function returns an array with nested arrays containing the similairity match `[similairity <number>, <target>]`.
- * 		@type: boolean
- * 	@param:
- * 		@name: key
- * 		@description: The key for the query string when the array's target items are objects. The key may also be an array with keys to use the best match of the key's value.
- * 		@type: string, array[string]
- * 	@param:
- * 		@name: nested_key
- * 		@description:
- *			When the target items are objects and the object may have nested children that also should be searched, then the `nested_key` parameter can be defined to define the key used for the nested children.
- *			The value for the nested key should also be an array of objects and use the same structure for parameter `key`, otherwise it will cause undefined behaviour.
- *			The nested key will be ignored if the nested key does not exist in a target object.
- * 		@type: string
+ 	@nav: Frontend
+	@chapter: Utils
+   	@title: Fuzzy Search
+   	@description:
+  		Perform a fuzzy similairity match between a query and an array of targets.
+  	@type: number
+   	@return:
+  		Returns an array with the targets sorted from best match to lowest match, unless parameter `get_matches` is enabled.
+   	@param:
+   		@name: query
+   		@description: The search query.
+   		@type: string
+   	@param:
+   		@name: targets
+   		@description: 
+  			The target with target strings.
+  			When the nested items are objects then the parameter `key` should be defined to retrieve the query string.
+  			When the nested items are arrays then the first value of the array will be used as the query string.
+   		@type: array[string, object, array]
+   	@param:
+   		@name: limit
+   		@description: Limit the number of results. Define the limit as `null` or `-1` to set no limit.
+   		@type: number
+   	@param:
+   		@name: case_match
+   		@description:
+  			When the `case_match` flag is enabled the similairity match is capital sensitive.
+   		@type: boolean
+   	@param:
+   		@name: allow_exceeding_chars
+   		@description: 
+  			Allow matches where the single character count of the search query exceeds that of the single character count of the target.
+  			So when the query is "aa" and the target is "a" then no match will be given since the "a" count of the target (2) is higher than the "a" count of the query (1).
+   		@type: boolean
+   	@param:
+   		@name: get_matches
+   		@description:
+  			When the `get_matches` flag is enabled the function returns an array with nested arrays containing the similairity match `[similairity <number>, <target>]`.
+   		@type: boolean
+   	@param:
+   		@name: key
+   		@description: The key for the query string when the array's target items are objects. The key may also be an array with keys to use the best match of the key's value.
+   		@type: string, array[string]
+   	@param:
+   		@name: nested_key
+   		@description:
+  			When the target items are objects and the object may have nested children that also should be searched, then the `nested_key` parameter can be defined to define the key used for the nested children.
+  			The value for the nested key should also be an array of objects and use the same structure for parameter `key`, otherwise it will cause undefined behaviour.
+  			The nested key will be ignored if the nested key does not exist in a target object.
+   		@type: string
  */
 vweb.utils.fuzzy_search = ({
 	query, 
@@ -455,55 +698,56 @@ vweb.utils.fuzzy_search = ({
 	if (case_match === false) { query = query.toLowerCase(); }
 
 	// Calculate the similairities.
-	const calc_sims = (targets = []) => {
-		for (let i = 0; i < targets.length; i++) {
-			let match;
-			if (is_array) {
-				if (targets[i] == null) { continue; }
-				match = vweb.utils.fuzzy_match(
-					query, 
-					case_match ? targets[i] : targets[i].toLowerCase(),
-					allow_exceeding_chars
-				);
-			} else if (is_obj) {
-				const target = targets[i];
-				if (is_key_array) {
-					let min_match = null;
-					for (let k = 0; k < key.length; k++) {
-						if (target[key[k]] == null) { continue; }
-						match = vweb.utils.fuzzy_match(
-							query, 
-							case_match ? target[key[k]] : target[key[k]].toLowerCase(),
-							allow_exceeding_chars
-						);
-						if (match != null && (min_match === null || match < min_match)) {
-							min_match = match;
-						}
-					}
-					match = min_match;
-				} else {
-					if (target[key] == null) { continue; }
-					match = vweb.utils.fuzzy_match(
-						query,
-						case_match ? target[key] : target[key].toLowerCase(),
-						allow_exceeding_chars
-					);
-				}
-				if (nested_key !== null && target[nested_key] != null) {
-					calc_sims(target[nested_key]);
-				}
-			} else {
-				match = vweb.utils.fuzzy_match(
-					query,
-					case_match ? targets[i][0] : targets[i][0].toLowerCase(),
-					allow_exceeding_chars
-				);
-			}
-			if (match !== null) {
-				results.push([match, targets[i]]);
-			}
-		}
-	}
+    const calc_sims = (targets = []) => {
+        for (let i = 0; i < targets.length; i++) {
+            let match;
+            if (is_array) {
+                match = vweb.utils.fuzzy_match(
+                    query,
+                    case_match ? targets[i][0] : targets[i][0].toLowerCase(),
+                    allow_exceeding_chars
+                );
+                
+            } else if (is_obj) {
+                const target = targets[i];
+                if (is_key_array) {
+                    let min_match = null;
+                    for (let k = 0; k < key.length; k++) {
+                        if (target[key[k]] == null) { continue; }
+                        match = vweb.utils.fuzzy_match(
+                            query, 
+                            case_match ? target[key[k]] : target[key[k]].toLowerCase(),
+                            allow_exceeding_chars
+                        );
+                        if (match != null && (min_match === null || match < min_match)) {
+                            min_match = match;
+                        }
+                    }
+                    match = min_match;
+                } else {
+                    if (target[key] == null) { continue; }
+                    match = vweb.utils.fuzzy_match(
+                        query,
+                        case_match ? target[key] : target[key].toLowerCase(),
+                        allow_exceeding_chars
+                    );
+                }
+                if (nested_key !== null && target[nested_key] != null) {
+                    calc_sims(target[nested_key]);
+                }
+            } else {
+                if (targets[i] == null) { continue; }
+                match = vweb.utils.fuzzy_match(
+                    query, 
+                    case_match ? targets[i] : targets[i].toLowerCase(),
+                    allow_exceeding_chars
+                );
+            }
+            if (match !== null) {
+                results.push([match, targets[i]]);
+            }
+        }
+    }
 
 	// Calculate the similairities.
 	calc_sims(targets);
@@ -532,28 +776,29 @@ vweb.utils.fuzzy_search = ({
 // Fuzzy match.
 // Inspired by https://github.com/farzher/fuzzysort/blob/master/fuzzysort.js#L450.
 /* 	@docs:
- * 	@nav: Frontend
- * 	@title: Fuzzy Match
- * 	@description:
- *		Perform a fuzzy similairity match between a query and a target.
- *	@type: number
- * 	@return:
- *		Returns a floating number indicating the similairity a lower value represents a better match.
- * 	@param:
- * 		@name: search
- * 		@description: The search query.
- * 		@type: string
- * 	@param:
- * 		@name: target
- * 		@description: The target string.
- * 		@type: string
- * 	@param:
- * 		@name: allow_exceeding_chars
- * 		@description: 
- *			Allow matches where the single character count of the search query exceeds that of the single character count of the target.
- *			So when the query is "aa" and the target is "a" then no match will be given since the "a" count of the target (2) is higher than the "a" count of the query (1).
- *			The function returns `null` when this flag is enabled and detected.
- * 		@type: boolean
+   	@nav: Frontend
+	@chapter: Utils
+   	@title: Fuzzy Match
+   	@description:
+  		Perform a fuzzy similairity match between a query and a target.
+  	@type: number
+   	@return:
+  		Returns a floating number indicating the similairity a lower value represents a better match.
+   	@param:
+   		@name: search
+   		@description: The search query.
+   		@type: string
+   	@param:
+   		@name: target
+   		@description: The target string.
+   		@type: string
+   	@param:
+   		@name: allow_exceeding_chars
+   		@description: 
+  			Allow matches where the single character count of the search query exceeds that of the single character count of the target.
+  			So when the query is "aa" and the target is "a" then no match will be given since the "a" count of the target (2) is higher than the "a" count of the query (1).
+  			The function returns `null` when this flag is enabled and detected.
+   		@type: boolean
  */
 vweb.utils.fuzzy_match = (search, target, allow_exceeding_chars = true) => {
 
@@ -765,4 +1010,13 @@ vweb.utils.fuzzy_match = (search, target, allow_exceeding_chars = true) => {
         // prepared._indexes.len = matchesBestLen
         return score
     }
+}
+
+// Debounce.
+vweb.utils.debounce = (delay, func) => {
+    let timeout;
+    return function(...args) {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => func.apply(this, args), delay);
+    };
 }

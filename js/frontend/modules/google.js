@@ -16,7 +16,8 @@ vweb.google.id = "{{GOOGLE_TAG}}";
     @desc: Enable google analytics tracking
  */
 vweb.google.enable_tracking = function() {
-	document.cookie = "ga-opt-out=false; Path=/; SameSite=None;";
+	// document.cookie = "ga-opt-out=false; Path=/; SameSite=None;";
+    delete window[`ga-disable-${vweb.google.id}`];
 }
 
 // Disable tracking cookies.
@@ -28,13 +29,21 @@ vweb.google.enable_tracking = function() {
     @desc: Disable google analytics tracking
  */
 vweb.google.disable_tracking = function() {
-	document.cookie = "ga-opt-out=true; Path=/; SameSite=None;";
+	// document.cookie = "ga-opt-out=true; Path=/; SameSite=None;";
+    window[`ga-disable-${vweb.google.id}`] = true;
 }
 
 // Auto initialize.
-if (vweb.google.id != null && vweb.google.id != "") {
-	window.dataLayer = window.dataLayer || [];
-	function gtag(){dataLayer.push(arguments);}
-	gtag('js', new Date());
-	gtag('config', vweb.google.id);
-}
+// vweb.google._initialize = function() {
+    if (vweb.google.id != null && vweb.google.id != "") {
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', vweb.google.id);
+        // if (vweb.cookies.is_accepted()) {
+        //     vweb.google.enable_tracking();
+        // } else {
+        //     vweb.google.disable_tracking();
+        // }
+    }
+// }

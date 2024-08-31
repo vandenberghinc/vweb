@@ -6847,11 +6847,11 @@ function CreateVElementClass({
             return this;
         }
 
-        // Specifies whether an SVG <mask> element is treated as a luminance mask or as an alpha mask.
+        // Specifies whether an SVG \<mask> element is treated as a luminance mask or as an alpha mask.
         /*	@docs: {
          *	@title: Mask type
          *	@description: 
-         *		Specifies whether an SVG <mask> element is treated as a luminance mask or as an alpha mask.
+         *		Specifies whether an SVG \<mask> element is treated as a luminance mask or as an alpha mask.
          *		The equivalent of CSS attribute `maskType`.
          *		
          *		Returns the attribute value when parameter `value` is `null`.
@@ -9776,11 +9776,11 @@ function CreateVElementClass({
         	return this;
         }
 
-        // Specifies whether the <form> or the <input> element should have autocomplete enabled.
+        // Specifies whether the \<form> or the \<input> element should have autocomplete enabled.
         /*	@docs: {
          *	@title: Auto complete
          *	@description: 
-         *		Specifies whether the <form> or the <input> element should have autocomplete enabled.
+         *		Specifies whether the \<form> or the \<input> element should have autocomplete enabled.
          *		The equivalent of HTML attribute `autocomplete`.
          *		
          *		Returns the attribute value when parameter `value` is `null`.
@@ -9864,11 +9864,11 @@ function CreateVElementClass({
         	return this;
         }
 
-        // Specifies that an <input> element should be pre-selected when the page loads (for type="checkbox" or type="radio").
+        // Specifies that an \<input> element should be pre-selected when the page loads (for type="checkbox" or type="radio").
         /*	@docs: {
          *	@title: Checked
          *	@description: 
-         *		Specifies that an <input> element should be pre-selected when the page loads (for type="checkbox" or type="radio").
+         *		Specifies that an \<input> element should be pre-selected when the page loads (for type="checkbox" or type="radio").
          *		The equivalent of HTML attribute `checked`.
          *		
          *		Returns the attribute value when parameter `value` is `null`.
@@ -10567,11 +10567,11 @@ function CreateVElementClass({
         	return this;
         }
 
-        // Refers to a <datalist> element that contains pre-defined options for an <input> element.
+        // Refers to a \<datalist> element that contains pre-defined options for an \<input> element.
         /*	@docs: {
          *	@title: List
          *	@description: 
-         *		Refers to a <datalist> element that contains pre-defined options for an <input> element.
+         *		Refers to a \<datalist> element that contains pre-defined options for an \<input> element.
          *		The equivalent of HTML attribute `list`.
          *		
          *		Returns the attribute value when parameter `value` is `null`.
@@ -10845,11 +10845,11 @@ function CreateVElementClass({
         	return this;
         }
 
-        // Specifies a regular expression that an <input> element's value is checked against.
+        // Specifies a regular expression that an \<input> element's value is checked against.
         /*	@docs: {
          *	@title: Pattern
          *	@description: 
-         *		Specifies a regular expression that an <input> element's value is checked against.
+         *		Specifies a regular expression that an \<input> element's value is checked against.
          *		The equivalent of HTML attribute `pattern`.
          *		
          *		Returns the attribute value when parameter `value` is `null`.
@@ -11065,11 +11065,11 @@ function CreateVElementClass({
         	return this;
         }
 
-        // Enables an extra set of restrictions for the content in an <iframe>.
+        // Enables an extra set of restrictions for the content in an \<iframe>.
         /*	@docs: {
          *	@title: Sandbox
          *	@description: 
-         *		Enables an extra set of restrictions for the content in an <iframe>.
+         *		Enables an extra set of restrictions for the content in an \<iframe>.
          *		The equivalent of HTML attribute `sandbox`.
          *		
          *		Returns the attribute value when parameter `value` is `null`.
@@ -11153,11 +11153,11 @@ function CreateVElementClass({
         	return this;
         }
 
-        // Specifies the width, in characters (for <input>) or specifies the number of visible options (for <select>).
+        // Specifies the width, in characters (for \<input>) or specifies the number of visible options (for \<select>).
         /*	@docs: {
          *	@title: Size
          *	@description: 
-         *		Specifies the width, in characters (for <input>) or specifies the number of visible options (for <select>).
+         *		Specifies the width, in characters (for \<input>) or specifies the number of visible options (for \<select>).
          *		The equivalent of HTML attribute `size`.
          *		
          *		Returns the attribute value when parameter `value` is `null`.
@@ -11263,11 +11263,11 @@ function CreateVElementClass({
         	return this;
         }
 
-        // Specifies the HTML content of the page to show in the <iframe>.
+        // Specifies the HTML content of the page to show in the \<iframe>.
         /*	@docs: {
          *	@title: Src doc
          *	@description: 
-         *		Specifies the HTML content of the page to show in the <iframe>.
+         *		Specifies the HTML content of the page to show in the \<iframe>.
          *		The equivalent of HTML attribute `srcdoc`.
          *		
          *		Returns the attribute value when parameter `value` is `null`.
@@ -12098,11 +12098,11 @@ function CreateVElementClass({
         	return this;
         }
 
-        // Fires when the user writes something in a search field (for <input="search">).
+        // Fires when the user writes something in a search field (for \<input="search">).
         /*	@docs: {
          *	@title: On search
          *	@description: 
-         *		Fires when the user writes something in a search field (for <input="search">).
+         *		Fires when the user writes something in a search field (for \<input="search">).
          *		The equivalent of HTML attribute `onsearch`.
          *		
          *		The first parameter of the callback is the `Element` object.
@@ -12789,11 +12789,11 @@ function CreateVElementClass({
         	return this;
         }
 
-        // Script to be run when the cue changes in a <track> element.
+        // Script to be run when the cue changes in a \<track> element.
         /*	@docs: {
          *	@title: On cue change
          *	@description: 
-         *		Script to be run when the cue changes in a <track> element.
+         *		Script to be run when the cue changes in a \<track> element.
          *		The equivalent of HTML attribute `oncuechange`.
          *		
          *		The first parameter of the callback is the `Element` object.
@@ -13289,11 +13289,11 @@ function CreateVElementClass({
         	return this;
         }
 
-        // Fires when the user opens or closes the <details> element.
+        // Fires when the user opens or closes the \<details> element.
         /*	@docs: {
          *	@title: On toggle
          *	@description: 
-         *		Fires when the user opens or closes the <details> element.
+         *		Fires when the user opens or closes the \<details> element.
          *		The equivalent of HTML attribute `ontoggle`.
          *		
          *		The first parameter of the callback is the `Element` object.
