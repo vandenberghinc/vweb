@@ -38,15 +38,88 @@ class Collection {
 
     // Static attributes.
     static chunk_size = 1024 * 1024 * 4; // 4MB chunks, lower is better for frequent updates.
+    static constructor_scheme = {
+        name: "string",
+        uid_based: "boolean",
+        ttl: {type: "number", default: null},
+        indexes: {
+            type: "array",
+            default: [],
+            value_scheme: {
+                type: ["string", "object"],
+                scheme: {
+                    key: {type: "string", required: (data) => data.key == null && data.keys == null },
+                    keys: {
+                        type: ["string", "array"],
+                        required: (data) => data.key == null && data.keys == null, value_scheme: "string",
+                        postprocess: (keys) => typeof keys === "string" ? [keys] : keys,
+                    },
+                    options: {type: "object", required: false},
+                    commit_quorom: {type: "object", required: false},
+                },
+                postprocess: (info) => typeof info === "string" ? {key: info} : info,
+            },
+        },
+    }
 
     // Constructor.
-    constructor(collection, _uid_based = false) {
+    constructor(
+        name,
+        collection,
+        ttl = null,
+        indexes = [],
+        uid_based = false,
+    ) {
+
+        // Verify scheme.
+        ({indexes, ttl} = vlib.scheme.verify({
+            object: {
+                name,
+                indexes,
+                ttl,
+                uid_based,
+            },
+            check_unknown: true,
+            scheme: Collection.constructor_scheme,
+        }));
+
+        // Attributes.
+        this.name = name;
         this.col = collection;
-        this.uid_based = _uid_based;
-        if (_uid_based) {
+        this.uid_based = uid_based;
+        this.ttl = ttl;
+        this.ttl_enabled = typeof ttl === "number";
+
+        // Create default indexes.
+        if (uid_based) {
             this.col.createIndex({ _path: 1, _uid: 1 });
         } else {
             this.col.createIndex({_path: 1});
+        }
+
+        // Creat ttl index.
+        if (this.ttl_enabled) {
+            this.col.createIndex({_ttl_timestamp: 1}, {expireAfterSeconds: parseInt(this.ttl / 1000)});
+        }
+
+        // Create indexes.
+        if (Array.isArray(indexes) && indexes.length > 0) {
+            indexes.iterate(index => {
+                const keys = {};
+                if (typeof index.key === "string") {
+                    keys[index.key] = 1;
+                }
+                if (Array.isArray(index.keys)) {
+                    index.keys.iterate(key => {
+                        keys[key] = 1;
+                    })
+                }
+                this.create_index(
+                    keys,
+                    index.options,
+                    index.commit_quorom,
+                )
+            })
         }
     }
 
@@ -122,23 +195,35 @@ class Collection {
                     data: buffer.slice(i, i + Collection.chunk_size)
                 }
             }
+            const full_update = {
+                $set: update,
+            };
+            if (this.ttl_enabled) {
+                full_update["$setOnInsert"] = { _ttl_timestamp: new Date() };
+            }
             bulk_ops.push({
                 updateOne: {
                     filter: query,
-                    update: {$set: update},
+                    update: full_update,
                     upsert: true
                 }
             });
         }
 
         // Update reference.
+        const full_update = {
+            $set: {
+                chunk: -1,
+                chunks: new_chunk_count,
+            },
+        };
+        if (this.ttl_enabled) {
+            full_update["$setOnInsert"] = { _ttl_timestamp: new Date() };
+        }
         bulk_ops.push({
             updateOne: {
                 filter: ref_query,
-                update: {$set: {
-                    chunk: -1,
-                    chunks: new_chunk_count,
-                }},
+                update: full_update,
                 upsert: true
             }
         });
@@ -151,6 +236,26 @@ class Collection {
             ref_query.chunk = {$gte: new_chunk_count};
             await this.col.deleteMany(ref_query);
         }
+    }
+
+    // Create index.
+    /*  @docs:
+        @title: Create index
+        @description: Creates indexes on collections.
+        @return:
+            Returns the document that was found or `null` when no document is found.
+        @parameter:
+            @name: keys
+            @desc: The `keys` argument for the orignal mongodb `createIndex()` function.
+        @parameter:
+            @name: options
+            @desc: The `options` argument for the orignal mongodb `createIndex()` function.
+        @parameter:
+            @name: commitQuorum
+            @desc: The `commitQuorum` argument for the orignal mongodb `createIndex()` function.
+     */
+    create_index(keys, options, commitQuorum) {
+        return this.col.createIndex(keys, options, commitQuorum);
     }
 
     // Find.
@@ -353,6 +458,7 @@ class Collection {
                 delete content._id;
                 delete content._path;
                 delete content._uid;
+                delete content._ttl_timestamp;
                 set = content;
             } else {
                 set = {_content: content};
@@ -365,17 +471,39 @@ class Collection {
 
             // Save as single doc.
             else {
+
+                // Apply $set rules.
+                if (opts == null || (opts.set !== false && opts.auto_set !== false)) {
+                    set = {$set: set};
+                }
+
+                // Apply TTL.
+                if (this.ttl_enabled) {
+                    if (set["$setOnInsert"] === undefined) {
+                        set["$setOnInsert"] = {}
+                        set["$setOnInsert"]._ttl_timestamp = new Date();
+                    }
+                    else if (set["$setOnInsert"] !== null && typeof set["$setOnInsert"] === "object") {
+                        set["$setOnInsert"]._ttl_timestamp = new Date();
+                    } else {
+                        throw new Error(`Undefined behaviour: Unable to assign the $setOnInsert data for ttl control due to unexpected defined $setOnInsert type ${vlib.scheme.value_type(set["$setOnInsert"])}.`);
+                    }
+                }
+
+                // Bulk operation.
                 if (opts != null && opts.bulk) {
                     return {updateOne: {
                         filter: typeof path === "object" ? path : {_path: path},
-                        update: opts == null || opts.set !== false ? {$set: set} : set,
+                        update: set,
                         upsert: true,
                     }};
-                } else {
-                    // findOneAndUpdate()
+                }
+
+                // Normal operation.
+                else {
                     await this.col.updateOne(
                         typeof path === "object" ? path : {_path: path},
-                        opts == null || opts.set !== false ? {$set: set} : set,
+                        set,
                         {upsert: true},
                     );
                 }
@@ -856,9 +984,34 @@ class Collection {
         @desc: The native mongodb collection.
 */
 class UIDCollection {
-    constructor(collection) {
-        this._col = new Collection(collection, true);
+    constructor(
+        name,
+        collection,
+        indexes = [],
+        ttl,
+    ) {
+        this._col = new Collection(name, collection, indexes, ttl, true);
         this.col = this._col.col; // keep as `this.col` so user can interact with it in the same way as in `Collection`.
+    }
+
+    // Create index.
+    /*  @docs:
+        @title: Create index
+        @description: Creates indexes on collections.
+        @return:
+            Returns the document that was found or `null` when no document is found.
+        @parameter:
+            @name: keys
+            @desc: The `keys` argument for the orignal mongodb `createIndex()` function.
+        @parameter:
+            @name: options
+            @desc: The `options` argument for the orignal mongodb `createIndex()` function.
+        @parameter:
+            @name: commitQuorum
+            @desc: The `commitQuorum` argument for the orignal mongodb `createIndex()` function.
+     */
+    create_index(keys, options, commitQuorum) {
+        return this._col.createIndex(keys, options, commitQuorum);
     }
 
     // Find.
@@ -1307,11 +1460,35 @@ class UIDCollection {
     @param:
         @name: collections
         @desc: The normal collections, the collections will be accessable under `Database.$collection_name`.
-        @type: array[string]
+        @type: string[], CollectionObject[]
+        @attributes_type: CollectionObject
+        @attribute:
+            @name: name
+            @descr: The name of the collection.
+        @attribute:
+            @name: indexes
+            @descr: The document attribute names for which to create indexes. 
+            @type: string[]
+        @attribute:
+            @name: ttl
+            @descr: The time to live in milliseconds of every document in the collection. When the time to live has expired the document is automatically deleted.
+            @type: number
     @param:
         @name: uid_collections
         @desc: The uid collections, the uid collections will be accessable under `Database.$collection_name`.
-        @type: array[string]
+        @type: string[], CollectionObject[]
+        @attributes_type: CollectionObject
+        @attribute:
+            @name: name
+            @descr: The name of the collection.
+        @attribute:
+            @name: indexes
+            @descr: The document attribute names for which to create indexes. 
+            @type: string[]
+        @attribute:
+            @name: ttl
+            @descr: The time to live in milliseconds of every document in the collection. When the time to live has expired the document is automatically deleted.
+            @type: number
     @param:
         @name: preview
         @desc: Enable the database preview endpoint `/vweb/db/preview` (only available when `Server.production` is `false`).
@@ -1320,7 +1497,7 @@ class UIDCollection {
         @name: preview_ip_whitelist
         @desc: The allowed ip's to visit the database preview.
         @type: string
-    @parameter:
+    @param:
         @name: daemon
         @description:
             The optional settings for the service daemon. The service daemon can be disabled by passing value `false` to parameter `daemon`.
@@ -1358,6 +1535,39 @@ class UIDCollection {
         @ignore: true
  */
 class Database {
+
+    // Constructor scheme.
+    static constructor_scheme = {
+        uri: {type: "string", default: null},
+        source: {type: "string", default: null},
+        config: {type: "object", default: {}},
+        start_args: {type: "array", default: []},
+        client: {type: "object", default: {}},
+        collections: {type: "array", default: [], value_scheme: {
+            type: ["string", "object"],
+            preprocess: (info) => typeof info === "string" ? {name: info} : info,
+            scheme: {
+                name: Collection.constructor_scheme.name,
+                ttl: Collection.constructor_scheme.ttl,
+                indexes: Collection.constructor_scheme.indexes,
+            },
+        }},
+        uid_collections: {type: "array", default: [], value_scheme: {
+            type: ["string", "object"],
+            preprocess: (info) => typeof info === "string" ? {name: info} : info,
+            scheme: {
+                name: Collection.constructor_scheme.name,
+                ttl: Collection.constructor_scheme.ttl,
+                indexes: Collection.constructor_scheme.indexes,
+            },
+        }},
+        preview: {type: "boolean", default: true},
+        preview_ip_whitelist: {type: "array", default: []},
+        daemon: {type: ["object", "boolean"], default: {}},
+        _server: "object",
+    }
+
+    // Constructor.
     constructor({
         uri = null, //'mongodb://localhost:27017/main',
         source = null,
@@ -1374,20 +1584,7 @@ class Database {
 
         // Checks.
         if (_server.is_primary && uri == null) {
-            const response = vlib.scheme.verify({object: arguments[0], check_unknown: true, scheme: {
-                uri: {type: "string", default: null},
-                source: {type: "string", default: null},
-                config: {type: "object", default: {}},
-                start_args: {type: "array", default: []},
-                client: {type: "object", default: {}},
-                collections: {type: "array", default: []},
-                uid_collections: {type: "array", default: []},
-                preview: {type: "boolean", default: true},
-                preview_ip_whitelist: {type: "array", default: []},
-                daemon: {type: ["object", "boolean"], default: {}},
-                _server: "object",
-            }});
-            ({uri, config, start_args, config, client} = response);
+            ({uri, config, start_args, config, client} = vlib.scheme.verify({object: arguments[0], check_unknown: true, scheme: Database.constructor_scheme}));
         }
 
         // Arguments.
@@ -2059,17 +2256,18 @@ class Database {
         await this.connect();
 
         // Create collections.
-        this._collections.iterate((name) => {
-            if (this[name] !== undefined) {
-                throw Error(`Unable to initialize database collection "${name}", this attribute name is already used.`);
+        this._collections.iterate((info) => {
+            if (this[info.name] !== undefined) {
+                throw Error(`Unable to initialize database collection "${info.name}", this attribute name is already used.`);
             }
-            this[name] = this.create_collection(name);
+            console.log(info)
+            this[info.name] = this.create_collection(info);
         })
-        this._uid_collections.iterate((name) => {
-            if (this[name] !== undefined) {
-                throw Error(`Unable to initialize database collection "${name}", this attribute name is already used.`);
+        this._uid_collections.iterate((info) => {
+            if (this[info.name] !== undefined) {
+                throw Error(`Unable to initialize database collection "${info.name}", this attribute name is already used.`);
             }
-            this[name] = this.create_uid_collection(name);
+            this[info.name] = this.create_uid_collection(info);
         })
     }
 
@@ -2083,16 +2281,28 @@ class Database {
         @title: Create Collection
         @desc: Create a database collection.
         @param:
-            @name: id
-            @desc: The id of the collection.
+            @name: name
+            @desc: The name of the collection.
             @type: string
      */
-    create_collection(id) {
-        if (id in this.collections) {
-            throw Error(`Collection "${id}" is already initialized.`)
+    create_collection({name, indexes = [], ttl = null}) {
+
+        // Set name by single string argument.
+        if (typeof arguments[0] === "string") {
+            name = arguments[0];
         }
-        const col = new Collection(this.db.collection(id));
-        this.collections[id] = col;
+
+        // Check collection.
+        if (name in this.collections) {
+            throw Error(`Collection "${name}" is already initialized.`)
+        }
+        const col = new Collection(
+            name,
+            this.db.collection(name),
+            ttl,
+            indexes,
+        );
+        this.collections[name] = col;
         return col;
     }
 
@@ -2101,16 +2311,28 @@ class Database {
         @title: Create UID Based Collection
         @desc: Create a UID based database collection.
         @param:
-            @name: id
-            @desc: The id of the collection.
+            @name: name
+            @desc: The name of the collection.
             @type: string
      */
-    create_uid_collection(id) {
-        if (id in this.collections) {
-            throw Error(`Collection "${id}" is already initialized.`)
+    create_uid_collection({name, indexes = [], ttl = null}) {
+
+        // Set name by single string argument.
+        if (typeof arguments[0] === "string") {
+            name = arguments[0];
         }
-        const col = new UIDCollection(this.db.collection(id));
-        this.collections[id] = col;
+
+        // Check collection.
+        if (name in this.collections) {
+            throw Error(`Collection "${name}" is already initialized.`)
+        }
+        const col = new UIDCollection(
+            name,
+            this.db.collection(name),
+            ttl,
+            indexes,
+        );
+        this.collections[name] = col;
         return col;
     }
 

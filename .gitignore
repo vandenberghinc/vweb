@@ -1,7 +1,6 @@
 .gitignore
-.vide
+.vrepo
 .npmignore
 .npmrc
 .DS_Store
 /demo
-

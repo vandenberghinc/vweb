@@ -137,7 +137,7 @@ const {FrontendError} = utils;
         @description:
             The mongodb database settings.
 
-            The parameter can be defined as a `string` type as the database uri, or as an object with parameters for the <Type>Database</Type> object.
+            The parameter can be defined as a `string` type as the database uri, or as an object with parameters for the <Link #Database>Database</Link> object.
 
             When parameter `Server.is_primary` is defined as `false`, the database should always be defined as the database uri `string`. Since the secondary node will connect with the primary node.
         @type: string, object
@@ -707,7 +707,11 @@ class Server {
             statics: {type: "array", default: []},
             is_primary: {type: "boolean", default: true},
             source: "string",
-            database: {type: ["string", "object", "boolean"], required: false},
+            database: {
+                type: ["string", "object", "boolean"],
+                required: false,
+                scheme: vlib.object.remove(Database.constructor_scheme, "_server", true),
+            },
             favicon: {type: "string", required: false},
             honey_pot_key: {type: "string", default: null},
             company: {
