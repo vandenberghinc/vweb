@@ -39,6 +39,7 @@ const Blacklist = require("./blacklist.js");
 const logger = require("./logger.js");
 const {FrontendError} = utils;
 
+
 // ---------------------------------------------------------
 // The server object.
 // @todo redirect to https on http also important for seo.
@@ -699,6 +700,41 @@ class Server {
         },
     }) {
 
+        // @debug
+        // Async hook for tracking active processes during stop().
+        // const async_resource_map = new Map();
+        // this.async_hook = require('async_hooks').createHook({
+        //     init(async_id, type, trigger_async_id, resource) {
+        //         const ignoredTypes = ['TickObject', 'PROMISE'];
+        //         if (ignoredTypes.includes(type)) {
+        //             return; // Skip logging for these async types
+        //         }
+
+        //         // Capture the stack trace of the function that initiated the async operation
+        //         const stack = new Error("SKIPAFTER").stack.split("SKIPAFTER")[1].trim();
+                
+        //         // Log async_id and initiating function call stack
+        //         // console.log(`Init async_id: ${async_id}`)
+        //         // console.log(`Init async_id: ${async_id}, type: ${type}, trigger: ${trigger_async_id}\nStack: ${stack}`);
+                
+        //         // Store the async resource and stack trace
+        //         async_resource_map.set(async_id, { type, stack });
+        //     },
+        //     destroy(async_id) {
+        //         // When an async resource is destroyed, remove it from the map
+        //         // console.log(`Destroy async_id: ${async_id}`);
+        //         async_resource_map.delete(async_id);
+        //     },
+        //     // before(async_id) {
+        //     //     console.log(`Before async_id: ${async_id}`);
+        //     // },
+        //     // after(async_id) {
+        //     //     console.log(`After async_id: ${async_id}`);
+        //     // },
+        // })
+        // this.async_hook.resource_map = async_resource_map;
+        // this.async_hook.enable();
+
         // Verify args.
         vlib.scheme.verify({object: arguments[0], check_unknown: true, scheme: {
             ip: "string",
@@ -975,8 +1011,8 @@ class Server {
             // }
             // logger.assign_paths(log_source.join("logs"), log_source.join("errors")); // no longer save to file since this should be handled by the service daemon.
             logger.log_level = this.log_level;
-            this.log = logger.log;
-            this.error = logger.error;
+            this.log = logger.log.bind(logger);
+            this.error = logger.error.bind(logger);
 
             // Initialize the service daemon.
             // Must be initialized before initializing the database.
@@ -1038,6 +1074,10 @@ class Server {
             this.keys = {};
         }
 
+        // Start callbacks.
+        this._on_start = [];
+        this._on_stop = [];
+
         /* @performance */ this.performance.end("constructor");
     }
 
@@ -1055,6 +1095,12 @@ class Server {
             content_type = "application/octet-stream";
         }
         return content_type;
+    }
+
+    // Set log level.
+    set_log_level(level) {
+        this.log_level = level;
+        logger.log_level = level;
     }
 
     // ---------------------------------------------------------
@@ -2567,6 +2613,7 @@ class Server {
         }
 
         // Master.
+        let forked = false;
         if (this.production && this.multiprocessing && libcluster.isMaster) {
 
             // Vars.
@@ -2643,6 +2690,7 @@ class Server {
 
         // Forked.
         else {
+            forked = true;
 
             // Set default port.
             let http_port, https_port
@@ -2704,7 +2752,28 @@ class Server {
             /* @performance */ this.performance.end("listen");
         }
 
+        // On start callbacks.
+        for (const callback of this._on_start) {
+            const res = callback({forked});
+            if (res instanceof Promise) {
+                await res;
+            }
+        }
+
         // /* @performance */ this.performance.dump();
+    }
+
+    /*  @docs:
+     *  @title: On start
+     *  @description:
+     *      Set an (async) callback which will be executed at the end of `server.start()`.
+     *      The callback may take arguments `({forked <boolean>})`.
+     *  @usage:
+     *      ...
+     *      server.on_start(({forked}) => console.log("Hello World!"));
+     */
+    on_start(callback) {
+        this._on_start.append(callback);
     }
 
     // Stop the server.
@@ -2717,7 +2786,20 @@ class Server {
      *      server.stop();
      */
     async stop() {
+        logger.log(0, "Stopping the server...");
+
+        // On start callbacks.
+        for (const callback of this._on_stop) {
+            const res = callback();
+            if (res instanceof Promise) {
+                await res;
+            }
+        }
+
+        // Stop rate limit.
         await this.rate_limit.stop();
+
+        // Stop sockets.
         if (this.https) {
             this.https.close();
         }
@@ -2727,6 +2809,27 @@ class Server {
         if (this.db) {
             this.db.close();
         }
+
+        // Your shutdown logic here
+        logger.log(0, "Stopped server.");
+        // setInterval(() => {
+        //     console.log("Active async resources:")
+        //     console.log(this.async_hook.resource_map)
+        // }, 5000)
+        // console.log('Active Handles:', process._getActiveHandles());
+        // console.log('Active Requests:', process._getActiveRequests());
+    }
+
+    /*  @docs:
+     *  @title: On stop
+     *  @description:
+     *      Set an (async) callback which will be executed at the start of `server.stop()`.
+     *  @usage:
+     *      ...
+     *      server.on_stop(() => console.log("Hello World!"));
+     */
+    on_stop(callback) {
+        this._on_stop.append(callback);
     }
 
     // Fetch status.

@@ -15,6 +15,7 @@ const {MongoClient, ObjectID} = require('mongodb');
 // ---------------------------------------------------------
 // Imports.
 
+const logger = require("./logger.js");
 const Status = require("./status.js");
 const {vlib} = require("./vinc.js");
 
@@ -466,7 +467,7 @@ class Collection {
 
             // Save chunked.
             if (opts != null && opts.chunked === true) {
-                this._save_chunked(path, set);
+                await this._save_chunked(path, set);
             }
 
             // Save as single doc.
@@ -575,7 +576,7 @@ class Collection {
 
     //         // Save chunked.
     //         if (opts != null && opts.chunked === true) {
-    //             this._save_chunked(path, set);
+    //             await this._save_chunked(path, set);
     //         }
 
     //         // Save as single doc.
@@ -2273,6 +2274,7 @@ class Database {
 
     // Close.
     async close() {
+        logger.log(0, "Database: Stopping the database.");
         await this.client.close();
     }
 

@@ -1130,7 +1130,20 @@ class Users {
         password,
         phone_number = "",
     }) {
-        // @todo verify params on all funcs.
+        
+        // Verify params.
+        vlib.scheme.verify({
+            object: arguments[0],
+            check_unknown: true,
+            scheme: {
+                first_name: "string",
+                last_name: "string",
+                username: "string",
+                email: "string",
+                password: "string",
+                phone_number: {type: "string", default: ""},
+            }
+        })
         
         // Check if username & email already exist.
         if (await this.username_exists(username)) {

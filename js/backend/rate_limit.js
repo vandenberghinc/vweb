@@ -177,7 +177,7 @@ class RateLimitServer {
 		await this.ws.start();
 
         // Clear caches once every 1h.
-        const clear_caches = () => {
+        this.clear_caches_interval = setInterval(() => {
         	const remove_after = Date.now() + (3600 * 1000);
         	for (const [group, map] of this.limits.entries()) {
         		for (const [ip, data] of map.entries()) {
@@ -186,13 +186,13 @@ class RateLimitServer {
         			}
         		}
         	}
-        	setTimeout(clear_caches, 3600 * 1 * 1000)
-        }
-        setTimeout(clear_caches, 3600 * 1 * 1000)
+        }, 3600 * 1 * 1000)
 	}
 
 	// Stop.
 	async stop() {
+		logger.log(0, "RateLimitServer: Stopping the rate limit server.");
+		clearInterval(this.clear_caches_interval);
 		if (this.ws) {
 			await this.ws.stop();
 			this.ws = undefined;
@@ -352,6 +352,7 @@ class RateLimitClient {
 
     // Stop.
 	async stop() {
+		logger.log(0, "RateLimitClient: Stopping the rate limit client.");
 		if (this.ws) {
 			await this.ws.disconnect();
 			this.ws = undefined;
