@@ -1,0 +1,20 @@
+{
+  "compilerOptions": {
+    "target": "ES2021",
+    "module": "es6",
+    "lib": ["ES2021", "DOM"],
+    "declaration": true,
+    "declarationDir": "./dist",
+    "outDir": "./dist",
+    // "rootDir": "./src",
+    "strict": true,
+    "esModuleInterop": true,
+    "allowJs": true,
+    "noImplicitAny": false,
+    "types": [
+      "modules/global_extensions.d.ts"
+    ],
+  },
+  "include": ["vweb.js", "modules/**/*", "ui/**/*"],
+  "exclude": ["ui/element.v1.ts", "uiX/", "./compile.js"]
+}

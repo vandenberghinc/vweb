@@ -1,0 +1,67 @@
+export = Stream;
+declare class Stream {
+    constructor(stream: any, headers: any, req?: null, res?: null);
+    s: any;
+    headers: any;
+    req: any;
+    res: any;
+    http2: boolean;
+    http1: boolean;
+    _ip: any;
+    _port: any;
+    _method: any;
+    _params: any;
+    _is_query_params: boolean;
+    _endpoint: any;
+    _query_string: any;
+    _cookies: {} | undefined;
+    _uid: any;
+    status_code: number | null;
+    finished: boolean;
+    res_cookies: any[];
+    res_headers: {};
+    body: string;
+    promise: Promise<any> | undefined;
+    _recv_body(): void;
+    _parse_endoint(): void;
+    _parse_params(): any;
+    _parse_cookies(name: any, request: any): null | undefined;
+    get ip(): any;
+    get port(): any;
+    set uid(value: any);
+    get uid(): any;
+    get method(): any;
+    get endpoint(): any;
+    get params(): any;
+    param(name: any, type?: null, def?: undefined): any;
+    get cookies(): {} | undefined;
+    get closed(): any;
+    get destroyed(): any;
+    send({ status, headers, body, data, compress }?: {
+        status?: number | undefined;
+        headers?: {} | undefined;
+        body?: null | undefined;
+        data?: null | undefined;
+        compress?: boolean | undefined;
+    }): void;
+    success({ status, headers, body, data, compress }?: {
+        status?: number | undefined;
+        headers?: {} | undefined;
+        body?: null | undefined;
+        data?: null | undefined;
+        compress?: boolean | undefined;
+    }): void;
+    error({ status, headers, body, data, compress }?: {
+        status?: number | undefined;
+        headers?: {} | undefined;
+        body?: null | undefined;
+        data?: null | undefined;
+        compress?: boolean | undefined;
+    }): void;
+    set_header(name: any, value: any): void;
+    set_headers(headers?: {}): null | undefined;
+    remove_header(...names: any[]): void;
+    remove_headers(...names: any[]): void;
+    set_cookie(cookie: any): this;
+    set_cookies(...cookies: any[]): this;
+}
